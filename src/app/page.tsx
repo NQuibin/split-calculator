@@ -1,101 +1,202 @@
-import Image from "next/image";
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
+type Item = {
+  cost: number;
+  discount: number;
+  tax: number;
+  splitBy: number;
+  total: number;
+};
+
+const formSchema = z.object({
+  cost: z.coerce
+    .number({ errorMap: () => ({ message: "Must be a positive value" }) })
+    .positive(),
+  discount: z.coerce.number().min(0),
+  tax: z.coerce.number().min(0),
+  splitBy: z.number().int().min(1),
+});
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [currentItems, setCurrentItems] = useState<Array<Item>>([]);
+  const [total, setTotal] = useState(0);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      cost: "" as unknown as number,
+      discount: "" as unknown as number,
+      tax: "" as unknown as number,
+      splitBy: 1,
+    },
+  });
+
+  const handleAddItem = (values: z.infer<typeof formSchema>) => {
+    const { cost, discount, tax, splitBy } = values;
+    const itemTotal = ((cost - discount) * (1 + tax / 100)) / splitBy;
+
+    const item: Item = {
+      cost,
+      discount,
+      tax,
+      splitBy,
+      total: itemTotal,
+    };
+
+    setTotal(total + itemTotal);
+    setCurrentItems([...currentItems, item]);
+
+    form.reset();
+  };
+
+  const handleRestart = () => {
+    form.reset();
+    setCurrentItems([]);
+    setTotal(0);
+  };
+
+  return (
+    <div className="p-5 max-w-lg mx-auto rounded-md sm:my-5 sm:border sm:border-solid">
+      <h1 className="mb-4 font-semibold text-xl">Split Calculator</h1>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleAddItem)}>
+          <FormField
+            control={form.control}
+            name="cost"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Cost</FormLabel>
+                <FormControl>
+                  <Input placeholder="0.00" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="discount"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Discount</FormLabel>
+                <FormControl>
+                  <Input placeholder="0.00" {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="tax"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Tax (%)</FormLabel>
+                <FormControl>
+                  <Input placeholder="0.00" {...field} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <Button
+            type="button"
+            className="mb-2"
+            onClick={() => {
+              form.setValue("tax", 13, {
+                shouldValidate: false,
+              });
+              form.setFocus("tax");
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+            13%
+          </Button>
+          <FormField
+            control={form.control}
+            name="splitBy"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Split By</FormLabel>
+                <FormControl>
+                  <Input placeholder="1" {...field} />
+                </FormControl>
+              </FormItem>
+            )}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <div className="flex gap-x-2 justify-end">
+            <Button
+              variant="destructive"
+              type="button"
+              className="mt-2 mb-4"
+              disabled={!currentItems.length}
+              onClick={handleRestart}
+            >
+              Restart
+            </Button>
+            <Button type="submit" className="mt-2 mb-4">
+              Add item
+            </Button>
+          </div>
+        </form>
+      </Form>
+
+      <div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableCell colSpan={4} className="font-semibold">
+                Total
+              </TableCell>
+              <TableCell className="font-semibold">
+                {total.toFixed(2)}
+              </TableCell>
+            </TableRow>
+          </TableHeader>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Cost</TableHead>
+              <TableHead>Discount</TableHead>
+              <TableHead>Tax (%)</TableHead>
+              <TableHead>Split By</TableHead>
+              <TableHead>Total ($)</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentItems.map((item, index) => (
+              <TableRow key={index}>
+                <TableCell>{item.cost}</TableCell>
+                <TableCell>{item.discount}</TableCell>
+                <TableCell>{item.tax}%</TableCell>
+                <TableCell>{item.splitBy}</TableCell>
+                <TableCell>{item.total.toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
