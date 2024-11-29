@@ -14,7 +14,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -38,7 +37,7 @@ const formSchema = z.object({
     .positive(),
   discount: z.coerce.number().min(0),
   tax: z.coerce.number().min(0),
-  splitBy: z.number().int().min(1),
+  splitBy: z.coerce.number().int().min(1),
 });
 
 export default function Home() {
@@ -92,7 +91,7 @@ export default function Home() {
               <FormItem className="mb-2">
                 <FormLabel>Cost</FormLabel>
                 <FormControl>
-                  <Input placeholder="0.00" {...field} />
+                  <Input placeholder="0.00" type="number" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -147,15 +146,6 @@ export default function Home() {
             )}
           />
           <div className="flex gap-x-2 justify-end">
-            <Button
-              variant="destructive"
-              type="button"
-              className="mt-2 mb-4"
-              disabled={!currentItems.length}
-              onClick={handleRestart}
-            >
-              Restart
-            </Button>
             <Button type="submit" className="mt-2 mb-4">
               Add item
             </Button>
@@ -188,7 +178,7 @@ export default function Home() {
             {currentItems.map((item, index) => (
               <TableRow key={index}>
                 <TableCell>{item.cost}</TableCell>
-                <TableCell>{item.discount}</TableCell>
+                <TableCell>{item.discount.toFixed(2)}</TableCell>
                 <TableCell>{item.tax}%</TableCell>
                 <TableCell>{item.splitBy}</TableCell>
                 <TableCell>{item.total.toFixed(2)}</TableCell>
@@ -196,6 +186,17 @@ export default function Home() {
             ))}
           </TableBody>
         </Table>
+        <div className="w-full flex justify-end">
+          <Button
+            variant="destructive"
+            type="button"
+            className="mt-4"
+            disabled={!currentItems.length}
+            onClick={handleRestart}
+          >
+            Restart
+          </Button>
+        </div>
       </div>
     </div>
   );
