@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  distDir: "split-calculator",
+  assetPrefix: "/split-calculator-assets",
 };
 
 export default nextConfig;
