@@ -91,7 +91,7 @@ export default function Home() {
               <FormItem className="mb-2">
                 <FormLabel>Cost</FormLabel>
                 <FormControl>
-                  <Input placeholder="0.00" type="number" {...field} />
+                  <Input type="number" placeholder="0.00" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -104,7 +104,7 @@ export default function Home() {
               <FormItem className="mb-2">
                 <FormLabel>Discount</FormLabel>
                 <FormControl>
-                  <Input placeholder="0.00" {...field} />
+                  <Input type="number" placeholder="0.00" {...field} />
                 </FormControl>
               </FormItem>
             )}
@@ -116,7 +116,7 @@ export default function Home() {
               <FormItem className="mb-2">
                 <FormLabel>Tax (%)</FormLabel>
                 <FormControl>
-                  <Input placeholder="0.00" {...field} />
+                  <Input type="number" placeholder="0.00" {...field} />
                 </FormControl>
               </FormItem>
             )}
@@ -140,7 +140,7 @@ export default function Home() {
               <FormItem className="mb-2">
                 <FormLabel>Split By</FormLabel>
                 <FormControl>
-                  <Input placeholder="1" {...field} />
+                  <Input type="number" placeholder="1" {...field} />
                 </FormControl>
               </FormItem>
             )}
