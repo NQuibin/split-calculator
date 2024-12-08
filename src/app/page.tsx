@@ -204,7 +204,7 @@ export default function Home() {
                 <TableCell>{item.total.toFixed(2)}</TableCell>
                 <TableCell>
                   <div
-                    className="cursor-pointer"
+                    className="flex justify-center cursor-pointer"
                     onClick={() => handleRemoveItem(index)}
                   >
                     <X size={16} />
