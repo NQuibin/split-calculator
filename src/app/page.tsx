@@ -22,6 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { X } from "lucide-react";
 
 type Item = {
   cost: number;
@@ -70,6 +71,16 @@ export default function Home() {
     setCurrentItems([...currentItems, item]);
 
     form.reset();
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const itemToBeRemoved = currentItems[index];
+    setTotal(total - itemToBeRemoved.total);
+
+    setCurrentItems([
+      ...currentItems.slice(0, index),
+      ...currentItems.slice(index + 1),
+    ]);
   };
 
   const handleRestart = () => {
@@ -125,9 +136,7 @@ export default function Home() {
             type="button"
             className="mb-2"
             onClick={() => {
-              form.setValue("tax", 13, {
-                shouldValidate: false,
-              });
+              form.setValue("tax", 13);
               form.setFocus("tax");
             }}
           >
@@ -145,6 +154,16 @@ export default function Home() {
               </FormItem>
             )}
           />
+          <Button
+            type="button"
+            className="mb-2"
+            onClick={() => {
+              form.setValue("splitBy", 2);
+              form.setFocus("splitBy");
+            }}
+          >
+            2
+          </Button>
           <div className="flex gap-x-2 justify-end">
             <Button type="submit" className="mt-2 mb-4">
               Add item
@@ -157,7 +176,7 @@ export default function Home() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableCell colSpan={4} className="font-semibold">
+              <TableCell colSpan={5} className="font-semibold">
                 Total
               </TableCell>
               <TableCell className="font-semibold">
@@ -172,6 +191,7 @@ export default function Home() {
               <TableHead>Tax (%)</TableHead>
               <TableHead>Split By</TableHead>
               <TableHead>Total ($)</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -182,6 +202,14 @@ export default function Home() {
                 <TableCell>{item.tax}%</TableCell>
                 <TableCell>{item.splitBy}</TableCell>
                 <TableCell>{item.total.toFixed(2)}</TableCell>
+                <TableCell>
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => handleRemoveItem(index)}
+                  >
+                    <X size={16} />
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

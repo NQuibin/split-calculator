@@ -16,6 +16,9 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Split Calculator",
   description: "Simple tool to determine the split of bought items.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
