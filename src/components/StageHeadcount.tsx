@@ -48,7 +48,7 @@ export function StageHeadcount({ initialPeople, initialNamePeople, onConfirm }: 
       <div className="flex items-center gap-2 text-brass">
         <Users className="h-5 w-5" strokeWidth={2.25} />
         <span className="font-display text-sm font-semibold tracking-wide uppercase">
-          Split Calc
+          Split Calculator
         </span>
       </div>
 

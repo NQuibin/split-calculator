@@ -21,7 +21,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Split Calc — split the receipt",
+  title: "Split Calculator — split the receipt",
   description: "Itemize any receipt — restaurant, grocery, or service — and split it fairly.",
 };
 
