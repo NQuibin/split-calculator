@@ -23,6 +23,9 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Split Calculator — split the receipt",
   description: "Itemize any receipt — restaurant, grocery, or service — and split it fairly.",
+  icons: {
+    icon: "/split-calculator-assets/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
