@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StageResults } from "@/components/StageResults";
 import { decodeSharePayload } from "@/lib/shareLink";
 import { getReceiptServerSnapshot, getReceiptSnapshot, subscribeReceipt } from "@/lib/storage";
@@ -16,9 +16,10 @@ function useHasHydrated(): boolean {
 
 export default function SharedReceiptPage() {
   const router = useRouter();
-  const { payload } = useParams<{ payload: string }>();
+  const searchParams = useSearchParams();
+  const payload = searchParams.get("d");
   const hasHydrated = useHasHydrated();
-  const decoded = useMemo(() => decodeSharePayload(payload), [payload]);
+  const decoded = useMemo(() => (payload ? decodeSharePayload(payload) : null), [payload]);
 
   const subscribe = useCallback(
     (callback: () => void) => (decoded ? subscribeReceipt(decoded.slug, callback) : () => {}),

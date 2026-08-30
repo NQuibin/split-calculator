@@ -127,7 +127,7 @@ export function StageResults({
     if (!shareSlug) return;
     const payload = encodeSharePayload({ slug: shareSlug, people, items, tax, tip });
     const basePath = window.location.pathname.replace(/\/r\/[^/]+$/, "");
-    navigator.clipboard.writeText(`${window.location.origin}${basePath}/s/${payload}`);
+    navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
