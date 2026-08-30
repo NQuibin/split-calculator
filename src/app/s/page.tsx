@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StageResults } from "@/components/StageResults";
 import { decodeSharePayload } from "@/lib/shareLink";
@@ -15,6 +15,14 @@ function useHasHydrated(): boolean {
 }
 
 export default function SharedReceiptPage() {
+  return (
+    <Suspense fallback={null}>
+      <SharedReceiptContent />
+    </Suspense>
+  );
+}
+
+function SharedReceiptContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const payload = searchParams.get("d");
