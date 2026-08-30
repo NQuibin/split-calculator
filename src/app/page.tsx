@@ -12,14 +12,18 @@ export default function Home() {
 
   function handleConfirm(people: Person[], namePeople: boolean) {
     const slug = generateSlug();
-    saveReceipt(slug, {
-      stage: "receipt",
-      people,
-      namePeople,
-      items: [],
-      tax: { mode: "percent", value: 0 },
-      tip: { mode: "percent", value: 0 },
-    });
+    saveReceipt(
+      slug,
+      {
+        stage: "receipt",
+        people,
+        namePeople,
+        items: [],
+        tax: { mode: "percent", value: 0 },
+        tip: { mode: "percent", value: 0 },
+      },
+      { silent: true },
+    );
     router.push(`/r/${slug}`);
   }
 
