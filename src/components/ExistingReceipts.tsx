@@ -2,10 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt as ReceiptIcon } from "lucide-react";
+import { Receipt as ReceiptIcon, Trash2 } from "lucide-react";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import {
+  deleteReceipt,
   getReceiptListServerSnapshot,
   getReceiptListSnapshot,
   subscribeReceiptList,
@@ -44,7 +45,7 @@ export function ExistingReceipts() {
         {receipts.map(({ slug, state }) => {
           const total = computeSplit(state.people, state.items, state.tax, state.tip).grandTotal;
           return (
-            <li key={slug}>
+            <li key={slug} className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => router.push(`/r/${slug}`)}
@@ -60,6 +61,14 @@ export function ExistingReceipts() {
                 <span className="font-numeric shrink-0 text-sm font-semibold text-ink">
                   {currency(total)}
                 </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteReceipt(slug)}
+                aria-label="Delete receipt"
+                className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={2.25} />
               </button>
             </li>
           );

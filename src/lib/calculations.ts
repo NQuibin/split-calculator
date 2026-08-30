@@ -19,8 +19,20 @@ export interface PersonBreakdown {
   lines: ItemLine[];
 }
 
+export interface ItemBreakdown {
+  itemId: string;
+  itemName: string;
+  cost: number;
+  discountAmount: number;
+  netCost: number;
+  taxAmount: number;
+  tipAmount: number;
+  total: number;
+}
+
 export interface SplitResult {
   people: PersonBreakdown[];
+  items: ItemBreakdown[];
   subtotal: number;
   taxTotal: number;
   tipTotal: number;
@@ -62,6 +74,19 @@ export function computeSplit(
         total: 0,
         lines: [],
       })),
+      items: items.map((item) => {
+        const net = netCost(item);
+        return {
+          itemId: item.id,
+          itemName: item.name,
+          cost: round2(item.cost),
+          discountAmount: round2(discountAmount(item)),
+          netCost: round2(net),
+          taxAmount: 0,
+          tipAmount: 0,
+          total: round2(net),
+        };
+      }),
       subtotal: 0,
       taxTotal: 0,
       tipTotal: 0,
@@ -74,6 +99,22 @@ export function computeSplit(
 
   const taxTotal = rateAmount(tax, taxableSubtotal);
   const tipTotal = rateAmount(tip, tippableSubtotal);
+
+  const itemBreakdowns: ItemBreakdown[] = items.map((item) => {
+    const net = netCost(item);
+    const itemTax = item.taxed && taxableSubtotal > 0 ? (net / taxableSubtotal) * taxTotal : 0;
+    const itemTip = item.tipped && tippableSubtotal > 0 ? (net / tippableSubtotal) * tipTotal : 0;
+    return {
+      itemId: item.id,
+      itemName: item.name,
+      cost: round2(item.cost),
+      discountAmount: round2(discountAmount(item)),
+      netCost: round2(net),
+      taxAmount: round2(itemTax),
+      tipAmount: round2(itemTip),
+      total: round2(net + itemTax + itemTip),
+    };
+  });
 
   const raw = new Map<
     string,
@@ -160,6 +201,7 @@ export function computeSplit(
 
   return {
     people: peopleBreakdown,
+    items: itemBreakdowns,
     subtotal: round2(subtotal),
     taxTotal: round2(taxTotal),
     tipTotal: round2(tipTotal),

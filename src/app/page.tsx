@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { ExistingReceipts } from "@/components/ExistingReceipts";
 import { StageHeadcount } from "@/components/StageHeadcount";
+import { encodeDraftParams } from "@/lib/receiptDraft";
 import { generateSlug } from "@/lib/slug";
-import { saveReceipt } from "@/lib/storage";
 import type { Person } from "@/lib/types";
 
 export default function Home() {
@@ -12,19 +12,8 @@ export default function Home() {
 
   function handleConfirm(people: Person[], namePeople: boolean) {
     const slug = generateSlug();
-    saveReceipt(
-      slug,
-      {
-        stage: "receipt",
-        people,
-        namePeople,
-        items: [],
-        tax: { mode: "percent", value: 0 },
-        tip: { mode: "percent", value: 0 },
-      },
-      { silent: true },
-    );
-    router.push(`/r/${slug}`);
+    const params = encodeDraftParams(people, namePeople);
+    router.push(`/r/${slug}?${params.toString()}`);
   }
 
   return (

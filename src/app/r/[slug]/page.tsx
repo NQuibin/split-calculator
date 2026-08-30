@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { StageReceipt } from "@/components/StageReceipt";
 import { StageResults } from "@/components/StageResults";
 import { receiptReducer, type Action } from "@/lib/reducer";
+import { draftFromParams } from "@/lib/receiptDraft";
 import { getReceiptServerSnapshot, getReceiptSnapshot, saveReceipt, subscribeReceipt } from "@/lib/storage";
+import type { ReceiptState } from "@/lib/types";
 
 function useHasHydrated(): boolean {
   return useSyncExternalStore(
@@ -18,11 +20,18 @@ function useHasHydrated(): boolean {
 export default function ReceiptPage() {
   const router = useRouter();
   const { slug } = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
 
   const subscribe = useCallback((callback: () => void) => subscribeReceipt(slug, callback), [slug]);
   const getSnapshot = useCallback(() => getReceiptSnapshot(slug), [slug]);
-  const state = useSyncExternalStore(subscribe, getSnapshot, getReceiptServerSnapshot);
+  const stored = useSyncExternalStore(subscribe, getSnapshot, getReceiptServerSnapshot);
   const hasHydrated = useHasHydrated();
+
+  // A brand-new receipt has no items yet, so it isn't persisted to localStorage
+  // until the first item is added. Until then this draft (from the URL) is
+  // the only copy of its state.
+  const [draft, setDraft] = useState<ReceiptState | null>(() => draftFromParams(searchParams));
+  const state = stored ?? draft;
 
   useEffect(() => {
     if (hasHydrated && state === null) router.replace("/");
@@ -32,7 +41,9 @@ export default function ReceiptPage() {
 
   function dispatch(action: Action) {
     if (!state) return;
-    saveReceipt(slug, receiptReducer(state, action));
+    const next = receiptReducer(state, action);
+    saveReceipt(slug, next);
+    setDraft(next.items.length === 0 ? next : null);
   }
 
   return (
@@ -60,6 +71,8 @@ export default function ReceiptPage() {
           items={state.items}
           tax={state.tax}
           tip={state.tip}
+          isOwner
+          shareSlug={slug}
           onBack={() => dispatch({ type: "BACK_TO_RECEIPT" })}
           onReset={() => router.push("/")}
         />

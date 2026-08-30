@@ -51,6 +51,10 @@ export function StageReceipt({
 }: StageReceiptProps) {
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
+  // Items already present when this page mounts shouldn't play the
+  // "just added" entrance animation - only ones added afterward should.
+  const [initialItemIds] = useState(() => new Set(items.map((item) => item.id)));
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [cost, setCost] = useState("");
@@ -300,6 +304,7 @@ export function StageReceipt({
             as="ul"
             axis="y"
             layout
+            transition={{ layout: { duration: 0.25, ease: "easeInOut" } }}
             values={items}
             onReorder={onReorderItems}
             className="perforated-top mt-5 space-y-2 pt-4"
@@ -311,6 +316,7 @@ export function StageReceipt({
                 index={i}
                 people={people}
                 isEditing={item.id === editingId}
+                isNew={!initialItemIds.has(item.id)}
                 onEdit={() => startEdit(item)}
                 onRemove={() => handleRemove(item.id)}
               />
@@ -318,7 +324,11 @@ export function StageReceipt({
           </Reorder.Group>
         )}
 
-        <motion.div layout className="perforated-top mt-4 space-y-1 pt-4 text-sm">
+        <motion.div
+          layout
+          transition={{ layout: { duration: 0.25, ease: "easeInOut" } }}
+          className="perforated-top mt-4 space-y-1 pt-4 text-sm"
+        >
           <div className="flex justify-between text-ink-soft">
             <span>Subtotal</span>
             <span className="font-numeric">{currency(totals.subtotal)}</span>

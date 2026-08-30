@@ -44,7 +44,7 @@ export function StageHeadcount({ initialPeople, initialNamePeople, onConfirm }: 
   }
 
   return (
-    <div className="mx-auto flex w-full min-h-[85vh] max-w-md flex-col items-center justify-center gap-10 px-6 py-16 text-center">
+    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-8 px-6 pt-12 pb-10 text-center">
       <div className="flex items-center gap-2 text-brass">
         <Users className="h-5 w-5" strokeWidth={2.25} />
         <span className="font-display text-sm font-semibold tracking-wide uppercase">
@@ -52,8 +52,8 @@ export function StageHeadcount({ initialPeople, initialNamePeople, onConfirm }: 
         </span>
       </div>
 
-      <div className="space-y-3">
-        <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">
+      <div className="space-y-2">
+        <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">
           How many people are splitting?
         </h1>
         <p className="text-ink-soft">Count everyone who&rsquo;s sharing this receipt.</p>
