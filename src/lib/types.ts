@@ -14,19 +14,20 @@ export interface ReceiptItem {
   id: string;
   name: string;
   cost: number;
-  discount: number;
+  discount: RateSetting;
   taxed: boolean;
   tipped: boolean;
   splitWith: string[];
 }
 
-export type Stage = "headcount" | "receipt" | "results";
+export type Stage = "receipt" | "results";
 
-export interface AppState {
+export interface ReceiptState {
   stage: Stage;
   people: Person[];
   namePeople: boolean;
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
+  updatedAt?: number;
 }

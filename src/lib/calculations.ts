@@ -4,6 +4,9 @@ export interface ItemLine {
   itemId: string;
   itemName: string;
   share: number;
+  discountShare: number;
+  taxShare: number;
+  tipShare: number;
 }
 
 export interface PersonBreakdown {
@@ -32,8 +35,12 @@ function rateAmount(rate: RateSetting, base: number): number {
   return rate.mode === "percent" ? base * (rate.value / 100) : rate.value;
 }
 
+export function discountAmount(item: ReceiptItem): number {
+  return rateAmount(item.discount, item.cost);
+}
+
 function netCost(item: ReceiptItem): number {
-  return Math.max(0, item.cost - item.discount);
+  return Math.max(0, item.cost - discountAmount(item));
 }
 
 export function computeSplit(
@@ -82,7 +89,9 @@ export function computeSplit(
     if (n === 0) continue;
 
     const itemCost = netCost(item);
+    const appliedDiscount = item.cost - itemCost;
     const perPersonCost = itemCost / n;
+    const perPersonDiscount = appliedDiscount / n;
     const itemTax = item.taxed && taxableSubtotal > 0 ? (itemCost / taxableSubtotal) * taxTotal : 0;
     const itemTip = item.tipped && tippableSubtotal > 0 ? (itemCost / tippableSubtotal) * tipTotal : 0;
     const perPersonTax = itemTax / n;
@@ -93,7 +102,14 @@ export function computeSplit(
       entry.itemsSubtotal += perPersonCost;
       entry.taxShare += perPersonTax;
       entry.tipShare += perPersonTip;
-      entry.lines.push({ itemId: item.id, itemName: item.name, share: perPersonCost });
+      entry.lines.push({
+        itemId: item.id,
+        itemName: item.name,
+        share: round2(perPersonCost),
+        discountShare: round2(perPersonDiscount),
+        taxShare: round2(perPersonTax),
+        tipShare: round2(perPersonTip),
+      });
     }
   }
 

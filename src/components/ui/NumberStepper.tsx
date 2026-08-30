@@ -17,7 +17,7 @@ export function NumberStepper({ value, onChange, min = 1, max = 30 }: NumberStep
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
         aria-label="Fewer people"
-        className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-forest text-forest transition hover:bg-forest hover:text-surface disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 border-forest text-forest transition hover:bg-forest hover:text-surface disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         <Minus className="h-5 w-5" strokeWidth={2.5} />
       </button>
@@ -32,7 +32,7 @@ export function NumberStepper({ value, onChange, min = 1, max = 30 }: NumberStep
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={value >= max}
         aria-label="More people"
-        className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-forest text-forest transition hover:bg-forest hover:text-surface disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 border-forest text-forest transition hover:bg-forest hover:text-surface disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         <Plus className="h-5 w-5" strokeWidth={2.5} />
       </button>

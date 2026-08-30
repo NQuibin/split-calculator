@@ -1,19 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion, Reorder } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   Coins,
+  Pencil,
   Percent,
   Plus,
   Receipt,
   TicketPercent,
-  Trash2,
 } from "lucide-react";
 import { PersonChip } from "@/components/ui/PersonChip";
 import { RateInput } from "@/components/ui/RateInput";
+import { ReceiptLineItem } from "@/components/ui/ReceiptLineItem";
 import { computeSplit } from "@/lib/calculations";
+import { currency } from "@/lib/format";
 import type { Person, RateSetting, ReceiptItem } from "@/lib/types";
 
 interface StageReceiptProps {
@@ -24,13 +28,11 @@ interface StageReceiptProps {
   onSetTax: (rate: RateSetting) => void;
   onSetTip: (rate: RateSetting) => void;
   onAddItem: (item: ReceiptItem) => void;
+  onUpdateItem: (item: ReceiptItem) => void;
   onRemoveItem: (id: string) => void;
+  onReorderItems: (items: ReceiptItem[]) => void;
   onBack: () => void;
   onContinue: () => void;
-}
-
-function currency(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
 export function StageReceipt({
@@ -41,15 +43,18 @@ export function StageReceipt({
   onSetTax,
   onSetTip,
   onAddItem,
+  onUpdateItem,
   onRemoveItem,
+  onReorderItems,
   onBack,
   onContinue,
 }: StageReceiptProps) {
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [cost, setCost] = useState("");
-  const [discount, setDiscount] = useState("");
+  const [discount, setDiscount] = useState<RateSetting>({ mode: "amount", value: 0 });
   const [taxed, setTaxed] = useState(true);
   const [tipped, setTipped] = useState(true);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
@@ -66,9 +71,35 @@ export function StageReceipt({
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   }
 
-  function handleAdd() {
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setCost("");
+    setDiscount({ mode: "amount", value: 0 });
+    setTaxed(true);
+    setTipped(true);
+    setSplitWith(allIds);
+    setError(null);
+  }
+
+  function startEdit(item: ReceiptItem) {
+    setEditingId(item.id);
+    setName(item.name);
+    setCost(String(item.cost));
+    setDiscount(item.discount);
+    setTaxed(item.taxed);
+    setTipped(item.tipped);
+    setSplitWith(item.splitWith);
+    setError(null);
+  }
+
+  function handleRemove(id: string) {
+    if (id === editingId) resetForm();
+    onRemoveItem(id);
+  }
+
+  function handleSubmit() {
     const parsedCost = Number(cost);
-    const parsedDiscount = discount ? Number(discount) : 0;
     if (!name.trim()) {
       setError("Give the item a name.");
       return;
@@ -77,7 +108,7 @@ export function StageReceipt({
       setError("Enter a cost greater than $0.");
       return;
     }
-    if (parsedDiscount < 0) {
+    if (discount.value < 0) {
       setError("Discount can't be negative.");
       return;
     }
@@ -85,24 +116,21 @@ export function StageReceipt({
       setError("Pick who's sharing this item.");
       return;
     }
-    onAddItem({
-      id: crypto.randomUUID(),
+    const item: ReceiptItem = {
+      id: editingId ?? crypto.randomUUID(),
       name: name.trim(),
       cost: parsedCost,
-      discount: parsedDiscount,
+      discount,
       taxed: effectiveTaxed,
       tipped: effectiveTipped,
       splitWith,
-    });
-    setName("");
-    setCost("");
-    setDiscount("");
-    setSplitWith(allIds);
-    setError(null);
-  }
-
-  function personName(id: string): string {
-    return people.find((p) => p.id === id)?.name ?? "?";
+    };
+    if (editingId) {
+      onUpdateItem(item);
+    } else {
+      onAddItem(item);
+    }
+    resetForm();
   }
 
   return (
@@ -111,7 +139,7 @@ export function StageReceipt({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
           {people.length} people
@@ -130,7 +158,31 @@ export function StageReceipt({
           <RateInput label="Tip" icon={Coins} rate={tip} onChange={onSetTip} />
         </div>
 
-        <div className="space-y-3">
+        <motion.div
+          layout
+          transition={{ layout: { duration: 0.25, ease: "easeInOut" } }}
+          className={`space-y-3 transition-shadow duration-200 ${
+            editingId ? "-m-3 rounded-md p-3 ring-2 ring-brass" : ""
+          }`}
+        >
+          <AnimatePresence initial={false}>
+            {editingId && (
+              <motion.div
+                key="editing-banner"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-1.5 rounded-md bg-brass/15 px-3 py-2 text-sm font-medium text-ink">
+                  <Pencil className="h-3.5 w-3.5 text-brass" strokeWidth={2.5} />
+                  Editing line item
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
@@ -153,21 +205,11 @@ export function StageReceipt({
           </div>
 
           <div>
-            <label className="mb-1 flex items-center gap-1 text-xs font-medium tracking-wide text-ink-soft uppercase">
+            <p className="mb-1 flex items-center gap-1 text-xs font-medium tracking-wide text-ink-soft uppercase">
               <TicketPercent className="h-3.5 w-3.5" strokeWidth={2.25} />
               Discount, before tax &amp; tip
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.01}
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
-              placeholder="0.00"
-              aria-label="Discount amount"
-              className="font-numeric w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40 sm:w-28"
-            />
+            </p>
+            <RateInput label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} hideLabel />
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -221,60 +263,62 @@ export function StageReceipt({
 
           {error && <p className="text-sm text-margin-red">{error}</p>}
 
-          <button
-            type="button"
-            onClick={handleAdd}
-            className="inline-flex items-center gap-1.5 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            Add to receipt
-          </button>
-        </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-surface transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red ${
+                editingId ? "bg-brass hover:bg-brass/80" : "bg-forest hover:bg-ink"
+              }`}
+            >
+              {editingId ? (
+                <>
+                  <Check className="h-4 w-4" strokeWidth={2.5} />
+                  Save changes
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" strokeWidth={2.5} />
+                  Add to receipt
+                </>
+              )}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="cursor-pointer text-sm font-medium text-ink-soft transition hover:text-margin-red"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </motion.div>
 
         {items.length > 0 && (
-          <ul className="perforated-top mt-5 space-y-2 pt-4">
+          <Reorder.Group
+            as="ul"
+            axis="y"
+            layout
+            values={items}
+            onReorder={onReorderItems}
+            className="perforated-top mt-5 space-y-2 pt-4"
+          >
             {items.map((item, i) => (
-              <li key={item.id} className="flex items-start justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <p className="text-ink">
-                    <span className="font-numeric text-ink-soft">{i + 1}.</span> {item.name}
-                  </p>
-                  <p className="truncate text-xs text-ink-soft">
-                    {item.taxed && "taxed"}
-                    {item.taxed && item.tipped && " · "}
-                    {item.tipped && "tipped"}
-                    {(item.taxed || item.tipped) && " · "}
-                    {item.splitWith.length === people.length
-                      ? "everyone"
-                      : item.splitWith.map(personName).join(", ")}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="font-numeric text-ink">
-                    {item.discount > 0 ? (
-                      <>
-                        <span className="text-ink-soft line-through">{currency(item.cost)}</span>{" "}
-                        {currency(Math.max(0, item.cost - item.discount))}
-                      </>
-                    ) : (
-                      currency(item.cost)
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveItem(item.id)}
-                    aria-label={`Remove ${item.name}`}
-                    className="text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-                  >
-                    <Trash2 className="h-4 w-4" strokeWidth={2.25} />
-                  </button>
-                </div>
-              </li>
+              <ReceiptLineItem
+                key={item.id}
+                item={item}
+                index={i}
+                people={people}
+                isEditing={item.id === editingId}
+                onEdit={() => startEdit(item)}
+                onRemove={() => handleRemove(item.id)}
+              />
             ))}
-          </ul>
+          </Reorder.Group>
         )}
 
-        <div className="perforated-top mt-4 space-y-1 pt-4 text-sm">
+        <motion.div layout className="perforated-top mt-4 space-y-1 pt-4 text-sm">
           <div className="flex justify-between text-ink-soft">
             <span>Subtotal</span>
             <span className="font-numeric">{currency(totals.subtotal)}</span>
@@ -291,7 +335,7 @@ export function StageReceipt({
             <span>Total</span>
             <span className="font-numeric">{currency(totals.grandTotal)}</span>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <div className="mt-6 flex justify-end">
@@ -299,7 +343,7 @@ export function StageReceipt({
           type="button"
           onClick={onContinue}
           disabled={items.length === 0}
-          className="inline-flex items-center gap-2 rounded-full bg-margin-red px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-margin-red px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           Split the receipt
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />

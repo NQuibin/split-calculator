@@ -9,13 +9,18 @@ interface RateInputProps {
   icon: LucideIcon;
   rate: RateSetting;
   onChange: (rate: RateSetting) => void;
+  hideLabel?: boolean;
 }
 
-export function RateInput({ label, icon: Icon, rate, onChange }: RateInputProps) {
+export function RateInput({ label, icon: Icon, rate, onChange, hideLabel }: RateInputProps) {
   return (
     <div className="flex items-center gap-2">
-      <Icon className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-      <span className="font-display text-sm font-medium text-ink-soft">{label}</span>
+      {!hideLabel && (
+        <>
+          <Icon className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+          <span className="font-display text-sm font-medium text-ink-soft">{label}</span>
+        </>
+      )}
       <div className="flex items-center rounded-md border border-rule bg-surface">
         <input
           type="number"
@@ -34,7 +39,7 @@ export function RateInput({ label, icon: Icon, rate, onChange }: RateInputProps)
             onClick={() => onChange({ ...rate, mode: "percent" })}
             aria-pressed={rate.mode === "percent"}
             aria-label={`${label} as percent`}
-            className={`px-2 py-1.5 transition ${
+            className={`cursor-pointer px-2 py-1.5 transition ${
               rate.mode === "percent" ? "bg-forest text-surface" : "text-ink-soft hover:text-forest"
             }`}
           >
@@ -45,7 +50,7 @@ export function RateInput({ label, icon: Icon, rate, onChange }: RateInputProps)
             onClick={() => onChange({ ...rate, mode: "amount" })}
             aria-pressed={rate.mode === "amount"}
             aria-label={`${label} as dollar amount`}
-            className={`px-2 py-1.5 transition ${
+            className={`cursor-pointer px-2 py-1.5 transition ${
               rate.mode === "amount" ? "bg-forest text-surface" : "text-ink-soft hover:text-forest"
             }`}
           >

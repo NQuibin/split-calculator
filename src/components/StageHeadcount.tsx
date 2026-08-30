@@ -96,7 +96,7 @@ export function StageHeadcount({ initialPeople, initialNamePeople, onConfirm }: 
       <button
         type="button"
         onClick={handleContinue}
-        className="inline-flex items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         Start the receipt
         <ArrowRight className="h-4 w-4" strokeWidth={2.5} />

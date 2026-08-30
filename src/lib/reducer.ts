@@ -1,57 +1,33 @@
-import type { AppState, Person, ReceiptItem, RateSetting } from "./types";
+import type { ReceiptState, ReceiptItem, RateSetting } from "./types";
 
 export type Action =
-  | { type: "CONFIRM_PEOPLE"; people: Person[]; namePeople: boolean }
   | { type: "SET_TAX"; rate: RateSetting }
   | { type: "SET_TIP"; rate: RateSetting }
   | { type: "ADD_ITEM"; item: ReceiptItem }
+  | { type: "UPDATE_ITEM"; item: ReceiptItem }
   | { type: "REMOVE_ITEM"; id: string }
+  | { type: "REORDER_ITEMS"; items: ReceiptItem[] }
   | { type: "GO_TO_RESULTS" }
-  | { type: "BACK_TO_HEADCOUNT" }
-  | { type: "BACK_TO_RECEIPT" }
-  | { type: "RESET" };
+  | { type: "BACK_TO_RECEIPT" };
 
-export const initialState: AppState = {
-  stage: "headcount",
-  people: [],
-  namePeople: false,
-  items: [],
-  tax: { mode: "percent", value: 0 },
-  tip: { mode: "percent", value: 0 },
-};
-
-export function appReducer(state: AppState, action: Action): AppState {
+export function receiptReducer(state: ReceiptState, action: Action): ReceiptState {
   switch (action.type) {
-    case "CONFIRM_PEOPLE": {
-      const nextIds = new Set(action.people.map((p) => p.id));
-      const items = state.items.map((item) => {
-        const kept = item.splitWith.filter((id) => nextIds.has(id));
-        return { ...item, splitWith: kept.length > 0 ? kept : Array.from(nextIds) };
-      });
-      return {
-        ...state,
-        people: action.people,
-        namePeople: action.namePeople,
-        items,
-        stage: "receipt",
-      };
-    }
     case "SET_TAX":
       return { ...state, tax: action.rate };
     case "SET_TIP":
       return { ...state, tip: action.rate };
     case "ADD_ITEM":
       return { ...state, items: [...state.items, action.item] };
+    case "UPDATE_ITEM":
+      return { ...state, items: state.items.map((i) => (i.id === action.item.id ? action.item : i)) };
     case "REMOVE_ITEM":
       return { ...state, items: state.items.filter((i) => i.id !== action.id) };
+    case "REORDER_ITEMS":
+      return { ...state, items: action.items };
     case "GO_TO_RESULTS":
       return { ...state, stage: "results" };
-    case "BACK_TO_HEADCOUNT":
-      return { ...state, stage: "headcount" };
     case "BACK_TO_RECEIPT":
       return { ...state, stage: "receipt" };
-    case "RESET":
-      return initialState;
     default:
       return state;
   }
