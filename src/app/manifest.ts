@@ -6,7 +6,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Split Calculator",
     short_name: "Split Calc",
     description: "Itemize any receipt — restaurant, grocery, or service — and split it fairly.",
-    start_url: `${BASE_PATH}/`,
+    // No trailing slash: this app is served under nquibin.dev via a rewrite,
+    // and the exact no-trailing-slash path is the one known to resolve there.
+    start_url: BASE_PATH,
     scope: `${BASE_PATH}/`,
     display: "standalone",
     background_color: "#edf1e4",
