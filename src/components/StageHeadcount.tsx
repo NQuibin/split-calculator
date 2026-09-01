@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Users } from "lucide-react";
+import { ArrowRight, Loader2, Users } from "lucide-react";
 import { NumberStepper } from "@/components/ui/NumberStepper";
 import type { Person } from "@/lib/types";
 
@@ -9,6 +9,7 @@ interface StageHeadcountProps {
   initialPeople: Person[];
   initialNamePeople: boolean;
   onConfirm: (people: Person[], namePeople: boolean) => void;
+  pending?: boolean;
 }
 
 function defaultPeople(count: number): Person[] {
@@ -18,7 +19,12 @@ function defaultPeople(count: number): Person[] {
   }));
 }
 
-export function StageHeadcount({ initialPeople, initialNamePeople, onConfirm }: StageHeadcountProps) {
+export function StageHeadcount({
+  initialPeople,
+  initialNamePeople,
+  onConfirm,
+  pending = false,
+}: StageHeadcountProps) {
   const [count, setCount] = useState(initialPeople.length || 2);
   const [namePeople, setNamePeople] = useState(initialNamePeople);
   const [names, setNames] = useState<string[]>(() => {
@@ -96,10 +102,16 @@ export function StageHeadcount({ initialPeople, initialNamePeople, onConfirm }: 
       <button
         type="button"
         onClick={handleContinue}
-        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        disabled={pending}
+        aria-busy={pending}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         Start the receipt
-        <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+        ) : (
+          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+        )}
       </button>
     </div>
   );

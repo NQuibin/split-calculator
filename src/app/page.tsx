@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ExistingReceipts } from "@/components/ExistingReceipts";
 import { StageHeadcount } from "@/components/StageHeadcount";
@@ -9,16 +10,22 @@ import type { Person } from "@/lib/types";
 
 export default function Home() {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   function handleConfirm(people: Person[], namePeople: boolean) {
     const slug = generateSlug();
     const params = encodeDraftParams(people, namePeople);
-    router.push(`/r/${slug}?${params.toString()}`);
+    startTransition(() => router.push(`/r/${slug}?${params.toString()}`));
   }
 
   return (
     <main className="flex flex-1 flex-col">
-      <StageHeadcount initialPeople={[]} initialNamePeople={false} onConfirm={handleConfirm} />
+      <StageHeadcount
+        initialPeople={[]}
+        initialNamePeople={false}
+        onConfirm={handleConfirm}
+        pending={isPending}
+      />
       <ExistingReceipts />
     </main>
   );

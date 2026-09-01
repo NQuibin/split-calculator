@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useMemo, useSyncExternalStore, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StageResults } from "@/components/StageResults";
 import { decodeSharePayload } from "@/lib/shareLink";
@@ -29,6 +29,7 @@ function SharedReceiptContent() {
   const hasHydrated = useHasHydrated();
   const decoded = useMemo(() => (payload ? decodeSharePayload(payload) : null), [payload]);
   const { state: owned } = useStoredReceipt(decoded?.slug ?? "");
+  const [isNavigating, startNavigation] = useTransition();
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -50,7 +51,8 @@ function SharedReceiptContent() {
         tip={decoded.tip}
         contributions={decoded.contributions ?? []}
         isOwner={false}
-        onReset={() => router.push("/")}
+        onReset={() => startNavigation(() => router.push("/"))}
+        navigating={isNavigating}
       />
     </main>
   );

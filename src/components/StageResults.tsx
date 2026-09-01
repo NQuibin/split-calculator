@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Eye,
   Link2,
+  Loader2,
   Receipt as ReceiptIcon,
   RotateCcw,
   Wallet,
@@ -118,6 +119,7 @@ interface StageResultsProps {
   isOwner: boolean;
   onBack?: () => void;
   shareSlug?: string;
+  navigating?: boolean;
 }
 
 export function StageResults({
@@ -130,6 +132,7 @@ export function StageResults({
   isOwner,
   onBack,
   shareSlug,
+  navigating = false,
 }: StageResultsProps) {
   const [copied, setCopied] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -325,9 +328,15 @@ export function StageResults({
             <button
               type="button"
               onClick={onReset}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              disabled={navigating}
+              aria-busy={navigating}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
             >
-              <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+              {navigating ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+              ) : (
+                <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+              )}
               Start a new receipt
             </button>
           </div>
@@ -335,9 +344,11 @@ export function StageResults({
           <button
             type="button"
             onClick={onReset}
-            className="cursor-pointer text-sm font-medium text-forest underline decoration-forest/40 underline-offset-4 transition hover:text-ink hover:decoration-ink/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            disabled={navigating}
+            aria-busy={navigating}
+            className="cursor-pointer text-sm font-medium text-forest underline decoration-forest/40 underline-offset-4 transition hover:text-ink hover:decoration-ink/40 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
-            Want to split your own receipt? Start one →
+            {navigating ? "Starting a new receipt…" : "Want to split your own receipt? Start one →"}
           </button>
         )}
       </div>

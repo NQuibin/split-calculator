@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   Coins,
+  Loader2,
   Pencil,
   Percent,
   Plus,
@@ -43,6 +44,7 @@ interface StageReceiptProps {
   onSetContribution: (personId: string, amount: RateSetting) => void;
   onBack: () => void;
   onContinue: () => void;
+  navigating?: boolean;
 }
 
 export function StageReceipt({
@@ -62,6 +64,7 @@ export function StageReceipt({
   onSetContribution,
   onBack,
   onContinue,
+  navigating = false,
 }: StageReceiptProps) {
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
@@ -164,9 +167,15 @@ export function StageReceipt({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+          disabled={navigating}
+          aria-busy={navigating}
+          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
         >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
+          {navigating ? (
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+          ) : (
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
+          )}
           {people.length} people
         </button>
         <div className="flex items-center gap-2 text-brass">

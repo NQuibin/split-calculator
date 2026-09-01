@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { StageReceipt } from "@/components/StageReceipt";
 import { StageResults } from "@/components/StageResults";
@@ -25,6 +25,7 @@ export default function ReceiptPage() {
   const { state: stored, loading } = useStoredReceipt(slug);
   const { save } = useReceiptActions();
   const hasHydrated = useHasHydrated();
+  const [isNavigating, startNavigation] = useTransition();
 
   // A brand-new receipt has no items yet, so it isn't persisted until the
   // first item is added. Until then this draft (from the URL) is the only
@@ -63,8 +64,9 @@ export default function ReceiptPage() {
           onRemoveItem={(id) => dispatch({ type: "REMOVE_ITEM", id })}
           onReorderItems={(items) => dispatch({ type: "REORDER_ITEMS", items })}
           onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
-          onBack={() => router.push("/")}
+          onBack={() => startNavigation(() => router.push("/"))}
           onContinue={() => dispatch({ type: "GO_TO_RESULTS" })}
+          navigating={isNavigating}
         />
       )}
 
@@ -78,7 +80,8 @@ export default function ReceiptPage() {
           isOwner
           shareSlug={slug}
           onBack={() => dispatch({ type: "BACK_TO_RECEIPT" })}
-          onReset={() => router.push("/")}
+          onReset={() => startNavigation(() => router.push("/"))}
+          navigating={isNavigating}
         />
       )}
     </main>
