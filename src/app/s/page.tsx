@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StageResults } from "@/components/StageResults";
 import { decodeSharePayload } from "@/lib/shareLink";
-import { getReceiptServerSnapshot, getReceiptSnapshot, subscribeReceipt } from "@/lib/storage";
+import { useStoredReceipt } from "@/lib/receiptSync";
 
 function useHasHydrated(): boolean {
   return useSyncExternalStore(
@@ -28,13 +28,7 @@ function SharedReceiptContent() {
   const payload = searchParams.get("d");
   const hasHydrated = useHasHydrated();
   const decoded = useMemo(() => (payload ? decodeSharePayload(payload) : null), [payload]);
-
-  const subscribe = useCallback(
-    (callback: () => void) => (decoded ? subscribeReceipt(decoded.slug, callback) : () => {}),
-    [decoded],
-  );
-  const getSnapshot = useCallback(() => (decoded ? getReceiptSnapshot(decoded.slug) : null), [decoded]);
-  const owned = useSyncExternalStore(subscribe, getSnapshot, getReceiptServerSnapshot);
+  const { state: owned } = useStoredReceipt(decoded?.slug ?? "");
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -54,6 +48,7 @@ function SharedReceiptContent() {
         items={decoded.items}
         tax={decoded.tax}
         tip={decoded.tip}
+        contributions={decoded.contributions ?? []}
         isOwner={false}
         onReset={() => router.push("/")}
       />

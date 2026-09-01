@@ -1,4 +1,4 @@
-import type { Person, ReceiptItem, RateSetting } from "./types";
+import type { Contribution, Person, ReceiptItem, RateSetting } from "./types";
 
 export interface ItemLine {
   itemId: string;
@@ -39,7 +39,7 @@ export interface SplitResult {
   grandTotal: number;
 }
 
-function round2(n: number): number {
+export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
@@ -207,4 +207,29 @@ export function computeSplit(
     tipTotal: round2(tipTotal),
     grandTotal,
   };
+}
+
+export interface SettlementRow {
+  personId: string;
+  name: string;
+  contributed: number;
+  fairShare: number;
+  /** contributed - fairShare: positive means owed money back, negative means still needs to front more. */
+  balance: number;
+}
+
+export function computeSettlement(contributions: Contribution[], split: SplitResult): SettlementRow[] {
+  return split.people.map((p) => {
+    const contribution = contributions.find((c) => c.personId === p.personId)?.amount;
+    const contributed = contribution
+      ? round2(rateAmount(contribution, split.grandTotal))
+      : 0;
+    return {
+      personId: p.personId,
+      name: p.name,
+      contributed,
+      fairShare: p.total,
+      balance: round2(contributed - p.total),
+    };
+  });
 }

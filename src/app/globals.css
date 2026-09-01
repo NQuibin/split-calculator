@@ -1,4 +1,13 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* This app has no dark theme, but shadcn/ui components ship `dark:` utility
+   classes throughout. Without pinning the variant to a `.dark` ancestor
+   (which is never applied here), Tailwind falls back to matching it against
+   the OS/browser's prefers-color-scheme instead, activating those classes
+   unintentionally for anyone with dark mode on. */
+@custom-variant dark (&:is(.dark *));
 
 :root {
   --paper: #edf1e4;
@@ -9,6 +18,29 @@
   --margin-red: #c1432b;
   --brass: #b8933a;
   --rule: #ccd5bd;
+
+  /* shadcn/ui semantic tokens, remapped to the app's own palette above
+     instead of shadcn's default theme, so components added via the CLI
+     (Button, Popover, Calendar, ...) automatically match the app. */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--forest);
+  --primary-foreground: var(--surface);
+  --secondary: var(--paper);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--paper);
+  --accent-foreground: var(--ink);
+  --destructive: var(--margin-red);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--margin-red);
+  --radius: 0.5rem;
 }
 
 @theme inline {
@@ -20,14 +52,44 @@
   --color-margin-red: var(--margin-red);
   --color-brass: var(--brass);
   --color-rule: var(--rule);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 body {
   background-color: var(--paper);
   color: var(--ink);
   font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  background-image: linear-gradient(var(--rule) 1px, transparent 1px);
-  background-size: 100% 2rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
 }
 
 .font-display {

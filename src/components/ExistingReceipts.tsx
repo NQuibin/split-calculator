@@ -1,17 +1,11 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Receipt as ReceiptIcon, Trash2 } from "lucide-react";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import {
-  deleteReceipt,
-  getReceiptListServerSnapshot,
-  getReceiptListSnapshot,
-  subscribeReceiptList,
-  type StoredReceipt,
-} from "@/lib/storage";
+import { useReceiptActions, useReceiptList } from "@/lib/receiptSync";
+import type { StoredReceipt } from "@/lib/storage";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -27,11 +21,8 @@ function peopleLabel({ people, namePeople }: StoredReceipt["state"]): string {
 
 export function ExistingReceipts() {
   const router = useRouter();
-  const receipts = useSyncExternalStore(
-    subscribeReceiptList,
-    getReceiptListSnapshot,
-    getReceiptListServerSnapshot,
-  );
+  const receipts = useReceiptList();
+  const { remove } = useReceiptActions();
 
   if (receipts.length === 0) return null;
 
@@ -64,7 +55,7 @@ export function ExistingReceipts() {
               </button>
               <button
                 type="button"
-                onClick={() => deleteReceipt(slug)}
+                onClick={() => remove(slug)}
                 aria-label="Delete receipt"
                 className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
               >

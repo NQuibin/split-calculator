@@ -1,3 +1,4 @@
+import { todayISODate } from "./format";
 import type { Person, ReceiptState } from "./types";
 
 // A brand-new receipt isn't persisted until its first item is added (see
@@ -34,5 +35,7 @@ export function draftFromParams(params: URLSearchParams): ReceiptState | null {
     items: [],
     tax: { mode: "percent", value: 0 },
     tip: { mode: "percent", value: 0 },
+    date: todayISODate(),
+    contributions: [],
   };
 }

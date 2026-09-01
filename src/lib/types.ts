@@ -22,6 +22,11 @@ export interface ReceiptItem {
 
 export type Stage = "receipt" | "results";
 
+export interface Contribution {
+  personId: string;
+  amount: RateSetting;
+}
+
 export interface ReceiptState {
   stage: Stage;
   people: Person[];
@@ -29,5 +34,9 @@ export interface ReceiptState {
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
+  /** The date the receipt was produced, formatted YYYY-MM-DD. */
+  date: string;
+  /** What each person already paid toward the receipt, so the split can show who's owed money back. */
+  contributions: Contribution[];
   updatedAt?: number;
 }

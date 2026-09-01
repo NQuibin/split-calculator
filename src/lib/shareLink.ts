@@ -1,4 +1,4 @@
-import type { Person, RateSetting, ReceiptItem } from "./types";
+import type { Contribution, Person, RateSetting, ReceiptItem } from "./types";
 
 export interface SharePayload {
   slug: string;
@@ -6,6 +6,7 @@ export interface SharePayload {
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
+  contributions: Contribution[];
 }
 
 function toBase64Url(json: string): string {

@@ -1,3 +1,4 @@
+import { todayISODate } from "./format";
 import type { ReceiptState } from "./types";
 
 const PREFIX = "split-calculator:receipt:";
@@ -18,7 +19,12 @@ const EMPTY_LIST: StoredReceipt[] = [];
 function parse(raw: string | null): ReceiptState | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as ReceiptState;
+    const state = JSON.parse(raw) as ReceiptState;
+    // Receipts saved before the date field existed don't have one - default
+    // to today rather than leaving the picker blank.
+    const withDate = state.date ? state : { ...state, date: todayISODate() };
+    // Same for contributions, added after some receipts were already saved.
+    return withDate.contributions ? withDate : { ...withDate, contributions: [] };
   } catch {
     return null;
   }

@@ -2,12 +2,22 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, Check, ChevronDown, ChevronRight, Eye, Link2, Receipt as ReceiptIcon, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Link2,
+  Receipt as ReceiptIcon,
+  RotateCcw,
+  Wallet,
+} from "lucide-react";
 import { ReceiptStub } from "@/components/ui/ReceiptStub";
-import { computeSplit } from "@/lib/calculations";
+import { computeSettlement, computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
-import type { Person, RateSetting, ReceiptItem } from "@/lib/types";
+import type { Contribution, Person, RateSetting, ReceiptItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -103,6 +113,7 @@ interface StageResultsProps {
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
+  contributions: Contribution[];
   onReset: () => void;
   isOwner: boolean;
   onBack?: () => void;
@@ -114,6 +125,7 @@ export function StageResults({
   items,
   tax,
   tip,
+  contributions,
   onReset,
   isOwner,
   onBack,
@@ -122,10 +134,12 @@ export function StageResults({
   const [copied, setCopied] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const result = useMemo(() => computeSplit(people, items, tax, tip), [people, items, tax, tip]);
+  const settlement = useMemo(() => computeSettlement(contributions, result), [contributions, result]);
+  const hasContributions = settlement.some((s) => s.contributed !== 0);
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, items, tax, tip });
+    const payload = encodeSharePayload({ slug: shareSlug, people, items, tax, tip, contributions });
     const basePath = window.location.pathname.replace(/\/r\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
@@ -255,6 +269,33 @@ export function StageResults({
           </ReceiptStub>
         ))}
       </div>
+
+      {hasContributions && (
+        <div className="mt-6 rounded-md border border-rule bg-surface p-5">
+          <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+            <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
+            Settling up
+          </p>
+          <ul className="space-y-2 text-sm">
+            {settlement.map((row) => (
+              <li key={row.personId} className="flex items-center justify-between gap-3">
+                <span className="text-ink">{row.name}</span>
+                {row.balance > 0.005 ? (
+                  <span className="font-numeric font-semibold text-forest">
+                    Gets back {currency(row.balance)}
+                  </span>
+                ) : row.balance < -0.005 ? (
+                  <span className="font-numeric font-semibold text-margin-red">
+                    Still needs to front {currency(-row.balance)}
+                  </span>
+                ) : (
+                  <span className="font-numeric text-ink-soft">Settled up</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-8 flex flex-col items-center gap-4 border-t border-rule pt-6 text-center">
         <p className="text-sm text-ink-soft">

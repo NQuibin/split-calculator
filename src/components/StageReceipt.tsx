@@ -5,32 +5,42 @@ import { AnimatePresence, motion, Reorder } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
+  Calendar,
   Check,
+  ChevronDown,
   Coins,
   Pencil,
   Percent,
   Plus,
   Receipt,
   TicketPercent,
+  Wallet,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { PersonChip } from "@/components/ui/PersonChip";
 import { RateInput } from "@/components/ui/RateInput";
 import { ReceiptLineItem } from "@/components/ui/ReceiptLineItem";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Person, RateSetting, ReceiptItem } from "@/lib/types";
+import type { Contribution, Person, RateSetting, ReceiptItem } from "@/lib/types";
+
+const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
 interface StageReceiptProps {
   people: Person[];
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
+  date: string;
+  contributions: Contribution[];
   onSetTax: (rate: RateSetting) => void;
   onSetTip: (rate: RateSetting) => void;
+  onSetDate: (date: string) => void;
   onAddItem: (item: ReceiptItem) => void;
   onUpdateItem: (item: ReceiptItem) => void;
   onRemoveItem: (id: string) => void;
   onReorderItems: (items: ReceiptItem[]) => void;
+  onSetContribution: (personId: string, amount: RateSetting) => void;
   onBack: () => void;
   onContinue: () => void;
 }
@@ -40,12 +50,16 @@ export function StageReceipt({
   items,
   tax,
   tip,
+  date,
+  contributions,
   onSetTax,
   onSetTip,
+  onSetDate,
   onAddItem,
   onUpdateItem,
   onRemoveItem,
   onReorderItems,
+  onSetContribution,
   onBack,
   onContinue,
 }: StageReceiptProps) {
@@ -63,8 +77,15 @@ export function StageReceipt({
   const [tipped, setTipped] = useState(true);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
   const [error, setError] = useState<string | null>(null);
+  const [contributionsOpen, setContributionsOpen] = useState(() =>
+    contributions.some((c) => c.amount.value > 0),
+  );
 
   const totals = useMemo(() => computeSplit(people, items, tax, tip), [people, items, tax, tip]);
+
+  function contributionFor(personId: string): RateSetting {
+    return contributions.find((c) => c.personId === personId)?.amount ?? { mode: "amount", value: 0 };
+  }
 
   const taxIsActive = tax.value > 0;
   const tipIsActive = tip.value > 0;
@@ -157,6 +178,12 @@ export function StageReceipt({
       </div>
 
       <div className="rounded-lg border border-rule bg-surface p-5">
+        <div className="mb-4 flex items-center gap-2 border-b border-rule pb-4">
+          <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+          <span className="font-display text-sm font-medium text-ink-soft">Date</span>
+          <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Receipt date" />
+        </div>
+
         <div className="mb-4 flex flex-wrap gap-4 border-b border-rule pb-4">
           <RateInput label="Tax" icon={Percent} rate={tax} onChange={onSetTax} />
           <RateInput label="Tip" icon={Coins} rate={tip} onChange={onSetTip} />
@@ -346,6 +373,57 @@ export function StageReceipt({
             <span className="font-numeric">{currency(totals.grandTotal)}</span>
           </div>
         </motion.div>
+
+        <div className="mt-4 rounded-md border border-rule transition has-[button:hover]:border-forest">
+          <button
+            type="button"
+            onClick={() => setContributionsOpen((o) => !o)}
+            aria-expanded={contributionsOpen}
+            className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+          >
+            <span className="flex items-center gap-1.5">
+              <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
+              Who&rsquo;s paid so far
+            </span>
+            <motion.span
+              animate={{ rotate: contributionsOpen ? 180 : 0 }}
+              transition={collapseTransition}
+              className="shrink-0"
+            >
+              <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
+            </motion.span>
+          </button>
+          <AnimatePresence initial={false}>
+            {contributionsOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={collapseTransition}
+                className="overflow-hidden border-t border-rule"
+              >
+                <div className="space-y-3 px-4 py-3">
+                  <p className="text-xs text-ink-soft">
+                    Optional — record what each person already paid, so the split below can show
+                    who&rsquo;s owed money back.
+                  </p>
+                  {people.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-3">
+                      <span className="truncate text-sm text-ink">{p.name}</span>
+                      <RateInput
+                        label={`${p.name} contribution`}
+                        icon={Wallet}
+                        rate={contributionFor(p.id)}
+                        onChange={(rate) => onSetContribution(p.id, rate)}
+                        hideLabel
+                      />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="mt-6 flex justify-end">
