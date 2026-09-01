@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { BASE_PATH } from "@/lib/basePath";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import "./globals.css";
 
@@ -26,8 +27,17 @@ export const metadata: Metadata = {
   title: "Split Calculator — split the receipt",
   description: "Itemize any receipt — restaurant, grocery, or service — and split it fairly.",
   icons: {
-    icon: "/projects/split-calculator/icon.svg",
+    icon: `${BASE_PATH}/icon.svg`,
+    apple: `${BASE_PATH}/apple-icon`,
   },
+  appleWebApp: {
+    title: "Split Calculator",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2f4a3c",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
