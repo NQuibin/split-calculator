@@ -24,13 +24,13 @@ function CreateGroupPopover() {
   const { create } = useGroupActions();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [memberNames, setMemberNames] = useState(["", ""]);
+  const [memberNames, setMemberNames] = useState([""]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function resetForm() {
     setName("");
-    setMemberNames(["", ""]);
+    setMemberNames([""]);
     setError(null);
     setSubmitting(false);
   }
@@ -80,29 +80,27 @@ function CreateGroupPopover() {
             onChange={(e) => setName(e.target.value)}
             className={inputClass}
           />
+          <p className="text-xs text-ink-soft">You&rsquo;re added automatically. Add other people below, or invite them later.</p>
           <div className="space-y-2">
             {memberNames.map((memberName, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 <input
                   type="text"
-                  required
-                  placeholder={`Member ${i + 1}`}
+                  placeholder="Other member (optional)"
                   value={memberName}
                   onChange={(e) =>
                     setMemberNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))
                   }
                   className={inputClass}
                 />
-                {memberNames.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setMemberNames((prev) => prev.filter((_, idx) => idx !== i))}
-                    aria-label={`Remove member ${i + 1}`}
-                    className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
-                  >
-                    <X className="h-4 w-4" strokeWidth={2.25} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setMemberNames((prev) => prev.filter((_, idx) => idx !== i))}
+                  aria-label={`Remove member ${i + 1}`}
+                  className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.25} />
+                </button>
               </div>
             ))}
           </div>

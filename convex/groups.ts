@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
 import { normalizeMemberName } from "../src/lib/groupMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 
 async function getGroupBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
   return await ctx.db
@@ -18,6 +18,11 @@ function requireUniqueName(members: Doc<"groups">["members"], name: string, excl
   if (collision) throw new Error(`"${name.trim()}" is already in this group`);
 }
 
+async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
+  const user = await ctx.db.get(userId);
+  return user?.name?.trim() || user?.email?.trim() || "You";
+}
+
 export const create = mutation({
   args: { slug: v.string(), name: v.string(), memberNames: v.array(v.string()) },
   handler: async (ctx, { slug, name, memberNames }) => {
@@ -27,10 +32,13 @@ export const create = mutation({
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Group name is required");
 
-    const trimmedMemberNames = memberNames.map((n) => n.trim()).filter((n) => n.length > 0);
-    if (trimmedMemberNames.length === 0) throw new Error("A group needs at least one member");
+    // The creator is always the group's first member - a group can't exist
+    // without at least the person who made it.
+    const creatorName = await getDisplayName(ctx, userId);
 
-    const seen = new Set<string>();
+    const trimmedMemberNames = memberNames.map((n) => n.trim()).filter((n) => n.length > 0);
+
+    const seen = new Set<string>([normalizeMemberName(creatorName)]);
     for (const memberName of trimmedMemberNames) {
       const normalized = normalizeMemberName(memberName);
       if (seen.has(normalized)) throw new Error(`"${memberName}" is listed more than once`);
@@ -40,11 +48,14 @@ export const create = mutation({
     const existing = await getGroupBySlug(ctx, slug);
     if (existing) throw new Error("Slug already taken");
 
-    const members = trimmedMemberNames.map((memberName) => ({
-      id: crypto.randomUUID(),
-      name: memberName,
-      inviteToken: crypto.randomUUID(),
-    }));
+    const members = [
+      { id: crypto.randomUUID(), name: creatorName, claimedByUserId: userId, inviteToken: crypto.randomUUID() },
+      ...trimmedMemberNames.map((memberName) => ({
+        id: crypto.randomUUID(),
+        name: memberName,
+        inviteToken: crypto.randomUUID(),
+      })),
+    ];
 
     await ctx.db.insert("groups", {
       slug,
@@ -68,6 +79,39 @@ export const rename = mutation({
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Group name is required");
     await ctx.db.patch(group._id, { name: trimmedName, updatedAt: Date.now() });
+  },
+});
+
+export const deleteGroup = mutation({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    const group = await getGroupBySlug(ctx, slug);
+    if (!group) throw new Error("Group not found");
+    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+
+    // Unlink (not delete) the group's receipts - they still belong to
+    // whoever owns them, just no longer attached to this group.
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_group", (q) => q.eq("groupId", group._id))
+      .collect();
+    for (const receipt of receipts) {
+      await ctx.db.patch(receipt._id, { groupId: undefined, groupMemberIds: undefined });
+    }
+
+    for (const member of group.members) {
+      if (!member.claimedByUserId) continue;
+      const memberships = await ctx.db
+        .query("groupMemberships")
+        .withIndex("by_user", (q) => q.eq("userId", member.claimedByUserId!))
+        .collect();
+      const stale = memberships.find((m) => m.groupId === group._id);
+      if (stale) await ctx.db.delete(stale._id);
+    }
+
+    await ctx.db.delete(group._id);
   },
 });
 
@@ -118,6 +162,11 @@ export const removeMember = mutation({
     if (group.ownerUserId !== userId) throw new Error("Not authorized");
 
     const removed = group.members.find((m) => m.id === memberId);
+    if (!removed) throw new Error("Member not found");
+    if (removed.claimedByUserId === group.ownerUserId) {
+      throw new Error("The group creator can't be removed");
+    }
+
     const members = group.members.filter((m) => m.id !== memberId);
     await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
 
@@ -149,7 +198,13 @@ export const claimMember = mutation({
     const member = group.members.find((m) => m.inviteToken === token);
     if (!member) throw new Error("Invalid invite link");
     if (member.claimedByUserId === userId) return;
+    if (group.ownerUserId === userId) {
+      throw new Error("You created this group, so you're already a member");
+    }
     if (member.claimedByUserId) throw new Error("This spot has already been claimed");
+    if (group.members.some((m) => m.claimedByUserId === userId)) {
+      throw new Error("You're already a member of this group");
+    }
 
     const members = group.members.map((m) => (m.id === member.id ? { ...m, claimedByUserId: userId } : m));
     await ctx.db.patch(group._id, { members, updatedAt: Date.now() });

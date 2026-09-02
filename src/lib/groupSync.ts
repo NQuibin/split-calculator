@@ -86,6 +86,7 @@ export function useGroupActions() {
   return {
     create: useMutation(api.groups.create),
     rename: useMutation(api.groups.rename),
+    deleteGroup: useMutation(api.groups.deleteGroup),
     addMember: useMutation(api.groups.addMember),
     renameMember: useMutation(api.groups.renameMember),
     removeMember: useMutation(api.groups.removeMember),

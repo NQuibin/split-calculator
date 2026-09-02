@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   Receipt as ReceiptIcon,
+  Trash2,
   Users2,
 } from "lucide-react";
 import { AssignReceiptDialog } from "@/components/AssignReceiptDialog";
@@ -146,22 +147,82 @@ function GroupTitle({ slug, name, isOwner }: { slug: string; name: string; isOwn
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">{name}</h1>
-      {isOwner && (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
+        <h1 className="font-display text-3xl font-semibold text-ink sm:text-4xl">{name}</h1>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => {
+              setValue(name);
+              setEditing(true);
+            }}
+            aria-label="Rename group"
+            className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+          >
+            <Pencil className="h-4 w-4" strokeWidth={2.25} />
+          </button>
+        )}
+      </div>
+      {isOwner && <DeleteGroupButton slug={slug} />}
+    </div>
+  );
+}
+
+function DeleteGroupButton({ slug }: { slug: string }) {
+  const router = useRouter();
+  const { deleteGroup } = useGroupActions();
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteGroup({ slug });
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't delete the group.");
+      setDeleting(false);
+    }
+  }
+
+  if (confirming) {
+    return (
+      <div className="flex shrink-0 items-center gap-2">
+        {error && <span className="text-xs text-margin-red">{error}</span>}
         <button
           type="button"
-          onClick={() => {
-            setValue(name);
-            setEditing(true);
-          }}
-          aria-label="Rename group"
-          className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+          onClick={handleDelete}
+          disabled={deleting}
+          aria-busy={deleting}
+          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-margin-red px-2.5 py-1.5 text-xs font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface disabled:cursor-not-allowed disabled:opacity-70"
         >
-          <Pencil className="h-4 w-4" strokeWidth={2.25} />
+          {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />}
+          Confirm delete
         </button>
-      )}
-    </div>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          disabled={deleting}
+          className="cursor-pointer text-xs font-medium text-ink-soft transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setConfirming(true)}
+      aria-label="Delete group"
+      className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+    >
+      <Trash2 className="h-4 w-4" strokeWidth={2.25} />
+    </button>
   );
 }
 
