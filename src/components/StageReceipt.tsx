@@ -200,19 +200,20 @@ export function StageReceipt({
 
         <motion.div
           layout
-          transition={{ layout: { duration: 0.25, ease: "easeInOut" } }}
-          className={`space-y-3 transition-shadow duration-200 ${
+          transition={{ layout: collapseTransition }}
+          className={`relative space-y-3 transition-[margin,padding,box-shadow] duration-200 ease-in-out ${
             editingId ? "-m-3 rounded-md p-3 ring-2 ring-brass" : ""
           }`}
         >
-          <AnimatePresence initial={false}>
+          <AnimatePresence initial={false} mode="popLayout">
             {editingId && (
               <motion.div
                 key="editing-banner"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2, ease: "easeInOut" }}
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={collapseTransition}
                 className="overflow-hidden"
               >
                 <div className="flex items-center gap-1.5 rounded-md bg-brass/15 px-3 py-2 text-sm font-medium text-ink">
@@ -340,7 +341,7 @@ export function StageReceipt({
             as="ul"
             axis="y"
             layout
-            transition={{ layout: { duration: 0.25, ease: "easeInOut" } }}
+            transition={{ layout: collapseTransition }}
             values={items}
             onReorder={onReorderItems}
             className="perforated-top mt-5 space-y-2 pt-4"
@@ -362,7 +363,7 @@ export function StageReceipt({
 
         <motion.div
           layout
-          transition={{ layout: { duration: 0.25, ease: "easeInOut" } }}
+          transition={{ layout: collapseTransition }}
           className="perforated-top mt-4 space-y-1 pt-4 text-sm"
         >
           <div className="flex justify-between text-ink-soft">
