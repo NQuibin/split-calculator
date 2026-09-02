@@ -13,7 +13,6 @@ import {
   Pencil,
   Percent,
   Plus,
-  Receipt,
   TicketPercent,
   Wallet,
 } from "lucide-react";
@@ -179,7 +178,6 @@ export function StageReceipt({
           {people.length} people
         </button>
         <div className="flex items-center gap-2 text-brass">
-          <Receipt className="h-5 w-5" strokeWidth={2.25} />
           <span className="font-display text-sm font-semibold tracking-wide uppercase">
             The receipt
           </span>
