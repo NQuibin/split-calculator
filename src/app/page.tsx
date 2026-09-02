@@ -2,6 +2,8 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CreateGroupMenu } from "@/components/CreateGroupMenu";
+import { ExistingGroups } from "@/components/ExistingGroups";
 import { ExistingReceipts } from "@/components/ExistingReceipts";
 import { StageHeadcount } from "@/components/StageHeadcount";
 import { encodeDraftParams } from "@/lib/receiptDraft";
@@ -27,6 +29,10 @@ export default function Home() {
         pending={isPending}
       />
       <ExistingReceipts />
+      <ExistingGroups />
+      <div className="mx-auto w-full max-w-md px-6 pb-16">
+        <CreateGroupMenu />
+      </div>
     </main>
   );
 }

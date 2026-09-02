@@ -39,4 +39,8 @@ export interface ReceiptState {
   /** What each person already paid toward the receipt, so the split can show who's owed money back. */
   contributions: Contribution[];
   updatedAt?: number;
+  /** Raw group id, present (when set) on `receipts.list` results - just enough to tell whether a receipt is already in a group. */
+  groupId?: string;
+  /** Resolved group name/slug, present (when set) on a single `receipts.get` result - for rendering a "part of {group}" link. */
+  group?: { slug: string; name: string } | null;
 }

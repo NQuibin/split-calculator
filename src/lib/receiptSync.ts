@@ -14,10 +14,49 @@ import {
   subscribeReceiptList,
   type StoredReceipt,
 } from "./storage";
-import type { ReceiptState } from "./types";
+import type { Contribution, Person, RateSetting, ReceiptItem, ReceiptState } from "./types";
 
 // When signed in, Convex is the source of truth (live queries); localStorage
 // keeps being written to as a cache so the app still works offline/signed out.
+
+interface ReceiptStateArgs {
+  stage: ReceiptState["stage"];
+  people: Person[];
+  namePeople: boolean;
+  items: ReceiptItem[];
+  tax: RateSetting;
+  tip: RateSetting;
+  date: string;
+  contributions: Contribution[];
+}
+
+// `state` may carry fields the current receiptState validator doesn't accept:
+// top-level extras merged in from a `receipts.get` result (`updatedAt`,
+// `groupId`, `group`), or - for receipts saved by an older version of the
+// app - stale per-item fields like a legacy `taxRate` rate setting that
+// predates today's `taxed`/`tipped` booleans. Rebuild exactly the shape the
+// validator expects, at every nested level, before sending to Convex.
+function toReceiptStateArgs(state: ReceiptState): ReceiptStateArgs {
+  const rate = ({ mode, value }: RateSetting): RateSetting => ({ mode, value });
+  return {
+    stage: state.stage,
+    namePeople: state.namePeople,
+    date: state.date,
+    people: state.people.map(({ id, name }) => ({ id, name })),
+    items: state.items.map(({ id, name, cost, discount, taxed, tipped, splitWith }) => ({
+      id,
+      name,
+      cost,
+      discount: rate(discount),
+      taxed,
+      tipped,
+      splitWith,
+    })),
+    tax: rate(state.tax),
+    tip: rate(state.tip),
+    contributions: state.contributions.map(({ personId, amount }) => ({ personId, amount: rate(amount) })),
+  };
+}
 
 export function useReceiptList(): StoredReceipt[] {
   const { isAuthenticated } = useConvexAuth();
@@ -52,7 +91,7 @@ export function useReceiptActions(): {
   const save = useCallback(
     (slug: string, state: ReceiptState) => {
       saveReceipt(slug, state);
-      if (isAuthenticated) void saveMutation({ slug, state });
+      if (isAuthenticated) void saveMutation({ slug, state: toReceiptStateArgs(state) });
     },
     [isAuthenticated, saveMutation],
   );
@@ -78,6 +117,9 @@ export function useSyncLocalReceiptsOnLogin(): void {
     if (!isAuthenticated || hasSynced.current) return;
     hasSynced.current = true;
     const receipts = getReceiptListSnapshot();
-    if (receipts.length > 0) void importLocal({ receipts });
+    if (receipts.length === 0) return;
+    void importLocal({
+      receipts: receipts.map(({ slug, state }) => ({ slug, state: toReceiptStateArgs(state) })),
+    });
   }, [isAuthenticated, importLocal]);
 }

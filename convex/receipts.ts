@@ -26,8 +26,19 @@ export const get = query({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (!doc) return null;
-    const { stage, people, namePeople, items, tax, tip, date, contributions } = doc;
-    return { stage, people, namePeople, items, tax, tip, date, contributions };
+    const { stage, people, namePeople, items, tax, tip, date, contributions, groupId } = doc;
+    const group = groupId ? await ctx.db.get(groupId) : null;
+    return {
+      stage,
+      people,
+      namePeople,
+      items,
+      tax,
+      tip,
+      date,
+      contributions,
+      group: group ? { slug: group.slug, name: group.name } : null,
+    };
   },
 });
 

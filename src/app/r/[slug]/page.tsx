@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Users2 } from "lucide-react";
+import { ReceiptSkeleton } from "@/components/ReceiptSkeleton";
 import { StageReceipt } from "@/components/StageReceipt";
 import { StageResults } from "@/components/StageResults";
+import { useGroup, useGroupActions } from "@/lib/groupSync";
 import { receiptReducer, type Action } from "@/lib/reducer";
 import { draftFromParams } from "@/lib/receiptDraft";
 import { useReceiptActions, useStoredReceipt } from "@/lib/receiptSync";
@@ -37,17 +40,51 @@ export default function ReceiptPage() {
     if (hasHydrated && !loading && state === null) router.replace("/");
   }, [hasHydrated, loading, state, router]);
 
-  if (!hasHydrated || loading || !state) return null;
+  // If this receipt was started from inside a group (?group={slug}), attach
+  // it to that group the moment it's first persisted. Its people were
+  // pre-filled from the group's roster in the same order, so person `i`
+  // maps to member `i`.
+  const groupSlug = searchParams.get("group");
+  const group = useGroup(groupSlug ?? "");
+  const { assignReceipt } = useGroupActions();
+  const hasAssigned = useRef(false);
+
+  useEffect(() => {
+    if (!groupSlug || !group || !stored || hasAssigned.current) return;
+    hasAssigned.current = true;
+    const memberMapping = stored.people
+      .map((person, i) => ({ personId: person.id, memberId: group.members[i]?.id }))
+      .filter((m): m is { personId: string; memberId: string } => m.memberId !== undefined);
+    if (memberMapping.length > 0) void assignReceipt({ groupSlug, receiptSlug: slug, memberMapping });
+  }, [groupSlug, group, stored, slug, assignReceipt]);
+
+  if (!hasHydrated || loading || !state) return <ReceiptSkeleton />;
 
   function dispatch(action: Action) {
     if (!state) return;
     const next = receiptReducer(state, action);
     save(slug, next);
-    setDraft(next.items.length === 0 ? next : null);
+    // Keep mirroring `next` here (rather than nulling it out once the
+    // receipt is persisted) so `state = stored ?? draft` never has a gap
+    // between clearing the draft and the Convex query catching up with the
+    // just-saved doc - that gap briefly made `state` null and bounced the
+    // page home mid-edit. `stored` naturally takes over once it resolves.
+    setDraft(next);
   }
 
   return (
     <main className="flex flex-1 flex-col">
+      {state.group && (
+        <button
+          type="button"
+          onClick={() => router.push(`/g/${state.group!.slug}`)}
+          className="mx-auto mt-3 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-ink-soft hover:text-forest"
+        >
+          <Users2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+          Part of {state.group.name}
+        </button>
+      )}
+
       {state.stage === "receipt" && (
         <StageReceipt
           people={state.people}

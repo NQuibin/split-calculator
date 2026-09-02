@@ -8,6 +8,7 @@ import { api } from "../../convex/_generated/api";
 import { useSyncLocalReceiptsOnLogin } from "@/lib/receiptSync";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function Header() {
   useSyncLocalReceiptsOnLogin();
@@ -15,7 +16,9 @@ export function Header() {
   return (
     <header className="flex justify-end px-6 py-3">
       <AuthLoading>
-        <div className="h-8 w-8" />
+        {/* Matches SignedInMenu's actual row height (28px, measured) so the
+            header doesn't change height once auth resolves. */}
+        <Skeleton className="h-7 w-24 rounded-full" />
       </AuthLoading>
       <Unauthenticated>
         <SignInMenu />

@@ -38,6 +38,18 @@ export const receiptState = v.object({
   contributions: v.array(contribution),
 });
 
+export const groupMember = v.object({
+  id: v.string(),
+  name: v.string(),
+  claimedByUserId: v.optional(v.id("users")),
+  inviteToken: v.string(),
+});
+
+export const groupMemberLink = v.object({
+  personId: v.string(),
+  memberId: v.string(),
+});
+
 export default defineSchema({
   ...authTables,
   receipts: defineTable({
@@ -52,7 +64,23 @@ export default defineSchema({
     date: v.string(),
     contributions: v.array(contribution),
     updatedAt: v.number(),
+    groupId: v.optional(v.id("groups")),
+    groupMemberIds: v.optional(v.array(groupMemberLink)),
   })
     .index("by_user", ["userId"])
-    .index("by_user_slug", ["userId", "slug"]),
+    .index("by_user_slug", ["userId", "slug"])
+    .index("by_group", ["groupId"]),
+  groups: defineTable({
+    slug: v.string(),
+    ownerUserId: v.id("users"),
+    name: v.string(),
+    members: v.array(groupMember),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerUserId"])
+    .index("by_slug", ["slug"]),
+  groupMemberships: defineTable({
+    userId: v.id("users"),
+    groupId: v.id("groups"),
+  }).index("by_user", ["userId"]),
 });
