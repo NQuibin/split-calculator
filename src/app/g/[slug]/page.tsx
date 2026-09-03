@@ -6,6 +6,7 @@ import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import {
   ArrowLeft,
   Check,
+  Ghost,
   Link2,
   Loader2,
   Pencil,
@@ -268,9 +269,15 @@ function Roster({
           const invite = inviteLinks.find((l) => l.memberId === member.id);
           return (
             <li key={member.id} className="flex items-center justify-between gap-3">
-              <span className="text-ink">
+              <span className="flex items-center gap-1.5 text-ink">
                 {member.name}
-                {member.claimed && <span className="ml-1.5 text-xs font-medium text-forest">· claimed</span>}
+                {!member.claimed && (
+                  <Ghost
+                    className="h-3.5 w-3.5 shrink-0 text-ink-soft"
+                    strokeWidth={2.25}
+                    aria-label="Anonymous member"
+                  />
+                )}
               </span>
               {isOwner && !member.claimed && invite && (
                 <button
@@ -295,6 +302,13 @@ function Roster({
           );
         })}
       </ul>
+
+      {members.some((m) => !m.claimed) && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
+          <Ghost className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+          Anonymous members haven&rsquo;t signed up yet — invite them to claim their spot.
+        </p>
+      )}
 
       {isOwner &&
         (adding ? (
