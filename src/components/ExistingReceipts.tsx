@@ -15,7 +15,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-function peopleLabel({ people }: StoredReceipt["state"]): string {
+function receiptCardLabel({ name, people }: StoredReceipt["state"]): string {
+  if (name?.trim()) return name.trim();
   const allDefaultNamed = people.every((p, i) => p.name === `Person ${i + 1}`);
   if (!allDefaultNamed) return people.map((p) => p.name).join(", ");
   return `${people.length} ${people.length === 1 ? "person" : "people"}`;
@@ -55,7 +56,7 @@ export function ExistingReceipts() {
                 className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule bg-surface px-4 py-3 text-left transition hover:border-forest disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">{peopleLabel(state)}</p>
+                  <p className="truncate text-sm font-medium text-ink">{receiptCardLabel(state)}</p>
                   <p className="truncate text-xs text-ink-soft">
                     {state.items.length} {state.items.length === 1 ? "item" : "items"}
                     {state.updatedAt ? ` · ${dateFormatter.format(state.updatedAt)}` : ""}

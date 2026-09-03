@@ -21,6 +21,7 @@ import type { Contribution, Person, RateSetting, ReceiptItem, ReceiptState } fro
 
 interface ReceiptStateArgs {
   stage: ReceiptState["stage"];
+  name?: string;
   people: Person[];
   namePeople: boolean;
   items: ReceiptItem[];
@@ -40,6 +41,7 @@ function toReceiptStateArgs(state: ReceiptState): ReceiptStateArgs {
   const rate = ({ mode, value }: RateSetting): RateSetting => ({ mode, value });
   return {
     stage: state.stage,
+    name: state.name,
     namePeople: state.namePeople,
     date: state.date,
     people: state.people.map(({ id, name }) => ({ id, name })),

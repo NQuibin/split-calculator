@@ -71,6 +71,7 @@ export function useGroupBreakdown(slug: string): GroupBreakdown | null | undefin
 
 export interface GroupReceiptSummary {
   slug: string;
+  name?: string;
   people: Person[];
   items: ReceiptItem[];
   tax: RateSetting;

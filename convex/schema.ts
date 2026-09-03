@@ -29,6 +29,7 @@ export const contribution = v.object({
 
 export const receiptState = v.object({
   stage: v.union(v.literal("receipt"), v.literal("results")),
+  name: v.optional(v.string()),
   people: v.array(person),
   namePeople: v.boolean(),
   items: v.array(receiptItem),
@@ -56,6 +57,7 @@ export default defineSchema({
     slug: v.string(),
     userId: v.id("users"),
     stage: v.union(v.literal("receipt"), v.literal("results")),
+    name: v.optional(v.string()),
     people: v.array(person),
     namePeople: v.boolean(),
     items: v.array(receiptItem),

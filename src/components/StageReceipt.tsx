@@ -24,11 +24,14 @@ import { RateInput } from "@/components/ui/RateInput";
 import { ReceiptLineItem } from "@/components/ui/ReceiptLineItem";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
+import { receiptLabel } from "@/lib/receiptLabel";
 import type { Contribution, Person, RateSetting, ReceiptItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
 interface StageReceiptProps {
+  receiptName?: string;
+  onRenameReceipt: (name: string | undefined) => void;
   people: Person[];
   anonymousPersonIds?: string[];
   items: ReceiptItem[];
@@ -52,6 +55,8 @@ interface StageReceiptProps {
 }
 
 export function StageReceipt({
+  receiptName,
+  onRenameReceipt,
   people,
   anonymousPersonIds = [],
   items,
@@ -191,6 +196,8 @@ export function StageReceipt({
           </span>
         </div>
       </div>
+
+      <ReceiptTitle name={receiptName} defaultName={receiptLabel(undefined, people)} onRename={onRenameReceipt} />
 
       <div className="mb-4 rounded-lg border border-rule bg-surface p-5">
         <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
@@ -485,6 +492,62 @@ export function StageReceipt({
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function ReceiptTitle({
+  name,
+  defaultName,
+  onRename,
+}: {
+  name?: string;
+  defaultName: string;
+  onRename: (name: string | undefined) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name ?? "");
+
+  function commit() {
+    onRename(value.trim() || undefined);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          commit();
+        }}
+        className="mb-6"
+      >
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          placeholder={defaultName}
+          className="font-display w-full max-w-md rounded-md border border-rule bg-paper px-3 py-2 text-2xl font-semibold text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+        />
+      </form>
+    );
+  }
+
+  return (
+    <div className="mb-6 flex items-center gap-2">
+      <h1 className="font-display min-w-0 truncate text-2xl font-semibold text-ink">{name || defaultName}</h1>
+      <button
+        type="button"
+        onClick={() => {
+          setValue(name ?? "");
+          setEditing(true);
+        }}
+        aria-label="Rename receipt"
+        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+      >
+        <Pencil className="h-4 w-4" strokeWidth={2.25} />
+      </button>
     </div>
   );
 }

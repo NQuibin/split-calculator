@@ -29,6 +29,8 @@ export interface Contribution {
 
 export interface ReceiptState {
   stage: Stage;
+  /** Custom receipt name; when unset, callers fall back to the people's names joined together. */
+  name?: string;
   people: Person[];
   namePeople: boolean;
   items: ReceiptItem[];

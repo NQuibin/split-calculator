@@ -87,6 +87,8 @@ export default function ReceiptPage() {
 
       {state.stage === "receipt" && (
         <StageReceipt
+          receiptName={state.name}
+          onRenameReceipt={(name) => dispatch({ type: "RENAME_RECEIPT", name })}
           people={state.people}
           anonymousPersonIds={state.anonymousPersonIds}
           items={state.items}

@@ -29,6 +29,7 @@ import {
   useGroupReceipts,
 } from "@/lib/groupSync";
 import { encodeDraftParams } from "@/lib/receiptDraft";
+import { receiptLabel } from "@/lib/receiptLabel";
 import { useReceiptActions } from "@/lib/receiptSync";
 import { generateSlug } from "@/lib/slug";
 
@@ -399,7 +400,7 @@ function ReceiptList({
                   onClick={() => router.push(`/r/${receipt.slug}`)}
                   className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule bg-surface px-4 py-3 text-left text-sm transition hover:border-forest"
                 >
-                  <span className="truncate text-ink">{receipt.people.map((p) => p.name).join(", ")}</span>
+                  <span className="truncate text-ink">{receiptLabel(receipt.name, receipt.people)}</span>
                   <span className="font-numeric shrink-0 font-semibold text-ink">{currency(total)}</span>
                 </button>
                 {isOwner && (

@@ -26,7 +26,7 @@ export const get = query({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (!doc) return null;
-    const { stage, people, namePeople, items, tax, tip, date, contributions, groupId, groupMemberIds } = doc;
+    const { stage, name, people, namePeople, items, tax, tip, date, contributions, groupId, groupMemberIds } = doc;
     const group = groupId ? await ctx.db.get(groupId) : null;
 
     // Flag people linked to a still-anonymous group member, so the receipt
@@ -41,6 +41,7 @@ export const get = query({
 
     return {
       stage,
+      name,
       people,
       namePeople,
       items,

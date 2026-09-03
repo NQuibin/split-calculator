@@ -383,7 +383,7 @@ export const receiptsForGroup = query({
       .withIndex("by_group", (q) => q.eq("groupId", group._id))
       .collect();
     return receipts
-      .map(({ slug, people, items, tax, tip, updatedAt }) => ({ slug, people, items, tax, tip, updatedAt }))
+      .map(({ slug, name, people, items, tax, tip, updatedAt }) => ({ slug, name, people, items, tax, tip, updatedAt }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });

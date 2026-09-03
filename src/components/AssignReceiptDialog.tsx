@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover
 import { currency } from "@/lib/format";
 import { computeSplit } from "@/lib/calculations";
 import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/groupMembers";
+import { receiptLabel } from "@/lib/receiptLabel";
 import { useReceiptList } from "@/lib/receiptSync";
 import { useGroupActions, type GroupMemberSummary } from "@/lib/groupSync";
 
@@ -99,7 +100,7 @@ export function AssignReceiptDialog({ groupSlug, members }: AssignReceiptDialogP
                         className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left text-sm transition hover:border-forest"
                       >
                         <span className="truncate text-ink">
-                          {state.people.map((p) => p.name).join(", ")}
+                          {receiptLabel(state.name, state.people)}
                         </span>
                         <span className="font-numeric shrink-0 text-ink-soft">{currency(total)}</span>
                       </button>

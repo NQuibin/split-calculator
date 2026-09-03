@@ -11,6 +11,7 @@ export type Action =
   | { type: "SET_CONTRIBUTION"; personId: string; amount: RateSetting }
   | { type: "ADD_PERSON" }
   | { type: "RENAME_PERSON"; id: string; name: string }
+  | { type: "RENAME_RECEIPT"; name: string | undefined }
   | { type: "GO_TO_RESULTS" }
   | { type: "BACK_TO_RECEIPT" };
 
@@ -48,6 +49,8 @@ export function receiptReducer(state: ReceiptState, action: Action): ReceiptStat
         ...state,
         people: state.people.map((p) => (p.id === action.id ? { ...p, name: action.name } : p)),
       };
+    case "RENAME_RECEIPT":
+      return { ...state, name: action.name };
     case "GO_TO_RESULTS":
       return { ...state, stage: "results" };
     case "BACK_TO_RECEIPT":
