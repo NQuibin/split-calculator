@@ -101,6 +101,8 @@ export default function ReceiptPage() {
           onRemoveItem={(id) => dispatch({ type: "REMOVE_ITEM", id })}
           onReorderItems={(items) => dispatch({ type: "REORDER_ITEMS", items })}
           onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
+          onAddPerson={() => dispatch({ type: "ADD_PERSON" })}
+          onRenamePerson={(id, name) => dispatch({ type: "RENAME_PERSON", id, name })}
           onBack={() => startNavigation(() => router.push("/"))}
           onContinue={() => dispatch({ type: "GO_TO_RESULTS" })}
           navigating={isNavigating}

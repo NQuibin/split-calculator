@@ -9,6 +9,8 @@ export type Action =
   | { type: "REMOVE_ITEM"; id: string }
   | { type: "REORDER_ITEMS"; items: ReceiptItem[] }
   | { type: "SET_CONTRIBUTION"; personId: string; amount: RateSetting }
+  | { type: "ADD_PERSON" }
+  | { type: "RENAME_PERSON"; id: string; name: string }
   | { type: "GO_TO_RESULTS" }
   | { type: "BACK_TO_RECEIPT" };
 
@@ -37,6 +39,15 @@ export function receiptReducer(state: ReceiptState, action: Action): ReceiptStat
         : [...state.contributions, { personId: action.personId, amount: action.amount }];
       return { ...state, contributions };
     }
+    case "ADD_PERSON": {
+      const n = state.people.length + 1;
+      return { ...state, people: [...state.people, { id: `person-${n}`, name: `Person ${n}` }] };
+    }
+    case "RENAME_PERSON":
+      return {
+        ...state,
+        people: state.people.map((p) => (p.id === action.id ? { ...p, name: action.name } : p)),
+      };
     case "GO_TO_RESULTS":
       return { ...state, stage: "results" };
     case "BACK_TO_RECEIPT":

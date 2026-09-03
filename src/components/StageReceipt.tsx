@@ -14,6 +14,7 @@ import {
   Percent,
   Plus,
   TicketPercent,
+  Users2,
   Wallet,
 } from "lucide-react";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -41,6 +42,8 @@ interface StageReceiptProps {
   onRemoveItem: (id: string) => void;
   onReorderItems: (items: ReceiptItem[]) => void;
   onSetContribution: (personId: string, amount: RateSetting) => void;
+  onAddPerson: () => void;
+  onRenamePerson: (id: string, name: string) => void;
   onBack: () => void;
   onContinue: () => void;
   navigating?: boolean;
@@ -61,6 +64,8 @@ export function StageReceipt({
   onRemoveItem,
   onReorderItems,
   onSetContribution,
+  onAddPerson,
+  onRenamePerson,
   onBack,
   onContinue,
   navigating = false,
@@ -182,6 +187,26 @@ export function StageReceipt({
             The receipt
           </span>
         </div>
+      </div>
+
+      <div className="mb-4 rounded-lg border border-rule bg-surface p-5">
+        <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+          <Users2 className="h-4 w-4 text-brass" strokeWidth={2.25} />
+          People
+        </p>
+        <ul className="space-y-2 text-sm">
+          {people.map((person) => (
+            <PersonRow key={person.id} person={person} onRename={(name) => onRenamePerson(person.id, name)} />
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={onAddPerson}
+          className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          Add person
+        </button>
       </div>
 
       <div className="rounded-lg border border-rule bg-surface p-5">
@@ -446,5 +471,54 @@ export function StageReceipt({
         </button>
       </div>
     </div>
+  );
+}
+
+function PersonRow({ person, onRename }: { person: Person; onRename: (name: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(person.name);
+
+  function commit() {
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== person.name) onRename(trimmed);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <li>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            commit();
+          }}
+        >
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={commit}
+            className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+          />
+        </form>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-center justify-between gap-2">
+      <span className="truncate text-ink">{person.name}</span>
+      <button
+        type="button"
+        onClick={() => {
+          setValue(person.name);
+          setEditing(true);
+        }}
+        aria-label={`Rename ${person.name}`}
+        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+      >
+        <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
+      </button>
+    </li>
   );
 }

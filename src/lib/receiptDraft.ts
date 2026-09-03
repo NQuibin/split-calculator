@@ -3,9 +3,9 @@ import type { Person, ReceiptState } from "./types";
 
 // A brand-new receipt isn't persisted until its first item is added (see
 // storage.ts), so its starting people/namePeople travel in the URL instead.
-// Person.id is always `person-${index + 1}` (see StageHeadcount), so only
-// the count and, when custom-named, the names need to be encoded - not full
-// Person objects - to keep the query string short as headcount grows.
+// Person.id is always `person-${index + 1}` (see reducer.ts's ADD_PERSON),
+// so only the count and, when custom-named, the names need to be encoded -
+// not full Person objects - to keep the query string short as headcount grows.
 
 export function encodeDraftParams(people: Person[], namePeople: boolean): URLSearchParams {
   const params = new URLSearchParams({ count: String(people.length) });

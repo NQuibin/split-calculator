@@ -15,8 +15,9 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-function peopleLabel({ people, namePeople }: StoredReceipt["state"]): string {
-  if (namePeople) return people.map((p) => p.name).join(", ");
+function peopleLabel({ people }: StoredReceipt["state"]): string {
+  const allDefaultNamed = people.every((p, i) => p.name === `Person ${i + 1}`);
+  if (!allDefaultNamed) return people.map((p) => p.name).join(", ");
   return `${people.length} ${people.length === 1 ? "person" : "people"}`;
 }
 
