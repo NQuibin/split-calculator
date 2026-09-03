@@ -47,4 +47,6 @@ export interface ReceiptState {
   group?: { slug: string; name: string } | null;
   /** Ids of people linked to a still-anonymous group member, present on a single `receipts.get` result. */
   anonymousPersonIds?: string[];
+  /** Group members not yet on this receipt, present (when grouped) on a single `receipts.get` result - the only people addable once a receipt is in a group. */
+  availableGroupMembers?: { id: string; name: string }[];
 }

@@ -46,7 +46,7 @@ export default function ReceiptPage() {
   // maps to member `i`.
   const groupSlug = searchParams.get("group");
   const group = useGroup(groupSlug ?? "");
-  const { assignReceipt } = useGroupActions();
+  const { assignReceipt, addReceiptPerson } = useGroupActions();
   const hasAssigned = useRef(false);
 
   useEffect(() => {
@@ -91,6 +91,9 @@ export default function ReceiptPage() {
           onRenameReceipt={(name) => dispatch({ type: "RENAME_RECEIPT", name })}
           people={state.people}
           anonymousPersonIds={state.anonymousPersonIds}
+          inGroup={!!state.group}
+          availableGroupMembers={state.availableGroupMembers}
+          onAddGroupMember={(params) => addReceiptPerson({ receiptSlug: slug, ...params })}
           items={state.items}
           tax={state.tax}
           tip={state.tip}

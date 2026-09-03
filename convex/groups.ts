@@ -26,7 +26,7 @@ async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) 
 // Claimed members show their account's current name (falling back to email)
 // rather than the name frozen into the member row when they were added or
 // claimed - so a later Settings rename is reflected everywhere they appear.
-async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc<"groups">["members"][number]) {
+export async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc<"groups">["members"][number]) {
   if (!member.claimedByUserId) return member.name;
   const user = await ctx.db.get(member.claimedByUserId);
   return user?.name?.trim() || user?.email?.trim() || member.name;
@@ -372,6 +372,59 @@ export const assignReceipt = mutation({
     const groupMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
 
     await ctx.db.patch(receipt._id, { groupId: group._id, groupMemberIds, people, items, contributions });
+  },
+});
+
+// Once a receipt belongs to a group, its existing people are locked to the
+// group mapping decided in assignReceipt - the only way to change who's on
+// the receipt is to add someone, either an existing member not yet on this
+// receipt or a brand-new one (who is added to the group at the same time).
+export const addReceiptPerson = mutation({
+  args: {
+    receiptSlug: v.string(),
+    memberId: v.optional(v.string()),
+    newMemberName: v.optional(v.string()),
+  },
+  handler: async (ctx, { receiptSlug, memberId, newMemberName }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+
+    const receipt = await ctx.db
+      .query("receipts")
+      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", receiptSlug))
+      .unique();
+    if (!receipt) throw new Error("Receipt not found");
+    if (!receipt.groupId) throw new Error("Receipt is not in a group");
+
+    const group = await ctx.db.get(receipt.groupId);
+    if (!group) throw new Error("Group not found");
+    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+
+    const linkedMemberIds = new Set((receipt.groupMemberIds ?? []).map((l) => l.memberId));
+    let members = group.members;
+    let member: Doc<"groups">["members"][number];
+
+    if (memberId) {
+      const found = members.find((m) => m.id === memberId);
+      if (!found) throw new Error("Member not found");
+      if (linkedMemberIds.has(memberId)) throw new Error("This member is already on the receipt");
+      member = found;
+    } else {
+      const trimmedName = newMemberName?.trim();
+      if (!trimmedName) throw new Error("Name is required");
+      requireUniqueName(members, trimmedName);
+      member = { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() };
+      members = [...members, member];
+      await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+    }
+
+    const personId = member.claimedByUserId ?? member.id;
+    const name = await resolveMemberName(ctx, member);
+
+    await ctx.db.patch(receipt._id, {
+      people: [...receipt.people, { id: personId, name }],
+      groupMemberIds: [...(receipt.groupMemberIds ?? []), { personId, memberId: member.id }],
+    });
   },
 });
 

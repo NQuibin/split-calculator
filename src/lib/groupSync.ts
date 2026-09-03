@@ -93,6 +93,7 @@ export function useGroupActions() {
     removeMember: useMutation(api.groups.removeMember),
     claimMember: useMutation(api.groups.claimMember),
     assignReceipt: useMutation(api.groups.assignReceipt),
+    addReceiptPerson: useMutation(api.groups.addReceiptPerson),
     unassignReceipt: useMutation(api.groups.unassignReceipt),
   };
 }

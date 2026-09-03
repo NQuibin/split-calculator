@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { resolveMemberName } from "./groups";
 import { mutation, query } from "./_generated/server";
 import { receiptState } from "./schema";
 
@@ -30,13 +31,23 @@ export const get = query({
     const group = groupId ? await ctx.db.get(groupId) : null;
 
     // Flag people linked to a still-anonymous group member, so the receipt
-    // form can show the same indicator the group's roster does.
+    // form can show the same indicator the group's roster does. Also list
+    // group members not yet on this receipt, so the receipt form can offer
+    // them (or a brand-new person) as the only way to add someone once a
+    // receipt belongs to a group.
     let anonymousPersonIds: string[] = [];
-    if (group && groupMemberIds) {
+    let availableGroupMembers: { id: string; name: string }[] = [];
+    if (group) {
+      const linkedMemberIds = new Set((groupMemberIds ?? []).map((link) => link.memberId));
       const anonymousMemberIds = new Set(group.members.filter((m) => !m.claimedByUserId).map((m) => m.id));
-      anonymousPersonIds = groupMemberIds
+      anonymousPersonIds = (groupMemberIds ?? [])
         .filter((link) => anonymousMemberIds.has(link.memberId))
         .map((link) => link.personId);
+      availableGroupMembers = await Promise.all(
+        group.members
+          .filter((m) => !linkedMemberIds.has(m.id))
+          .map(async (m) => ({ id: m.id, name: await resolveMemberName(ctx, m) })),
+      );
     }
 
     return {
@@ -51,6 +62,7 @@ export const get = query({
       contributions,
       group: group ? { slug: group.slug, name: group.name } : null,
       anonymousPersonIds,
+      availableGroupMembers,
     };
   },
 });

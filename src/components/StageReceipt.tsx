@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { AnimatePresence, motion, Reorder } from "motion/react";
 import {
   ArrowLeft,
@@ -34,6 +34,9 @@ interface StageReceiptProps {
   onRenameReceipt: (name: string | undefined) => void;
   people: Person[];
   anonymousPersonIds?: string[];
+  inGroup?: boolean;
+  availableGroupMembers?: { id: string; name: string }[];
+  onAddGroupMember: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
@@ -59,6 +62,9 @@ export function StageReceipt({
   onRenameReceipt,
   people,
   anonymousPersonIds = [],
+  inGroup = false,
+  availableGroupMembers = [],
+  onAddGroupMember,
   items,
   tax,
   tip,
@@ -210,6 +216,7 @@ export function StageReceipt({
               key={person.id}
               person={person}
               anonymous={anonymousPersonIds.includes(person.id)}
+              locked={inGroup}
               onRename={(name) => onRenamePerson(person.id, name)}
             />
           ))}
@@ -220,14 +227,23 @@ export function StageReceipt({
             Anonymous members haven&rsquo;t signed up yet.
           </p>
         )}
-        <button
-          type="button"
-          onClick={onAddPerson}
-          className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-          Add person
-        </button>
+        {inGroup ? (
+          <>
+            <p className="mt-3 text-xs text-ink-soft">
+              This receipt is in a group, so people here can only be added, not renamed.
+            </p>
+            <AddGroupPersonForm availableMembers={availableGroupMembers} onAdd={onAddGroupMember} />
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onAddPerson}
+            className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+            Add person
+          </button>
+        )}
       </div>
 
       <div className="rounded-lg border border-rule bg-surface p-5">
@@ -555,10 +571,12 @@ function ReceiptTitle({
 function PersonRow({
   person,
   anonymous,
+  locked = false,
   onRename,
 }: {
   person: Person;
   anonymous: boolean;
+  locked?: boolean;
   onRename: (name: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -603,17 +621,117 @@ function PersonRow({
           />
         )}
       </span>
+      {!locked && (
+        <button
+          type="button"
+          onClick={() => {
+            setValue(person.name);
+            setEditing(true);
+          }}
+          aria-label={`Rename ${person.name}`}
+          className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+        >
+          <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
+        </button>
+      )}
+    </li>
+  );
+}
+
+function AddGroupPersonForm({
+  availableMembers,
+  onAdd,
+}: {
+  availableMembers: { id: string; name: string }[];
+  onAdd: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [selection, setSelection] = useState("__new__");
+  const [newName, setNewName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function reset() {
+    setAdding(false);
+    setSelection("__new__");
+    setNewName("");
+    setSubmitting(false);
+    setError(null);
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const trimmedName = newName.trim();
+    if (selection === "__new__" && !trimmedName) {
+      setError("Enter a name.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await onAdd(selection === "__new__" ? { newMemberName: trimmedName } : { memberId: selection });
+      reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't add this person.");
+      setSubmitting(false);
+    }
+  }
+
+  if (!adding) {
+    return (
       <button
         type="button"
-        onClick={() => {
-          setValue(person.name);
-          setEditing(true);
-        }}
-        aria-label={`Rename ${person.name}`}
-        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+        onClick={() => setAdding(true)}
+        className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
       >
-        <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
+        <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+        Add person
       </button>
-    </li>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 space-y-2">
+      <select
+        value={selection}
+        onChange={(e) => setSelection(e.target.value)}
+        className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+      >
+        <option value="__new__">Someone new</option>
+        {availableMembers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+          </option>
+        ))}
+      </select>
+      {selection === "__new__" && (
+        <input
+          autoFocus
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="Name"
+          className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+        />
+      )}
+      {error && <p className="text-xs text-margin-red">{error}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-forest px-3 py-1.5 text-xs font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />}
+          Add
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          disabled={submitting}
+          className="cursor-pointer text-xs font-medium text-ink-soft transition hover:text-margin-red disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
