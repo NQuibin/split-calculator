@@ -1,9 +1,10 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import Link from "next/link";
 import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, Settings } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { useSyncLocalReceiptsOnLogin } from "@/lib/receiptSync";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
@@ -160,6 +161,13 @@ function SignedInMenu() {
       <span className="max-w-32 truncate text-xs font-medium text-ink-soft">
         {viewer?.name ?? viewer?.email}
       </span>
+      <Link
+        href="/settings"
+        aria-label="Settings"
+        className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+      >
+        <Settings className="h-4 w-4" strokeWidth={2.25} />
+      </Link>
       <button
         type="button"
         onClick={() => void signOut()}
