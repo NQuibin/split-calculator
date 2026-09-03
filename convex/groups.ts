@@ -23,6 +23,15 @@ async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) 
   return user?.name?.trim() || user?.email?.trim() || "You";
 }
 
+// Claimed members show their account's current name (falling back to email)
+// rather than the name frozen into the member row when they were added or
+// claimed - so a later Settings rename is reflected everywhere they appear.
+async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc<"groups">["members"][number]) {
+  if (!member.claimedByUserId) return member.name;
+  const user = await ctx.db.get(member.claimedByUserId);
+  return user?.name?.trim() || user?.email?.trim() || member.name;
+}
+
 export const create = mutation({
   args: { slug: v.string(), name: v.string(), memberNames: v.array(v.string()) },
   handler: async (ctx, { slug, name, memberNames }) => {
@@ -256,11 +265,18 @@ export const getBySlug = query({
     const group = await getGroupBySlug(ctx, slug);
     if (!group) return null;
     const userId = await getAuthUserId(ctx);
+    const members = await Promise.all(
+      group.members.map(async (m) => ({
+        id: m.id,
+        name: await resolveMemberName(ctx, m),
+        claimed: m.claimedByUserId !== undefined,
+      })),
+    );
     return {
       slug: group.slug,
       name: group.name,
       isOwner: userId !== null && group.ownerUserId === userId,
-      members: group.members.map((m) => ({ id: m.id, name: m.name, claimed: m.claimedByUserId !== undefined })),
+      members,
     };
   },
 });
@@ -396,18 +412,20 @@ export const breakdown = query({
     return {
       group: { name: group.name, slug: group.slug },
       receiptCount: receipts.length,
-      members: group.members.map((member) => {
-        const entry = totals.get(member.id)!;
-        return {
-          memberId: member.id,
-          name: member.name,
-          claimed: member.claimedByUserId !== undefined,
-          totalSpent: round2(entry.totalSpent),
-          totalContributed: round2(entry.totalContributed),
-          netBalance: round2(entry.netBalance),
-          receiptCount: entry.receiptCount,
-        };
-      }),
+      members: await Promise.all(
+        group.members.map(async (member) => {
+          const entry = totals.get(member.id)!;
+          return {
+            memberId: member.id,
+            name: await resolveMemberName(ctx, member),
+            claimed: member.claimedByUserId !== undefined,
+            totalSpent: round2(entry.totalSpent),
+            totalContributed: round2(entry.totalContributed),
+            netBalance: round2(entry.netBalance),
+            receiptCount: entry.receiptCount,
+          };
+        }),
+      ),
     };
   },
 });
