@@ -324,10 +324,13 @@ export const assignReceipt = mutation({
 
     let members = group.members;
     const links: { personId: string; memberId: string }[] = [];
+    const usedMemberIds = new Set<string>();
 
     for (const entry of memberMapping) {
       if (entry.memberId) {
         if (!members.some((m) => m.id === entry.memberId)) throw new Error("Member not found");
+        if (usedMemberIds.has(entry.memberId)) throw new Error("Two people can't map to the same group member");
+        usedMemberIds.add(entry.memberId);
         links.push({ personId: entry.personId, memberId: entry.memberId });
         continue;
       }
@@ -343,19 +346,32 @@ export const assignReceipt = mutation({
       await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
     }
 
-    // Rename each mapped person to their group member's current name, so the
-    // receipt reflects the mapping just decided - including a person mapped
-    // onto a still-anonymous member, who takes that member's placeholder name.
+    // Re-point each mapped person at their group member's stable identity -
+    // the claiming user's id when claimed, otherwise the member's own id -
+    // and rename them to match, so the receipt (people, item splits, and
+    // contributions) is fully owned by the mapping just decided instead of
+    // carrying whatever ids/names it had before joining the group.
     const membersById = new Map(members.map((m) => [m.id, m]));
-    const people = await Promise.all(
-      receipt.people.map(async (person) => {
-        const link = links.find((l) => l.personId === person.id);
-        const member = link && membersById.get(link.memberId);
-        return member ? { ...person, name: await resolveMemberName(ctx, member) } : person;
-      }),
-    );
+    const idRemap = new Map<string, string>();
+    const nameByNewId = new Map<string, string>();
+    for (const link of links) {
+      const member = membersById.get(link.memberId);
+      if (!member) continue;
+      const newId = member.claimedByUserId ?? member.id;
+      idRemap.set(link.personId, newId);
+      nameByNewId.set(newId, await resolveMemberName(ctx, member));
+    }
+    const remapId = (id: string) => idRemap.get(id) ?? id;
 
-    await ctx.db.patch(receipt._id, { groupId: group._id, groupMemberIds: links, people });
+    const people = receipt.people.map((person) => {
+      const id = remapId(person.id);
+      return { id, name: nameByNewId.get(id) ?? person.name };
+    });
+    const items = receipt.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
+    const contributions = receipt.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
+    const groupMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
+
+    await ctx.db.patch(receipt._id, { groupId: group._id, groupMemberIds, people, items, contributions });
   },
 });
 
