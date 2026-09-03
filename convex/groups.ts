@@ -342,7 +342,20 @@ export const assignReceipt = mutation({
     if (members !== group.members) {
       await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
     }
-    await ctx.db.patch(receipt._id, { groupId: group._id, groupMemberIds: links });
+
+    // Rename each mapped person to their group member's current name, so the
+    // receipt reflects the mapping just decided - including a person mapped
+    // onto a still-anonymous member, who takes that member's placeholder name.
+    const membersById = new Map(members.map((m) => [m.id, m]));
+    const people = await Promise.all(
+      receipt.people.map(async (person) => {
+        const link = links.find((l) => l.personId === person.id);
+        const member = link && membersById.get(link.memberId);
+        return member ? { ...person, name: await resolveMemberName(ctx, member) } : person;
+      }),
+    );
+
+    await ctx.db.patch(receipt._id, { groupId: group._id, groupMemberIds: links, people });
   },
 });
 
