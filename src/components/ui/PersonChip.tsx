@@ -1,14 +1,15 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, VenetianMask } from "lucide-react";
 
 interface PersonChipProps {
   name: string;
   selected: boolean;
   onToggle: () => void;
+  anonymous?: boolean;
 }
 
-export function PersonChip({ name, selected, onToggle }: PersonChipProps) {
+export function PersonChip({ name, selected, onToggle, anonymous = false }: PersonChipProps) {
   return (
     <button
       type="button"
@@ -22,6 +23,9 @@ export function PersonChip({ name, selected, onToggle }: PersonChipProps) {
     >
       {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
       {name}
+      {anonymous && (
+        <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-label="Anonymous member" />
+      )}
     </button>
   );
 }

@@ -15,6 +15,7 @@ import {
   Plus,
   TicketPercent,
   Users2,
+  VenetianMask,
   Wallet,
 } from "lucide-react";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -29,6 +30,7 @@ const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
 interface StageReceiptProps {
   people: Person[];
+  anonymousPersonIds?: string[];
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
@@ -51,6 +53,7 @@ interface StageReceiptProps {
 
 export function StageReceipt({
   people,
+  anonymousPersonIds = [],
   items,
   tax,
   tip,
@@ -196,9 +199,20 @@ export function StageReceipt({
         </p>
         <ul className="space-y-2 text-sm">
           {people.map((person) => (
-            <PersonRow key={person.id} person={person} onRename={(name) => onRenamePerson(person.id, name)} />
+            <PersonRow
+              key={person.id}
+              person={person}
+              anonymous={anonymousPersonIds.includes(person.id)}
+              onRename={(name) => onRenamePerson(person.id, name)}
+            />
           ))}
         </ul>
+        {anonymousPersonIds.length > 0 && (
+          <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
+            <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+            Anonymous members haven&rsquo;t signed up yet.
+          </p>
+        )}
         <button
           type="button"
           onClick={onAddPerson}
@@ -320,6 +334,7 @@ export function StageReceipt({
                   name={p.name}
                   selected={splitWith.includes(p.id)}
                   onToggle={() => togglePerson(p.id)}
+                  anonymous={anonymousPersonIds.includes(p.id)}
                 />
               ))}
             </div>
@@ -474,7 +489,15 @@ export function StageReceipt({
   );
 }
 
-function PersonRow({ person, onRename }: { person: Person; onRename: (name: string) => void }) {
+function PersonRow({
+  person,
+  anonymous,
+  onRename,
+}: {
+  person: Person;
+  anonymous: boolean;
+  onRename: (name: string) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(person.name);
 
@@ -507,7 +530,16 @@ function PersonRow({ person, onRename }: { person: Person; onRename: (name: stri
 
   return (
     <li className="flex items-center justify-between gap-2">
-      <span className="truncate text-ink">{person.name}</span>
+      <span className="flex items-center gap-1.5 truncate text-ink">
+        {person.name}
+        {anonymous && (
+          <VenetianMask
+            className="h-3.5 w-3.5 shrink-0 text-ink-soft"
+            strokeWidth={2.25}
+            aria-label="Anonymous member"
+          />
+        )}
+      </span>
       <button
         type="button"
         onClick={() => {

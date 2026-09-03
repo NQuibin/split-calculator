@@ -43,4 +43,6 @@ export interface ReceiptState {
   groupId?: string;
   /** Resolved group name/slug, present (when set) on a single `receipts.get` result - for rendering a "part of {group}" link. */
   group?: { slug: string; name: string } | null;
+  /** Ids of people linked to a still-anonymous group member, present on a single `receipts.get` result. */
+  anonymousPersonIds?: string[];
 }

@@ -88,6 +88,7 @@ export default function ReceiptPage() {
       {state.stage === "receipt" && (
         <StageReceipt
           people={state.people}
+          anonymousPersonIds={state.anonymousPersonIds}
           items={state.items}
           tax={state.tax}
           tip={state.tip}

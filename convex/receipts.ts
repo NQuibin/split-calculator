@@ -26,8 +26,19 @@ export const get = query({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (!doc) return null;
-    const { stage, people, namePeople, items, tax, tip, date, contributions, groupId } = doc;
+    const { stage, people, namePeople, items, tax, tip, date, contributions, groupId, groupMemberIds } = doc;
     const group = groupId ? await ctx.db.get(groupId) : null;
+
+    // Flag people linked to a still-anonymous group member, so the receipt
+    // form can show the same indicator the group's roster does.
+    let anonymousPersonIds: string[] = [];
+    if (group && groupMemberIds) {
+      const anonymousMemberIds = new Set(group.members.filter((m) => !m.claimedByUserId).map((m) => m.id));
+      anonymousPersonIds = groupMemberIds
+        .filter((link) => anonymousMemberIds.has(link.memberId))
+        .map((link) => link.personId);
+    }
+
     return {
       stage,
       people,
@@ -38,6 +49,7 @@ export const get = query({
       date,
       contributions,
       group: group ? { slug: group.slug, name: group.name } : null,
+      anonymousPersonIds,
     };
   },
 });
