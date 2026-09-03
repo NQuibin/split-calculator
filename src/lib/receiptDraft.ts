@@ -4,13 +4,18 @@ import type { Person, ReceiptState } from "./types";
 // A brand-new receipt isn't persisted until its first item is added (see
 // storage.ts), so its starting people/namePeople travel in the URL instead.
 // Person.id is always `person-${index + 1}` (see reducer.ts's ADD_PERSON),
-// so only the count and, when custom-named, the names need to be encoded -
-// not full Person objects - to keep the query string short as headcount grows.
+// except the first person when starting from a signed-in account - they keep
+// their real user id (carried via `uid`) so they stay linked to their
+// account - so only the count, names, and that one id need to be encoded,
+// not full Person objects, to keep the query string short.
 
-export function encodeDraftParams(people: Person[], namePeople: boolean): URLSearchParams {
+export function encodeDraftParams(people: Person[], namePeople: boolean, currentUserId?: string): URLSearchParams {
   const params = new URLSearchParams({ count: String(people.length) });
   if (namePeople) {
     params.set("names", people.map((p) => encodeURIComponent(p.name)).join(","));
+  }
+  if (currentUserId) {
+    params.set("uid", currentUserId);
   }
   return params;
 }
@@ -22,9 +27,10 @@ export function draftFromParams(params: URLSearchParams): ReceiptState | null {
   const namesParam = params.get("names");
   const namePeople = namesParam !== null;
   const names = namePeople ? namesParam.split(",").map((n) => decodeURIComponent(n)) : [];
+  const uid = params.get("uid");
 
   const people: Person[] = Array.from({ length: count }, (_, i) => ({
-    id: `person-${i + 1}`,
+    id: i === 0 && uid ? uid : `person-${i + 1}`,
     name: namePeople ? (names[i] ?? `Person ${i + 1}`) : `Person ${i + 1}`,
   }));
 

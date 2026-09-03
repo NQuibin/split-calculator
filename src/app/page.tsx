@@ -2,7 +2,9 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
 import { ArrowRight, Loader2, Users } from "lucide-react";
+import { api } from "../../convex/_generated/api";
 import { CreateGroupMenu } from "@/components/CreateGroupMenu";
 import { ExistingGroups } from "@/components/ExistingGroups";
 import { ExistingReceipts } from "@/components/ExistingReceipts";
@@ -10,18 +12,22 @@ import { encodeDraftParams } from "@/lib/receiptDraft";
 import { generateSlug } from "@/lib/slug";
 import type { Person } from "@/lib/types";
 
-const DEFAULT_PEOPLE: Person[] = [
-  { id: "person-1", name: "Person 1" },
-  { id: "person-2", name: "Person 2" },
-];
-
 export default function Home() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const viewer = useQuery(api.users.viewer);
 
   function handleStart() {
     const slug = generateSlug();
-    const params = encodeDraftParams(DEFAULT_PEOPLE, true);
+    // The signed-in starter keeps their real user id so this person stays
+    // linked to their account (see receiptDraft.ts's `uid` param).
+    const people: Person[] = viewer
+      ? [{ id: viewer._id, name: viewer.name ?? viewer.email ?? "Person 1" }, { id: "person-2", name: "Person 2" }]
+      : [
+          { id: "person-1", name: "Person 1" },
+          { id: "person-2", name: "Person 2" },
+        ];
+    const params = encodeDraftParams(people, true, viewer?._id);
     startTransition(() => router.push(`/r/${slug}?${params.toString()}`));
   }
 
