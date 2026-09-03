@@ -1,6 +1,6 @@
 "use client";
 
-import { Ghost, Wallet } from "lucide-react";
+import { VenetianMask, Wallet } from "lucide-react";
 import { currency } from "@/lib/format";
 import type { GroupBreakdown as GroupBreakdownData } from "@/lib/groupSync";
 
@@ -26,7 +26,7 @@ export function GroupBreakdown({ breakdown }: GroupBreakdownProps) {
                   <p className="flex items-center gap-1.5 truncate text-ink">
                     {member.name}
                     {!member.claimed && (
-                      <Ghost
+                      <VenetianMask
                         className="h-3.5 w-3.5 shrink-0 text-ink-soft"
                         strokeWidth={2.25}
                         aria-label="Anonymous member"
@@ -54,7 +54,7 @@ export function GroupBreakdown({ breakdown }: GroupBreakdownProps) {
           </ul>
           {breakdown.members.some((m) => !m.claimed) && (
             <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-              <Ghost className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+              <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
               Anonymous members haven&rsquo;t signed up yet.
             </p>
           )}

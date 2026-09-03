@@ -6,7 +6,6 @@ import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import {
   ArrowLeft,
   Check,
-  Ghost,
   Link2,
   Loader2,
   Pencil,
@@ -14,6 +13,7 @@ import {
   Receipt as ReceiptIcon,
   Trash2,
   Users2,
+  VenetianMask,
 } from "lucide-react";
 import { AssignReceiptDialog } from "@/components/AssignReceiptDialog";
 import { GroupBreakdown } from "@/components/GroupBreakdown";
@@ -272,7 +272,7 @@ function Roster({
               <span className="flex items-center gap-1.5 text-ink">
                 {member.name}
                 {!member.claimed && (
-                  <Ghost
+                  <VenetianMask
                     className="h-3.5 w-3.5 shrink-0 text-ink-soft"
                     strokeWidth={2.25}
                     aria-label="Anonymous member"
@@ -305,7 +305,7 @@ function Roster({
 
       {members.some((m) => !m.claimed) && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-          <Ghost className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+          <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
           Anonymous members haven&rsquo;t signed up yet — invite them to claim their spot.
         </p>
       )}
