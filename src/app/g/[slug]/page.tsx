@@ -12,6 +12,7 @@ import {
   Plus,
   Receipt as ReceiptIcon,
   Trash2,
+  Unlink,
   Users2,
   VenetianMask,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   useGroupReceipts,
 } from "@/lib/groupSync";
 import { encodeDraftParams } from "@/lib/receiptDraft";
+import { useReceiptActions } from "@/lib/receiptSync";
 import { generateSlug } from "@/lib/slug";
 
 const inputClass =
@@ -353,6 +355,8 @@ function ReceiptList({
   receipts: ReturnType<typeof useGroupReceipts>;
 }) {
   const router = useRouter();
+  const { unassignReceipt } = useGroupActions();
+  const { remove } = useReceiptActions();
 
   function handleNewReceipt() {
     const newSlug = generateSlug();
@@ -389,7 +393,7 @@ function ReceiptList({
           {receipts.map((receipt) => {
             const total = computeSplit(receipt.people, receipt.items, receipt.tax, receipt.tip).grandTotal;
             return (
-              <li key={receipt.slug}>
+              <li key={receipt.slug} className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => router.push(`/r/${receipt.slug}`)}
@@ -398,6 +402,28 @@ function ReceiptList({
                   <span className="truncate text-ink">{receipt.people.map((p) => p.name).join(", ")}</span>
                   <span className="font-numeric shrink-0 font-semibold text-ink">{currency(total)}</span>
                 </button>
+                {isOwner && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => unassignReceipt({ receiptSlug: receipt.slug })}
+                      aria-label="Remove from group"
+                      title="Remove from group"
+                      className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-forest"
+                    >
+                      <Unlink className="h-4 w-4" strokeWidth={2.25} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(receipt.slug)}
+                      aria-label="Delete receipt"
+                      title="Delete receipt"
+                      className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-margin-red"
+                    >
+                      <Trash2 className="h-4 w-4" strokeWidth={2.25} />
+                    </button>
+                  </>
+                )}
               </li>
             );
           })}
