@@ -5,17 +5,17 @@ import { ArrowLeft, FilePlus, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { currency } from "@/lib/format";
 import { computeSplit } from "@/lib/calculations";
-import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/groupMembers";
+import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/tabMembers";
 import { receiptLabel } from "@/lib/receiptLabel";
 import { useReceiptList } from "@/lib/receiptSync";
-import { useGroupActions, type GroupMemberSummary } from "@/lib/groupSync";
+import { useTabActions, type TabMemberSummary } from "@/lib/tabSync";
 
 interface AssignReceiptDialogProps {
-  groupSlug: string;
-  members: GroupMemberSummary[];
+  tabSlug: string;
+  members: TabMemberSummary[];
 }
 
-export function AssignReceiptDialog({ groupSlug, members }: AssignReceiptDialogProps) {
+export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogProps) {
   const [open, setOpen] = useState(false);
   const [pickedSlug, setPickedSlug] = useState<string | null>(null);
   const [mapping, setMapping] = useState<MemberMappingSuggestion[]>([]);
@@ -23,8 +23,8 @@ export function AssignReceiptDialog({ groupSlug, members }: AssignReceiptDialogP
   const [submitting, setSubmitting] = useState(false);
 
   const receipts = useReceiptList();
-  const eligible = useMemo(() => receipts.filter((r) => !r.state.groupId), [receipts]);
-  const { assignReceipt } = useGroupActions();
+  const eligible = useMemo(() => receipts.filter((r) => !r.state.tabId), [receipts]);
+  const { assignReceipt } = useTabActions();
 
   function reset() {
     setPickedSlug(null);
@@ -46,7 +46,7 @@ export function AssignReceiptDialog({ groupSlug, members }: AssignReceiptDialogP
     setSubmitting(true);
     try {
       await assignReceipt({
-        groupSlug,
+        tabSlug,
         receiptSlug: pickedSlug,
         memberMapping: mapping.map(({ personId, memberId, newMemberName }) => ({
           personId,
@@ -120,7 +120,7 @@ export function AssignReceiptDialog({ groupSlug, members }: AssignReceiptDialogP
               <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
               Pick a different receipt
             </button>
-            <p className="mb-2 text-sm font-medium text-ink">Match each person to a group member</p>
+            <p className="mb-2 text-sm font-medium text-ink">Match each person to a tab member</p>
             <ul className="space-y-2">
               {mapping.map((entry, i) => (
                 <li key={entry.personId} className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export function AssignReceiptDialog({ groupSlug, members }: AssignReceiptDialogP
               className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
             >
               {submitting && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
-              Add to group
+              Add to tab
             </button>
           </div>
         )}

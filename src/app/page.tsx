@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { ArrowRight, Loader2, Users } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import { CreateGroupMenu } from "@/components/CreateGroupMenu";
-import { ExistingGroups } from "@/components/ExistingGroups";
+import { CreateTabMenu } from "@/components/CreateTabMenu";
+import { ExistingTabs } from "@/components/ExistingTabs";
 import { ExistingReceipts } from "@/components/ExistingReceipts";
 import { encodeDraftParams } from "@/lib/receiptDraft";
 import { generateSlug } from "@/lib/slug";
@@ -56,9 +56,9 @@ export default function Home() {
       </div>
 
       <ExistingReceipts />
-      <ExistingGroups />
+      <ExistingTabs />
       <div className="mx-auto w-full max-w-md px-6 pb-16">
-        <CreateGroupMenu />
+        <CreateTabMenu />
       </div>
     </main>
   );

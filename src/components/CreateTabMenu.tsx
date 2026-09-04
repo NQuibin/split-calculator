@@ -5,23 +5,23 @@ import { useRouter } from "next/navigation";
 import { Authenticated } from "convex/react";
 import { Plus, Users2, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
-import { useGroupActions } from "@/lib/groupSync";
+import { useTabActions } from "@/lib/tabSync";
 import { generateSlug } from "@/lib/slug";
 
 const inputClass =
   "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
-export function CreateGroupMenu() {
+export function CreateTabMenu() {
   return (
     <Authenticated>
-      <CreateGroupPopover />
+      <CreateTabPopover />
     </Authenticated>
   );
 }
 
-function CreateGroupPopover() {
+function CreateTabPopover() {
   const router = useRouter();
-  const { create } = useGroupActions();
+  const { create } = useTabActions();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [memberNames, setMemberNames] = useState([""]);
@@ -43,9 +43,9 @@ function CreateGroupPopover() {
       const slug = generateSlug();
       await create({ slug, name, memberNames });
       setOpen(false);
-      router.push(`/g/${slug}`);
+      router.push(`/t/${slug}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't create the group.");
+      setError(err instanceof Error ? err.message : "Couldn't create the tab.");
     } finally {
       setSubmitting(false);
     }
@@ -68,14 +68,14 @@ function CreateGroupPopover() {
         }
       >
         <Users2 className="h-4 w-4" strokeWidth={2.5} />
-        New group
+        New tab
       </PopoverTrigger>
       <PopoverContent align="center" className="w-80 border border-rule bg-surface p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"
             required
-            placeholder="Group name"
+            placeholder="Tab name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={inputClass}
@@ -118,7 +118,7 @@ function CreateGroupPopover() {
             disabled={submitting}
             className="w-full cursor-pointer rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
-            {submitting ? "Creating…" : "Create group"}
+            {submitting ? "Creating…" : "Create tab"}
           </button>
         </form>
       </PopoverContent>

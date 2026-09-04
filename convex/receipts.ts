@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { resolveMemberName } from "./groups";
+import { resolveMemberName } from "./tabs";
 import { mutation, query } from "./_generated/server";
 import { receiptState } from "./schema";
 
@@ -27,24 +27,24 @@ export const get = query({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (!doc) return null;
-    const { stage, name, people, namePeople, items, tax, tip, date, contributions, groupId, groupMemberIds } = doc;
-    const group = groupId ? await ctx.db.get(groupId) : null;
+    const { stage, name, people, namePeople, items, tax, tip, date, contributions, tabId, tabMemberIds } = doc;
+    const tab = tabId ? await ctx.db.get(tabId) : null;
 
-    // Flag people linked to a still-anonymous group member, so the receipt
-    // form can show the same indicator the group's roster does. Also list
-    // group members not yet on this receipt, so the receipt form can offer
+    // Flag people linked to a still-anonymous tab member, so the receipt
+    // form can show the same indicator the tab's roster does. Also list
+    // tab members not yet on this receipt, so the receipt form can offer
     // them (or a brand-new person) as the only way to add someone once a
-    // receipt belongs to a group.
+    // receipt belongs to a tab.
     let anonymousPersonIds: string[] = [];
-    let availableGroupMembers: { id: string; name: string }[] = [];
-    if (group) {
-      const linkedMemberIds = new Set((groupMemberIds ?? []).map((link) => link.memberId));
-      const anonymousMemberIds = new Set(group.members.filter((m) => !m.claimedByUserId).map((m) => m.id));
-      anonymousPersonIds = (groupMemberIds ?? [])
+    let availableTabMembers: { id: string; name: string }[] = [];
+    if (tab) {
+      const linkedMemberIds = new Set((tabMemberIds ?? []).map((link) => link.memberId));
+      const anonymousMemberIds = new Set(tab.members.filter((m) => !m.claimedByUserId).map((m) => m.id));
+      anonymousPersonIds = (tabMemberIds ?? [])
         .filter((link) => anonymousMemberIds.has(link.memberId))
         .map((link) => link.personId);
-      availableGroupMembers = await Promise.all(
-        group.members
+      availableTabMembers = await Promise.all(
+        tab.members
           .filter((m) => !linkedMemberIds.has(m.id))
           .map(async (m) => ({ id: m.id, name: await resolveMemberName(ctx, m) })),
       );
@@ -60,9 +60,9 @@ export const get = query({
       tip,
       date,
       contributions,
-      group: group ? { slug: group.slug, name: group.name } : null,
+      tab: tab ? { slug: tab.slug, name: tab.name } : null,
       anonymousPersonIds,
-      availableGroupMembers,
+      availableTabMembers,
     };
   },
 });

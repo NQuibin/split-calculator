@@ -1,21 +1,21 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
-import { normalizeMemberName } from "../src/lib/groupMembers";
+import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 
-async function getGroupBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
+async function getTabBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
   return await ctx.db
-    .query("groups")
+    .query("tabs")
     .withIndex("by_slug", (q) => q.eq("slug", slug))
     .unique();
 }
 
-function requireUniqueName(members: Doc<"groups">["members"], name: string, excludeId?: string) {
+function requireUniqueName(members: Doc<"tabs">["members"], name: string, excludeId?: string) {
   const normalized = normalizeMemberName(name);
   const collision = members.some((m) => m.id !== excludeId && normalizeMemberName(m.name) === normalized);
-  if (collision) throw new Error(`"${name.trim()}" is already in this group`);
+  if (collision) throw new Error(`"${name.trim()}" is already in this tab`);
 }
 
 async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
@@ -26,7 +26,7 @@ async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) 
 // Claimed members show their account's current name (falling back to email)
 // rather than the name frozen into the member row when they were added or
 // claimed - so a later Settings rename is reflected everywhere they appear.
-export async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc<"groups">["members"][number]) {
+export async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc<"tabs">["members"][number]) {
   if (!member.claimedByUserId) return member.name;
   const user = await ctx.db.get(member.claimedByUserId);
   return user?.name?.trim() || user?.email?.trim() || member.name;
@@ -39,9 +39,9 @@ export const create = mutation({
     if (!userId) throw new Error("Not signed in");
 
     const trimmedName = name.trim();
-    if (!trimmedName) throw new Error("Group name is required");
+    if (!trimmedName) throw new Error("Tab name is required");
 
-    // The creator is always the group's first member - a group can't exist
+    // The creator is always the tab's first member - a tab can't exist
     // without at least the person who made it.
     const creatorName = await getDisplayName(ctx, userId);
 
@@ -54,7 +54,7 @@ export const create = mutation({
       seen.add(normalized);
     }
 
-    const existing = await getGroupBySlug(ctx, slug);
+    const existing = await getTabBySlug(ctx, slug);
     if (existing) throw new Error("Slug already taken");
 
     const members = [
@@ -66,7 +66,7 @@ export const create = mutation({
       })),
     ];
 
-    await ctx.db.insert("groups", {
+    await ctx.db.insert("tabs", {
       slug,
       ownerUserId: userId,
       name: trimmedName,
@@ -81,46 +81,46 @@ export const rename = mutation({
   handler: async (ctx, { slug, name }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
     const trimmedName = name.trim();
-    if (!trimmedName) throw new Error("Group name is required");
-    await ctx.db.patch(group._id, { name: trimmedName, updatedAt: Date.now() });
+    if (!trimmedName) throw new Error("Tab name is required");
+    await ctx.db.patch(tab._id, { name: trimmedName, updatedAt: Date.now() });
   },
 });
 
-export const deleteGroup = mutation({
+export const deleteTab = mutation({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    // Unlink (not delete) the group's receipts - they still belong to
-    // whoever owns them, just no longer attached to this group.
+    // Unlink (not delete) the tab's receipts - they still belong to
+    // whoever owns them, just no longer attached to this tab.
     const receipts = await ctx.db
       .query("receipts")
-      .withIndex("by_group", (q) => q.eq("groupId", group._id))
+      .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     for (const receipt of receipts) {
-      await ctx.db.patch(receipt._id, { groupId: undefined, groupMemberIds: undefined });
+      await ctx.db.patch(receipt._id, { tabId: undefined, tabMemberIds: undefined });
     }
 
-    for (const member of group.members) {
+    for (const member of tab.members) {
       if (!member.claimedByUserId) continue;
       const memberships = await ctx.db
-        .query("groupMemberships")
+        .query("tabMemberships")
         .withIndex("by_user", (q) => q.eq("userId", member.claimedByUserId!))
         .collect();
-      const stale = memberships.find((m) => m.groupId === group._id);
+      const stale = memberships.find((m) => m.tabId === tab._id);
       if (stale) await ctx.db.delete(stale._id);
     }
 
-    await ctx.db.delete(group._id);
+    await ctx.db.delete(tab._id);
   },
 });
 
@@ -129,16 +129,16 @@ export const addMember = mutation({
   handler: async (ctx, { slug, name }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
-    requireUniqueName(group.members, trimmedName);
+    requireUniqueName(tab.members, trimmedName);
 
-    const members = [...group.members, { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() }];
-    await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+    const members = [...tab.members, { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() }];
+    await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
   },
 });
 
@@ -147,17 +147,17 @@ export const renameMember = mutation({
   handler: async (ctx, { slug, memberId, name }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
-    if (!group.members.some((m) => m.id === memberId)) throw new Error("Member not found");
-    requireUniqueName(group.members, trimmedName, memberId);
+    if (!tab.members.some((m) => m.id === memberId)) throw new Error("Member not found");
+    requireUniqueName(tab.members, trimmedName, memberId);
 
-    const members = group.members.map((m) => (m.id === memberId ? { ...m, name: trimmedName } : m));
-    await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+    const members = tab.members.map((m) => (m.id === memberId ? { ...m, name: trimmedName } : m));
+    await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
   },
 });
 
@@ -166,30 +166,30 @@ export const removeMember = mutation({
   handler: async (ctx, { slug, memberId }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    const removed = group.members.find((m) => m.id === memberId);
+    const removed = tab.members.find((m) => m.id === memberId);
     if (!removed) throw new Error("Member not found");
-    if (removed.claimedByUserId === group.ownerUserId) {
-      throw new Error("The group creator can't be removed");
+    if (removed.claimedByUserId === tab.ownerUserId) {
+      throw new Error("The tab creator can't be removed");
     }
 
-    const members = group.members.filter((m) => m.id !== memberId);
-    await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+    const members = tab.members.filter((m) => m.id !== memberId);
+    await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
 
-    // If the removed slot was that user's only claimed slot in this group, drop
+    // If the removed slot was that user's only claimed slot in this tab, drop
     // the membership row too, so a removed member's account stops seeing this
-    // group in their own "My Groups" list.
+    // tab in their own "My Tabs" list.
     if (removed?.claimedByUserId) {
       const stillClaims = members.some((m) => m.claimedByUserId === removed.claimedByUserId);
       if (!stillClaims) {
         const memberships = await ctx.db
-          .query("groupMemberships")
+          .query("tabMemberships")
           .withIndex("by_user", (q) => q.eq("userId", removed.claimedByUserId!))
           .collect();
-        const stale = memberships.find((m) => m.groupId === group._id);
+        const stale = memberships.find((m) => m.tabId === tab._id);
         if (stale) await ctx.db.delete(stale._id);
       }
     }
@@ -201,29 +201,29 @@ export const claimMember = mutation({
   handler: async (ctx, { slug, token }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
 
-    const member = group.members.find((m) => m.inviteToken === token);
+    const member = tab.members.find((m) => m.inviteToken === token);
     if (!member) throw new Error("Invalid invite link");
     if (member.claimedByUserId === userId) return;
-    if (group.ownerUserId === userId) {
-      throw new Error("You created this group, so you're already a member");
+    if (tab.ownerUserId === userId) {
+      throw new Error("You created this tab, so you're already a member");
     }
     if (member.claimedByUserId) throw new Error("This spot has already been claimed");
-    if (group.members.some((m) => m.claimedByUserId === userId)) {
-      throw new Error("You're already a member of this group");
+    if (tab.members.some((m) => m.claimedByUserId === userId)) {
+      throw new Error("You're already a member of this tab");
     }
 
-    const members = group.members.map((m) => (m.id === member.id ? { ...m, claimedByUserId: userId } : m));
-    await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+    const members = tab.members.map((m) => (m.id === member.id ? { ...m, claimedByUserId: userId } : m));
+    await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
 
     const existingMembership = await ctx.db
-      .query("groupMemberships")
+      .query("tabMemberships")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    if (!existingMembership.some((m) => m.groupId === group._id)) {
-      await ctx.db.insert("groupMemberships", { userId, groupId: group._id });
+    if (!existingMembership.some((m) => m.tabId === tab._id)) {
+      await ctx.db.insert("tabMemberships", { userId, tabId: tab._id });
     }
   },
 });
@@ -235,26 +235,26 @@ export const list = query({
     if (!userId) return [];
 
     const owned = await ctx.db
-      .query("groups")
+      .query("tabs")
       .withIndex("by_owner", (q) => q.eq("ownerUserId", userId))
       .collect();
 
     const memberships = await ctx.db
-      .query("groupMemberships")
+      .query("tabMemberships")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    const claimedGroups = (
-      await Promise.all(memberships.map((m) => ctx.db.get(m.groupId)))
-    ).filter((g): g is Doc<"groups"> => g !== null);
+    const claimedTabs = (
+      await Promise.all(memberships.map((m) => ctx.db.get(m.tabId)))
+    ).filter((t): t is Doc<"tabs"> => t !== null);
 
-    const byId = new Map<string, Doc<"groups">>();
-    for (const g of [...owned, ...claimedGroups]) byId.set(g._id, g);
+    const byId = new Map<string, Doc<"tabs">>();
+    for (const t of [...owned, ...claimedTabs]) byId.set(t._id, t);
 
-    return Array.from(byId.values()).map((g) => ({
-      slug: g.slug,
-      name: g.name,
-      isOwner: g.ownerUserId === userId,
-      memberCount: g.members.length,
+    return Array.from(byId.values()).map((t) => ({
+      slug: t.slug,
+      name: t.name,
+      isOwner: t.ownerUserId === userId,
+      memberCount: t.members.length,
     }));
   },
 });
@@ -262,20 +262,20 @@ export const list = query({
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) return null;
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) return null;
     const userId = await getAuthUserId(ctx);
     const members = await Promise.all(
-      group.members.map(async (m) => ({
+      tab.members.map(async (m) => ({
         id: m.id,
         name: await resolveMemberName(ctx, m),
         claimed: m.claimedByUserId !== undefined,
       })),
     );
     return {
-      slug: group.slug,
-      name: group.name,
-      isOwner: userId !== null && group.ownerUserId === userId,
+      slug: tab.slug,
+      name: tab.name,
+      isOwner: userId !== null && tab.ownerUserId === userId,
       members,
     };
   },
@@ -286,11 +286,11 @@ export const getInviteLinks = query({
   handler: async (ctx, { slug }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    return group.members
+    return tab.members
       .filter((m) => !m.claimedByUserId)
       .map((m) => ({ memberId: m.id, name: m.name, token: m.inviteToken }));
   },
@@ -298,7 +298,7 @@ export const getInviteLinks = query({
 
 export const assignReceipt = mutation({
   args: {
-    groupSlug: v.string(),
+    tabSlug: v.string(),
     receiptSlug: v.string(),
     memberMapping: v.array(
       v.object({
@@ -308,13 +308,13 @@ export const assignReceipt = mutation({
       }),
     ),
   },
-  handler: async (ctx, { groupSlug, receiptSlug, memberMapping }) => {
+  handler: async (ctx, { tabSlug, receiptSlug, memberMapping }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
 
-    const group = await getGroupBySlug(ctx, groupSlug);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await getTabBySlug(ctx, tabSlug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
     const receipt = await ctx.db
       .query("receipts")
@@ -322,14 +322,14 @@ export const assignReceipt = mutation({
       .unique();
     if (!receipt) throw new Error("Receipt not found");
 
-    let members = group.members;
+    let members = tab.members;
     const links: { personId: string; memberId: string }[] = [];
     const usedMemberIds = new Set<string>();
 
     for (const entry of memberMapping) {
       if (entry.memberId) {
         if (!members.some((m) => m.id === entry.memberId)) throw new Error("Member not found");
-        if (usedMemberIds.has(entry.memberId)) throw new Error("Two people can't map to the same group member");
+        if (usedMemberIds.has(entry.memberId)) throw new Error("Two people can't map to the same tab member");
         usedMemberIds.add(entry.memberId);
         links.push({ personId: entry.personId, memberId: entry.memberId });
         continue;
@@ -342,15 +342,15 @@ export const assignReceipt = mutation({
       links.push({ personId: entry.personId, memberId: newMember.id });
     }
 
-    if (members !== group.members) {
-      await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+    if (members !== tab.members) {
+      await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
     }
 
-    // Re-point each mapped person at their group member's stable identity -
+    // Re-point each mapped person at their tab member's stable identity -
     // the claiming user's id when claimed, otherwise the member's own id -
     // and rename them to match, so the receipt (people, item splits, and
     // contributions) is fully owned by the mapping just decided instead of
-    // carrying whatever ids/names it had before joining the group.
+    // carrying whatever ids/names it had before joining the tab.
     const membersById = new Map(members.map((m) => [m.id, m]));
     const idRemap = new Map<string, string>();
     const nameByNewId = new Map<string, string>();
@@ -369,16 +369,16 @@ export const assignReceipt = mutation({
     });
     const items = receipt.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
     const contributions = receipt.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
-    const groupMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
+    const tabMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
 
-    await ctx.db.patch(receipt._id, { groupId: group._id, groupMemberIds, people, items, contributions });
+    await ctx.db.patch(receipt._id, { tabId: tab._id, tabMemberIds, people, items, contributions });
   },
 });
 
-// Once a receipt belongs to a group, its existing people are locked to the
-// group mapping decided in assignReceipt - the only way to change who's on
+// Once a receipt belongs to a tab, its existing people are locked to the
+// tab mapping decided in assignReceipt - the only way to change who's on
 // the receipt is to add someone, either an existing member not yet on this
-// receipt or a brand-new one (who is added to the group at the same time).
+// receipt or a brand-new one (who is added to the tab at the same time).
 export const addReceiptPerson = mutation({
   args: {
     receiptSlug: v.string(),
@@ -394,15 +394,15 @@ export const addReceiptPerson = mutation({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", receiptSlug))
       .unique();
     if (!receipt) throw new Error("Receipt not found");
-    if (!receipt.groupId) throw new Error("Receipt is not in a group");
+    if (!receipt.tabId) throw new Error("Receipt is not in a tab");
 
-    const group = await ctx.db.get(receipt.groupId);
-    if (!group) throw new Error("Group not found");
-    if (group.ownerUserId !== userId) throw new Error("Not authorized");
+    const tab = await ctx.db.get(receipt.tabId);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    const linkedMemberIds = new Set((receipt.groupMemberIds ?? []).map((l) => l.memberId));
-    let members = group.members;
-    let member: Doc<"groups">["members"][number];
+    const linkedMemberIds = new Set((receipt.tabMemberIds ?? []).map((l) => l.memberId));
+    let members = tab.members;
+    let member: Doc<"tabs">["members"][number];
 
     if (memberId) {
       const found = members.find((m) => m.id === memberId);
@@ -415,7 +415,7 @@ export const addReceiptPerson = mutation({
       requireUniqueName(members, trimmedName);
       member = { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() };
       members = [...members, member];
-      await ctx.db.patch(group._id, { members, updatedAt: Date.now() });
+      await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
     }
 
     const personId = member.claimedByUserId ?? member.id;
@@ -423,7 +423,7 @@ export const addReceiptPerson = mutation({
 
     await ctx.db.patch(receipt._id, {
       people: [...receipt.people, { id: personId, name }],
-      groupMemberIds: [...(receipt.groupMemberIds ?? []), { personId, memberId: member.id }],
+      tabMemberIds: [...(receipt.tabMemberIds ?? []), { personId, memberId: member.id }],
     });
   },
 });
@@ -438,18 +438,18 @@ export const unassignReceipt = mutation({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", receiptSlug))
       .unique();
     if (!receipt) throw new Error("Receipt not found");
-    await ctx.db.patch(receipt._id, { groupId: undefined, groupMemberIds: undefined });
+    await ctx.db.patch(receipt._id, { tabId: undefined, tabMemberIds: undefined });
   },
 });
 
-export const receiptsForGroup = query({
+export const receiptsForTab = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) return [];
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) return [];
     const receipts = await ctx.db
       .query("receipts")
-      .withIndex("by_group", (q) => q.eq("groupId", group._id))
+      .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     return receipts
       .map(({ slug, name, people, items, tax, tip, updatedAt }) => ({ slug, name, people, items, tax, tip, updatedAt }))
@@ -460,19 +460,19 @@ export const receiptsForGroup = query({
 export const breakdown = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const group = await getGroupBySlug(ctx, slug);
-    if (!group) return null;
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) return null;
 
     const receipts = await ctx.db
       .query("receipts")
-      .withIndex("by_group", (q) => q.eq("groupId", group._id))
+      .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
 
     const totals = new Map<
       string,
       { totalSpent: number; totalContributed: number; netBalance: number; receiptCount: number }
     >();
-    for (const member of group.members) {
+    for (const member of tab.members) {
       totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, receiptCount: 0 });
     }
 
@@ -480,7 +480,7 @@ export const breakdown = query({
       const split = computeSplit(receipt.people, receipt.items, receipt.tax, receipt.tip);
       const settlement = computeSettlement(receipt.contributions, split);
       for (const row of settlement) {
-        const link = receipt.groupMemberIds?.find((l) => l.personId === row.personId);
+        const link = receipt.tabMemberIds?.find((l) => l.personId === row.personId);
         if (!link) continue;
         const entry = totals.get(link.memberId);
         if (!entry) continue;
@@ -492,10 +492,10 @@ export const breakdown = query({
     }
 
     return {
-      group: { name: group.name, slug: group.slug },
+      tab: { name: tab.name, slug: tab.slug },
       receiptCount: receipts.length,
       members: await Promise.all(
-        group.members.map(async (member) => {
+        tab.members.map(async (member) => {
           const entry = totals.get(member.id)!;
           return {
             memberId: member.id,

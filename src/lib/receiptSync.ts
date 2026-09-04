@@ -33,7 +33,7 @@ interface ReceiptStateArgs {
 
 // `state` may carry fields the current receiptState validator doesn't accept:
 // top-level extras merged in from a `receipts.get` result (`updatedAt`,
-// `groupId`, `group`), or - for receipts saved by an older version of the
+// `tabId`, `tab`), or - for receipts saved by an older version of the
 // app - stale per-item fields like a legacy `taxRate` rate setting that
 // predates today's `taxed`/`tipped` booleans. Rebuild exactly the shape the
 // validator expects, at every nested level, before sending to Convex.

@@ -41,12 +41,12 @@ export interface ReceiptState {
   /** What each person already paid toward the receipt, so the split can show who's owed money back. */
   contributions: Contribution[];
   updatedAt?: number;
-  /** Raw group id, present (when set) on `receipts.list` results - just enough to tell whether a receipt is already in a group. */
-  groupId?: string;
-  /** Resolved group name/slug, present (when set) on a single `receipts.get` result - for rendering a "part of {group}" link. */
-  group?: { slug: string; name: string } | null;
-  /** Ids of people linked to a still-anonymous group member, present on a single `receipts.get` result. */
+  /** Raw tab id, present (when set) on `receipts.list` results - just enough to tell whether a receipt is already in a tab. */
+  tabId?: string;
+  /** Resolved tab name/slug, present (when set) on a single `receipts.get` result - for rendering a "part of {tab}" link. */
+  tab?: { slug: string; name: string } | null;
+  /** Ids of people linked to a still-anonymous tab member, present on a single `receipts.get` result. */
   anonymousPersonIds?: string[];
-  /** Group members not yet on this receipt, present (when grouped) on a single `receipts.get` result - the only people addable once a receipt is in a group. */
-  availableGroupMembers?: { id: string; name: string }[];
+  /** Tab members not yet on this receipt, present (when in a tab) on a single `receipts.get` result - the only people addable once a receipt is in a tab. */
+  availableTabMembers?: { id: string; name: string }[];
 }

@@ -34,9 +34,9 @@ interface StageReceiptProps {
   onRenameReceipt: (name: string | undefined) => void;
   people: Person[];
   anonymousPersonIds?: string[];
-  inGroup?: boolean;
-  availableGroupMembers?: { id: string; name: string }[];
-  onAddGroupMember: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
+  inTab?: boolean;
+  availableTabMembers?: { id: string; name: string }[];
+  onAddTabMember: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
   items: ReceiptItem[];
   tax: RateSetting;
   tip: RateSetting;
@@ -62,9 +62,9 @@ export function StageReceipt({
   onRenameReceipt,
   people,
   anonymousPersonIds = [],
-  inGroup = false,
-  availableGroupMembers = [],
-  onAddGroupMember,
+  inTab = false,
+  availableTabMembers = [],
+  onAddTabMember,
   items,
   tax,
   tip,
@@ -216,7 +216,7 @@ export function StageReceipt({
               key={person.id}
               person={person}
               anonymous={anonymousPersonIds.includes(person.id)}
-              locked={inGroup}
+              locked={inTab}
               onRename={(name) => onRenamePerson(person.id, name)}
             />
           ))}
@@ -227,12 +227,12 @@ export function StageReceipt({
             Anonymous members haven&rsquo;t signed up yet.
           </p>
         )}
-        {inGroup ? (
+        {inTab ? (
           <>
             <p className="mt-3 text-xs text-ink-soft">
-              This receipt is in a group, so people here can only be added, not renamed.
+              This receipt is in a tab, so people here can only be added, not renamed.
             </p>
-            <AddGroupPersonForm availableMembers={availableGroupMembers} onAdd={onAddGroupMember} />
+            <AddTabPersonForm availableMembers={availableTabMembers} onAdd={onAddTabMember} />
           </>
         ) : (
           <button
@@ -638,7 +638,7 @@ function PersonRow({
   );
 }
 
-function AddGroupPersonForm({
+function AddTabPersonForm({
   availableMembers,
   onAdd,
 }: {

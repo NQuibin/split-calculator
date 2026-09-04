@@ -73,7 +73,7 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
         <UserRound className="h-4 w-4 text-brass" strokeWidth={2.25} />
         Your name
       </p>
-      <p className="mb-4 text-xs text-ink-soft">This is the name shown to other people in your groups.</p>
+      <p className="mb-4 text-xs text-ink-soft">This is the name shown to other people in your tabs.</p>
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <input
           type="text"

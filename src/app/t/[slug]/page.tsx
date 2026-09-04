@@ -17,17 +17,17 @@ import {
   VenetianMask,
 } from "lucide-react";
 import { AssignReceiptDialog } from "@/components/AssignReceiptDialog";
-import { GroupBreakdown } from "@/components/GroupBreakdown";
+import { TabBreakdown } from "@/components/TabBreakdown";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import {
-  useGroup,
-  useGroupActions,
-  useGroupBreakdown,
-  useGroupInviteLinks,
-  useGroupReceipts,
-} from "@/lib/groupSync";
+  useTab,
+  useTabActions,
+  useTabBreakdown,
+  useTabInviteLinks,
+  useTabReceipts,
+} from "@/lib/tabSync";
 import { encodeDraftParams } from "@/lib/receiptDraft";
 import { receiptLabel } from "@/lib/receiptLabel";
 import { useReceiptActions } from "@/lib/receiptSync";
@@ -36,21 +36,21 @@ import { generateSlug } from "@/lib/slug";
 const inputClass =
   "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
-export default function GroupPage() {
+export default function TabPage() {
   const router = useRouter();
   const { slug } = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
-  const group = useGroup(slug);
-  const breakdown = useGroupBreakdown(slug);
-  const receipts = useGroupReceipts(slug);
+  const tab = useTab(slug);
+  const breakdown = useTabBreakdown(slug);
+  const receipts = useTabReceipts(slug);
 
-  if (group === undefined) return null;
-  if (group === null) {
+  if (tab === undefined) return null;
+  if (tab === null) {
     return (
       <main className="mx-auto w-full max-w-md px-6 py-16 text-center">
-        <p className="text-ink-soft">This group doesn&rsquo;t exist.</p>
+        <p className="text-ink-soft">This tab doesn&rsquo;t exist.</p>
       </main>
     );
   }
@@ -66,17 +66,17 @@ export default function GroupPage() {
           <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
           Back
         </button>
-        <span className="font-display text-sm font-semibold tracking-wide text-brass uppercase">Group</span>
+        <span className="font-display text-sm font-semibold tracking-wide text-brass uppercase">Tab</span>
       </div>
 
       {token && <ClaimBanner slug={slug} token={token} />}
 
-      <GroupTitle slug={slug} name={group.name} isOwner={group.isOwner} />
+      <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
 
       <div className="mt-6 space-y-6">
-        <Roster slug={slug} isOwner={group.isOwner} members={group.members} />
-        {breakdown && <GroupBreakdown breakdown={breakdown} />}
-        <ReceiptList slug={slug} isOwner={group.isOwner} members={group.members} receipts={receipts} />
+        <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
+        {breakdown && <TabBreakdown breakdown={breakdown} />}
+        <ReceiptList slug={slug} isOwner={tab.isOwner} members={tab.members} receipts={receipts} />
       </div>
     </main>
   );
@@ -84,7 +84,7 @@ export default function GroupPage() {
 
 function ClaimBanner({ slug, token }: { slug: string; token: string }) {
   const { isAuthenticated } = useConvexAuth();
-  const { claimMember } = useGroupActions();
+  const { claimMember } = useTabActions();
   const hasClaimed = useRef(false);
   const [status, setStatus] = useState<"idle" | "claiming" | "done" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -107,7 +107,7 @@ function ClaimBanner({ slug, token }: { slug: string; token: string }) {
     <div className="mb-6 rounded-md border border-rule bg-surface p-4">
       <Unauthenticated>
         <p className="text-sm text-ink">
-          You&rsquo;ve been invited to this group. Sign in above to claim your spot.
+          You&rsquo;ve been invited to this tab. Sign in above to claim your spot.
         </p>
       </Unauthenticated>
       <Authenticated>
@@ -120,8 +120,8 @@ function ClaimBanner({ slug, token }: { slug: string; token: string }) {
   );
 }
 
-function GroupTitle({ slug, name, isOwner }: { slug: string; name: string; isOwner: boolean }) {
-  const { rename } = useGroupActions();
+function TabTitle({ slug, name, isOwner }: { slug: string; name: string; isOwner: boolean }) {
+  const { rename } = useTabActions();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
 
@@ -161,21 +161,21 @@ function GroupTitle({ slug, name, isOwner }: { slug: string; name: string; isOwn
               setValue(name);
               setEditing(true);
             }}
-            aria-label="Rename group"
+            aria-label="Rename tab"
             className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.25} />
           </button>
         )}
       </div>
-      {isOwner && <DeleteGroupButton slug={slug} />}
+      {isOwner && <DeleteTabButton slug={slug} />}
     </div>
   );
 }
 
-function DeleteGroupButton({ slug }: { slug: string }) {
+function DeleteTabButton({ slug }: { slug: string }) {
   const router = useRouter();
-  const { deleteGroup } = useGroupActions();
+  const { deleteTab } = useTabActions();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -184,10 +184,10 @@ function DeleteGroupButton({ slug }: { slug: string }) {
     setDeleting(true);
     setError(null);
     try {
-      await deleteGroup({ slug });
+      await deleteTab({ slug });
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't delete the group.");
+      setError(err instanceof Error ? err.message : "Couldn't delete the tab.");
       setDeleting(false);
     }
   }
@@ -222,7 +222,7 @@ function DeleteGroupButton({ slug }: { slug: string }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      aria-label="Delete group"
+      aria-label="Delete tab"
       className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
     >
       <Trash2 className="h-4 w-4" strokeWidth={2.25} />
@@ -239,8 +239,8 @@ function Roster({
   isOwner: boolean;
   members: { id: string; name: string; claimed: boolean }[];
 }) {
-  const { addMember } = useGroupActions();
-  const inviteLinks = useGroupInviteLinks(slug, isOwner);
+  const { addMember } = useTabActions();
+  const inviteLinks = useTabInviteLinks(slug, isOwner);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -255,7 +255,7 @@ function Roster({
   }
 
   function copyInvite(memberId: string, token: string) {
-    const url = `${window.location.origin}${BASE_PATH}/g/${slug}?token=${token}`;
+    const url = `${window.location.origin}${BASE_PATH}/t/${slug}?token=${token}`;
     navigator.clipboard.writeText(url);
     setCopiedId(memberId);
     setTimeout(() => setCopiedId((id) => (id === memberId ? null : id)), 2000);
@@ -353,16 +353,16 @@ function ReceiptList({
   slug: string;
   isOwner: boolean;
   members: { id: string; name: string; claimed: boolean }[];
-  receipts: ReturnType<typeof useGroupReceipts>;
+  receipts: ReturnType<typeof useTabReceipts>;
 }) {
   const router = useRouter();
-  const { unassignReceipt } = useGroupActions();
+  const { unassignReceipt } = useTabActions();
   const { remove } = useReceiptActions();
 
   function handleNewReceipt() {
     const newSlug = generateSlug();
     const params = encodeDraftParams(members, true);
-    router.push(`/r/${newSlug}?${params.toString()}&group=${slug}`);
+    router.push(`/r/${newSlug}?${params.toString()}&tab=${slug}`);
   }
 
   return (
@@ -374,7 +374,7 @@ function ReceiptList({
         </p>
         {isOwner && (
           <div className="flex items-center gap-2">
-            <AssignReceiptDialog groupSlug={slug} members={members} />
+            <AssignReceiptDialog tabSlug={slug} members={members} />
             <button
               type="button"
               onClick={handleNewReceipt}
@@ -408,8 +408,8 @@ function ReceiptList({
                     <button
                       type="button"
                       onClick={() => unassignReceipt({ receiptSlug: receipt.slug })}
-                      aria-label="Remove from group"
-                      title="Remove from group"
+                      aria-label="Remove from tab"
+                      title="Remove from tab"
                       className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-forest"
                     >
                       <Unlink className="h-4 w-4" strokeWidth={2.25} />

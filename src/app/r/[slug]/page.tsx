@@ -6,7 +6,7 @@ import { Users2 } from "lucide-react";
 import { ReceiptSkeleton } from "@/components/ReceiptSkeleton";
 import { StageReceipt } from "@/components/StageReceipt";
 import { StageResults } from "@/components/StageResults";
-import { useGroup, useGroupActions } from "@/lib/groupSync";
+import { useTab, useTabActions } from "@/lib/tabSync";
 import { receiptReducer, type Action } from "@/lib/reducer";
 import { draftFromParams } from "@/lib/receiptDraft";
 import { useReceiptActions, useStoredReceipt } from "@/lib/receiptSync";
@@ -40,23 +40,23 @@ export default function ReceiptPage() {
     if (hasHydrated && !loading && state === null) router.replace("/");
   }, [hasHydrated, loading, state, router]);
 
-  // If this receipt was started from inside a group (?group={slug}), attach
-  // it to that group the moment it's first persisted. Its people were
-  // pre-filled from the group's roster in the same order, so person `i`
+  // If this receipt was started from inside a tab (?tab={slug}), attach
+  // it to that tab the moment it's first persisted. Its people were
+  // pre-filled from the tab's roster in the same order, so person `i`
   // maps to member `i`.
-  const groupSlug = searchParams.get("group");
-  const group = useGroup(groupSlug ?? "");
-  const { assignReceipt, addReceiptPerson } = useGroupActions();
+  const tabSlug = searchParams.get("tab");
+  const tab = useTab(tabSlug ?? "");
+  const { assignReceipt, addReceiptPerson } = useTabActions();
   const hasAssigned = useRef(false);
 
   useEffect(() => {
-    if (!groupSlug || !group || !stored || hasAssigned.current) return;
+    if (!tabSlug || !tab || !stored || hasAssigned.current) return;
     hasAssigned.current = true;
     const memberMapping = stored.people
-      .map((person, i) => ({ personId: person.id, memberId: group.members[i]?.id }))
+      .map((person, i) => ({ personId: person.id, memberId: tab.members[i]?.id }))
       .filter((m): m is { personId: string; memberId: string } => m.memberId !== undefined);
-    if (memberMapping.length > 0) void assignReceipt({ groupSlug, receiptSlug: slug, memberMapping });
-  }, [groupSlug, group, stored, slug, assignReceipt]);
+    if (memberMapping.length > 0) void assignReceipt({ tabSlug, receiptSlug: slug, memberMapping });
+  }, [tabSlug, tab, stored, slug, assignReceipt]);
 
   if (!hasHydrated || loading || !state) return <ReceiptSkeleton />;
 
@@ -74,14 +74,14 @@ export default function ReceiptPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      {state.group && (
+      {state.tab && (
         <button
           type="button"
-          onClick={() => router.push(`/g/${state.group!.slug}`)}
+          onClick={() => router.push(`/t/${state.tab!.slug}`)}
           className="mx-auto mt-3 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-ink-soft hover:text-forest"
         >
           <Users2 className="h-3.5 w-3.5" strokeWidth={2.25} />
-          Part of {state.group.name}
+          Part of {state.tab.name}
         </button>
       )}
 
@@ -91,9 +91,9 @@ export default function ReceiptPage() {
           onRenameReceipt={(name) => dispatch({ type: "RENAME_RECEIPT", name })}
           people={state.people}
           anonymousPersonIds={state.anonymousPersonIds}
-          inGroup={!!state.group}
-          availableGroupMembers={state.availableGroupMembers}
-          onAddGroupMember={(params) => addReceiptPerson({ receiptSlug: slug, ...params })}
+          inTab={!!state.tab}
+          availableTabMembers={state.availableTabMembers}
+          onAddTabMember={(params) => addReceiptPerson({ receiptSlug: slug, ...params })}
           items={state.items}
           tax={state.tax}
           tip={state.tip}

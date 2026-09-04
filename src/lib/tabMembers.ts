@@ -1,6 +1,6 @@
 import type { Person } from "./types";
 
-export interface GroupMemberLite {
+export interface TabMemberLite {
   id: string;
   name: string;
 }
@@ -16,9 +16,9 @@ export interface MemberMappingSuggestion {
   newMemberName?: string;
 }
 
-/** Defaults each receipt person to the group member with a matching normalized
+/** Defaults each receipt person to the tab member with a matching normalized
  * name, or proposes creating a new member for names that don't match anyone. */
-export function suggestMemberMapping(people: Person[], members: GroupMemberLite[]): MemberMappingSuggestion[] {
+export function suggestMemberMapping(people: Person[], members: TabMemberLite[]): MemberMappingSuggestion[] {
   return people.map((person) => {
     const match = members.find((m) => normalizeMemberName(m.name) === normalizeMemberName(person.name));
     return match
