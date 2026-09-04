@@ -1,8 +1,8 @@
-import type { ExpenseState, ExpenseItem, RateSetting } from "./types";
+import { computeSplit } from "./calculations";
+import type { ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
 
 export type Action =
-  | { type: "SET_TAX"; rate: RateSetting }
-  | { type: "SET_TIP"; rate: RateSetting }
+  | { type: "SET_MODE"; mode: ExpenseMode }
   | { type: "SET_DATE"; date: string }
   | { type: "ADD_ITEM"; item: ExpenseItem }
   | { type: "UPDATE_ITEM"; item: ExpenseItem }
@@ -15,12 +15,35 @@ export type Action =
   | { type: "GO_TO_RESULTS" }
   | { type: "BACK_TO_EXPENSE" };
 
+const zeroRate: RateSetting = { mode: "percent", value: 0 };
+
+// Simple mode allows only one lump-sum item with no discount/tax/tip, so
+// switching into it from an itemized breakdown folds everything - cost,
+// discount, tax, tip, across every item - into that single item's cost.
+function collapseToSingleItem(people: Person[], items: ExpenseItem[]): ExpenseItem[] {
+  if (items.length === 0) return items;
+  const total = computeSplit(people, items).grandTotal;
+  const splitWith = Array.from(new Set(items.flatMap((i) => i.splitWith)));
+  return [
+    {
+      id: items[0].id,
+      name: "Total",
+      cost: total,
+      discount: zeroRate,
+      tax: zeroRate,
+      tip: zeroRate,
+      splitWith: splitWith.length > 0 ? splitWith : people.map((p) => p.id),
+    },
+  ];
+}
+
 export function expenseReducer(state: ExpenseState, action: Action): ExpenseState {
   switch (action.type) {
-    case "SET_TAX":
-      return { ...state, tax: action.rate };
-    case "SET_TIP":
-      return { ...state, tip: action.rate };
+    case "SET_MODE": {
+      if (action.mode === state.mode) return state;
+      if (action.mode === "itemized") return { ...state, mode: "itemized" };
+      return { ...state, mode: "simple", items: collapseToSingleItem(state.people, state.items) };
+    }
     case "SET_DATE":
       return { ...state, date: action.date };
     case "ADD_ITEM":

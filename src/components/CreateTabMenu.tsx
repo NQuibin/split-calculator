@@ -11,15 +11,15 @@ import { generateSlug } from "@/lib/slug";
 const inputClass =
   "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
-export function CreateTabMenu() {
+export function CreateTabMenu({ variant = "button" }: { variant?: "button" | "icon" }) {
   return (
     <Authenticated>
-      <CreateTabPopover />
+      <CreateTabPopover variant={variant} />
     </Authenticated>
   );
 }
 
-function CreateTabPopover() {
+function CreateTabPopover({ variant }: { variant: "button" | "icon" }) {
   const router = useRouter();
   const { create } = useTabActions();
   const [open, setOpen] = useState(false);
@@ -59,18 +59,33 @@ function CreateTabPopover() {
         if (!next) resetForm();
       }}
     >
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            className="mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-          />
-        }
-      >
-        <Users2 className="h-4 w-4" strokeWidth={2.5} />
-        New tab
-      </PopoverTrigger>
-      <PopoverContent align="center" className="w-80 border border-rule bg-surface p-4">
+      {variant === "icon" ? (
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              aria-label="New tab"
+              title="New tab"
+              className="cursor-pointer rounded-md p-1 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            />
+          }
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </PopoverTrigger>
+      ) : (
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className="mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            />
+          }
+        >
+          <Users2 className="h-4 w-4" strokeWidth={2.5} />
+          New tab
+        </PopoverTrigger>
+      )}
+      <PopoverContent align="start" className="w-80 border border-rule bg-surface p-4">
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"

@@ -1,11 +1,9 @@
-import type { Contribution, ExpenseItem, Person, RateSetting } from "./types";
+import type { Contribution, ExpenseItem, Person } from "./types";
 
 export interface SharePayload {
   slug: string;
   people: Person[];
   items: ExpenseItem[];
-  tax: RateSetting;
-  tip: RateSetting;
   contributions: Contribution[];
 }
 

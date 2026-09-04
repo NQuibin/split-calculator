@@ -38,9 +38,8 @@ export function draftFromParams(params: URLSearchParams): ExpenseState | null {
     stage: "receipt",
     people,
     namePeople,
+    mode: "simple",
     items: [],
-    tax: { mode: "percent", value: 0 },
-    tip: { mode: "percent", value: 0 },
     date: todayISODate(),
     contributions: [],
   };

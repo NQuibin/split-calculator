@@ -14,7 +14,7 @@ import {
   subscribeExpenseList,
   type StoredExpense,
 } from "./storage";
-import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseState } from "./types";
+import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseState, ExpenseMode } from "./types";
 
 // When signed in, Convex is the source of truth (live queries); localStorage
 // keeps being written to as a cache so the app still works offline/signed out.
@@ -24,9 +24,8 @@ interface ExpenseStateArgs {
   name?: string;
   people: Person[];
   namePeople: boolean;
+  mode: ExpenseMode;
   items: ExpenseItem[];
-  tax: RateSetting;
-  tip: RateSetting;
   date: string;
   contributions: Contribution[];
 }
@@ -34,8 +33,8 @@ interface ExpenseStateArgs {
 // `state` may carry fields the current expenseState validator doesn't accept:
 // top-level extras merged in from an `expenses.get` result (`updatedAt`,
 // `tabId`, `tab`), or - for expenses saved by an older version of the
-// app - stale per-item fields like a legacy `taxRate` rate setting that
-// predates today's `taxed`/`tipped` booleans. Rebuild exactly the shape the
+// app - stale fields like a legacy expense-level `tax`/`tip` rate that
+// predates today's per-item `tax`/`tip`. Rebuild exactly the shape the
 // validator expects, at every nested level, before sending to Convex.
 function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
   const rate = ({ mode, value }: RateSetting): RateSetting => ({ mode, value });
@@ -43,19 +42,18 @@ function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
     stage: state.stage,
     name: state.name,
     namePeople: state.namePeople,
+    mode: state.mode ?? "itemized",
     date: state.date,
     people: state.people.map(({ id, name }) => ({ id, name })),
-    items: state.items.map(({ id, name, cost, discount, taxed, tipped, splitWith }) => ({
+    items: state.items.map(({ id, name, cost, discount, tax, tip, splitWith }) => ({
       id,
       name,
       cost,
       discount: rate(discount),
-      taxed,
-      tipped,
+      tax: rate(tax),
+      tip: rate(tip),
       splitWith,
     })),
-    tax: rate(state.tax),
-    tip: rate(state.tip),
     contributions: state.contributions.map(({ personId, amount }) => ({ personId, amount: rate(amount) })),
   };
 }

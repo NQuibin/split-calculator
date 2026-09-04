@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
+import { expenseLabel } from "../src/lib/expenseLabel";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -452,7 +453,7 @@ export const expensesForTab = query({
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     return expenses
-      .map(({ slug, name, people, items, tax, tip, updatedAt }) => ({ slug, name, people, items, tax, tip, updatedAt }))
+      .map(({ slug, name, people, items, updatedAt }) => ({ slug, name, people, items, updatedAt }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });
@@ -472,12 +473,24 @@ export const breakdown = query({
       string,
       { totalSpent: number; totalContributed: number; netBalance: number; expenseCount: number }
     >();
+    const lines = new Map<
+      string,
+      {
+        expenseSlug: string;
+        expenseName: string;
+        date: string;
+        fairShare: number;
+        contributed: number;
+        balance: number;
+      }[]
+    >();
     for (const member of tab.members) {
       totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
+      lines.set(member.id, []);
     }
 
     for (const expense of expenses) {
-      const split = computeSplit(expense.people, expense.items, expense.tax, expense.tip);
+      const split = computeSplit(expense.people, expense.items);
       const settlement = computeSettlement(expense.contributions, split);
       for (const row of settlement) {
         const link = expense.tabMemberIds?.find((l) => l.personId === row.personId);
@@ -488,6 +501,14 @@ export const breakdown = query({
         entry.totalContributed += row.contributed;
         entry.netBalance += row.balance;
         entry.expenseCount += 1;
+        lines.get(link.memberId)!.push({
+          expenseSlug: expense.slug,
+          expenseName: expenseLabel(expense.name, expense.people),
+          date: expense.date,
+          fairShare: round2(row.fairShare),
+          contributed: round2(row.contributed),
+          balance: round2(row.balance),
+        });
       }
     }
 
@@ -505,6 +526,7 @@ export const breakdown = query({
             totalContributed: round2(entry.totalContributed),
             netBalance: round2(entry.netBalance),
             expenseCount: entry.expenseCount,
+            expenses: lines.get(member.id)!.sort((a, b) => b.date.localeCompare(a.date)),
           };
         }),
       ),

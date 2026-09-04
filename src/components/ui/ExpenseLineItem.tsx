@@ -4,7 +4,12 @@ import { motion, Reorder, useDragControls } from "motion/react";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { discountAmount } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Person, ExpenseItem } from "@/lib/types";
+import type { Person, ExpenseItem, RateSetting } from "@/lib/types";
+
+function formatRate(label: string, rate: RateSetting): string | null {
+  if (rate.value <= 0) return null;
+  return rate.mode === "percent" ? `${label} ${rate.value}%` : `${label} ${currency(rate.value)}`;
+}
 
 interface ExpenseLineItemProps {
   item: ExpenseItem;
@@ -30,6 +35,10 @@ export function ExpenseLineItem({
   function personName(id: string): string {
     return people.find((p) => p.id === id)?.name ?? "?";
   }
+
+  const rateLabels = [formatRate("tax", item.tax), formatRate("tip", item.tip)].filter(
+    (s): s is string => s !== null,
+  );
 
   return (
     <Reorder.Item
@@ -59,10 +68,7 @@ export function ExpenseLineItem({
             <span className="font-numeric text-ink-soft">{index + 1}.</span> {item.name}
           </p>
           <p className="truncate text-xs text-ink-soft">
-            {item.taxed && "taxed"}
-            {item.taxed && item.tipped && " · "}
-            {item.tipped && "tipped"}
-            {(item.taxed || item.tipped) && " · "}
+            {rateLabels.length > 0 && `${rateLabels.join(" · ")} · `}
             {item.splitWith.length === people.length
               ? "everyone"
               : item.splitWith.map(personName).join(", ")}

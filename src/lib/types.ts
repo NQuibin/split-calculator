@@ -15,12 +15,15 @@ export interface ExpenseItem {
   name: string;
   cost: number;
   discount: RateSetting;
-  taxed: boolean;
-  tipped: boolean;
+  tax: RateSetting;
+  tip: RateSetting;
   splitWith: string[];
 }
 
 export type Stage = "receipt" | "results";
+
+/** "simple" restricts an expense to one lump-sum item with no discount/tax/tip; "itemized" is the full line-item breakdown. */
+export type ExpenseMode = "simple" | "itemized";
 
 export interface Contribution {
   personId: string;
@@ -33,9 +36,8 @@ export interface ExpenseState {
   name?: string;
   people: Person[];
   namePeople: boolean;
+  mode: ExpenseMode;
   items: ExpenseItem[];
-  tax: RateSetting;
-  tip: RateSetting;
   /** The date the expense was incurred, formatted YYYY-MM-DD. */
   date: string;
   /** What each person already paid toward the expense, so the split can show who's owed money back. */

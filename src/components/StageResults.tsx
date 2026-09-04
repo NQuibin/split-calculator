@@ -18,7 +18,7 @@ import { ExpenseStub } from "@/components/ui/ExpenseStub";
 import { computeSettlement, computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
-import type { Contribution, Person, RateSetting, ExpenseItem } from "@/lib/types";
+import type { Contribution, Person, ExpenseItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -112,8 +112,6 @@ function DisclosureLine({
 interface StageResultsProps {
   people: Person[];
   items: ExpenseItem[];
-  tax: RateSetting;
-  tip: RateSetting;
   contributions: Contribution[];
   onReset: () => void;
   isOwner: boolean;
@@ -125,8 +123,6 @@ interface StageResultsProps {
 export function StageResults({
   people,
   items,
-  tax,
-  tip,
   contributions,
   onReset,
   isOwner,
@@ -136,13 +132,13 @@ export function StageResults({
 }: StageResultsProps) {
   const [copied, setCopied] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
-  const result = useMemo(() => computeSplit(people, items, tax, tip), [people, items, tax, tip]);
+  const result = useMemo(() => computeSplit(people, items), [people, items]);
   const settlement = useMemo(() => computeSettlement(contributions, result), [contributions, result]);
   const hasContributions = settlement.some((s) => s.contributed !== 0);
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, items, tax, tip, contributions });
+    const payload = encodeSharePayload({ slug: shareSlug, people, items, contributions });
     const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);

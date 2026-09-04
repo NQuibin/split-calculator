@@ -1,0 +1,131 @@
+"use client";
+
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Users2 } from "lucide-react";
+import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
+import { StageExpense } from "@/components/StageExpense";
+import { StageResults } from "@/components/StageResults";
+import { useTab, useTabActions } from "@/lib/tabSync";
+import { expenseReducer, type Action } from "@/lib/reducer";
+import { draftFromParams } from "@/lib/expenseDraft";
+import { useExpenseActions, useStoredExpense } from "@/lib/expenseSync";
+import type { ExpenseState } from "@/lib/types";
+
+function useHasHydrated(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
+export function ExpensePageClient() {
+  const router = useRouter();
+  const { slug } = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
+
+  const { state: stored, loading } = useStoredExpense(slug);
+  const { save } = useExpenseActions();
+  const hasHydrated = useHasHydrated();
+  const [isNavigating, startNavigation] = useTransition();
+
+  // A brand-new expense has no items yet, so it isn't persisted until the
+  // first item is added. Until then this draft (from the URL) is the only
+  // copy of its state.
+  const [draft, setDraft] = useState<ExpenseState | null>(() => draftFromParams(searchParams));
+  const state = stored ?? draft;
+
+  useEffect(() => {
+    if (hasHydrated && !loading && state === null) router.replace("/");
+  }, [hasHydrated, loading, state, router]);
+
+  // If this expense was started from inside a tab (?tab={slug}), attach
+  // it to that tab the moment it's first persisted. Its people were
+  // pre-filled from the tab's roster in the same order, so person `i`
+  // maps to member `i`.
+  const tabSlug = searchParams.get("tab");
+  const tab = useTab(tabSlug ?? "");
+  const { assignExpense, addExpensePerson } = useTabActions();
+  const hasAssigned = useRef(false);
+
+  useEffect(() => {
+    if (!tabSlug || !tab || !stored || hasAssigned.current) return;
+    hasAssigned.current = true;
+    const memberMapping = stored.people
+      .map((person, i) => ({ personId: person.id, memberId: tab.members[i]?.id }))
+      .filter((m): m is { personId: string; memberId: string } => m.memberId !== undefined);
+    if (memberMapping.length > 0) void assignExpense({ tabSlug, expenseSlug: slug, memberMapping });
+  }, [tabSlug, tab, stored, slug, assignExpense]);
+
+  if (!hasHydrated || loading || !state) return <ExpenseSkeleton />;
+
+  function dispatch(action: Action) {
+    if (!state) return;
+    const next = expenseReducer(state, action);
+    save(slug, next);
+    // Keep mirroring `next` here (rather than nulling it out once the
+    // expense is persisted) so `state = stored ?? draft` never has a gap
+    // between clearing the draft and the Convex query catching up with the
+    // just-saved doc - that gap briefly made `state` null and bounced the
+    // page home mid-edit. `stored` naturally takes over once it resolves.
+    setDraft(next);
+  }
+
+  return (
+    <main className="flex flex-1 flex-col">
+      {state.tab && (
+        <button
+          type="button"
+          onClick={() => router.push(`/t/${state.tab!.slug}`)}
+          className="mx-auto mt-3 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-ink-soft hover:text-forest"
+        >
+          <Users2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+          Part of {state.tab.name}
+        </button>
+      )}
+
+      {state.stage === "receipt" && (
+        <StageExpense
+          expenseName={state.name}
+          onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
+          isExisting={!!stored}
+          people={state.people}
+          anonymousPersonIds={state.anonymousPersonIds}
+          inTab={!!state.tab}
+          availableTabMembers={state.availableTabMembers}
+          onAddTabMember={(params) => addExpensePerson({ expenseSlug: slug, ...params })}
+          mode={state.mode}
+          items={state.items}
+          date={state.date}
+          contributions={state.contributions}
+          onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
+          onSetDate={(date) => dispatch({ type: "SET_DATE", date })}
+          onAddItem={(item) => dispatch({ type: "ADD_ITEM", item })}
+          onUpdateItem={(item) => dispatch({ type: "UPDATE_ITEM", item })}
+          onRemoveItem={(id) => dispatch({ type: "REMOVE_ITEM", id })}
+          onReorderItems={(items) => dispatch({ type: "REORDER_ITEMS", items })}
+          onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
+          onAddPerson={() => dispatch({ type: "ADD_PERSON" })}
+          onRenamePerson={(id, name) => dispatch({ type: "RENAME_PERSON", id, name })}
+          onBack={() => startNavigation(() => router.push("/"))}
+          onContinue={() => dispatch({ type: "GO_TO_RESULTS" })}
+          navigating={isNavigating}
+        />
+      )}
+
+      {state.stage === "results" && (
+        <StageResults
+          people={state.people}
+          items={state.items}
+          contributions={state.contributions}
+          isOwner
+          shareSlug={slug}
+          onBack={() => dispatch({ type: "BACK_TO_EXPENSE" })}
+          onReset={() => startNavigation(() => router.push("/"))}
+          navigating={isNavigating}
+        />
+      )}
+    </main>
+  );
+}

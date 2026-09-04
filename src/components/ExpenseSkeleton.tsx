@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 // Shown while an expense's state is still loading (auth check, Convex query,
 // or hydration). Mirrors StageExpense's markup 1:1 - same outer container,

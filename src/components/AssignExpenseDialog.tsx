@@ -91,7 +91,7 @@ export function AssignExpenseDialog({ tabSlug, members }: AssignExpenseDialogPro
             ) : (
               <ul className="max-h-72 space-y-1.5 overflow-y-auto">
                 {eligible.map(({ slug, state }) => {
-                  const total = computeSplit(state.people, state.items, state.tax, state.tip).grandTotal;
+                  const total = computeSplit(state.people, state.items).grandTotal;
                   return (
                     <li key={slug}>
                       <button

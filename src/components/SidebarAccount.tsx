@@ -9,16 +9,16 @@ import { api } from "../../convex/_generated/api";
 import { useSyncLocalExpensesOnLogin } from "@/lib/expenseSync";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/Skeleton";
 
-export function Header() {
+export function SidebarAccount() {
   useSyncLocalExpensesOnLogin();
 
   return (
-    <header className="flex justify-end px-6 py-3">
+    <div className="flex items-center">
       <AuthLoading>
-        {/* Matches SignedInMenu's actual row height (28px, measured) so the
-            header doesn't change height once auth resolves. */}
+        {/* Matches SignedInMenu's actual row height (28px, measured) so this
+            block doesn't change height once auth resolves. */}
         <Skeleton className="h-7 w-24 rounded-full" />
       </AuthLoading>
       <Unauthenticated>
@@ -27,7 +27,7 @@ export function Header() {
       <Authenticated>
         <SignedInMenu />
       </Authenticated>
-    </header>
+    </div>
   );
 }
 
@@ -81,14 +81,14 @@ function SignInMenu() {
         render={
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           />
         }
       >
         <LogIn className="h-3.5 w-3.5" strokeWidth={2.25} />
         Sign in
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 border border-rule bg-surface p-4">
+      <PopoverContent align="start" side="top" className="w-72 border border-rule bg-surface p-4">
         <button
           type="button"
           onClick={() => void signIn("google")}
@@ -154,17 +154,17 @@ function SignedInMenu() {
   const viewer = useQuery(api.users.viewer);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full items-center gap-2">
       {viewer?.image ? (
-        <img src={viewer.image} alt="" className="h-7 w-7 rounded-full border border-rule" referrerPolicy="no-referrer" />
+        <img src={viewer.image} alt="" className="h-7 w-7 shrink-0 rounded-full border border-rule" referrerPolicy="no-referrer" />
       ) : null}
-      <span className="max-w-32 truncate text-xs font-medium text-ink-soft">
+      <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-soft">
         {viewer?.name ?? viewer?.email}
       </span>
       <Link
         href="/settings"
         aria-label="Settings"
-        className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         <Settings className="h-4 w-4" strokeWidth={2.25} />
       </Link>
@@ -172,7 +172,7 @@ function SignedInMenu() {
         type="button"
         onClick={() => void signOut()}
         aria-label="Sign out"
-        className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         <LogOut className="h-4 w-4" strokeWidth={2.25} />
       </button>

@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
+import { Sidebar } from "@/components/Sidebar";
+import { TitleStabilizer } from "@/components/TitleStabilizer";
 import { BASE_PATH } from "@/lib/basePath";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import "./globals.css";
@@ -46,11 +47,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${spaceGrotesk.variable} ${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full">
+        <TitleStabilizer />
         <ConvexClientProvider>
-          <Header />
-          {children}
-          <Footer />
+          <div className="flex min-h-full flex-col md:flex-row">
+            <Sidebar />
+            <div className="flex min-w-0 flex-1 flex-col">
+              {children}
+              <Footer />
+            </div>
+          </div>
         </ConvexClientProvider>
       </body>
     </html>

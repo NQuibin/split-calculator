@@ -24,7 +24,10 @@ function parse(raw: string | null): ExpenseState | null {
     // to today rather than leaving the picker blank.
     const withDate = state.date ? state : { ...state, date: todayISODate() };
     // Same for contributions, added after some expenses were already saved.
-    return withDate.contributions ? withDate : { ...withDate, contributions: [] };
+    const withContributions = withDate.contributions ? withDate : { ...withDate, contributions: [] };
+    // Same for mode, added after some expenses were already saved as plain
+    // item breakdowns.
+    return withContributions.mode ? withContributions : { ...withContributions, mode: "itemized" };
   } catch {
     return null;
   }

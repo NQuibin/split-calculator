@@ -2,13 +2,16 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { AnimatePresence, motion, Reorder } from "motion/react";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
   ArrowRight,
+  Calculator,
   Calendar,
   Check,
   ChevronDown,
   Coins,
+  ListChecks,
   Loader2,
   Pencil,
   Percent,
@@ -25,25 +28,27 @@ import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { expenseLabel } from "@/lib/expenseLabel";
-import type { Contribution, Person, RateSetting, ExpenseItem } from "@/lib/types";
+import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+
+const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
 interface StageExpenseProps {
   expenseName?: string;
   onRenameExpense: (name: string | undefined) => void;
+  /** Existing (already-saved) expenses are reachable from the sidebar, so they skip the "back to home" button a brand-new draft still needs. */
+  isExisting: boolean;
   people: Person[];
   anonymousPersonIds?: string[];
   inTab?: boolean;
   availableTabMembers?: { id: string; name: string }[];
   onAddTabMember: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
+  mode: ExpenseMode;
   items: ExpenseItem[];
-  tax: RateSetting;
-  tip: RateSetting;
   date: string;
   contributions: Contribution[];
-  onSetTax: (rate: RateSetting) => void;
-  onSetTip: (rate: RateSetting) => void;
+  onSetMode: (mode: ExpenseMode) => void;
   onSetDate: (date: string) => void;
   onAddItem: (item: ExpenseItem) => void;
   onUpdateItem: (item: ExpenseItem) => void;
@@ -60,18 +65,17 @@ interface StageExpenseProps {
 export function StageExpense({
   expenseName,
   onRenameExpense,
+  isExisting,
   people,
   anonymousPersonIds = [],
   inTab = false,
   availableTabMembers = [],
   onAddTabMember,
+  mode,
   items,
-  tax,
-  tip,
   date,
   contributions,
-  onSetTax,
-  onSetTip,
+  onSetMode,
   onSetDate,
   onAddItem,
   onUpdateItem,
@@ -94,24 +98,19 @@ export function StageExpense({
   const [name, setName] = useState("");
   const [cost, setCost] = useState("");
   const [discount, setDiscount] = useState<RateSetting>({ mode: "amount", value: 0 });
-  const [taxed, setTaxed] = useState(true);
-  const [tipped, setTipped] = useState(true);
+  const [tax, setTax] = useState<RateSetting>(zeroRate);
+  const [tip, setTip] = useState<RateSetting>(zeroRate);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
   const [error, setError] = useState<string | null>(null);
   const [contributionsOpen, setContributionsOpen] = useState(() =>
     contributions.some((c) => c.amount.value > 0),
   );
 
-  const totals = useMemo(() => computeSplit(people, items, tax, tip), [people, items, tax, tip]);
+  const totals = useMemo(() => computeSplit(people, items), [people, items]);
 
   function contributionFor(personId: string): RateSetting {
     return contributions.find((c) => c.personId === personId)?.amount ?? { mode: "amount", value: 0 };
   }
-
-  const taxIsActive = tax.value > 0;
-  const tipIsActive = tip.value > 0;
-  const effectiveTaxed = taxed && taxIsActive;
-  const effectiveTipped = tipped && tipIsActive;
 
   function togglePerson(id: string) {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
@@ -122,8 +121,8 @@ export function StageExpense({
     setName("");
     setCost("");
     setDiscount({ mode: "amount", value: 0 });
-    setTaxed(true);
-    setTipped(true);
+    setTax(zeroRate);
+    setTip(zeroRate);
     setSplitWith(allIds);
     setError(null);
   }
@@ -133,8 +132,8 @@ export function StageExpense({
     setName(item.name);
     setCost(String(item.cost));
     setDiscount(item.discount);
-    setTaxed(item.taxed);
-    setTipped(item.tipped);
+    setTax(item.tax);
+    setTip(item.tip);
     setSplitWith(item.splitWith);
     setError(null);
   }
@@ -158,6 +157,14 @@ export function StageExpense({
       setError("Discount can't be negative.");
       return;
     }
+    if (tax.value < 0) {
+      setError("Tax can't be negative.");
+      return;
+    }
+    if (tip.value < 0) {
+      setError("Tip can't be negative.");
+      return;
+    }
     if (splitWith.length === 0) {
       setError("Pick who's sharing this item.");
       return;
@@ -167,8 +174,8 @@ export function StageExpense({
       name: name.trim(),
       cost: parsedCost,
       discount,
-      taxed: effectiveTaxed,
-      tipped: effectiveTipped,
+      tax,
+      tip,
       splitWith,
     };
     if (editingId) {
@@ -181,21 +188,23 @@ export function StageExpense({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={navigating}
-          aria-busy={navigating}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-        >
-          {navigating ? (
-            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
-          ) : (
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-          )}
-          {people.length} people
-        </button>
+      <div className={`mb-6 flex items-center ${isExisting ? "justify-end" : "justify-between"}`}>
+        {!isExisting && (
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={navigating}
+            aria-busy={navigating}
+            className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+          >
+            {navigating ? (
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+            ) : (
+              <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
+            )}
+            {people.length} people
+          </button>
+        )}
         <div className="flex items-center gap-2 text-brass">
           <span className="font-display text-sm font-semibold tracking-wide uppercase">
             The expense
@@ -253,173 +262,167 @@ export function StageExpense({
           <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-4 border-b border-rule pb-4">
-          <RateInput label="Tax" icon={Percent} rate={tax} onChange={onSetTax} />
-          <RateInput label="Tip" icon={Coins} rate={tip} onChange={onSetTip} />
+        <div className="mb-4 flex gap-2 border-b border-rule pb-4">
+          <ModeButton
+            icon={Calculator}
+            label="One total"
+            active={mode === "simple"}
+            onClick={() => onSetMode("simple")}
+          />
+          <ModeButton
+            icon={ListChecks}
+            label="Itemized"
+            active={mode === "itemized"}
+            onClick={() => onSetMode("itemized")}
+          />
         </div>
 
-        <motion.div
-          layout
-          transition={{ layout: collapseTransition }}
-          className={`relative space-y-3 transition-[margin,padding,box-shadow] duration-200 ease-in-out ${
-            editingId ? "-m-3 rounded-md p-3 ring-2 ring-brass" : ""
-          }`}
-        >
-          <AnimatePresence initial={false} mode="popLayout">
-            {editingId && (
-              <motion.div
-                key="editing-banner"
-                layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={collapseTransition}
-                className="overflow-hidden"
-              >
-                <div className="flex items-center gap-1.5 rounded-md bg-brass/15 px-3 py-2 text-sm font-medium text-ink">
-                  <Pencil className="h-3.5 w-3.5 text-brass" strokeWidth={2.5} />
-                  Editing line item
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Item, e.g. Nachos"
-              className="flex-1 rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
-            />
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.01}
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              placeholder="0.00"
-              aria-label="Item cost"
-              className="font-numeric w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40 sm:w-28"
-            />
-          </div>
-
-          <div>
-            <p className="mb-1 flex items-center gap-1 text-xs font-medium tracking-wide text-ink-soft uppercase">
-              <TicketPercent className="h-3.5 w-3.5" strokeWidth={2.25} />
-              Discount, before tax &amp; tip
-            </p>
-            <RateInput label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} hideLabel />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4">
-            <label
-              className={`flex items-center gap-1.5 text-sm ${
-                taxIsActive ? "text-ink-soft" : "text-ink-soft/50"
+        {mode === "simple" ? (
+          <SimpleTotalForm
+            people={people}
+            anonymousPersonIds={anonymousPersonIds}
+            item={items[0]}
+            onSave={(item) => (items[0] ? onUpdateItem(item) : onAddItem(item))}
+            onRemove={onRemoveItem}
+          />
+        ) : (
+          <>
+            <motion.div
+              layout
+              transition={{ layout: collapseTransition }}
+              className={`relative space-y-3 transition-[margin,padding,box-shadow] duration-200 ease-in-out ${
+                editingId ? "-m-3 rounded-md p-3 ring-2 ring-brass" : ""
               }`}
-              title={taxIsActive ? undefined : "Set a tax rate above to enable"}
             >
-              <input
-                type="checkbox"
-                checked={effectiveTaxed}
-                disabled={!taxIsActive}
-                onChange={(e) => setTaxed(e.target.checked)}
-                className="h-4 w-4 accent-forest disabled:cursor-not-allowed"
-              />
-              Taxed
-            </label>
-            <label
-              className={`flex items-center gap-1.5 text-sm ${
-                tipIsActive ? "text-ink-soft" : "text-ink-soft/50"
-              }`}
-              title={tipIsActive ? undefined : "Set a tip rate above to enable"}
-            >
-              <input
-                type="checkbox"
-                checked={effectiveTipped}
-                disabled={!tipIsActive}
-                onChange={(e) => setTipped(e.target.checked)}
-                className="h-4 w-4 accent-forest disabled:cursor-not-allowed"
-              />
-              Tipped
-            </label>
-          </div>
+              <AnimatePresence initial={false} mode="popLayout">
+                {editingId && (
+                  <motion.div
+                    key="editing-banner"
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={collapseTransition}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex items-center gap-1.5 rounded-md bg-brass/15 px-3 py-2 text-sm font-medium text-ink">
+                      <Pencil className="h-3.5 w-3.5 text-brass" strokeWidth={2.5} />
+                      Editing line item
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-          <div>
-            <p className="mb-1.5 text-xs font-medium tracking-wide text-ink-soft uppercase">
-              Split with
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {people.map((p) => (
-                <PersonChip
-                  key={p.id}
-                  name={p.name}
-                  selected={splitWith.includes(p.id)}
-                  onToggle={() => togglePerson(p.id)}
-                  anonymous={anonymousPersonIds.includes(p.id)}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Item, e.g. Nachos"
+                  className="flex-1 rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
                 />
-              ))}
-            </div>
-          </div>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step={0.01}
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  placeholder="0.00"
+                  aria-label="Item cost"
+                  className="font-numeric w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40 sm:w-28"
+                />
+              </div>
 
-          {error && <p className="text-sm text-margin-red">{error}</p>}
+              <div>
+                <p className="mb-1 flex items-center gap-1 text-xs font-medium tracking-wide text-ink-soft uppercase">
+                  <TicketPercent className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  Discount, before tax &amp; tip
+                </p>
+                <RateInput label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} hideLabel />
+              </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-surface transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red ${
-                editingId ? "bg-brass hover:bg-brass/80" : "bg-forest hover:bg-ink"
-              }`}
-            >
-              {editingId ? (
-                <>
-                  <Check className="h-4 w-4" strokeWidth={2.5} />
-                  Save changes
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" strokeWidth={2.5} />
-                  Add to expense
-                </>
-              )}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="cursor-pointer text-sm font-medium text-ink-soft transition hover:text-margin-red"
+              <div className="flex flex-wrap gap-4">
+                <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} />
+                <RateInput label="Tip" icon={Coins} rate={tip} onChange={setTip} />
+              </div>
+
+              <div>
+                <p className="mb-1.5 text-xs font-medium tracking-wide text-ink-soft uppercase">
+                  Split with
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {people.map((p) => (
+                    <PersonChip
+                      key={p.id}
+                      name={p.name}
+                      selected={splitWith.includes(p.id)}
+                      onToggle={() => togglePerson(p.id)}
+                      anonymous={anonymousPersonIds.includes(p.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {error && <p className="text-sm text-margin-red">{error}</p>}
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-surface transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red ${
+                    editingId ? "bg-brass hover:bg-brass/80" : "bg-forest hover:bg-ink"
+                  }`}
+                >
+                  {editingId ? (
+                    <>
+                      <Check className="h-4 w-4" strokeWidth={2.5} />
+                      Save changes
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" strokeWidth={2.5} />
+                      Add to expense
+                    </>
+                  )}
+                </button>
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="cursor-pointer text-sm font-medium text-ink-soft transition hover:text-margin-red"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </motion.div>
+
+            {items.length > 0 && (
+              <Reorder.Group
+                as="ul"
+                axis="y"
+                layout
+                transition={{ layout: collapseTransition }}
+                values={items}
+                onReorder={onReorderItems}
+                className="perforated-top mt-5 space-y-2 pt-4"
               >
-                Cancel
-              </button>
+                {items.map((item, i) => (
+                  <ExpenseLineItem
+                    key={item.id}
+                    item={item}
+                    index={i}
+                    people={people}
+                    isEditing={item.id === editingId}
+                    isNew={!initialItemIds.has(item.id)}
+                    onEdit={() => startEdit(item)}
+                    onRemove={() => handleRemove(item.id)}
+                  />
+                ))}
+              </Reorder.Group>
             )}
-          </div>
-        </motion.div>
-
-        {items.length > 0 && (
-          <Reorder.Group
-            as="ul"
-            axis="y"
-            layout
-            transition={{ layout: collapseTransition }}
-            values={items}
-            onReorder={onReorderItems}
-            className="perforated-top mt-5 space-y-2 pt-4"
-          >
-            {items.map((item, i) => (
-              <ExpenseLineItem
-                key={item.id}
-                item={item}
-                index={i}
-                people={people}
-                isEditing={item.id === editingId}
-                isNew={!initialItemIds.has(item.id)}
-                onEdit={() => startEdit(item)}
-                onRemove={() => handleRemove(item.id)}
-              />
-            ))}
-          </Reorder.Group>
+          </>
         )}
 
         <motion.div
@@ -507,6 +510,126 @@ export function StageExpense({
           Split the expense
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ModeButton({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition ${
+        active
+          ? "border-forest bg-forest text-surface"
+          : "border-rule text-ink-soft hover:border-forest hover:text-forest"
+      }`}
+    >
+      <Icon className="h-4 w-4" strokeWidth={2.25} />
+      {label}
+    </button>
+  );
+}
+
+function SimpleTotalForm({
+  people,
+  anonymousPersonIds,
+  item,
+  onSave,
+  onRemove,
+}: {
+  people: Person[];
+  anonymousPersonIds: string[];
+  item?: ExpenseItem;
+  onSave: (item: ExpenseItem) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [name, setName] = useState(item?.name ?? "");
+  const [cost, setCost] = useState(item ? String(item.cost) : "");
+  const [splitWith, setSplitWith] = useState<string[]>(item?.splitWith ?? people.map((p) => p.id));
+
+  function commit(nextName: string, nextCost: string, nextSplitWith: string[]) {
+    const parsed = Number(nextCost);
+    if (!(parsed > 0)) {
+      if (item) onRemove(item.id);
+      return;
+    }
+    onSave({
+      id: item?.id ?? crypto.randomUUID(),
+      name: nextName.trim() || "Total",
+      cost: parsed,
+      discount: zeroRate,
+      tax: zeroRate,
+      tip: zeroRate,
+      splitWith: nextSplitWith,
+    });
+  }
+
+  function handleNameChange(value: string) {
+    setName(value);
+    commit(value, cost, splitWith);
+  }
+
+  function handleCostChange(value: string) {
+    setCost(value);
+    commit(name, value, splitWith);
+  }
+
+  function toggleSplitWith(id: string) {
+    const next = splitWith.includes(id) ? splitWith.filter((p) => p !== id) : [...splitWith, id];
+    if (next.length === 0) return;
+    setSplitWith(next);
+    commit(name, cost, next);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => handleNameChange(e.target.value)}
+          placeholder="Total, e.g. Dinner"
+          aria-label="Expense name"
+          className="flex-1 rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+        />
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step={0.01}
+          value={cost}
+          onChange={(e) => handleCostChange(e.target.value)}
+          placeholder="0.00"
+          aria-label="Expense total"
+          className="font-numeric w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40 sm:w-28"
+        />
+      </div>
+      <div>
+        <p className="mb-1.5 text-xs font-medium tracking-wide text-ink-soft uppercase">Split with</p>
+        <div className="flex flex-wrap gap-2">
+          {people.map((p) => (
+            <PersonChip
+              key={p.id}
+              name={p.name}
+              selected={splitWith.includes(p.id)}
+              onToggle={() => toggleSplitWith(p.id)}
+              anonymous={anonymousPersonIds.includes(p.id)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

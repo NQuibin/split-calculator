@@ -1,6 +1,7 @@
 "use client";
 
-import { VenetianMask, Wallet } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, VenetianMask, Wallet } from "lucide-react";
 import { currency } from "@/lib/format";
 import type { TabBreakdown as TabBreakdownData } from "@/lib/tabSync";
 
@@ -11,10 +12,21 @@ interface TabBreakdownProps {
 export function TabBreakdown({ breakdown }: TabBreakdownProps) {
   return (
     <div className="rounded-md border border-rule bg-surface p-5">
-      <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
-        <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
-        Tab balance across {breakdown.expenseCount} {breakdown.expenseCount === 1 ? "expense" : "expenses"}
-      </p>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+          <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
+          Tab balance across {breakdown.expenseCount} {breakdown.expenseCount === 1 ? "expense" : "expenses"}
+        </p>
+        {breakdown.expenseCount > 0 && (
+          <Link
+            href={`/t/${breakdown.tab.slug}/breakdown`}
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+          >
+            Full breakdown
+            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </Link>
+        )}
+      </div>
       {breakdown.members.length === 0 ? (
         <p className="text-sm text-ink-soft">No members yet.</p>
       ) : (

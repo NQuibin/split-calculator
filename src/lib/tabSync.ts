@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Person, RateSetting, ExpenseItem } from "./types";
+import type { Person, ExpenseItem } from "./types";
 
 // Tabs have no guest/localStorage mode - you can't invite people into a
 // tab that only exists in your own browser, so this hooks straight into
@@ -48,6 +48,15 @@ export function useTabInviteLinks(slug: string, enabled: boolean): TabInviteLink
   return useQuery(api.tabs.getInviteLinks, enabled && slug ? { slug } : "skip") ?? [];
 }
 
+export interface TabBreakdownExpenseLine {
+  expenseSlug: string;
+  expenseName: string;
+  date: string;
+  fairShare: number;
+  contributed: number;
+  balance: number;
+}
+
 export interface TabBreakdownMember {
   memberId: string;
   name: string;
@@ -56,6 +65,7 @@ export interface TabBreakdownMember {
   totalContributed: number;
   netBalance: number;
   expenseCount: number;
+  expenses: TabBreakdownExpenseLine[];
 }
 
 export interface TabBreakdown {
@@ -74,8 +84,6 @@ export interface TabExpenseSummary {
   name?: string;
   people: Person[];
   items: ExpenseItem[];
-  tax: RateSetting;
-  tip: RateSetting;
   updatedAt: number;
 }
 

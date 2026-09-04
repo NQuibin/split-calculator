@@ -55,12 +55,7 @@ function netCost(item: ExpenseItem): number {
   return Math.max(0, item.cost - discountAmount(item));
 }
 
-export function computeSplit(
-  people: Person[],
-  items: ExpenseItem[],
-  tax: RateSetting,
-  tip: RateSetting
-): SplitResult {
+export function computeSplit(people: Person[], items: ExpenseItem[]): SplitResult {
   const subtotal = items.reduce((sum, item) => sum + netCost(item), 0);
 
   if (people.length === 0 || subtotal === 0) {
@@ -94,16 +89,10 @@ export function computeSplit(
     };
   }
 
-  const taxableSubtotal = items.filter((i) => i.taxed).reduce((s, i) => s + netCost(i), 0);
-  const tippableSubtotal = items.filter((i) => i.tipped).reduce((s, i) => s + netCost(i), 0);
-
-  const taxTotal = rateAmount(tax, taxableSubtotal);
-  const tipTotal = rateAmount(tip, tippableSubtotal);
-
   const itemBreakdowns: ItemBreakdown[] = items.map((item) => {
     const net = netCost(item);
-    const itemTax = item.taxed && taxableSubtotal > 0 ? (net / taxableSubtotal) * taxTotal : 0;
-    const itemTip = item.tipped && tippableSubtotal > 0 ? (net / tippableSubtotal) * tipTotal : 0;
+    const itemTax = rateAmount(item.tax, net);
+    const itemTip = rateAmount(item.tip, net);
     return {
       itemId: item.id,
       itemName: item.name,
@@ -124,17 +113,23 @@ export function computeSplit(
     raw.set(p.id, { itemsSubtotal: 0, taxShare: 0, tipShare: 0, lines: [] });
   }
 
+  let taxTotal = 0;
+  let tipTotal = 0;
+
   for (const item of items) {
+    const itemCost = netCost(item);
+    const itemTax = rateAmount(item.tax, itemCost);
+    const itemTip = rateAmount(item.tip, itemCost);
+    taxTotal += itemTax;
+    tipTotal += itemTip;
+
     const sharers = item.splitWith.filter((id) => raw.has(id));
     const n = sharers.length;
     if (n === 0) continue;
 
-    const itemCost = netCost(item);
     const appliedDiscount = item.cost - itemCost;
     const perPersonCost = itemCost / n;
     const perPersonDiscount = appliedDiscount / n;
-    const itemTax = item.taxed && taxableSubtotal > 0 ? (itemCost / taxableSubtotal) * taxTotal : 0;
-    const itemTip = item.tipped && tippableSubtotal > 0 ? (itemCost / tippableSubtotal) * tipTotal : 0;
     const perPersonTax = itemTax / n;
     const perPersonTip = itemTip / n;
 
@@ -152,17 +147,6 @@ export function computeSplit(
         tipShare: round2(perPersonTip),
       });
     }
-  }
-
-  // A flat tax/tip amount was entered but nothing on the expense is flagged
-  // for it — there's no item to allocate it against, so spread it evenly.
-  if (tax.mode === "amount" && taxableSubtotal === 0 && taxTotal > 0) {
-    const even = taxTotal / people.length;
-    for (const p of people) raw.get(p.id)!.taxShare += even;
-  }
-  if (tip.mode === "amount" && tippableSubtotal === 0 && tipTotal > 0) {
-    const even = tipTotal / people.length;
-    for (const p of people) raw.get(p.id)!.tipShare += even;
   }
 
   const grandTotalRaw = subtotal + taxTotal + tipTotal;

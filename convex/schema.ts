@@ -17,8 +17,8 @@ export const expenseItem = v.object({
   name: v.string(),
   cost: v.number(),
   discount: rateSetting,
-  taxed: v.boolean(),
-  tipped: v.boolean(),
+  tax: rateSetting,
+  tip: rateSetting,
   splitWith: v.array(v.string()),
 });
 
@@ -27,14 +27,15 @@ export const contribution = v.object({
   amount: rateSetting,
 });
 
+export const expenseMode = v.union(v.literal("simple"), v.literal("itemized"));
+
 export const expenseState = v.object({
   stage: v.union(v.literal("receipt"), v.literal("results")),
   name: v.optional(v.string()),
   people: v.array(person),
   namePeople: v.boolean(),
+  mode: expenseMode,
   items: v.array(expenseItem),
-  tax: rateSetting,
-  tip: rateSetting,
   date: v.string(),
   contributions: v.array(contribution),
 });
@@ -60,9 +61,8 @@ export default defineSchema({
     name: v.optional(v.string()),
     people: v.array(person),
     namePeople: v.boolean(),
+    mode: expenseMode,
     items: v.array(expenseItem),
-    tax: rateSetting,
-    tip: rateSetting,
     date: v.string(),
     contributions: v.array(contribution),
     updatedAt: v.number(),
