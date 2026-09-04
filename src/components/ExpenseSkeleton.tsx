@@ -1,13 +1,13 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Shown while a receipt's state is still loading (auth check, Convex query,
-// or hydration). Mirrors StageReceipt's markup 1:1 - same outer container,
+// Shown while an expense's state is still loading (auth check, Convex query,
+// or hydration). Mirrors StageExpense's markup 1:1 - same outer container,
 // same borders/padding/margins on every row, and bar heights measured
 // against the real rendered controls (getBoundingClientRect, not guessed
 // from Tailwind's height scale) - so the real form swaps in at the exact
 // same size and position with no layout shift, and the footer stays pinned
 // to the bottom (via `flex-1` on <main>) instead of collapsing up.
-export function ReceiptSkeleton() {
+export function ExpenseSkeleton() {
   return (
     <main className="flex flex-1 flex-col">
       <div className="mx-auto w-full max-w-2xl px-6 py-10">

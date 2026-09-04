@@ -2,11 +2,11 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Person, RateSetting, ReceiptItem } from "./types";
+import type { Person, RateSetting, ExpenseItem } from "./types";
 
 // Tabs have no guest/localStorage mode - you can't invite people into a
 // tab that only exists in your own browser, so this hooks straight into
-// Convex with no offline fallback, unlike receiptSync.ts.
+// Convex with no offline fallback, unlike expenseSync.ts.
 
 export interface TabListItem {
   slug: string;
@@ -55,12 +55,12 @@ export interface TabBreakdownMember {
   totalSpent: number;
   totalContributed: number;
   netBalance: number;
-  receiptCount: number;
+  expenseCount: number;
 }
 
 export interface TabBreakdown {
   tab: { name: string; slug: string };
-  receiptCount: number;
+  expenseCount: number;
   members: TabBreakdownMember[];
 }
 
@@ -69,18 +69,18 @@ export function useTabBreakdown(slug: string): TabBreakdown | null | undefined {
   return useQuery(api.tabs.breakdown, slug ? { slug } : "skip");
 }
 
-export interface TabReceiptSummary {
+export interface TabExpenseSummary {
   slug: string;
   name?: string;
   people: Person[];
-  items: ReceiptItem[];
+  items: ExpenseItem[];
   tax: RateSetting;
   tip: RateSetting;
   updatedAt: number;
 }
 
-export function useTabReceipts(slug: string): TabReceiptSummary[] {
-  return useQuery(api.tabs.receiptsForTab, slug ? { slug } : "skip") ?? [];
+export function useTabExpenses(slug: string): TabExpenseSummary[] {
+  return useQuery(api.tabs.expensesForTab, slug ? { slug } : "skip") ?? [];
 }
 
 export function useTabActions() {
@@ -92,8 +92,8 @@ export function useTabActions() {
     renameMember: useMutation(api.tabs.renameMember),
     removeMember: useMutation(api.tabs.removeMember),
     claimMember: useMutation(api.tabs.claimMember),
-    assignReceipt: useMutation(api.tabs.assignReceipt),
-    addReceiptPerson: useMutation(api.tabs.addReceiptPerson),
-    unassignReceipt: useMutation(api.tabs.unassignReceipt),
+    assignExpense: useMutation(api.tabs.assignExpense),
+    addExpensePerson: useMutation(api.tabs.addExpensePerson),
+    unassignExpense: useMutation(api.tabs.unassignExpense),
   };
 }

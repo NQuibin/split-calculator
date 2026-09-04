@@ -21,23 +21,23 @@ import {
 import { DatePicker } from "@/components/ui/DatePicker";
 import { PersonChip } from "@/components/ui/PersonChip";
 import { RateInput } from "@/components/ui/RateInput";
-import { ReceiptLineItem } from "@/components/ui/ReceiptLineItem";
+import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import { receiptLabel } from "@/lib/receiptLabel";
-import type { Contribution, Person, RateSetting, ReceiptItem } from "@/lib/types";
+import { expenseLabel } from "@/lib/expenseLabel";
+import type { Contribution, Person, RateSetting, ExpenseItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
-interface StageReceiptProps {
-  receiptName?: string;
-  onRenameReceipt: (name: string | undefined) => void;
+interface StageExpenseProps {
+  expenseName?: string;
+  onRenameExpense: (name: string | undefined) => void;
   people: Person[];
   anonymousPersonIds?: string[];
   inTab?: boolean;
   availableTabMembers?: { id: string; name: string }[];
   onAddTabMember: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
-  items: ReceiptItem[];
+  items: ExpenseItem[];
   tax: RateSetting;
   tip: RateSetting;
   date: string;
@@ -45,10 +45,10 @@ interface StageReceiptProps {
   onSetTax: (rate: RateSetting) => void;
   onSetTip: (rate: RateSetting) => void;
   onSetDate: (date: string) => void;
-  onAddItem: (item: ReceiptItem) => void;
-  onUpdateItem: (item: ReceiptItem) => void;
+  onAddItem: (item: ExpenseItem) => void;
+  onUpdateItem: (item: ExpenseItem) => void;
   onRemoveItem: (id: string) => void;
-  onReorderItems: (items: ReceiptItem[]) => void;
+  onReorderItems: (items: ExpenseItem[]) => void;
   onSetContribution: (personId: string, amount: RateSetting) => void;
   onAddPerson: () => void;
   onRenamePerson: (id: string, name: string) => void;
@@ -57,9 +57,9 @@ interface StageReceiptProps {
   navigating?: boolean;
 }
 
-export function StageReceipt({
-  receiptName,
-  onRenameReceipt,
+export function StageExpense({
+  expenseName,
+  onRenameExpense,
   people,
   anonymousPersonIds = [],
   inTab = false,
@@ -83,7 +83,7 @@ export function StageReceipt({
   onBack,
   onContinue,
   navigating = false,
-}: StageReceiptProps) {
+}: StageExpenseProps) {
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
   // Items already present when this page mounts shouldn't play the
@@ -128,7 +128,7 @@ export function StageReceipt({
     setError(null);
   }
 
-  function startEdit(item: ReceiptItem) {
+  function startEdit(item: ExpenseItem) {
     setEditingId(item.id);
     setName(item.name);
     setCost(String(item.cost));
@@ -162,7 +162,7 @@ export function StageReceipt({
       setError("Pick who's sharing this item.");
       return;
     }
-    const item: ReceiptItem = {
+    const item: ExpenseItem = {
       id: editingId ?? crypto.randomUUID(),
       name: name.trim(),
       cost: parsedCost,
@@ -198,12 +198,12 @@ export function StageReceipt({
         </button>
         <div className="flex items-center gap-2 text-brass">
           <span className="font-display text-sm font-semibold tracking-wide uppercase">
-            The receipt
+            The expense
           </span>
         </div>
       </div>
 
-      <ReceiptTitle name={receiptName} defaultName={receiptLabel(undefined, people)} onRename={onRenameReceipt} />
+      <ExpenseTitle name={expenseName} defaultName={expenseLabel(undefined, people)} onRename={onRenameExpense} />
 
       <div className="mb-4 rounded-lg border border-rule bg-surface p-5">
         <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
@@ -230,7 +230,7 @@ export function StageReceipt({
         {inTab ? (
           <>
             <p className="mt-3 text-xs text-ink-soft">
-              This receipt is in a tab, so people here can only be added, not renamed.
+              This expense is in a tab, so people here can only be added, not renamed.
             </p>
             <AddTabPersonForm availableMembers={availableTabMembers} onAdd={onAddTabMember} />
           </>
@@ -250,7 +250,7 @@ export function StageReceipt({
         <div className="mb-4 flex items-center gap-2 border-b border-rule pb-4">
           <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
           <span className="font-display text-sm font-medium text-ink-soft">Date</span>
-          <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Receipt date" />
+          <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
         </div>
 
         <div className="mb-4 flex flex-wrap gap-4 border-b border-rule pb-4">
@@ -381,7 +381,7 @@ export function StageReceipt({
               ) : (
                 <>
                   <Plus className="h-4 w-4" strokeWidth={2.5} />
-                  Add to receipt
+                  Add to expense
                 </>
               )}
             </button>
@@ -408,7 +408,7 @@ export function StageReceipt({
             className="perforated-top mt-5 space-y-2 pt-4"
           >
             {items.map((item, i) => (
-              <ReceiptLineItem
+              <ExpenseLineItem
                 key={item.id}
                 item={item}
                 index={i}
@@ -504,7 +504,7 @@ export function StageReceipt({
           disabled={items.length === 0}
           className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-margin-red px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
-          Split the receipt
+          Split the expense
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
       </div>
@@ -512,7 +512,7 @@ export function StageReceipt({
   );
 }
 
-function ReceiptTitle({
+function ExpenseTitle({
   name,
   defaultName,
   onRename,
@@ -559,7 +559,7 @@ function ReceiptTitle({
           setValue(name ?? "");
           setEditing(true);
         }}
-        aria-label="Rename receipt"
+        aria-label="Rename expense"
         className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
       >
         <Pencil className="h-4 w-4" strokeWidth={2.25} />

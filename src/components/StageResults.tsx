@@ -10,15 +10,15 @@ import {
   Eye,
   Link2,
   Loader2,
-  Receipt as ReceiptIcon,
+  Receipt as ExpenseIcon,
   RotateCcw,
   Wallet,
 } from "lucide-react";
-import { ReceiptStub } from "@/components/ui/ReceiptStub";
+import { ExpenseStub } from "@/components/ui/ExpenseStub";
 import { computeSettlement, computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
-import type { Contribution, Person, RateSetting, ReceiptItem } from "@/lib/types";
+import type { Contribution, Person, RateSetting, ExpenseItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -111,7 +111,7 @@ function DisclosureLine({
 
 interface StageResultsProps {
   people: Person[];
-  items: ReceiptItem[];
+  items: ExpenseItem[];
   tax: RateSetting;
   tip: RateSetting;
   contributions: Contribution[];
@@ -135,7 +135,7 @@ export function StageResults({
   navigating = false,
 }: StageResultsProps) {
   const [copied, setCopied] = useState(false);
-  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
   const result = useMemo(() => computeSplit(people, items, tax, tip), [people, items, tax, tip]);
   const settlement = useMemo(() => computeSettlement(contributions, result), [contributions, result]);
   const hasContributions = settlement.some((s) => s.contributed !== 0);
@@ -143,7 +143,7 @@ export function StageResults({
   function handleShare() {
     if (!shareSlug) return;
     const payload = encodeSharePayload({ slug: shareSlug, people, items, tax, tip, contributions });
-    const basePath = window.location.pathname.replace(/\/r\/[^/]+$/, "");
+    const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -159,12 +159,12 @@ export function StageResults({
             className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-            Edit the receipt
+            Edit the expense
           </button>
         ) : (
           <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft">
             <Eye className="h-4 w-4" strokeWidth={2.5} />
-            Shared receipt
+            Shared expense
           </span>
         )}
         <span className="font-display text-sm font-semibold tracking-wide text-brass uppercase">
@@ -179,16 +179,16 @@ export function StageResults({
       <div className="mb-6 rounded-md border border-rule bg-surface transition has-[button:hover]:border-forest">
         <button
           type="button"
-          onClick={() => setReceiptOpen((o) => !o)}
-          aria-expanded={receiptOpen}
+          onClick={() => setExpenseOpen((o) => !o)}
+          aria-expanded={expenseOpen}
           className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
         >
           <span className="flex items-center gap-1.5">
-            <ReceiptIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
-            View the full receipt
+            <ExpenseIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
+            View the full expense
           </span>
           <motion.span
-            animate={{ rotate: receiptOpen ? 180 : 0 }}
+            animate={{ rotate: expenseOpen ? 180 : 0 }}
             transition={collapseTransition}
             className="shrink-0"
           >
@@ -196,7 +196,7 @@ export function StageResults({
           </motion.span>
         </button>
         <AnimatePresence initial={false}>
-          {receiptOpen && (
+          {expenseOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
@@ -243,7 +243,7 @@ export function StageResults({
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {result.people.map((person) => (
-          <ReceiptStub key={person.personId} className="ledger-margin px-5 pb-5">
+          <ExpenseStub key={person.personId} className="ledger-margin px-5 pb-5">
             <p className="font-display pl-8 text-sm font-semibold tracking-wide text-ink-soft uppercase">
               {person.name} owes
             </p>
@@ -269,7 +269,7 @@ export function StageResults({
                 </span>
               </li>
             </ul>
-          </ReceiptStub>
+          </ExpenseStub>
         ))}
       </div>
 
@@ -302,7 +302,7 @@ export function StageResults({
 
       <div className="mt-8 flex flex-col items-center gap-4 border-t border-rule pt-6 text-center">
         <p className="text-sm text-ink-soft">
-          Receipt total{" "}
+          Expense total{" "}
           <span className="font-numeric font-semibold text-ink">{currency(result.grandTotal)}</span>{" "}
           — split across {people.length} {people.length === 1 ? "person" : "people"}.
         </p>
@@ -337,7 +337,7 @@ export function StageResults({
               ) : (
                 <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
               )}
-              Start a new receipt
+              Start a new expense
             </button>
           </div>
         ) : (
@@ -348,7 +348,7 @@ export function StageResults({
             aria-busy={navigating}
             className="cursor-pointer text-sm font-medium text-forest underline decoration-forest/40 underline-offset-4 transition hover:text-ink hover:decoration-ink/40 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
-            {navigating ? "Starting a new receipt…" : "Want to split your own receipt? Start one →"}
+            {navigating ? "Starting a new expense…" : "Want to split your own expense? Start one →"}
           </button>
         )}
       </div>

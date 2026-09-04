@@ -10,13 +10,13 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Receipt as ReceiptIcon,
+  Receipt as ExpenseIcon,
   Trash2,
   Unlink,
   Users2,
   VenetianMask,
 } from "lucide-react";
-import { AssignReceiptDialog } from "@/components/AssignReceiptDialog";
+import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
@@ -26,11 +26,11 @@ import {
   useTabActions,
   useTabBreakdown,
   useTabInviteLinks,
-  useTabReceipts,
+  useTabExpenses,
 } from "@/lib/tabSync";
-import { encodeDraftParams } from "@/lib/receiptDraft";
-import { receiptLabel } from "@/lib/receiptLabel";
-import { useReceiptActions } from "@/lib/receiptSync";
+import { encodeDraftParams } from "@/lib/expenseDraft";
+import { expenseLabel } from "@/lib/expenseLabel";
+import { useExpenseActions } from "@/lib/expenseSync";
 import { generateSlug } from "@/lib/slug";
 
 const inputClass =
@@ -44,7 +44,7 @@ export default function TabPage() {
 
   const tab = useTab(slug);
   const breakdown = useTabBreakdown(slug);
-  const receipts = useTabReceipts(slug);
+  const expenses = useTabExpenses(slug);
 
   if (tab === undefined) return null;
   if (tab === null) {
@@ -76,7 +76,7 @@ export default function TabPage() {
       <div className="mt-6 space-y-6">
         <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
         {breakdown && <TabBreakdown breakdown={breakdown} />}
-        <ReceiptList slug={slug} isOwner={tab.isOwner} members={tab.members} receipts={receipts} />
+        <ExpenseList slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} />
       </div>
     </main>
   );
@@ -344,70 +344,70 @@ function Roster({
   );
 }
 
-function ReceiptList({
+function ExpenseList({
   slug,
   isOwner,
   members,
-  receipts,
+  expenses,
 }: {
   slug: string;
   isOwner: boolean;
   members: { id: string; name: string; claimed: boolean }[];
-  receipts: ReturnType<typeof useTabReceipts>;
+  expenses: ReturnType<typeof useTabExpenses>;
 }) {
   const router = useRouter();
-  const { unassignReceipt } = useTabActions();
-  const { remove } = useReceiptActions();
+  const { unassignExpense } = useTabActions();
+  const { remove } = useExpenseActions();
 
-  function handleNewReceipt() {
+  function handleNewExpense() {
     const newSlug = generateSlug();
     const params = encodeDraftParams(members, true);
-    router.push(`/r/${newSlug}?${params.toString()}&tab=${slug}`);
+    router.push(`/e/${newSlug}?${params.toString()}&tab=${slug}`);
   }
 
   return (
     <div className="rounded-md border border-rule bg-surface p-5">
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
-          <ReceiptIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
-          Receipts
+          <ExpenseIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
+          Expenses
         </p>
         {isOwner && (
           <div className="flex items-center gap-2">
-            <AssignReceiptDialog tabSlug={slug} members={members} />
+            <AssignExpenseDialog tabSlug={slug} members={members} />
             <button
               type="button"
-              onClick={handleNewReceipt}
+              onClick={handleNewExpense}
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-forest"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
-              New receipt
+              New expense
             </button>
           </div>
         )}
       </div>
 
-      {receipts.length === 0 ? (
-        <p className="text-sm text-ink-soft">No receipts yet.</p>
+      {expenses.length === 0 ? (
+        <p className="text-sm text-ink-soft">No expenses yet.</p>
       ) : (
         <ul className="space-y-2">
-          {receipts.map((receipt) => {
-            const total = computeSplit(receipt.people, receipt.items, receipt.tax, receipt.tip).grandTotal;
+          {expenses.map((expense) => {
+            const total = computeSplit(expense.people, expense.items, expense.tax, expense.tip).grandTotal;
             return (
-              <li key={receipt.slug} className="flex items-center gap-2">
+              <li key={expense.slug} className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => router.push(`/r/${receipt.slug}`)}
+                  onClick={() => router.push(`/e/${expense.slug}`)}
                   className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule bg-surface px-4 py-3 text-left text-sm transition hover:border-forest"
                 >
-                  <span className="truncate text-ink">{receiptLabel(receipt.name, receipt.people)}</span>
+                  <span className="truncate text-ink">{expenseLabel(expense.name, expense.people)}</span>
                   <span className="font-numeric shrink-0 font-semibold text-ink">{currency(total)}</span>
                 </button>
                 {isOwner && (
                   <>
                     <button
                       type="button"
-                      onClick={() => unassignReceipt({ receiptSlug: receipt.slug })}
+                      onClick={() => unassignExpense({ expenseSlug: expense.slug })}
                       aria-label="Remove from tab"
                       title="Remove from tab"
                       className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-forest"
@@ -416,9 +416,9 @@ function ReceiptList({
                     </button>
                     <button
                       type="button"
-                      onClick={() => remove(receipt.slug)}
-                      aria-label="Delete receipt"
-                      title="Delete receipt"
+                      onClick={() => remove(expense.slug)}
+                      aria-label="Delete expense"
+                      title="Delete expense"
                       className="shrink-0 cursor-pointer rounded-md p-2 text-ink-soft transition hover:text-margin-red"
                     >
                       <Trash2 className="h-4 w-4" strokeWidth={2.25} />

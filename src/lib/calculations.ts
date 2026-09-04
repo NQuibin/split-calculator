@@ -1,4 +1,4 @@
-import type { Contribution, Person, ReceiptItem, RateSetting } from "./types";
+import type { Contribution, ExpenseItem, Person, RateSetting } from "./types";
 
 export interface ItemLine {
   itemId: string;
@@ -47,17 +47,17 @@ function rateAmount(rate: RateSetting, base: number): number {
   return rate.mode === "percent" ? base * (rate.value / 100) : rate.value;
 }
 
-export function discountAmount(item: ReceiptItem): number {
+export function discountAmount(item: ExpenseItem): number {
   return rateAmount(item.discount, item.cost);
 }
 
-function netCost(item: ReceiptItem): number {
+function netCost(item: ExpenseItem): number {
   return Math.max(0, item.cost - discountAmount(item));
 }
 
 export function computeSplit(
   people: Person[],
-  items: ReceiptItem[],
+  items: ExpenseItem[],
   tax: RateSetting,
   tip: RateSetting
 ): SplitResult {
@@ -154,7 +154,7 @@ export function computeSplit(
     }
   }
 
-  // A flat tax/tip amount was entered but nothing on the receipt is flagged
+  // A flat tax/tip amount was entered but nothing on the expense is flagged
   // for it — there's no item to allocate it against, so spread it evenly.
   if (tax.mode === "amount" && taxableSubtotal === 0 && taxTotal > 0) {
     const even = taxTotal / people.length;

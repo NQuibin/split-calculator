@@ -16,7 +16,7 @@ export interface MemberMappingSuggestion {
   newMemberName?: string;
 }
 
-/** Defaults each receipt person to the tab member with a matching normalized
+/** Defaults each expense person to the tab member with a matching normalized
  * name, or proposes creating a new member for names that don't match anyone. */
 export function suggestMemberMapping(people: Person[], members: TabMemberLite[]): MemberMappingSuggestion[] {
   return people.map((person) => {

@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { resolveMemberName } from "./tabs";
 import { mutation, query } from "./_generated/server";
-import { receiptState } from "./schema";
+import { expenseState } from "./schema";
 
 export const list = query({
   args: {},
@@ -10,7 +10,7 @@ export const list = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
     const docs = await ctx.db
-      .query("receipts")
+      .query("expenses")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     return docs.map(({ slug, ...state }) => ({ slug, state }));
@@ -23,18 +23,18 @@ export const get = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const doc = await ctx.db
-      .query("receipts")
+      .query("expenses")
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (!doc) return null;
     const { stage, name, people, namePeople, items, tax, tip, date, contributions, tabId, tabMemberIds } = doc;
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
-    // Flag people linked to a still-anonymous tab member, so the receipt
+    // Flag people linked to a still-anonymous tab member, so the expense
     // form can show the same indicator the tab's roster does. Also list
-    // tab members not yet on this receipt, so the receipt form can offer
-    // them (or a brand-new person) as the only way to add someone once a
-    // receipt belongs to a tab.
+    // tab members not yet on this expense, so the expense form can offer
+    // them (or a brand-new person) as the only way to add someone once an
+    // expense belongs to a tab.
     let anonymousPersonIds: string[] = [];
     let availableTabMembers: { id: string; name: string }[] = [];
     if (tab) {
@@ -68,12 +68,12 @@ export const get = query({
 });
 
 export const save = mutation({
-  args: { slug: v.string(), state: receiptState },
+  args: { slug: v.string(), state: expenseState },
   handler: async (ctx, { slug, state }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const existing = await ctx.db
-      .query("receipts")
+      .query("expenses")
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
 
@@ -85,7 +85,7 @@ export const save = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, { ...state, updatedAt: Date.now() });
     } else {
-      await ctx.db.insert("receipts", { slug, userId, ...state, updatedAt: Date.now() });
+      await ctx.db.insert("expenses", { slug, userId, ...state, updatedAt: Date.now() });
     }
   },
 });
@@ -96,7 +96,7 @@ export const remove = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const existing = await ctx.db
-      .query("receipts")
+      .query("expenses")
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (existing) await ctx.db.delete(existing._id);
@@ -104,18 +104,18 @@ export const remove = mutation({
 });
 
 export const importLocal = mutation({
-  args: { receipts: v.array(v.object({ slug: v.string(), state: receiptState })) },
-  handler: async (ctx, { receipts }) => {
+  args: { expenses: v.array(v.object({ slug: v.string(), state: expenseState })) },
+  handler: async (ctx, { expenses }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    for (const { slug, state } of receipts) {
+    for (const { slug, state } of expenses) {
       if (state.items.length === 0) continue;
       const existing = await ctx.db
-        .query("receipts")
+        .query("expenses")
         .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
         .unique();
       if (!existing) {
-        await ctx.db.insert("receipts", { slug, userId, ...state, updatedAt: Date.now() });
+        await ctx.db.insert("expenses", { slug, userId, ...state, updatedAt: Date.now() });
       }
     }
   },

@@ -6,13 +6,13 @@ import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/re
 import { useAuthActions } from "@convex-dev/auth/react";
 import { LogIn, LogOut, Settings } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import { useSyncLocalReceiptsOnLogin } from "@/lib/receiptSync";
+import { useSyncLocalExpensesOnLogin } from "@/lib/expenseSync";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function Header() {
-  useSyncLocalReceiptsOnLogin();
+  useSyncLocalExpensesOnLogin();
 
   return (
     <header className="flex justify-end px-6 py-3">

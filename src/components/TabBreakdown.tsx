@@ -13,7 +13,7 @@ export function TabBreakdown({ breakdown }: TabBreakdownProps) {
     <div className="rounded-md border border-rule bg-surface p-5">
       <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
         <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
-        Tab balance across {breakdown.receiptCount} {breakdown.receiptCount === 1 ? "receipt" : "receipts"}
+        Tab balance across {breakdown.expenseCount} {breakdown.expenseCount === 1 ? "expense" : "expenses"}
       </p>
       {breakdown.members.length === 0 ? (
         <p className="text-sm text-ink-soft">No members yet.</p>
@@ -34,7 +34,7 @@ export function TabBreakdown({ breakdown }: TabBreakdownProps) {
                     )}
                   </p>
                   <p className="text-xs text-ink-soft">
-                    {member.receiptCount} {member.receiptCount === 1 ? "receipt" : "receipts"} · spent{" "}
+                    {member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"} · spent{" "}
                     {currency(member.totalSpent)}
                   </p>
                 </div>

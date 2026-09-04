@@ -6,25 +6,25 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover
 import { currency } from "@/lib/format";
 import { computeSplit } from "@/lib/calculations";
 import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/tabMembers";
-import { receiptLabel } from "@/lib/receiptLabel";
-import { useReceiptList } from "@/lib/receiptSync";
+import { expenseLabel } from "@/lib/expenseLabel";
+import { useExpenseList } from "@/lib/expenseSync";
 import { useTabActions, type TabMemberSummary } from "@/lib/tabSync";
 
-interface AssignReceiptDialogProps {
+interface AssignExpenseDialogProps {
   tabSlug: string;
   members: TabMemberSummary[];
 }
 
-export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogProps) {
+export function AssignExpenseDialog({ tabSlug, members }: AssignExpenseDialogProps) {
   const [open, setOpen] = useState(false);
   const [pickedSlug, setPickedSlug] = useState<string | null>(null);
   const [mapping, setMapping] = useState<MemberMappingSuggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const receipts = useReceiptList();
-  const eligible = useMemo(() => receipts.filter((r) => !r.state.tabId), [receipts]);
-  const { assignReceipt } = useTabActions();
+  const expenses = useExpenseList();
+  const eligible = useMemo(() => expenses.filter((r) => !r.state.tabId), [expenses]);
+  const { assignExpense } = useTabActions();
 
   function reset() {
     setPickedSlug(null);
@@ -34,10 +34,10 @@ export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogPro
   }
 
   function pick(slug: string) {
-    const receipt = eligible.find((r) => r.slug === slug);
-    if (!receipt) return;
+    const expense = eligible.find((r) => r.slug === slug);
+    if (!expense) return;
     setPickedSlug(slug);
-    setMapping(suggestMemberMapping(receipt.state.people, members));
+    setMapping(suggestMemberMapping(expense.state.people, members));
   }
 
   async function handleConfirm() {
@@ -45,9 +45,9 @@ export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogPro
     setError(null);
     setSubmitting(true);
     try {
-      await assignReceipt({
+      await assignExpense({
         tabSlug,
-        receiptSlug: pickedSlug,
+        expenseSlug: pickedSlug,
         memberMapping: mapping.map(({ personId, memberId, newMemberName }) => ({
           personId,
           memberId,
@@ -57,7 +57,7 @@ export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogPro
       setOpen(false);
       reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't add the receipt.");
+      setError(err instanceof Error ? err.message : "Couldn't add the expense.");
     } finally {
       setSubmitting(false);
     }
@@ -80,14 +80,14 @@ export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogPro
         }
       >
         <FilePlus className="h-3.5 w-3.5" strokeWidth={2.25} />
-        Add existing receipt
+        Add existing expense
       </PopoverTrigger>
       <PopoverContent align="start" className="w-96 border border-rule bg-surface p-4">
         {!pickedSlug ? (
           <div>
-            <p className="mb-3 text-sm font-medium text-ink">Pick a receipt to add</p>
+            <p className="mb-3 text-sm font-medium text-ink">Pick an expense to add</p>
             {eligible.length === 0 ? (
-              <p className="text-sm text-ink-soft">No standalone receipts to add.</p>
+              <p className="text-sm text-ink-soft">No standalone expenses to add.</p>
             ) : (
               <ul className="max-h-72 space-y-1.5 overflow-y-auto">
                 {eligible.map(({ slug, state }) => {
@@ -100,7 +100,7 @@ export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogPro
                         className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left text-sm transition hover:border-forest"
                       >
                         <span className="truncate text-ink">
-                          {receiptLabel(state.name, state.people)}
+                          {expenseLabel(state.name, state.people)}
                         </span>
                         <span className="font-numeric shrink-0 text-ink-soft">{currency(total)}</span>
                       </button>
@@ -118,7 +118,7 @@ export function AssignReceiptDialog({ tabSlug, members }: AssignReceiptDialogPro
               className="mb-3 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-soft hover:text-forest"
             >
               <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Pick a different receipt
+              Pick a different expense
             </button>
             <p className="mb-2 text-sm font-medium text-ink">Match each person to a tab member</p>
             <ul className="space-y-2">

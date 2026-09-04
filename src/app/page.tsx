@@ -7,8 +7,8 @@ import { ArrowRight, Loader2, Users } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
 import { ExistingTabs } from "@/components/ExistingTabs";
-import { ExistingReceipts } from "@/components/ExistingReceipts";
-import { encodeDraftParams } from "@/lib/receiptDraft";
+import { ExistingExpenses } from "@/components/ExistingExpenses";
+import { encodeDraftParams } from "@/lib/expenseDraft";
 import { generateSlug } from "@/lib/slug";
 import type { Person } from "@/lib/types";
 
@@ -20,7 +20,7 @@ export default function Home() {
   function handleStart() {
     const slug = generateSlug();
     // The signed-in starter keeps their real user id so this person stays
-    // linked to their account (see receiptDraft.ts's `uid` param).
+    // linked to their account (see expenseDraft.ts's `uid` param).
     const people: Person[] = viewer
       ? [{ id: viewer._id, name: viewer.name ?? viewer.email ?? "Person 1" }, { id: "person-2", name: "Person 2" }]
       : [
@@ -28,7 +28,7 @@ export default function Home() {
           { id: "person-2", name: "Person 2" },
         ];
     const params = encodeDraftParams(people, true, viewer?._id);
-    startTransition(() => router.push(`/r/${slug}?${params.toString()}`));
+    startTransition(() => router.push(`/e/${slug}?${params.toString()}`));
   }
 
   return (
@@ -46,7 +46,7 @@ export default function Home() {
           aria-busy={isPending}
           className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
         >
-          Split a receipt
+          Split an expense
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
           ) : (
@@ -55,7 +55,7 @@ export default function Home() {
         </button>
       </div>
 
-      <ExistingReceipts />
+      <ExistingExpenses />
       <ExistingTabs />
       <div className="mx-auto w-full max-w-md px-6 pb-16">
         <CreateTabMenu />

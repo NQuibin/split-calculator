@@ -1,21 +1,21 @@
-import type { ReceiptState, ReceiptItem, RateSetting } from "./types";
+import type { ExpenseState, ExpenseItem, RateSetting } from "./types";
 
 export type Action =
   | { type: "SET_TAX"; rate: RateSetting }
   | { type: "SET_TIP"; rate: RateSetting }
   | { type: "SET_DATE"; date: string }
-  | { type: "ADD_ITEM"; item: ReceiptItem }
-  | { type: "UPDATE_ITEM"; item: ReceiptItem }
+  | { type: "ADD_ITEM"; item: ExpenseItem }
+  | { type: "UPDATE_ITEM"; item: ExpenseItem }
   | { type: "REMOVE_ITEM"; id: string }
-  | { type: "REORDER_ITEMS"; items: ReceiptItem[] }
+  | { type: "REORDER_ITEMS"; items: ExpenseItem[] }
   | { type: "SET_CONTRIBUTION"; personId: string; amount: RateSetting }
   | { type: "ADD_PERSON" }
   | { type: "RENAME_PERSON"; id: string; name: string }
-  | { type: "RENAME_RECEIPT"; name: string | undefined }
+  | { type: "RENAME_EXPENSE"; name: string | undefined }
   | { type: "GO_TO_RESULTS" }
-  | { type: "BACK_TO_RECEIPT" };
+  | { type: "BACK_TO_EXPENSE" };
 
-export function receiptReducer(state: ReceiptState, action: Action): ReceiptState {
+export function expenseReducer(state: ExpenseState, action: Action): ExpenseState {
   switch (action.type) {
     case "SET_TAX":
       return { ...state, tax: action.rate };
@@ -49,11 +49,11 @@ export function receiptReducer(state: ReceiptState, action: Action): ReceiptStat
         ...state,
         people: state.people.map((p) => (p.id === action.id ? { ...p, name: action.name } : p)),
       };
-    case "RENAME_RECEIPT":
+    case "RENAME_EXPENSE":
       return { ...state, name: action.name };
     case "GO_TO_RESULTS":
       return { ...state, stage: "results" };
-    case "BACK_TO_RECEIPT":
+    case "BACK_TO_EXPENSE":
       return { ...state, stage: "receipt" };
     default:
       return state;

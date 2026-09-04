@@ -12,7 +12,7 @@ export const person = v.object({
   name: v.string(),
 });
 
-export const receiptItem = v.object({
+export const expenseItem = v.object({
   id: v.string(),
   name: v.string(),
   cost: v.number(),
@@ -27,12 +27,12 @@ export const contribution = v.object({
   amount: rateSetting,
 });
 
-export const receiptState = v.object({
+export const expenseState = v.object({
   stage: v.union(v.literal("receipt"), v.literal("results")),
   name: v.optional(v.string()),
   people: v.array(person),
   namePeople: v.boolean(),
-  items: v.array(receiptItem),
+  items: v.array(expenseItem),
   tax: rateSetting,
   tip: rateSetting,
   date: v.string(),
@@ -53,14 +53,14 @@ export const tabMemberLink = v.object({
 
 export default defineSchema({
   ...authTables,
-  receipts: defineTable({
+  expenses: defineTable({
     slug: v.string(),
     userId: v.id("users"),
     stage: v.union(v.literal("receipt"), v.literal("results")),
     name: v.optional(v.string()),
     people: v.array(person),
     namePeople: v.boolean(),
-    items: v.array(receiptItem),
+    items: v.array(expenseItem),
     tax: rateSetting,
     tip: rateSetting,
     date: v.string(),

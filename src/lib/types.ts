@@ -10,7 +10,7 @@ export interface Person {
   name: string;
 }
 
-export interface ReceiptItem {
+export interface ExpenseItem {
   id: string;
   name: string;
   cost: number;
@@ -27,26 +27,26 @@ export interface Contribution {
   amount: RateSetting;
 }
 
-export interface ReceiptState {
+export interface ExpenseState {
   stage: Stage;
-  /** Custom receipt name; when unset, callers fall back to the people's names joined together. */
+  /** Custom expense name; when unset, callers fall back to the people's names joined together. */
   name?: string;
   people: Person[];
   namePeople: boolean;
-  items: ReceiptItem[];
+  items: ExpenseItem[];
   tax: RateSetting;
   tip: RateSetting;
-  /** The date the receipt was produced, formatted YYYY-MM-DD. */
+  /** The date the expense was incurred, formatted YYYY-MM-DD. */
   date: string;
-  /** What each person already paid toward the receipt, so the split can show who's owed money back. */
+  /** What each person already paid toward the expense, so the split can show who's owed money back. */
   contributions: Contribution[];
   updatedAt?: number;
-  /** Raw tab id, present (when set) on `receipts.list` results - just enough to tell whether a receipt is already in a tab. */
+  /** Raw tab id, present (when set) on `expenses.list` results - just enough to tell whether an expense is already in a tab. */
   tabId?: string;
-  /** Resolved tab name/slug, present (when set) on a single `receipts.get` result - for rendering a "part of {tab}" link. */
+  /** Resolved tab name/slug, present (when set) on a single `expenses.get` result - for rendering a "part of {tab}" link. */
   tab?: { slug: string; name: string } | null;
-  /** Ids of people linked to a still-anonymous tab member, present on a single `receipts.get` result. */
+  /** Ids of people linked to a still-anonymous tab member, present on a single `expenses.get` result. */
   anonymousPersonIds?: string[];
-  /** Tab members not yet on this receipt, present (when in a tab) on a single `receipts.get` result - the only people addable once a receipt is in a tab. */
+  /** Tab members not yet on this expense, present (when in a tab) on a single `expenses.get` result - the only people addable once an expense is in a tab. */
   availableTabMembers?: { id: string; name: string }[];
 }

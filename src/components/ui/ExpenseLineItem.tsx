@@ -4,10 +4,10 @@ import { motion, Reorder, useDragControls } from "motion/react";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { discountAmount } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Person, ReceiptItem } from "@/lib/types";
+import type { Person, ExpenseItem } from "@/lib/types";
 
-interface ReceiptLineItemProps {
-  item: ReceiptItem;
+interface ExpenseLineItemProps {
+  item: ExpenseItem;
   index: number;
   people: Person[];
   isEditing: boolean;
@@ -16,7 +16,7 @@ interface ReceiptLineItemProps {
   onRemove: () => void;
 }
 
-export function ReceiptLineItem({
+export function ExpenseLineItem({
   item,
   index,
   people,
@@ -24,7 +24,7 @@ export function ReceiptLineItem({
   isNew,
   onEdit,
   onRemove,
-}: ReceiptLineItemProps) {
+}: ExpenseLineItemProps) {
   const controls = useDragControls();
 
   function personName(id: string): string {

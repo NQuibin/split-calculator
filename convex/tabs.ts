@@ -100,14 +100,14 @@ export const deleteTab = mutation({
     if (!tab) throw new Error("Tab not found");
     if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    // Unlink (not delete) the tab's receipts - they still belong to
+    // Unlink (not delete) the tab's expenses - they still belong to
     // whoever owns them, just no longer attached to this tab.
-    const receipts = await ctx.db
-      .query("receipts")
+    const expenses = await ctx.db
+      .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
-    for (const receipt of receipts) {
-      await ctx.db.patch(receipt._id, { tabId: undefined, tabMemberIds: undefined });
+    for (const expense of expenses) {
+      await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined });
     }
 
     for (const member of tab.members) {
@@ -296,10 +296,10 @@ export const getInviteLinks = query({
   },
 });
 
-export const assignReceipt = mutation({
+export const assignExpense = mutation({
   args: {
     tabSlug: v.string(),
-    receiptSlug: v.string(),
+    expenseSlug: v.string(),
     memberMapping: v.array(
       v.object({
         personId: v.string(),
@@ -308,7 +308,7 @@ export const assignReceipt = mutation({
       }),
     ),
   },
-  handler: async (ctx, { tabSlug, receiptSlug, memberMapping }) => {
+  handler: async (ctx, { tabSlug, expenseSlug, memberMapping }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
 
@@ -316,11 +316,11 @@ export const assignReceipt = mutation({
     if (!tab) throw new Error("Tab not found");
     if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    const receipt = await ctx.db
-      .query("receipts")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", receiptSlug))
+    const expense = await ctx.db
+      .query("expenses")
+      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
       .unique();
-    if (!receipt) throw new Error("Receipt not found");
+    if (!expense) throw new Error("Expense not found");
 
     let members = tab.members;
     const links: { personId: string; memberId: string }[] = [];
@@ -348,7 +348,7 @@ export const assignReceipt = mutation({
 
     // Re-point each mapped person at their tab member's stable identity -
     // the claiming user's id when claimed, otherwise the member's own id -
-    // and rename them to match, so the receipt (people, item splits, and
+    // and rename them to match, so the expense (people, item splits, and
     // contributions) is fully owned by the mapping just decided instead of
     // carrying whatever ids/names it had before joining the tab.
     const membersById = new Map(members.map((m) => [m.id, m]));
@@ -363,51 +363,51 @@ export const assignReceipt = mutation({
     }
     const remapId = (id: string) => idRemap.get(id) ?? id;
 
-    const people = receipt.people.map((person) => {
+    const people = expense.people.map((person) => {
       const id = remapId(person.id);
       return { id, name: nameByNewId.get(id) ?? person.name };
     });
-    const items = receipt.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
-    const contributions = receipt.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
+    const items = expense.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
+    const contributions = expense.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
     const tabMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
 
-    await ctx.db.patch(receipt._id, { tabId: tab._id, tabMemberIds, people, items, contributions });
+    await ctx.db.patch(expense._id, { tabId: tab._id, tabMemberIds, people, items, contributions });
   },
 });
 
-// Once a receipt belongs to a tab, its existing people are locked to the
-// tab mapping decided in assignReceipt - the only way to change who's on
-// the receipt is to add someone, either an existing member not yet on this
-// receipt or a brand-new one (who is added to the tab at the same time).
-export const addReceiptPerson = mutation({
+// Once an expense belongs to a tab, its existing people are locked to the
+// tab mapping decided in assignExpense - the only way to change who's on
+// the expense is to add someone, either an existing member not yet on this
+// expense or a brand-new one (who is added to the tab at the same time).
+export const addExpensePerson = mutation({
   args: {
-    receiptSlug: v.string(),
+    expenseSlug: v.string(),
     memberId: v.optional(v.string()),
     newMemberName: v.optional(v.string()),
   },
-  handler: async (ctx, { receiptSlug, memberId, newMemberName }) => {
+  handler: async (ctx, { expenseSlug, memberId, newMemberName }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
 
-    const receipt = await ctx.db
-      .query("receipts")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", receiptSlug))
+    const expense = await ctx.db
+      .query("expenses")
+      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
       .unique();
-    if (!receipt) throw new Error("Receipt not found");
-    if (!receipt.tabId) throw new Error("Receipt is not in a tab");
+    if (!expense) throw new Error("Expense not found");
+    if (!expense.tabId) throw new Error("Expense is not in a tab");
 
-    const tab = await ctx.db.get(receipt.tabId);
+    const tab = await ctx.db.get(expense.tabId);
     if (!tab) throw new Error("Tab not found");
     if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    const linkedMemberIds = new Set((receipt.tabMemberIds ?? []).map((l) => l.memberId));
+    const linkedMemberIds = new Set((expense.tabMemberIds ?? []).map((l) => l.memberId));
     let members = tab.members;
     let member: Doc<"tabs">["members"][number];
 
     if (memberId) {
       const found = members.find((m) => m.id === memberId);
       if (!found) throw new Error("Member not found");
-      if (linkedMemberIds.has(memberId)) throw new Error("This member is already on the receipt");
+      if (linkedMemberIds.has(memberId)) throw new Error("This member is already on the expense");
       member = found;
     } else {
       const trimmedName = newMemberName?.trim();
@@ -421,37 +421,37 @@ export const addReceiptPerson = mutation({
     const personId = member.claimedByUserId ?? member.id;
     const name = await resolveMemberName(ctx, member);
 
-    await ctx.db.patch(receipt._id, {
-      people: [...receipt.people, { id: personId, name }],
-      tabMemberIds: [...(receipt.tabMemberIds ?? []), { personId, memberId: member.id }],
+    await ctx.db.patch(expense._id, {
+      people: [...expense.people, { id: personId, name }],
+      tabMemberIds: [...(expense.tabMemberIds ?? []), { personId, memberId: member.id }],
     });
   },
 });
 
-export const unassignReceipt = mutation({
-  args: { receiptSlug: v.string() },
-  handler: async (ctx, { receiptSlug }) => {
+export const unassignExpense = mutation({
+  args: { expenseSlug: v.string() },
+  handler: async (ctx, { expenseSlug }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    const receipt = await ctx.db
-      .query("receipts")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", receiptSlug))
+    const expense = await ctx.db
+      .query("expenses")
+      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
       .unique();
-    if (!receipt) throw new Error("Receipt not found");
-    await ctx.db.patch(receipt._id, { tabId: undefined, tabMemberIds: undefined });
+    if (!expense) throw new Error("Expense not found");
+    await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined });
   },
 });
 
-export const receiptsForTab = query({
+export const expensesForTab = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return [];
-    const receipts = await ctx.db
-      .query("receipts")
+    const expenses = await ctx.db
+      .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
-    return receipts
+    return expenses
       .map(({ slug, name, people, items, tax, tip, updatedAt }) => ({ slug, name, people, items, tax, tip, updatedAt }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },
@@ -463,37 +463,37 @@ export const breakdown = query({
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return null;
 
-    const receipts = await ctx.db
-      .query("receipts")
+    const expenses = await ctx.db
+      .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
 
     const totals = new Map<
       string,
-      { totalSpent: number; totalContributed: number; netBalance: number; receiptCount: number }
+      { totalSpent: number; totalContributed: number; netBalance: number; expenseCount: number }
     >();
     for (const member of tab.members) {
-      totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, receiptCount: 0 });
+      totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
     }
 
-    for (const receipt of receipts) {
-      const split = computeSplit(receipt.people, receipt.items, receipt.tax, receipt.tip);
-      const settlement = computeSettlement(receipt.contributions, split);
+    for (const expense of expenses) {
+      const split = computeSplit(expense.people, expense.items, expense.tax, expense.tip);
+      const settlement = computeSettlement(expense.contributions, split);
       for (const row of settlement) {
-        const link = receipt.tabMemberIds?.find((l) => l.personId === row.personId);
+        const link = expense.tabMemberIds?.find((l) => l.personId === row.personId);
         if (!link) continue;
         const entry = totals.get(link.memberId);
         if (!entry) continue;
         entry.totalSpent += row.fairShare;
         entry.totalContributed += row.contributed;
         entry.netBalance += row.balance;
-        entry.receiptCount += 1;
+        entry.expenseCount += 1;
       }
     }
 
     return {
       tab: { name: tab.name, slug: tab.slug },
-      receiptCount: receipts.length,
+      expenseCount: expenses.length,
       members: await Promise.all(
         tab.members.map(async (member) => {
           const entry = totals.get(member.id)!;
@@ -504,7 +504,7 @@ export const breakdown = query({
             totalSpent: round2(entry.totalSpent),
             totalContributed: round2(entry.totalContributed),
             netBalance: round2(entry.netBalance),
-            receiptCount: entry.receiptCount,
+            expenseCount: entry.expenseCount,
           };
         }),
       ),

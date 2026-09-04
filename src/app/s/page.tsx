@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useSyncExternalStore, useTransition } fro
 import { useRouter, useSearchParams } from "next/navigation";
 import { StageResults } from "@/components/StageResults";
 import { decodeSharePayload } from "@/lib/shareLink";
-import { useStoredReceipt } from "@/lib/receiptSync";
+import { useStoredExpense } from "@/lib/expenseSync";
 
 function useHasHydrated(): boolean {
   return useSyncExternalStore(
@@ -14,21 +14,21 @@ function useHasHydrated(): boolean {
   );
 }
 
-export default function SharedReceiptPage() {
+export default function SharedExpensePage() {
   return (
     <Suspense fallback={null}>
-      <SharedReceiptContent />
+      <SharedExpenseContent />
     </Suspense>
   );
 }
 
-function SharedReceiptContent() {
+function SharedExpenseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const payload = searchParams.get("d");
   const hasHydrated = useHasHydrated();
   const decoded = useMemo(() => (payload ? decodeSharePayload(payload) : null), [payload]);
-  const { state: owned } = useStoredReceipt(decoded?.slug ?? "");
+  const { state: owned } = useStoredExpense(decoded?.slug ?? "");
   const [isNavigating, startNavigation] = useTransition();
 
   useEffect(() => {
@@ -37,7 +37,7 @@ function SharedReceiptContent() {
       router.replace("/");
       return;
     }
-    if (owned) router.replace(`/r/${decoded.slug}`);
+    if (owned) router.replace(`/e/${decoded.slug}`);
   }, [hasHydrated, decoded, owned, router]);
 
   if (!hasHydrated || !decoded || owned) return null;

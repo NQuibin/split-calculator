@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Users2 } from "lucide-react";
-import { ReceiptSkeleton } from "@/components/ReceiptSkeleton";
-import { StageReceipt } from "@/components/StageReceipt";
+import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
+import { StageExpense } from "@/components/StageExpense";
 import { StageResults } from "@/components/StageResults";
 import { useTab, useTabActions } from "@/lib/tabSync";
-import { receiptReducer, type Action } from "@/lib/reducer";
-import { draftFromParams } from "@/lib/receiptDraft";
-import { useReceiptActions, useStoredReceipt } from "@/lib/receiptSync";
-import type { ReceiptState } from "@/lib/types";
+import { expenseReducer, type Action } from "@/lib/reducer";
+import { draftFromParams } from "@/lib/expenseDraft";
+import { useExpenseActions, useStoredExpense } from "@/lib/expenseSync";
+import type { ExpenseState } from "@/lib/types";
 
 function useHasHydrated(): boolean {
   return useSyncExternalStore(
@@ -20,33 +20,33 @@ function useHasHydrated(): boolean {
   );
 }
 
-export default function ReceiptPage() {
+export default function ExpensePage() {
   const router = useRouter();
   const { slug } = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
 
-  const { state: stored, loading } = useStoredReceipt(slug);
-  const { save } = useReceiptActions();
+  const { state: stored, loading } = useStoredExpense(slug);
+  const { save } = useExpenseActions();
   const hasHydrated = useHasHydrated();
   const [isNavigating, startNavigation] = useTransition();
 
-  // A brand-new receipt has no items yet, so it isn't persisted until the
+  // A brand-new expense has no items yet, so it isn't persisted until the
   // first item is added. Until then this draft (from the URL) is the only
   // copy of its state.
-  const [draft, setDraft] = useState<ReceiptState | null>(() => draftFromParams(searchParams));
+  const [draft, setDraft] = useState<ExpenseState | null>(() => draftFromParams(searchParams));
   const state = stored ?? draft;
 
   useEffect(() => {
     if (hasHydrated && !loading && state === null) router.replace("/");
   }, [hasHydrated, loading, state, router]);
 
-  // If this receipt was started from inside a tab (?tab={slug}), attach
+  // If this expense was started from inside a tab (?tab={slug}), attach
   // it to that tab the moment it's first persisted. Its people were
   // pre-filled from the tab's roster in the same order, so person `i`
   // maps to member `i`.
   const tabSlug = searchParams.get("tab");
   const tab = useTab(tabSlug ?? "");
-  const { assignReceipt, addReceiptPerson } = useTabActions();
+  const { assignExpense, addExpensePerson } = useTabActions();
   const hasAssigned = useRef(false);
 
   useEffect(() => {
@@ -55,17 +55,17 @@ export default function ReceiptPage() {
     const memberMapping = stored.people
       .map((person, i) => ({ personId: person.id, memberId: tab.members[i]?.id }))
       .filter((m): m is { personId: string; memberId: string } => m.memberId !== undefined);
-    if (memberMapping.length > 0) void assignReceipt({ tabSlug, receiptSlug: slug, memberMapping });
-  }, [tabSlug, tab, stored, slug, assignReceipt]);
+    if (memberMapping.length > 0) void assignExpense({ tabSlug, expenseSlug: slug, memberMapping });
+  }, [tabSlug, tab, stored, slug, assignExpense]);
 
-  if (!hasHydrated || loading || !state) return <ReceiptSkeleton />;
+  if (!hasHydrated || loading || !state) return <ExpenseSkeleton />;
 
   function dispatch(action: Action) {
     if (!state) return;
-    const next = receiptReducer(state, action);
+    const next = expenseReducer(state, action);
     save(slug, next);
     // Keep mirroring `next` here (rather than nulling it out once the
-    // receipt is persisted) so `state = stored ?? draft` never has a gap
+    // expense is persisted) so `state = stored ?? draft` never has a gap
     // between clearing the draft and the Convex query catching up with the
     // just-saved doc - that gap briefly made `state` null and bounced the
     // page home mid-edit. `stored` naturally takes over once it resolves.
@@ -86,14 +86,14 @@ export default function ReceiptPage() {
       )}
 
       {state.stage === "receipt" && (
-        <StageReceipt
-          receiptName={state.name}
-          onRenameReceipt={(name) => dispatch({ type: "RENAME_RECEIPT", name })}
+        <StageExpense
+          expenseName={state.name}
+          onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
           people={state.people}
           anonymousPersonIds={state.anonymousPersonIds}
           inTab={!!state.tab}
           availableTabMembers={state.availableTabMembers}
-          onAddTabMember={(params) => addReceiptPerson({ receiptSlug: slug, ...params })}
+          onAddTabMember={(params) => addExpensePerson({ expenseSlug: slug, ...params })}
           items={state.items}
           tax={state.tax}
           tip={state.tip}
@@ -124,7 +124,7 @@ export default function ReceiptPage() {
           contributions={state.contributions}
           isOwner
           shareSlug={slug}
-          onBack={() => dispatch({ type: "BACK_TO_RECEIPT" })}
+          onBack={() => dispatch({ type: "BACK_TO_EXPENSE" })}
           onReset={() => startNavigation(() => router.push("/"))}
           navigating={isNavigating}
         />

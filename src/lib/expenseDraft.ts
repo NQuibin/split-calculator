@@ -1,7 +1,7 @@
 import { todayISODate } from "./format";
-import type { Person, ReceiptState } from "./types";
+import type { Person, ExpenseState } from "./types";
 
-// A brand-new receipt isn't persisted until its first item is added (see
+// A brand-new expense isn't persisted until its first item is added (see
 // storage.ts), so its starting people/namePeople travel in the URL instead.
 // Person.id is always `person-${index + 1}` (see reducer.ts's ADD_PERSON),
 // except the first person when starting from a signed-in account - they keep
@@ -20,7 +20,7 @@ export function encodeDraftParams(people: Person[], namePeople: boolean, current
   return params;
 }
 
-export function draftFromParams(params: URLSearchParams): ReceiptState | null {
+export function draftFromParams(params: URLSearchParams): ExpenseState | null {
   const count = Number(params.get("count"));
   if (!Number.isInteger(count) || count <= 0) return null;
 
