@@ -4,7 +4,6 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import {
-  ArrowLeft,
   Check,
   Link2,
   Loader2,
@@ -37,7 +36,6 @@ const inputClass =
   "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
 export function TabPageClient() {
-  const router = useRouter();
   const { slug } = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -57,15 +55,7 @@ export function TabPageClient() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back
-        </button>
+      <div className="mb-6 flex items-center justify-end">
         <span className="font-display text-sm font-semibold tracking-wide text-brass uppercase">Tab</span>
       </div>
 
