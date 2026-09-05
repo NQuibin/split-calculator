@@ -90,6 +90,8 @@ export function useTabBreakdown(slug: string): TabBreakdown | null | undefined {
 }
 
 export interface TabExpenseSummary {
+  date: string;
+  createdBy: { id: string; name: string };
   slug: string;
   name?: string;
   people: Person[];

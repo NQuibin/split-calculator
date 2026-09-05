@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
+import { person, expenseItem } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -465,6 +466,7 @@ export const unassignExpense = mutation({
 
 export const expensesForTab = query({
   args: { slug: v.string() },
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), people: v.array(person), items: v.array(expenseItem), currency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return [];
@@ -472,14 +474,20 @@ export const expensesForTab = query({
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
+    const creators = new Map(await Promise.all([...new Set(expenses.map(e => e.userId))].map(async id => {
+      const user = await ctx.db.get(id);
+      return [id, user?.name?.trim() || "Unknown creator"] as const;
+    })));
     return expenses
-      .map(({ slug, name, people, items, currency, updatedAt }) => ({
+      .map(({ slug, name, people, items, currency, updatedAt, date, userId }) => ({
         slug,
         name,
         people,
         items,
         currency: currency ?? "USD",
         updatedAt,
+        date,
+        createdBy: { id: userId, name: creators.get(userId) ?? "Unknown creator" },
       }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },

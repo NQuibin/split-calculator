@@ -14,9 +14,9 @@ interface TabBreakdownProps {
 
 export function TabBreakdown({ tabSlug, breakdown, showCurrencyBadge = false }: TabBreakdownProps) {
   return (
-    <div className="rounded-md border border-rule bg-surface p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="flex flex-wrap items-center gap-2 font-display text-sm font-semibold text-ink">
           <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
           Tab balance across {breakdown.expenseCount} {breakdown.expenseCount === 1 ? "expense" : "expenses"}
           {showCurrencyBadge && (

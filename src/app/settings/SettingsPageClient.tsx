@@ -1,38 +1,31 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Authenticated, Unauthenticated, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Check, Coins, Loader2, UserRound } from "lucide-react";
+import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
+import { Check, Coins, Loader2, UserRound } from "lucide-react";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { api } from "../../../convex/_generated/api";
 
 const inputClass =
-  "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
+  "w-full min-w-0 rounded-lg border border-rule bg-paper px-4 py-3 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-forest/20";
 
 export function SettingsPageClient() {
-  const router = useRouter();
-
   return (
-    <main className="mx-auto w-full max-w-md px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-          Back
-        </button>
-        <span className="font-display text-sm font-semibold tracking-wide text-brass uppercase">Settings</span>
-      </div>
+    <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-10 md:py-12">
+      <header className="mb-8">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">Settings</h1>
+        <p className="mt-2 text-sm text-ink-soft">Manage your profile and preferences.</p>
+      </header>
 
+      <AuthLoading>
+        <p role="status" className="rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft">Loading settings…</p>
+      </AuthLoading>
       <Unauthenticated>
-        <p className="text-sm text-ink-soft">Sign in to manage your settings.</p>
+        <p className="rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft">Sign in to manage your settings.</p>
       </Unauthenticated>
       <Authenticated>
-        <div className="space-y-6">
+        <div className="divide-y divide-rule/70 overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
           <NameSettings />
           <DefaultCurrencySettings />
         </div>
@@ -62,12 +55,12 @@ function DefaultCurrencySettings() {
   }
 
   return (
-    <div className="rounded-md border border-rule bg-surface p-5">
-      <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+    <div className="px-5 py-6 sm:px-6">
+      <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold">
         <Coins className="h-4 w-4 text-brass" strokeWidth={2.25} />
         Default currency
-      </p>
-      <p className="mb-4 text-xs text-ink-soft">
+      </h2>
+      <p className="mb-5 text-sm text-ink-soft">
         New expenses you start outside of a tab begin in this currency.
       </p>
       <div className="flex items-center gap-2">
@@ -104,17 +97,18 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
   }
 
   return (
-    <div className="rounded-md border border-rule bg-surface p-5">
-      <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+    <div className="px-5 py-6 sm:px-6">
+      <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold">
         <UserRound className="h-4 w-4 text-brass" strokeWidth={2.25} />
         Your name
-      </p>
-      <p className="mb-4 text-xs text-ink-soft">This is the name shown to other people in your tabs.</p>
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      </h2>
+      <p className="mb-5 text-sm text-ink-soft">This is the name shown to friends in your tabs.</p>
+      <form onSubmit={handleSubmit} className="flex max-w-xl flex-wrap items-center gap-3 sm:flex-nowrap">
         <input
           type="text"
           required
           placeholder="Your name"
+          aria-label="Your name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
@@ -122,7 +116,7 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
         <button
           type="submit"
           disabled={status === "saving"}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {status === "saving" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
           {status === "saved" && <Check className="h-4 w-4" strokeWidth={2.5} />}
@@ -130,7 +124,7 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
         </button>
       </form>
       {error && <p className="mt-2 text-xs text-margin-red">{error}</p>}
-      {email && <p className="mt-4 text-xs text-ink-soft">Signed in as {email}</p>}
+      {email && <p className="mt-4 text-sm text-ink-soft break-words">Signed in as {email}</p>}
     </div>
   );
 }

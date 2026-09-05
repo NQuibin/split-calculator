@@ -11,7 +11,7 @@ import { generateSlug } from "@/lib/slug";
 const inputClass =
   "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
-export function CreateTabMenu({ variant = "button" }: { variant?: "button" | "icon" }) {
+export function CreateTabMenu({ variant = "button" }: { variant?: "button" | "icon" | "primary" }) {
   return (
     <Authenticated>
       <CreateTabPopover variant={variant} />
@@ -19,7 +19,7 @@ export function CreateTabMenu({ variant = "button" }: { variant?: "button" | "ic
   );
 }
 
-function CreateTabPopover({ variant }: { variant: "button" | "icon" }) {
+function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" }) {
   const router = useRouter();
   const { create } = useTabActions();
   const [open, setOpen] = useState(false);
@@ -77,11 +77,13 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" }) {
           render={
             <button
               type="button"
-              className="mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              className={variant === "primary"
+                ? "flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+                : "mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"}
             />
           }
         >
-          <Users2 className="h-4 w-4" strokeWidth={2.5} />
+          {variant === "primary" ? <Plus className="h-5 w-5" strokeWidth={2} /> : <Users2 className="h-4 w-4" strokeWidth={2.5} />}
           New tab
         </PopoverTrigger>
       )}
