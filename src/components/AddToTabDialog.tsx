@@ -39,14 +39,14 @@ export function AddToTabDialog({ people, onConfirm }: AddToTabDialogProps) {
         render={
           <button
             type="button"
-            className="mx-auto mt-3 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-ink-soft transition hover:text-forest"
+            className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-forest transition hover:bg-[#f3ead8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           />
         }
       >
         <Users2 className="h-3.5 w-3.5" strokeWidth={2.25} />
         Add to a tab
       </PopoverTrigger>
-      <PopoverContent align="center" className="w-80 border border-rule bg-surface p-4">
+      <PopoverContent align="end" className="w-80 border border-rule bg-surface p-4">
         {!pickedSlug ? (
           <div>
             <p className="mb-3 text-sm font-medium text-ink">Pick a tab</p>

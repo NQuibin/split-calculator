@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Authenticated, useQuery } from "convex/react";
-import { Users2, X } from "lucide-react";
+import { ChevronRight, Trash2, Users2, X } from "lucide-react";
 import { AddToTabDialog } from "@/components/AddToTabDialog";
 import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
 import { StageExpense } from "@/components/StageExpense";
@@ -37,7 +38,8 @@ export function ExpensePageClient() {
   const searchParams = useSearchParams();
 
   const { state: stored, loading } = useStoredExpense(slug);
-  const { save } = useExpenseActions();
+  const { save, remove } = useExpenseActions();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const hasHydrated = useHasHydrated();
   const [isNavigating, startNavigation] = useTransition();
 
@@ -134,18 +136,27 @@ export function ExpensePageClient() {
   }
 
   return (
-    <main className="flex flex-1 flex-col">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-ink-soft">
+          {!stored ? <span aria-current="page">New Expense</span> : <>
+            <Link href={state.tab ? "/tabs" : "/expenses"} className="hover:text-forest hover:underline">{state.tab ? "Tabs" : "Expenses"}</Link>
+            <ChevronRight aria-hidden="true" className="h-4 w-4" />
+            {state.tab && <><Link href={`/t/${state.tab.slug}`} className="hover:text-forest hover:underline">{state.tab.name}</Link><ChevronRight aria-hidden="true" className="h-4 w-4" /></>}
+            <span aria-current="page" className="font-medium text-ink break-words">{state.name}</span>
+          </>}
+        </nav>
       {state.tab ? (
         <button
           type="button"
           onClick={() => router.push(`/t/${state.tab!.slug}`)}
-          className="mx-auto mt-3 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-ink-soft hover:text-forest"
+          className="flex cursor-pointer items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-forest hover:bg-[#f3ead8]"
         >
           <Users2 className="h-3.5 w-3.5" strokeWidth={2.25} />
           Part of {state.tab.name}
         </button>
       ) : pendingTab ? (
-        <div className="mx-auto mt-3 flex items-center gap-1.5 text-xs font-medium text-ink-soft">
+        <div className="flex items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-ink-soft">
           <Users2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
           <button
             type="button"
@@ -186,9 +197,22 @@ export function ExpensePageClient() {
         </Authenticated>
       )}
 
+      </div>
+
       {state.stage === "receipt" && (
         <StageExpense
           expenseName={state.name}
+          description={stored ? "Edit the details of this expense. Changes save automatically." : "Add the details of your new expense."}
+          headerAction={stored ? <div className="flex flex-wrap items-center gap-2">
+            {confirmDelete && <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-ink-soft">Cancel</button>}
+            <button type="button" onClick={() => {
+              if (!confirmDelete) { setConfirmDelete(true); return; }
+              remove(slug);
+              router.push(state.tab ? `/t/${state.tab.slug}` : "/expenses");
+            }} className="inline-flex items-center gap-2 rounded-lg border border-margin-red/50 px-4 py-2.5 text-sm font-medium text-margin-red hover:bg-margin-red/5"><Trash2 className="h-4 w-4" />{confirmDelete ? "Confirm delete" : "Delete expense"}</button>
+          </div> : undefined}
+          onCancel={() => router.push(destinedTab ? `/t/${destinedTab.slug}` : "/expenses")}
+          cancelLabel={stored ? "Close" : "Cancel"}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
           people={state.people}
           viewerId={viewer?._id}
@@ -211,7 +235,7 @@ export function ExpensePageClient() {
           onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
           onAddPerson={() => dispatch({ type: "ADD_PERSON" })}
           onRenamePerson={(id, name) => dispatch({ type: "RENAME_PERSON", id, name })}
-          continueLabel={destinedTab ? "Add to tab" : "Split the expense"}
+          continueLabel={stored ? (destinedTab ? "Done" : "View split") : "Save expense"}
           onContinue={handleFinalize}
         />
       )}

@@ -1,86 +1,59 @@
 import { Skeleton } from "@/components/ui/Skeleton";
 
-// Shown while an expense's state is still loading (auth check, Convex query,
-// or hydration). Mirrors StageExpense's markup 1:1 - same outer container,
-// same borders/padding/margins on every row, and bar heights measured
-// against the real rendered controls (getBoundingClientRect, not guessed
-// from Tailwind's height scale) - so the real form swaps in at the exact
-// same size and position with no layout shift, and the footer stays pinned
-// to the bottom (via `flex-1` on <main>) instead of collapsing up.
+// Match the editor's page shell and panels while account and expense data load.
 export function ExpenseSkeleton() {
   return (
-    <main className="flex flex-1 flex-col">
-      <div className="mx-auto w-full max-w-2xl px-6 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-5 w-28" />
+    <main aria-busy="true" aria-label="Loading expense" className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12">
+      <span role="status" className="sr-only">Loading expense…</span>
+      <div aria-hidden="true">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-7 w-32 rounded-full" />
         </div>
-
-        <div className="rounded-lg border border-rule bg-surface p-5">
-          <div className="mb-4 flex items-center gap-2 border-b border-rule pb-4">
-            <Skeleton className="h-4 w-4 shrink-0" />
-            <Skeleton className="h-5 w-9" />
-            <Skeleton className="h-[34px] w-28" />
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <Skeleton className="h-9 w-48 max-w-full" />
+            <Skeleton className="mt-2 h-5 w-80 max-w-full" />
           </div>
-
-          <div className="mb-4 flex flex-wrap gap-4 border-b border-rule pb-4">
-            <Skeleton className="h-[34px] w-24" />
-            <Skeleton className="h-[34px] w-24" />
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Skeleton className="h-[38px] flex-1" />
-              <Skeleton className="h-[38px] w-full sm:w-28" />
-            </div>
-
-            <div>
-              <Skeleton className="mb-1 h-4 w-40" />
-              <Skeleton className="h-[34px] w-28" />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <Skeleton className="h-5 w-14" />
-              <Skeleton className="h-5 w-14" />
-            </div>
-
-            <div>
-              <Skeleton className="mb-1.5 h-4 w-20" />
-              <div className="flex flex-wrap gap-2">
-                <Skeleton className="h-9 w-20 rounded-full" />
-                <Skeleton className="h-9 w-20 rounded-full" />
-              </div>
-            </div>
-
-            <Skeleton className="h-9 w-36 rounded-md" />
-          </div>
-
-          <div className="perforated-top mt-4 space-y-1 pt-4">
-            <div className="flex justify-between">
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-5 w-12" />
-            </div>
-            <div className="flex justify-between">
-              <Skeleton className="h-5 w-10" />
-              <Skeleton className="h-5 w-12" />
-            </div>
-            <div className="flex justify-between">
-              <Skeleton className="h-5 w-8" />
-              <Skeleton className="h-5 w-12" />
-            </div>
-            <div className="flex justify-between pt-1">
-              <Skeleton className="h-6 w-12" />
-              <Skeleton className="h-6 w-16" />
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-md border border-rule">
-            <Skeleton className="h-11 w-full" />
-          </div>
+          <Skeleton className="h-11 w-36 rounded-lg" />
         </div>
-
-        <div className="mt-6 flex justify-end">
-          <Skeleton className="h-12 w-44 rounded-full" />
+        <div className="mb-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+          <Skeleton className="mb-3 h-5 w-24" />
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-10 w-28 rounded-full" />
+            <Skeleton className="h-10 w-28 rounded-full" />
+          </div>
+          <Skeleton className="mt-3 h-9 w-32 rounded-full" />
+        </div>
+        <div className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule pb-4">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-9 w-40" />
+          </div>
+          <div className="mb-4 flex gap-2 border-b border-rule pb-4">
+            <Skeleton className="h-10 flex-1 rounded-md" />
+            <Skeleton className="h-10 flex-1 rounded-md" />
+          </div>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-10 min-w-32 flex-1" />
+              <Skeleton className="h-10 w-28" />
+            </div>
+            <div><Skeleton className="mb-2 h-4 w-44" /><Skeleton className="h-9 w-40" /></div>
+            <div className="flex flex-wrap gap-6"><Skeleton className="h-9 w-48" /><Skeleton className="h-9 w-48" /></div>
+            <Skeleton className="h-10 w-28 rounded-lg" />
+          </div>
+          <div className="perforated-top mt-5 space-y-3 pt-4">
+            {[0, 1].map(row => <div key={row} className="flex justify-between gap-4"><Skeleton className="h-6 w-40" /><Skeleton className="h-6 w-24" /></div>)}
+          </div>
+          <div className="perforated-top mt-4 space-y-2 pt-4">
+            {[0, 1, 2, 3].map(row => <div key={row} className="flex justify-between gap-4"><Skeleton className="h-5 w-20" /><Skeleton className="h-5 w-24" /></div>)}
+          </div>
+          <Skeleton className="mt-4 h-12 w-full rounded-md" />
+          <div className="mt-6 flex items-center justify-between gap-3">
+            <Skeleton className="h-5 w-14" />
+            <Skeleton className="h-12 w-40 rounded-lg" />
+          </div>
         </div>
       </div>
     </main>
