@@ -25,6 +25,7 @@ const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 interface DisclosureLineProps {
   label: string;
   amount: number;
+  currency: string;
   discountAmount?: number;
   taxAmount?: number;
   tipAmount?: number;
@@ -33,6 +34,7 @@ interface DisclosureLineProps {
 function DisclosureLine({
   label,
   amount,
+  currency: currencyCode,
   discountAmount = 0,
   taxAmount = 0,
   tipAmount = 0,
@@ -44,7 +46,7 @@ function DisclosureLine({
     return (
       <li className="flex justify-between gap-3 text-ink-soft">
         <span className="truncate">{label}</span>
-        <span className="font-numeric shrink-0">{currency(amount)}</span>
+        <span className="font-numeric shrink-0">{currency(amount, currencyCode)}</span>
       </li>
     );
   }
@@ -67,7 +69,7 @@ function DisclosureLine({
           </motion.span>
           <span className="truncate">{label}</span>
         </span>
-        <span className="font-numeric shrink-0">{currency(amount)}</span>
+        <span className="font-numeric shrink-0">{currency(amount, currencyCode)}</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -81,24 +83,24 @@ function DisclosureLine({
             <div className="mt-1 space-y-0.5 py-1 pl-4 text-xs">
               <div className="flex justify-between gap-3">
                 <span>Item</span>
-                <span className="font-numeric">{currency(amount + discountAmount)}</span>
+                <span className="font-numeric">{currency(amount + discountAmount, currencyCode)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between gap-3">
                   <span>Discount</span>
-                  <span className="font-numeric">-{currency(discountAmount)}</span>
+                  <span className="font-numeric">-{currency(discountAmount, currencyCode)}</span>
                 </div>
               )}
               {taxAmount > 0 && (
                 <div className="flex justify-between gap-3">
                   <span>Tax</span>
-                  <span className="font-numeric">{currency(taxAmount)}</span>
+                  <span className="font-numeric">{currency(taxAmount, currencyCode)}</span>
                 </div>
               )}
               {tipAmount > 0 && (
                 <div className="flex justify-between gap-3">
                   <span>Tip</span>
-                  <span className="font-numeric">{currency(tipAmount)}</span>
+                  <span className="font-numeric">{currency(tipAmount, currencyCode)}</span>
                 </div>
               )}
             </div>
@@ -113,6 +115,7 @@ interface StageResultsProps {
   people: Person[];
   items: ExpenseItem[];
   contributions: Contribution[];
+  currency: string;
   onReset: () => void;
   isOwner: boolean;
   onBack?: () => void;
@@ -124,6 +127,7 @@ export function StageResults({
   people,
   items,
   contributions,
+  currency: currencyCode,
   onReset,
   isOwner,
   onBack,
@@ -138,7 +142,7 @@ export function StageResults({
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, items, contributions });
+    const payload = encodeSharePayload({ slug: shareSlug, people, items, contributions, currency: currencyCode });
     const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
@@ -207,6 +211,7 @@ export function StageResults({
                       key={item.itemId}
                       label={item.itemName}
                       amount={item.netCost}
+                      currency={currencyCode}
                       discountAmount={item.discountAmount}
                       taxAmount={item.taxAmount}
                       tipAmount={item.tipAmount}
@@ -216,19 +221,19 @@ export function StageResults({
                 <div className="mt-3 space-y-1 border-t border-dashed border-rule pt-3 text-sm">
                   <div className="flex justify-between text-ink-soft">
                     <span>Subtotal</span>
-                    <span className="font-numeric">{currency(result.subtotal)}</span>
+                    <span className="font-numeric">{currency(result.subtotal, currencyCode)}</span>
                   </div>
                   <div className="flex justify-between text-ink-soft">
                     <span>Tax</span>
-                    <span className="font-numeric">{currency(result.taxTotal)}</span>
+                    <span className="font-numeric">{currency(result.taxTotal, currencyCode)}</span>
                   </div>
                   <div className="flex justify-between text-ink-soft">
                     <span>Tip</span>
-                    <span className="font-numeric">{currency(result.tipTotal)}</span>
+                    <span className="font-numeric">{currency(result.tipTotal, currencyCode)}</span>
                   </div>
                   <div className="flex justify-between pt-1 font-display text-base font-semibold text-ink">
                     <span>Total</span>
-                    <span className="font-numeric">{currency(result.grandTotal)}</span>
+                    <span className="font-numeric">{currency(result.grandTotal, currencyCode)}</span>
                   </div>
                 </div>
               </div>
@@ -244,7 +249,7 @@ export function StageResults({
               {person.name} owes
             </p>
             <p className="font-numeric pl-8 text-4xl font-medium text-ink">
-              {currency(person.total)}
+              {currency(person.total, currencyCode)}
             </p>
 
             <ul className="mt-4 space-y-1 border-t border-dashed border-rule pl-8 pt-3 text-sm">
@@ -253,6 +258,7 @@ export function StageResults({
                   key={line.itemId}
                   label={line.itemName}
                   amount={line.share}
+                  currency={currencyCode}
                   discountAmount={line.discountShare}
                   taxAmount={line.taxShare}
                   tipAmount={line.tipShare}
@@ -261,7 +267,7 @@ export function StageResults({
               <li className="flex justify-between gap-3 text-ink-soft">
                 <span>Tax &amp; tip</span>
                 <span className="font-numeric shrink-0">
-                  {currency(person.taxShare + person.tipShare)}
+                  {currency(person.taxShare + person.tipShare, currencyCode)}
                 </span>
               </li>
             </ul>
@@ -281,11 +287,11 @@ export function StageResults({
                 <span className="text-ink">{row.name}</span>
                 {row.balance > 0.005 ? (
                   <span className="font-numeric font-semibold text-forest">
-                    Gets back {currency(row.balance)}
+                    Gets back {currency(row.balance, currencyCode)}
                   </span>
                 ) : row.balance < -0.005 ? (
                   <span className="font-numeric font-semibold text-margin-red">
-                    Still needs to front {currency(-row.balance)}
+                    Still needs to front {currency(-row.balance, currencyCode)}
                   </span>
                 ) : (
                   <span className="font-numeric text-ink-soft">Settled up</span>
@@ -299,7 +305,7 @@ export function StageResults({
       <div className="mt-8 flex flex-col items-center gap-4 border-t border-rule pt-6 text-center">
         <p className="text-sm text-ink-soft">
           Expense total{" "}
-          <span className="font-numeric font-semibold text-ink">{currency(result.grandTotal)}</span>{" "}
+          <span className="font-numeric font-semibold text-ink">{currency(result.grandTotal, currencyCode)}</span>{" "}
           — split across {people.length} {people.length === 1 ? "person" : "people"}.
         </p>
         {isOwner ? (

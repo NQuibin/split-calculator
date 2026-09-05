@@ -4,8 +4,8 @@ import { type FormEvent, useMemo, useState } from "react";
 import { AnimatePresence, motion, Reorder } from "motion/react";
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowLeft,
   ArrowRight,
+  Banknote,
   Calculator,
   Calendar,
   Check,
@@ -21,13 +21,13 @@ import {
   VenetianMask,
   Wallet,
 } from "lucide-react";
+import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { PersonChip } from "@/components/ui/PersonChip";
 import { RateInput } from "@/components/ui/RateInput";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import { expenseLabel } from "@/lib/expenseLabel";
 import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
@@ -35,10 +35,8 @@ const zeroRate: RateSetting = { mode: "percent", value: 0 };
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
 interface StageExpenseProps {
-  expenseName?: string;
-  onRenameExpense: (name: string | undefined) => void;
-  /** Existing (already-saved) expenses are reachable from the sidebar, so they skip the "back to home" button a brand-new draft still needs. */
-  isExisting: boolean;
+  expenseName: string;
+  onRenameExpense: (name: string) => void;
   people: Person[];
   anonymousPersonIds?: string[];
   inTab?: boolean;
@@ -47,9 +45,11 @@ interface StageExpenseProps {
   mode: ExpenseMode;
   items: ExpenseItem[];
   date: string;
+  currency: string;
   contributions: Contribution[];
-  onSetMode: (mode: ExpenseMode) => void;
+  onSetMode: (mode: ExpenseMode, draftItem?: { id: string; name: string; cost: number; splitWith: string[] }) => void;
   onSetDate: (date: string) => void;
+  onSetCurrency: (currency: string) => void;
   onAddItem: (item: ExpenseItem) => void;
   onUpdateItem: (item: ExpenseItem) => void;
   onRemoveItem: (id: string) => void;
@@ -57,15 +57,14 @@ interface StageExpenseProps {
   onSetContribution: (personId: string, amount: RateSetting) => void;
   onAddPerson: () => void;
   onRenamePerson: (id: string, name: string) => void;
-  onBack: () => void;
+  /** Label for the bottom action button - "Split the expense" for a standalone expense, "Add to tab" when it's in (or about to join) a tab. */
+  continueLabel: string;
   onContinue: () => void;
-  navigating?: boolean;
 }
 
 export function StageExpense({
   expenseName,
   onRenameExpense,
-  isExisting,
   people,
   anonymousPersonIds = [],
   inTab = false,
@@ -74,9 +73,11 @@ export function StageExpense({
   mode,
   items,
   date,
+  currency: currencyCode,
   contributions,
   onSetMode,
   onSetDate,
+  onSetCurrency,
   onAddItem,
   onUpdateItem,
   onRemoveItem,
@@ -84,9 +85,8 @@ export function StageExpense({
   onSetContribution,
   onAddPerson,
   onRenamePerson,
-  onBack,
+  continueLabel,
   onContinue,
-  navigating = false,
 }: StageExpenseProps) {
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
@@ -114,6 +114,38 @@ export function StageExpense({
 
   function togglePerson(id: string) {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
+
+  // Switching from "one total" into itemized mode doesn't carry that item
+  // over automatically - it just seeds the new-item form with its name and
+  // value, so the user reviews it before it's actually added.
+  function handleModeChange(nextMode: ExpenseMode) {
+    if (nextMode === mode) return;
+    if (nextMode === "itemized" && items[0]) {
+      const [first] = items;
+      setEditingId(null);
+      setName(first.name);
+      setCost(String(first.cost));
+      setDiscount({ mode: "amount", value: 0 });
+      setTax(zeroRate);
+      setTip(zeroRate);
+      setSplitWith(first.splitWith);
+      setError(null);
+      onSetMode(nextMode);
+      return;
+    }
+    // Switching back to "one total" with nothing added yet shouldn't lose
+    // whatever's still sitting in the itemized entry form.
+    if (nextMode === "simple" && items.length === 0 && (name.trim() || Number(cost) > 0)) {
+      onSetMode(nextMode, {
+        id: editingId ?? crypto.randomUUID(),
+        name: name.trim(),
+        cost: Number(cost) || 0,
+        splitWith,
+      });
+      return;
+    }
+    onSetMode(nextMode);
   }
 
   function resetForm() {
@@ -188,23 +220,7 @@ export function StageExpense({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
-      <div className={`mb-6 flex items-center ${isExisting ? "justify-end" : "justify-between"}`}>
-        {!isExisting && (
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={navigating}
-            aria-busy={navigating}
-            className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-          >
-            {navigating ? (
-              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
-            ) : (
-              <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-            )}
-            {people.length} people
-          </button>
-        )}
+      <div className="mb-6 flex items-center justify-end">
         <div className="flex items-center gap-2 text-brass">
           <span className="font-display text-sm font-semibold tracking-wide uppercase">
             The expense
@@ -212,7 +228,7 @@ export function StageExpense({
         </div>
       </div>
 
-      <ExpenseTitle name={expenseName} defaultName={expenseLabel(undefined, people)} onRename={onRenameExpense} />
+      <ExpenseTitle name={expenseName} onRename={onRenameExpense} />
 
       <div className="mb-4 rounded-lg border border-rule bg-surface p-5">
         <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
@@ -256,10 +272,17 @@ export function StageExpense({
       </div>
 
       <div className="rounded-lg border border-rule bg-surface p-5">
-        <div className="mb-4 flex items-center gap-2 border-b border-rule pb-4">
-          <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-          <span className="font-display text-sm font-medium text-ink-soft">Date</span>
-          <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
+        <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule pb-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+            <span className="font-display text-sm font-medium text-ink-soft">Date</span>
+            <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Banknote className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+            <span className="font-display text-sm font-medium text-ink-soft">Currency</span>
+            <CurrencyPicker value={currencyCode} onChange={onSetCurrency} aria-label="Expense currency" />
+          </div>
         </div>
 
         <div className="mb-4 flex gap-2 border-b border-rule pb-4">
@@ -267,13 +290,13 @@ export function StageExpense({
             icon={Calculator}
             label="One total"
             active={mode === "simple"}
-            onClick={() => onSetMode("simple")}
+            onClick={() => handleModeChange("simple")}
           />
           <ModeButton
             icon={ListChecks}
             label="Itemized"
             active={mode === "itemized"}
-            onClick={() => onSetMode("itemized")}
+            onClick={() => handleModeChange("itemized")}
           />
         </div>
 
@@ -414,6 +437,7 @@ export function StageExpense({
                     item={item}
                     index={i}
                     people={people}
+                    currency={currencyCode}
                     isEditing={item.id === editingId}
                     isNew={!initialItemIds.has(item.id)}
                     onEdit={() => startEdit(item)}
@@ -425,28 +449,30 @@ export function StageExpense({
           </>
         )}
 
-        <motion.div
-          layout
-          transition={{ layout: collapseTransition }}
-          className="perforated-top mt-4 space-y-1 pt-4 text-sm"
-        >
-          <div className="flex justify-between text-ink-soft">
-            <span>Subtotal</span>
-            <span className="font-numeric">{currency(totals.subtotal)}</span>
-          </div>
-          <div className="flex justify-between text-ink-soft">
-            <span>Tax</span>
-            <span className="font-numeric">{currency(totals.taxTotal)}</span>
-          </div>
-          <div className="flex justify-between text-ink-soft">
-            <span>Tip</span>
-            <span className="font-numeric">{currency(totals.tipTotal)}</span>
-          </div>
-          <div className="flex justify-between pt-1 font-display text-base font-semibold text-ink">
-            <span>Total</span>
-            <span className="font-numeric">{currency(totals.grandTotal)}</span>
-          </div>
-        </motion.div>
+        {mode === "itemized" && (
+          <motion.div
+            layout
+            transition={{ layout: collapseTransition }}
+            className="perforated-top mt-4 space-y-1 pt-4 text-sm"
+          >
+            <div className="flex justify-between text-ink-soft">
+              <span>Subtotal</span>
+              <span className="font-numeric">{currency(totals.subtotal, currencyCode)}</span>
+            </div>
+            <div className="flex justify-between text-ink-soft">
+              <span>Tax</span>
+              <span className="font-numeric">{currency(totals.taxTotal, currencyCode)}</span>
+            </div>
+            <div className="flex justify-between text-ink-soft">
+              <span>Tip</span>
+              <span className="font-numeric">{currency(totals.tipTotal, currencyCode)}</span>
+            </div>
+            <div className="flex justify-between pt-1 font-display text-base font-semibold text-ink">
+              <span>Total</span>
+              <span className="font-numeric">{currency(totals.grandTotal, currencyCode)}</span>
+            </div>
+          </motion.div>
+        )}
 
         <div className="mt-4 rounded-md border border-rule transition has-[button:hover]:border-forest">
           <button
@@ -504,10 +530,10 @@ export function StageExpense({
         <button
           type="button"
           onClick={onContinue}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || !expenseName.trim()}
           className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-margin-red px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
-          Split the expense
+          {continueLabel}
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
       </div>
@@ -635,21 +661,23 @@ function SimpleTotalForm({
   );
 }
 
-function ExpenseTitle({
-  name,
-  defaultName,
-  onRename,
-}: {
-  name?: string;
-  defaultName: string;
-  onRename: (name: string | undefined) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(name ?? "");
+function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: string) => void }) {
+  // A brand-new expense has no name yet - there's nothing valid to show in
+  // display mode, so it starts straight in the editing form.
+  const [editing, setEditing] = useState(() => !name);
+  const [value, setValue] = useState(name);
 
   function commit() {
-    onRename(value.trim() || undefined);
-    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed) {
+      onRename(trimmed);
+      setEditing(false);
+    } else if (name) {
+      // Nothing typed - revert to the existing name rather than save blank.
+      setValue(name);
+      setEditing(false);
+    }
+    // Still no name at all: stay in editing mode, since a name is required.
   }
 
   if (editing) {
@@ -666,7 +694,8 @@ function ExpenseTitle({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={commit}
-          placeholder={defaultName}
+          placeholder="Name this expense"
+          required
           className="font-display w-full max-w-md rounded-md border border-rule bg-paper px-3 py-2 text-2xl font-semibold text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
         />
       </form>
@@ -675,11 +704,11 @@ function ExpenseTitle({
 
   return (
     <div className="mb-6 flex items-center gap-2">
-      <h1 className="font-display min-w-0 truncate text-2xl font-semibold text-ink">{name || defaultName}</h1>
+      <h1 className="font-display min-w-0 truncate text-2xl font-semibold text-ink">{name}</h1>
       <button
         type="button"
         onClick={() => {
-          setValue(name ?? "");
+          setValue(name);
           setEditing(true);
         }}
         aria-label="Rename expense"

@@ -23,3 +23,13 @@ export const updateName = mutation({
     await ctx.db.patch(userId, { name: trimmedName });
   },
 });
+
+export const updateDefaultCurrency = mutation({
+  args: { currency: v.string() },
+  handler: async (ctx, { currency }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+
+    await ctx.db.patch(userId, { defaultCurrency: currency });
+  },
+});

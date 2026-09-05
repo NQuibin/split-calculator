@@ -3,7 +3,9 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Authenticated, Unauthenticated, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Check, Loader2, UserRound } from "lucide-react";
+import { ArrowLeft, Check, Coins, Loader2, UserRound } from "lucide-react";
+import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
+import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { api } from "../../../convex/_generated/api";
 
 const inputClass =
@@ -30,7 +32,10 @@ export function SettingsPageClient() {
         <p className="text-sm text-ink-soft">Sign in to manage your settings.</p>
       </Unauthenticated>
       <Authenticated>
-        <NameSettings />
+        <div className="space-y-6">
+          <NameSettings />
+          <DefaultCurrencySettings />
+        </div>
       </Authenticated>
     </main>
   );
@@ -40,6 +45,37 @@ function NameSettings() {
   const viewer = useQuery(api.users.viewer);
   if (viewer === undefined) return null;
   return <NameForm key={viewer?._id} initialName={viewer?.name ?? ""} email={viewer?.email} />;
+}
+
+function DefaultCurrencySettings() {
+  const viewer = useQuery(api.users.viewer);
+  const updateDefaultCurrency = useMutation(api.users.updateDefaultCurrency);
+  const [saved, setSaved] = useState(false);
+
+  if (viewer === undefined) return null;
+  const currency = viewer?.defaultCurrency ?? DEFAULT_CURRENCY;
+
+  async function handleChange(code: string) {
+    await updateDefaultCurrency({ currency: code });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="rounded-md border border-rule bg-surface p-5">
+      <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+        <Coins className="h-4 w-4 text-brass" strokeWidth={2.25} />
+        Default currency
+      </p>
+      <p className="mb-4 text-xs text-ink-soft">
+        New expenses you start outside of a tab begin in this currency.
+      </p>
+      <div className="flex items-center gap-2">
+        <CurrencyPicker value={currency} onChange={handleChange} aria-label="Default currency" />
+        {saved && <Check className="h-4 w-4 text-forest" strokeWidth={2.5} />}
+      </div>
+    </div>
+  );
 }
 
 function NameForm({ initialName, email }: { initialName: string; email?: string }) {

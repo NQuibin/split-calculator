@@ -1,6 +1,10 @@
-export function currency(n: number): string {
+export function currency(n: number, code: string = "USD"): string {
   if (!Number.isFinite(n)) return "-";
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  try {
+    return n.toLocaleString("en-US", { style: "currency", currency: code });
+  } catch {
+    return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  }
 }
 
 // Local calendar date (not UTC, unlike Date#toISOString) formatted YYYY-MM-DD.

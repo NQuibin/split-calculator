@@ -6,15 +6,16 @@ import { discountAmount } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import type { Person, ExpenseItem, RateSetting } from "@/lib/types";
 
-function formatRate(label: string, rate: RateSetting): string | null {
+function formatRate(label: string, rate: RateSetting, code: string): string | null {
   if (rate.value <= 0) return null;
-  return rate.mode === "percent" ? `${label} ${rate.value}%` : `${label} ${currency(rate.value)}`;
+  return rate.mode === "percent" ? `${label} ${rate.value}%` : `${label} ${currency(rate.value, code)}`;
 }
 
 interface ExpenseLineItemProps {
   item: ExpenseItem;
   index: number;
   people: Person[];
+  currency: string;
   isEditing: boolean;
   isNew: boolean;
   onEdit: () => void;
@@ -25,6 +26,7 @@ export function ExpenseLineItem({
   item,
   index,
   people,
+  currency: currencyCode,
   isEditing,
   isNew,
   onEdit,
@@ -36,7 +38,7 @@ export function ExpenseLineItem({
     return people.find((p) => p.id === id)?.name ?? "?";
   }
 
-  const rateLabels = [formatRate("tax", item.tax), formatRate("tip", item.tip)].filter(
+  const rateLabels = [formatRate("tax", item.tax, currencyCode), formatRate("tip", item.tip, currencyCode)].filter(
     (s): s is string => s !== null,
   );
 
@@ -79,11 +81,11 @@ export function ExpenseLineItem({
           <span className="font-numeric text-ink">
             {item.discount.value > 0 ? (
               <>
-                <span className="text-ink-soft line-through">{currency(item.cost)}</span>{" "}
-                {currency(Math.max(0, item.cost - discountAmount(item)))}
+                <span className="text-ink-soft line-through">{currency(item.cost, currencyCode)}</span>{" "}
+                {currency(Math.max(0, item.cost - discountAmount(item)), currencyCode)}
               </>
             ) : (
-              currency(item.cost)
+              currency(item.cost, currencyCode)
             )}
           </span>
           <button

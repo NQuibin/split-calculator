@@ -13,7 +13,7 @@ export const list = query({
       .query("expenses")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    return docs.map(({ slug, ...state }) => ({ slug, state }));
+    return docs.map(({ slug, currency, ...state }) => ({ slug, state: { ...state, currency: currency ?? "USD" } }));
   },
 });
 
@@ -27,7 +27,7 @@ export const get = query({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
     if (!doc) return null;
-    const { stage, name, people, namePeople, mode, items, date, contributions, tabId, tabMemberIds } = doc;
+    const { stage, name, people, namePeople, mode, items, date, contributions, currency, tabId, tabMemberIds } = doc;
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
     // Flag people linked to a still-anonymous tab member, so the expense
@@ -59,6 +59,7 @@ export const get = query({
       items,
       date,
       contributions,
+      currency: currency ?? "USD",
       tab: tab ? { slug: tab.slug, name: tab.name } : null,
       anonymousPersonIds,
       availableTabMembers,

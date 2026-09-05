@@ -5,6 +5,8 @@ export interface SharePayload {
   people: Person[];
   items: ExpenseItem[];
   contributions: Contribution[];
+  /** Absent on links generated before currency support existed - callers should default to "USD". */
+  currency?: string;
 }
 
 function toBase64Url(json: string): string {

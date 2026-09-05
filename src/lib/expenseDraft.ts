@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./currencies";
 import { todayISODate } from "./format";
 import type { Person, ExpenseState } from "./types";
 
@@ -36,11 +37,13 @@ export function draftFromParams(params: URLSearchParams): ExpenseState | null {
 
   return {
     stage: "receipt",
+    name: "",
     people,
     namePeople,
     mode: "simple",
     items: [],
     date: todayISODate(),
     contributions: [],
+    currency: DEFAULT_CURRENCY,
   };
 }

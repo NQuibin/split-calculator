@@ -1,7 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
-import { expenseLabel } from "../src/lib/expenseLabel";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -45,6 +44,7 @@ export const create = mutation({
     // The creator is always the tab's first member - a tab can't exist
     // without at least the person who made it.
     const creatorName = await getDisplayName(ctx, userId);
+    const creator = await ctx.db.get(userId);
 
     const trimmedMemberNames = memberNames.map((n) => n.trim()).filter((n) => n.length > 0);
 
@@ -72,6 +72,7 @@ export const create = mutation({
       ownerUserId: userId,
       name: trimmedName,
       members,
+      defaultCurrency: creator?.defaultCurrency ?? "USD",
       updatedAt: Date.now(),
     });
   },
@@ -89,6 +90,19 @@ export const rename = mutation({
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Tab name is required");
     await ctx.db.patch(tab._id, { name: trimmedName, updatedAt: Date.now() });
+  },
+});
+
+export const setDefaultCurrency = mutation({
+  args: { slug: v.string(), currency: v.string() },
+  handler: async (ctx, { slug, currency }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not signed in");
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+
+    await ctx.db.patch(tab._id, { defaultCurrency: currency, updatedAt: Date.now() });
   },
 });
 
@@ -278,6 +292,7 @@ export const getBySlug = query({
       name: tab.name,
       isOwner: userId !== null && tab.ownerUserId === userId,
       members,
+      defaultCurrency: tab.defaultCurrency ?? "USD",
     };
   },
 });
@@ -453,10 +468,88 @@ export const expensesForTab = query({
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     return expenses
-      .map(({ slug, name, people, items, updatedAt }) => ({ slug, name, people, items, updatedAt }))
+      .map(({ slug, name, people, items, currency, updatedAt }) => ({
+        slug,
+        name,
+        people,
+        items,
+        currency: currency ?? "USD",
+        updatedAt,
+      }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });
+
+// Computes one currency's slice of the tab breakdown - member totals and
+// per-expense lines - scoped to just the expenses passed in. Called once per
+// distinct currency the tab's expenses use, so balances never mix currencies.
+async function computeCurrencyBreakdown(
+  ctx: QueryCtx,
+  tab: Doc<"tabs">,
+  currencyExpenses: Doc<"expenses">[],
+) {
+  const totals = new Map<
+    string,
+    { totalSpent: number; totalContributed: number; netBalance: number; expenseCount: number }
+  >();
+  const lines = new Map<
+    string,
+    {
+      expenseSlug: string;
+      expenseName: string;
+      date: string;
+      fairShare: number;
+      contributed: number;
+      balance: number;
+    }[]
+  >();
+  for (const member of tab.members) {
+    totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
+    lines.set(member.id, []);
+  }
+
+  for (const expense of currencyExpenses) {
+    const split = computeSplit(expense.people, expense.items);
+    const settlement = computeSettlement(expense.contributions, split);
+    for (const row of settlement) {
+      const link = expense.tabMemberIds?.find((l) => l.personId === row.personId);
+      if (!link) continue;
+      const entry = totals.get(link.memberId);
+      if (!entry) continue;
+      entry.totalSpent += row.fairShare;
+      entry.totalContributed += row.contributed;
+      entry.netBalance += row.balance;
+      entry.expenseCount += 1;
+      lines.get(link.memberId)!.push({
+        expenseSlug: expense.slug,
+        expenseName: expense.name,
+        date: expense.date,
+        fairShare: round2(row.fairShare),
+        contributed: round2(row.contributed),
+        balance: round2(row.balance),
+      });
+    }
+  }
+
+  return {
+    expenseCount: currencyExpenses.length,
+    members: await Promise.all(
+      tab.members.map(async (member) => {
+        const entry = totals.get(member.id)!;
+        return {
+          memberId: member.id,
+          name: await resolveMemberName(ctx, member),
+          claimed: member.claimedByUserId !== undefined,
+          totalSpent: round2(entry.totalSpent),
+          totalContributed: round2(entry.totalContributed),
+          netBalance: round2(entry.netBalance),
+          expenseCount: entry.expenseCount,
+          expenses: lines.get(member.id)!.sort((a, b) => b.date.localeCompare(a.date)),
+        };
+      }),
+    ),
+  };
+}
 
 export const breakdown = query({
   args: { slug: v.string() },
@@ -469,67 +562,31 @@ export const breakdown = query({
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
 
-    const totals = new Map<
-      string,
-      { totalSpent: number; totalContributed: number; netBalance: number; expenseCount: number }
-    >();
-    const lines = new Map<
-      string,
-      {
-        expenseSlug: string;
-        expenseName: string;
-        date: string;
-        fairShare: number;
-        contributed: number;
-        balance: number;
-      }[]
-    >();
-    for (const member of tab.members) {
-      totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
-      lines.set(member.id, []);
-    }
-
+    // Group expenses by currency so each currency gets its own independent
+    // settlement/breakdown - balances in different currencies can't be
+    // netted against each other. A tab with no expenses yet still gets one
+    // (empty) "USD" group so the roster shows everyone settled up.
+    const byCurrency = new Map<string, Doc<"expenses">[]>();
     for (const expense of expenses) {
-      const split = computeSplit(expense.people, expense.items);
-      const settlement = computeSettlement(expense.contributions, split);
-      for (const row of settlement) {
-        const link = expense.tabMemberIds?.find((l) => l.personId === row.personId);
-        if (!link) continue;
-        const entry = totals.get(link.memberId);
-        if (!entry) continue;
-        entry.totalSpent += row.fairShare;
-        entry.totalContributed += row.contributed;
-        entry.netBalance += row.balance;
-        entry.expenseCount += 1;
-        lines.get(link.memberId)!.push({
-          expenseSlug: expense.slug,
-          expenseName: expenseLabel(expense.name, expense.people),
-          date: expense.date,
-          fairShare: round2(row.fairShare),
-          contributed: round2(row.contributed),
-          balance: round2(row.balance),
-        });
-      }
+      const code = expense.currency ?? "USD";
+      const list = byCurrency.get(code);
+      if (list) list.push(expense);
+      else byCurrency.set(code, [expense]);
     }
+    if (byCurrency.size === 0) byCurrency.set("USD", []);
+
+    const currencies = await Promise.all(
+      Array.from(byCurrency.entries()).map(async ([currency, currencyExpenses]) => ({
+        currency,
+        ...(await computeCurrencyBreakdown(ctx, tab, currencyExpenses)),
+      })),
+    );
+    currencies.sort((a, b) => b.expenseCount - a.expenseCount || a.currency.localeCompare(b.currency));
 
     return {
       tab: { name: tab.name, slug: tab.slug },
       expenseCount: expenses.length,
-      members: await Promise.all(
-        tab.members.map(async (member) => {
-          const entry = totals.get(member.id)!;
-          return {
-            memberId: member.id,
-            name: await resolveMemberName(ctx, member),
-            claimed: member.claimedByUserId !== undefined,
-            totalSpent: round2(entry.totalSpent),
-            totalContributed: round2(entry.totalContributed),
-            netBalance: round2(entry.netBalance),
-            expenseCount: entry.expenseCount,
-            expenses: lines.get(member.id)!.sort((a, b) => b.date.localeCompare(a.date)),
-          };
-        }),
-      ),
+      currencies,
     };
   },
 });

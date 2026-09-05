@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, FilePlus, Loader2 } from "lucide-react";
+import { ArrowLeft, FilePlus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { MemberMappingForm } from "@/components/MemberMappingForm";
 import { currency } from "@/lib/format";
 import { computeSplit } from "@/lib/calculations";
-import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/tabMembers";
-import { expenseLabel } from "@/lib/expenseLabel";
+import { suggestMemberMapping } from "@/lib/tabMembers";
 import { useExpenseList } from "@/lib/expenseSync";
 import { useTabActions, type TabMemberSummary } from "@/lib/tabSync";
 
@@ -18,49 +18,15 @@ interface AssignExpenseDialogProps {
 export function AssignExpenseDialog({ tabSlug, members }: AssignExpenseDialogProps) {
   const [open, setOpen] = useState(false);
   const [pickedSlug, setPickedSlug] = useState<string | null>(null);
-  const [mapping, setMapping] = useState<MemberMappingSuggestion[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const expenses = useExpenseList();
   const eligible = useMemo(() => expenses.filter((r) => !r.state.tabId), [expenses]);
   const { assignExpense } = useTabActions();
 
+  const pickedExpense = pickedSlug ? eligible.find((r) => r.slug === pickedSlug) : undefined;
+
   function reset() {
     setPickedSlug(null);
-    setMapping([]);
-    setError(null);
-    setSubmitting(false);
-  }
-
-  function pick(slug: string) {
-    const expense = eligible.find((r) => r.slug === slug);
-    if (!expense) return;
-    setPickedSlug(slug);
-    setMapping(suggestMemberMapping(expense.state.people, members));
-  }
-
-  async function handleConfirm() {
-    if (!pickedSlug) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      await assignExpense({
-        tabSlug,
-        expenseSlug: pickedSlug,
-        memberMapping: mapping.map(({ personId, memberId, newMemberName }) => ({
-          personId,
-          memberId,
-          newMemberName,
-        })),
-      });
-      setOpen(false);
-      reset();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't add the expense.");
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   return (
@@ -83,7 +49,7 @@ export function AssignExpenseDialog({ tabSlug, members }: AssignExpenseDialogPro
         Add existing expense
       </PopoverTrigger>
       <PopoverContent align="start" className="w-96 border border-rule bg-surface p-4">
-        {!pickedSlug ? (
+        {!pickedExpense ? (
           <div>
             <p className="mb-3 text-sm font-medium text-ink">Pick an expense to add</p>
             {eligible.length === 0 ? (
@@ -96,13 +62,11 @@ export function AssignExpenseDialog({ tabSlug, members }: AssignExpenseDialogPro
                     <li key={slug}>
                       <button
                         type="button"
-                        onClick={() => pick(slug)}
+                        onClick={() => setPickedSlug(slug)}
                         className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left text-sm transition hover:border-forest"
                       >
-                        <span className="truncate text-ink">
-                          {expenseLabel(state.name, state.people)}
-                        </span>
-                        <span className="font-numeric shrink-0 text-ink-soft">{currency(total)}</span>
+                        <span className="truncate text-ink">{state.name}</span>
+                        <span className="font-numeric shrink-0 text-ink-soft">{currency(total, state.currency)}</span>
                       </button>
                     </li>
                   );
@@ -120,47 +84,24 @@ export function AssignExpenseDialog({ tabSlug, members }: AssignExpenseDialogPro
               <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
               Pick a different expense
             </button>
-            <p className="mb-2 text-sm font-medium text-ink">Match each person to a tab member</p>
-            <ul className="space-y-2">
-              {mapping.map((entry, i) => (
-                <li key={entry.personId} className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 truncate text-sm text-ink-soft">{entry.personName}</span>
-                  <select
-                    value={entry.memberId ?? "__new__"}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setMapping((prev) =>
-                        prev.map((m, idx) =>
-                          idx === i
-                            ? value === "__new__"
-                              ? { ...m, memberId: undefined, newMemberName: m.personName }
-                              : { ...m, memberId: value, newMemberName: undefined }
-                            : m,
-                        ),
-                      );
-                    }}
-                    className="w-full rounded-md border border-rule bg-paper px-2 py-1.5 text-sm text-ink outline-none focus-visible:border-forest"
-                  >
-                    <option value="__new__">Add as new member &ldquo;{entry.personName}&rdquo;</option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                </li>
-              ))}
-            </ul>
-            {error && <p className="mt-2 text-xs text-margin-red">{error}</p>}
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={submitting}
-              className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {submitting && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
-              Add to tab
-            </button>
+            <MemberMappingForm
+              members={members}
+              initialMapping={suggestMemberMapping(pickedExpense.state.people, members)}
+              confirmLabel="Add to tab"
+              onConfirm={async (mapping) => {
+                await assignExpense({
+                  tabSlug,
+                  expenseSlug: pickedExpense.slug,
+                  memberMapping: mapping.map(({ personId, memberId, newMemberName }) => ({
+                    personId,
+                    memberId,
+                    newMemberName,
+                  })),
+                });
+                setOpen(false);
+                reset();
+              }}
+            />
           </div>
         )}
       </PopoverContent>

@@ -9,7 +9,6 @@ import { CreateTabMenu } from "@/components/CreateTabMenu";
 import { NewExpenseButton } from "@/components/NewExpenseButton";
 import { SidebarAccount } from "@/components/SidebarAccount";
 import { currency } from "@/lib/format";
-import { expenseLabel } from "@/lib/expenseLabel";
 import { computeSplit } from "@/lib/calculations";
 import { useExpenseActions, useExpenseList } from "@/lib/expenseSync";
 import { useTabList } from "@/lib/tabSync";
@@ -224,9 +223,9 @@ function ExpensesSection({ pathname }: { pathname: string | null }) {
                 key={slug}
                 href={`/e/${slug}`}
                 active={active}
-                title={expenseLabel(state.name, state.people)}
+                title={state.name}
                 subtitle={`${state.items.length} ${state.items.length === 1 ? "item" : "items"}`}
-                trailing={currency(total)}
+                trailing={currency(total, state.currency)}
                 onDelete={() => remove(slug)}
               />
             );

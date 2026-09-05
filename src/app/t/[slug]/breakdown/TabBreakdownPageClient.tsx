@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, VenetianMask } from "lucide-react";
 import { currency } from "@/lib/format";
-import { useTab, useTabBreakdown, type TabBreakdownMember } from "@/lib/tabSync";
+import { useTab, useTabBreakdown, type TabBreakdownMember, type TabCurrencyBreakdown } from "@/lib/tabSync";
 
 export function TabBreakdownPageClient() {
   const router = useRouter();
@@ -38,12 +38,12 @@ export function TabBreakdownPageClient() {
         Every expense, per person
       </h1>
 
-      {breakdown.members.length === 0 ? (
+      {breakdown.currencies.every((c) => c.members.length === 0) ? (
         <p className="text-sm text-ink-soft">No members yet.</p>
       ) : (
-        <div className="space-y-6">
-          {breakdown.members.map((member) => (
-            <MemberBreakdown key={member.memberId} member={member} />
+        <div className="space-y-10">
+          {breakdown.currencies.map((c) => (
+            <CurrencySection key={c.currency} data={c} showHeading={breakdown.currencies.length > 1} />
           ))}
         </div>
       )}
@@ -51,7 +51,24 @@ export function TabBreakdownPageClient() {
   );
 }
 
-function MemberBreakdown({ member }: { member: TabBreakdownMember }) {
+function CurrencySection({ data, showHeading }: { data: TabCurrencyBreakdown; showHeading: boolean }) {
+  return (
+    <div>
+      {showHeading && (
+        <p className="font-numeric mb-3 inline-flex items-center gap-1.5 rounded-full bg-brass/15 px-2.5 py-1 text-xs font-semibold text-brass">
+          {data.currency}
+        </p>
+      )}
+      <div className="space-y-6">
+        {data.members.map((member) => (
+          <MemberBreakdown key={member.memberId} member={member} currencyCode={data.currency} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember; currencyCode: string }) {
   const router = useRouter();
 
   return (
@@ -69,11 +86,11 @@ function MemberBreakdown({ member }: { member: TabBreakdownMember }) {
         </p>
         {member.netBalance > 0.005 ? (
           <span className="font-numeric shrink-0 text-sm font-semibold text-forest">
-            Gets back {currency(member.netBalance)}
+            Gets back {currency(member.netBalance, currencyCode)}
           </span>
         ) : member.netBalance < -0.005 ? (
           <span className="font-numeric shrink-0 text-sm font-semibold text-margin-red">
-            Still needs to front {currency(-member.netBalance)}
+            Still needs to front {currency(-member.netBalance, currencyCode)}
           </span>
         ) : (
           <span className="font-numeric shrink-0 text-sm text-ink-soft">Settled up</span>
@@ -96,14 +113,14 @@ function MemberBreakdown({ member }: { member: TabBreakdownMember }) {
                   <span className="font-numeric block text-xs text-ink-soft">{line.date}</span>
                 </span>
                 <span className="shrink-0 text-right">
-                  <span className="font-numeric block text-ink">{currency(line.fairShare)}</span>
+                  <span className="font-numeric block text-ink">{currency(line.fairShare, currencyCode)}</span>
                   {line.balance > 0.005 ? (
                     <span className="font-numeric block text-xs text-forest">
-                      +{currency(line.balance)}
+                      +{currency(line.balance, currencyCode)}
                     </span>
                   ) : line.balance < -0.005 ? (
                     <span className="font-numeric block text-xs text-margin-red">
-                      {currency(line.balance)}
+                      {currency(line.balance, currencyCode)}
                     </span>
                   ) : null}
                 </span>
@@ -118,7 +135,7 @@ function MemberBreakdown({ member }: { member: TabBreakdownMember }) {
           {member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"}
         </span>
         <span>
-          Spent {currency(member.totalSpent)} · Paid {currency(member.totalContributed)}
+          Spent {currency(member.totalSpent, currencyCode)} · Paid {currency(member.totalContributed, currencyCode)}
         </span>
       </div>
     </div>

@@ -30,6 +30,7 @@ export interface TabDetail {
   name: string;
   isOwner: boolean;
   members: TabMemberSummary[];
+  defaultCurrency: string;
 }
 
 /** undefined while loading, null if the tab doesn't exist. */
@@ -68,10 +69,17 @@ export interface TabBreakdownMember {
   expenses: TabBreakdownExpenseLine[];
 }
 
+export interface TabCurrencyBreakdown {
+  currency: string;
+  expenseCount: number;
+  members: TabBreakdownMember[];
+}
+
 export interface TabBreakdown {
   tab: { name: string; slug: string };
   expenseCount: number;
-  members: TabBreakdownMember[];
+  /** One independent settlement/breakdown per currency the tab's expenses use - balances in different currencies are never netted together. */
+  currencies: TabCurrencyBreakdown[];
 }
 
 /** undefined while loading, null if the tab doesn't exist. */
@@ -84,6 +92,7 @@ export interface TabExpenseSummary {
   name?: string;
   people: Person[];
   items: ExpenseItem[];
+  currency: string;
   updatedAt: number;
 }
 
@@ -95,6 +104,7 @@ export function useTabActions() {
   return {
     create: useMutation(api.tabs.create),
     rename: useMutation(api.tabs.rename),
+    setDefaultCurrency: useMutation(api.tabs.setDefaultCurrency),
     deleteTab: useMutation(api.tabs.deleteTab),
     addMember: useMutation(api.tabs.addMember),
     renameMember: useMutation(api.tabs.renameMember),

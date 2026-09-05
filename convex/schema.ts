@@ -31,13 +31,15 @@ export const expenseMode = v.union(v.literal("simple"), v.literal("itemized"));
 
 export const expenseState = v.object({
   stage: v.union(v.literal("receipt"), v.literal("results")),
-  name: v.optional(v.string()),
+  name: v.string(),
   people: v.array(person),
   namePeople: v.boolean(),
   mode: expenseMode,
   items: v.array(expenseItem),
   date: v.string(),
   contributions: v.array(contribution),
+  /** ISO 4217 code, e.g. "USD". Optional on the stored doc so expenses saved before this field existed keep validating - default to "USD" when reading. */
+  currency: v.optional(v.string()),
 });
 
 export const tabMember = v.object({
@@ -54,17 +56,33 @@ export const tabMemberLink = v.object({
 
 export default defineSchema({
   ...authTables,
+  // Extends authTables' users table (see its docstring) with our own
+  // preference field.
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    /** ISO 4217 code, e.g. "USD" - used as the starting currency for a brand-new expense outside of a tab. */
+    defaultCurrency: v.optional(v.string()),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
   expenses: defineTable({
     slug: v.string(),
     userId: v.id("users"),
     stage: v.union(v.literal("receipt"), v.literal("results")),
-    name: v.optional(v.string()),
+    name: v.string(),
     people: v.array(person),
     namePeople: v.boolean(),
     mode: expenseMode,
     items: v.array(expenseItem),
     date: v.string(),
     contributions: v.array(contribution),
+    currency: v.optional(v.string()),
     updatedAt: v.number(),
     tabId: v.optional(v.id("tabs")),
     tabMemberIds: v.optional(v.array(tabMemberLink)),
@@ -77,6 +95,8 @@ export default defineSchema({
     ownerUserId: v.id("users"),
     name: v.string(),
     members: v.array(tabMember),
+    /** ISO 4217 code, e.g. "USD" - the starting currency for a new expense created directly inside this tab. */
+    defaultCurrency: v.optional(v.string()),
     updatedAt: v.number(),
   })
     .index("by_owner", ["ownerUserId"])

@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import {
   Check,
+  Coins,
   Link2,
   Loader2,
   Pencil,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
+import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
@@ -28,7 +30,6 @@ import {
   useTabExpenses,
 } from "@/lib/tabSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
-import { expenseLabel } from "@/lib/expenseLabel";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { generateSlug } from "@/lib/slug";
 
@@ -62,10 +63,18 @@ export function TabPageClient() {
       {token && <ClaimBanner slug={slug} token={token} />}
 
       <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
+      {tab.isOwner && <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} />}
 
       <div className="mt-6 space-y-6">
         <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
-        {breakdown && <TabBreakdown breakdown={breakdown} />}
+        {breakdown?.currencies.map((c) => (
+          <TabBreakdown
+            key={c.currency}
+            tabSlug={slug}
+            breakdown={c}
+            showCurrencyBadge={breakdown.currencies.length > 1}
+          />
+        ))}
         <ExpenseList slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} />
       </div>
     </main>
@@ -159,6 +168,22 @@ function TabTitle({ slug, name, isOwner }: { slug: string; name: string; isOwner
         )}
       </div>
       {isOwner && <DeleteTabButton slug={slug} />}
+    </div>
+  );
+}
+
+function TabDefaultCurrency({ slug, currency: currencyCode }: { slug: string; currency: string }) {
+  const { setDefaultCurrency } = useTabActions();
+
+  return (
+    <div className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
+      <Coins className="h-3.5 w-3.5 shrink-0 text-brass" strokeWidth={2.25} />
+      <span>Default currency for new expenses</span>
+      <CurrencyPicker
+        value={currencyCode}
+        onChange={(code) => setDefaultCurrency({ slug, currency: code })}
+        aria-label="Tab default currency"
+      />
     </div>
   );
 }
@@ -390,8 +415,10 @@ function ExpenseList({
                   onClick={() => router.push(`/e/${expense.slug}`)}
                   className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule bg-surface px-4 py-3 text-left text-sm transition hover:border-forest"
                 >
-                  <span className="truncate text-ink">{expenseLabel(expense.name, expense.people)}</span>
-                  <span className="font-numeric shrink-0 font-semibold text-ink">{currency(total)}</span>
+                  <span className="truncate text-ink">{expense.name}</span>
+                  <span className="font-numeric shrink-0 font-semibold text-ink">
+                    {currency(total, expense.currency)}
+                  </span>
                 </button>
                 {isOwner && (
                   <>

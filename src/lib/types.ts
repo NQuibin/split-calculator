@@ -32,8 +32,8 @@ export interface Contribution {
 
 export interface ExpenseState {
   stage: Stage;
-  /** Custom expense name; when unset, callers fall back to the people's names joined together. */
-  name?: string;
+  /** The expense's name - always set, initialized from the people's names joined together when first created. */
+  name: string;
   people: Person[];
   namePeople: boolean;
   mode: ExpenseMode;
@@ -42,6 +42,8 @@ export interface ExpenseState {
   date: string;
   /** What each person already paid toward the expense, so the split can show who's owed money back. */
   contributions: Contribution[];
+  /** ISO 4217 code, e.g. "USD" - which currency the expense's amounts are in. */
+  currency: string;
   updatedAt?: number;
   /** Raw tab id, present (when set) on `expenses.list` results - just enough to tell whether an expense is already in a tab. */
   tabId?: string;

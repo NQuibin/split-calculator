@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { DEFAULT_CURRENCY } from "./currencies";
 import {
   deleteExpense,
   getExpenseListServerSnapshot,
@@ -21,13 +22,14 @@ import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseState, Expe
 
 interface ExpenseStateArgs {
   stage: ExpenseState["stage"];
-  name?: string;
+  name: string;
   people: Person[];
   namePeople: boolean;
   mode: ExpenseMode;
   items: ExpenseItem[];
   date: string;
   contributions: Contribution[];
+  currency: string;
 }
 
 // `state` may carry fields the current expenseState validator doesn't accept:
@@ -55,6 +57,7 @@ function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
       splitWith,
     })),
     contributions: state.contributions.map(({ personId, amount }) => ({ personId, amount: rate(amount) })),
+    currency: state.currency ?? DEFAULT_CURRENCY,
   };
 }
 

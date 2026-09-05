@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./currencies";
 import { todayISODate } from "./format";
 import type { ExpenseState } from "./types";
 
@@ -27,7 +28,12 @@ function parse(raw: string | null): ExpenseState | null {
     const withContributions = withDate.contributions ? withDate : { ...withDate, contributions: [] };
     // Same for mode, added after some expenses were already saved as plain
     // item breakdowns.
-    return withContributions.mode ? withContributions : { ...withContributions, mode: "itemized" };
+    const withMode = withContributions.mode
+      ? withContributions
+      : { ...withContributions, mode: "itemized" as const };
+    // Same for currency, added after some expenses were already saved in
+    // what was implicitly always USD.
+    return withMode.currency ? withMode : { ...withMode, currency: DEFAULT_CURRENCY };
   } catch {
     return null;
   }
