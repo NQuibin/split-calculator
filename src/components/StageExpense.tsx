@@ -17,7 +17,9 @@ import {
   Pencil,
   Percent,
   Plus,
+  StickyNote,
   TicketPercent,
+  Trash2,
   Users2,
   Wallet,
 } from "lucide-react";
@@ -26,9 +28,10 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { PersonChip } from "@/components/ui/PersonChip";
 import { RateInput } from "@/components/ui/RateInput";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
+import { ExpenseImageField } from "@/components/ExpenseImageField";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+import type { Contribution, Person, RateSetting, ExpenseImage, ExpenseItem, ExpenseMode } from "@/lib/types";
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
@@ -49,6 +52,14 @@ interface StageExpenseProps {
   date: string;
   currency: string;
   contributions: Contribution[];
+  /** The expense's note, if it has one - a blank note is stored as no note at all. */
+  note?: string;
+  onSetNote: (note: string) => void;
+  /** The expense's receipt image/PDF, if it has one. */
+  image?: ExpenseImage;
+  onSetImage: (image: ExpenseImage | null) => void;
+  /** Whether the viewer can upload a receipt - uploads are stored against an account, so guests can't. */
+  canUploadImage: boolean;
   onSetMode: (mode: ExpenseMode) => void;
   onSetDate: (date: string) => void;
   onSetCurrency: (currency: string) => void;
@@ -78,6 +89,11 @@ export function StageExpense({
   date,
   currency: currencyCode,
   contributions,
+  note,
+  onSetNote,
+  image,
+  onSetImage,
+  canUploadImage,
   onSetMode,
   onSetDate,
   onSetCurrency,
@@ -510,6 +526,10 @@ export function StageExpense({
             )}
           </AnimatePresence>
         </div>
+
+        <NoteField note={note} onSetNote={onSetNote} />
+
+        <ExpenseImageField image={image} onChange={onSetImage} canUpload={canUploadImage} />
       </div>
 
       <div className="mt-6 flex justify-end">
@@ -523,6 +543,90 @@ export function StageExpense({
           <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: string) => void }) {
+  const [open, setOpen] = useState(() => !!note);
+  const [draft, setDraft] = useState(note ?? "");
+  const [syncedNote, setSyncedNote] = useState(note ?? "");
+
+  // The stored note can change out from under this field - a Convex live
+  // query landing, or another device editing the same expense - so adopt the
+  // new value whenever it differs from the one this draft was seeded with.
+  if ((note ?? "") !== syncedNote) {
+    setSyncedNote(note ?? "");
+    setDraft(note ?? "");
+  }
+
+  // Typing is kept local and only saved on blur, so a note costs one write
+  // instead of one per keystroke. A blank note deletes it (see the reducer).
+  function commit() {
+    if (draft.trim() !== (note ?? "").trim()) onSetNote(draft);
+  }
+
+  function handleRemove() {
+    setDraft("");
+    onSetNote("");
+  }
+
+  return (
+    <div className="mt-4 rounded-md border border-rule transition has-[button:hover]:border-forest">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+      >
+        <span className="flex items-center gap-1.5">
+          <StickyNote className="h-4 w-4 text-brass" strokeWidth={2.25} />
+          {note ? "Note" : "Add a note"}
+        </span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={collapseTransition}
+          className="shrink-0"
+        >
+          <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={collapseTransition}
+            className="overflow-hidden border-t border-rule"
+          >
+            <div className="space-y-2 px-4 py-3">
+              <p className="text-xs text-ink-soft">
+                Optional — anything worth remembering about this expense.
+              </p>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                rows={3}
+                placeholder="e.g. Dan covered the cab home, settle that separately."
+                aria-label="Expense note"
+                className="w-full resize-y rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+              />
+              {note && (
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  Delete note
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

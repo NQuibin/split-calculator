@@ -10,15 +10,18 @@ import {
   Eye,
   Link2,
   Loader2,
+  FileText,
+  Paperclip,
   Receipt as ExpenseIcon,
   RotateCcw,
+  StickyNote,
   Wallet,
 } from "lucide-react";
 import { ExpenseStub } from "@/components/ui/ExpenseStub";
 import { computeSettlement, computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
-import type { Contribution, Person, ExpenseItem } from "@/lib/types";
+import type { Contribution, Person, ExpenseImage, ExpenseItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -116,6 +119,10 @@ interface StageResultsProps {
   items: ExpenseItem[];
   contributions: Contribution[];
   currency: string;
+  /** The expense's note, if it has one - shown to the owner only; share links don't carry it. */
+  note?: string;
+  /** The expense's receipt image/PDF, if it has one - owner only, same as the note. */
+  image?: ExpenseImage;
   onReset: () => void;
   isOwner: boolean;
   onBack?: () => void;
@@ -128,6 +135,8 @@ export function StageResults({
   items,
   contributions,
   currency: currencyCode,
+  note,
+  image,
   onReset,
   isOwner,
   onBack,
@@ -299,6 +308,45 @@ export function StageResults({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {note && isOwner && (
+        <div className="mt-6 rounded-md border border-rule bg-surface p-5">
+          <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+            <StickyNote className="h-4 w-4 text-brass" strokeWidth={2.25} />
+            Note
+          </p>
+          <p className="text-sm whitespace-pre-wrap text-ink-soft">{note}</p>
+        </div>
+      )}
+
+      {image?.url && isOwner && (
+        <div className="mt-6 rounded-md border border-rule bg-surface p-5">
+          <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
+            <Paperclip className="h-4 w-4 text-brass" strokeWidth={2.25} />
+            Receipt
+          </p>
+          {image.type === "application/pdf" ? (
+            <a
+              href={image.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-sm text-ink transition hover:text-forest"
+            >
+              <FileText className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+              <span className="truncate">{image.name}</span>
+            </a>
+          ) : (
+            <a href={image.url} target="_blank" rel="noreferrer" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element -- a signed, per-read Convex storage URL, so there's no stable host for next/image to optimize. */}
+              <img
+                src={image.url}
+                alt={image.name}
+                className="max-h-80 w-full rounded-md border border-rule object-contain"
+              />
+            </a>
+          )}
         </div>
       )}
 

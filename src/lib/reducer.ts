@@ -1,10 +1,12 @@
 import { computeSplit } from "./calculations";
-import type { ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
+import type { ExpenseImage, ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
 
 export type Action =
   | { type: "SET_MODE"; mode: ExpenseMode }
   | { type: "SET_DATE"; date: string }
   | { type: "SET_CURRENCY"; currency: string }
+  | { type: "SET_NOTE"; note: string }
+  | { type: "SET_IMAGE"; image: ExpenseImage | null }
   | { type: "ADD_ITEM"; item: ExpenseItem }
   | { type: "UPDATE_ITEM"; item: ExpenseItem }
   | { type: "REMOVE_ITEM"; id: string }
@@ -54,6 +56,16 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       return { ...state, date: action.date };
     case "SET_CURRENCY":
       return { ...state, currency: action.currency };
+    case "SET_NOTE": {
+      // A blank note is no note at all - drop the field entirely so adding,
+      // updating and deleting a note are all this one action.
+      const note = action.note.trim();
+      return { ...state, note: note || undefined };
+    }
+    case "SET_IMAGE":
+      // Removing an image drops the field; the save mutation deletes the
+      // now-unreferenced file from storage.
+      return { ...state, image: action.image ?? undefined };
     case "ADD_ITEM":
       return { ...state, items: [...state.items, action.item] };
     case "UPDATE_ITEM":

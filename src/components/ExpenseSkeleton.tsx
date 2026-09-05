@@ -77,6 +77,14 @@ export function ExpenseSkeleton() {
           <div className="mt-4 rounded-md border border-rule">
             <Skeleton className="h-11 w-full" />
           </div>
+
+          <div className="mt-4 rounded-md border border-rule">
+            <Skeleton className="h-11 w-full" />
+          </div>
+
+          <div className="mt-4 rounded-md border border-rule">
+            <Skeleton className="h-11 w-full" />
+          </div>
         </div>
 
         <div className="mt-6 flex justify-end">

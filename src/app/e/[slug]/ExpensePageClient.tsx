@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Authenticated, useQuery } from "convex/react";
+import { Authenticated, useConvexAuth, useQuery } from "convex/react";
 import { Users2, X } from "lucide-react";
 import { AddToTabDialog } from "@/components/AddToTabDialog";
 import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
@@ -36,6 +36,7 @@ export function ExpensePageClient() {
   const { slug } = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
 
+  const { isAuthenticated } = useConvexAuth();
   const { state: stored, loading } = useStoredExpense(slug);
   const { save } = useExpenseActions();
   const hasHydrated = useHasHydrated();
@@ -201,6 +202,11 @@ export function ExpensePageClient() {
           date={state.date}
           currency={state.currency}
           contributions={state.contributions}
+          note={state.note}
+          onSetNote={(note) => dispatch({ type: "SET_NOTE", note })}
+          image={state.image}
+          onSetImage={(image) => dispatch({ type: "SET_IMAGE", image })}
+          canUploadImage={isAuthenticated}
           onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
           onSetDate={(date) => dispatch({ type: "SET_DATE", date })}
           onSetCurrency={(currency) => dispatch({ type: "SET_CURRENCY", currency })}
@@ -222,6 +228,8 @@ export function ExpensePageClient() {
           items={state.items}
           contributions={state.contributions}
           currency={state.currency}
+          note={state.note}
+          image={state.image}
           isOwner
           shareSlug={slug}
           onBack={() => dispatch({ type: "BACK_TO_EXPENSE" })}

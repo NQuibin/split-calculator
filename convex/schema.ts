@@ -29,6 +29,13 @@ export const contribution = v.object({
 
 export const expenseMode = v.union(v.literal("simple"), v.literal("itemized"));
 
+/** A receipt photo (or PDF) attached to an expense. `name` is the original filename, kept for the download/open link. */
+export const expenseImage = v.object({
+  storageId: v.id("_storage"),
+  name: v.string(),
+  type: v.string(),
+});
+
 export const expenseState = v.object({
   stage: v.union(v.literal("receipt"), v.literal("results")),
   name: v.string(),
@@ -40,6 +47,10 @@ export const expenseState = v.object({
   contributions: v.array(contribution),
   /** ISO 4217 code, e.g. "USD". Optional on the stored doc so expenses saved before this field existed keep validating - default to "USD" when reading. */
   currency: v.optional(v.string()),
+  /** Free-form note about the expense. Absent when there's no note - an empty/whitespace-only note is stored as no note at all. */
+  note: v.optional(v.string()),
+  /** Receipt image/PDF attached to the expense, if any. Absent once removed. */
+  image: v.optional(expenseImage),
 });
 
 export const tabMember = v.object({
@@ -83,6 +94,8 @@ export default defineSchema({
     date: v.string(),
     contributions: v.array(contribution),
     currency: v.optional(v.string()),
+    note: v.optional(v.string()),
+    image: v.optional(expenseImage),
     updatedAt: v.number(),
     tabId: v.optional(v.id("tabs")),
     tabMemberIds: v.optional(v.array(tabMemberLink)),
