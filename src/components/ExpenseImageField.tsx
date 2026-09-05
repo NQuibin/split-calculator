@@ -5,8 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Camera, ChevronDown, FileText, ImagePlus, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { IMAGE_ACCEPT } from "../../convex/imageFormats";
 import { CameraCapture } from "@/components/CameraCapture";
-import { useUploadExpenseImage } from "@/lib/expenseSync";
-import type { ExpenseImage } from "@/lib/types";
+import { assertUploadableImage } from "@/lib/expenseSync";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -20,31 +19,65 @@ function prefersNativeCamera(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
 }
 
+// A PDF (and an image whose preview hasn't resolved) shows as a filename row.
+// It's only a link once the file is actually in storage - a receipt still
+// waiting on the expense's first save has nothing to open yet.
+function ReceiptFileRow({ name, href }: { name: string; href?: string | null }) {
+  const className =
+    "flex items-center gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink transition";
+  const content = (
+    <>
+      <FileText className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+      <span className="truncate">{name}</span>
+    </>
+  );
+
+  if (!href) return <div className={className}>{content}</div>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={`${className} hover:border-forest hover:text-forest`}>
+      {content}
+    </a>
+  );
+}
+
+/** What the field has to show, whether it's already in storage or still just a file in memory. */
+export interface ReceiptSummary {
+  name: string;
+  type: string;
+  /** Signed storage URL, once there is one. A file that hasn't been uploaded yet previews from a local object URL instead. */
+  url?: string | null;
+}
+
 interface ExpenseImageFieldProps {
-  image?: ExpenseImage;
-  onChange: (image: ExpenseImage | null) => void;
+  receipt?: ReceiptSummary;
+  /**
+   * Called with the picked file, or null to remove. What happens next is the
+   * caller's call - a saved expense uploads right away, a draft holds the
+   * file until it's first saved - so this awaits the returned promise for
+   * the busy state and shows anything it throws.
+   */
+  onPick: (file: File | null) => void | Promise<void>;
   /** Uploads go to Convex storage, which needs an account - guests get an explanation instead of the buttons. */
   canUpload: boolean;
 }
 
-export function ExpenseImageField({ image, onChange, canUpload }: ExpenseImageFieldProps) {
-  const upload = useUploadExpenseImage();
+export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFieldProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(() => !!image);
-  const [uploading, setUploading] = useState(false);
+  const [open, setOpen] = useState(() => !!receipt);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  // A just-uploaded file has no signed URL yet (the expense may not even be
-  // saved), so preview it straight from the local file until the server's
-  // URL arrives on the next read.
-  const [localPreview, setLocalPreview] = useState<{ storageId: string; url: string } | null>(null);
+  // A picked file has no signed URL - it may not be uploaded yet, and even
+  // once it is, the URL only arrives with the next read - so it previews
+  // from the local file until then.
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
   const localPreviewUrl = useRef<string | null>(null);
 
-  function replaceLocalPreview(next: { storageId: string; url: string } | null) {
+  function replaceLocalPreview(next: string | null) {
     if (localPreviewUrl.current) URL.revokeObjectURL(localPreviewUrl.current);
-    localPreviewUrl.current = next?.url ?? null;
+    localPreviewUrl.current = next;
     setLocalPreview(next);
   }
 
@@ -58,17 +91,18 @@ export function ExpenseImageField({ image, onChange, canUpload }: ExpenseImageFi
   async function handleFile(file: File | undefined) {
     if (!file) return;
     setError(null);
-    setUploading(true);
+    setBusy(true);
     try {
-      const uploaded = await upload(file);
-      replaceLocalPreview(
-        file.type.startsWith("image/") ? { storageId: uploaded.storageId, url: URL.createObjectURL(file) } : null,
-      );
-      onChange(uploaded);
+      assertUploadableImage(file);
+      // Shown before the await, so an upload that takes a few seconds still
+      // previews immediately; dropped again if the pick doesn't go through.
+      replaceLocalPreview(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
+      await onPick(file);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't upload that file.");
+      replaceLocalPreview(null);
+      setError(err instanceof Error ? err.message : "Couldn't attach that file.");
     } finally {
-      setUploading(false);
+      setBusy(false);
     }
   }
 
@@ -84,11 +118,11 @@ export function ExpenseImageField({ image, onChange, canUpload }: ExpenseImageFi
   function handleRemove() {
     replaceLocalPreview(null);
     setError(null);
-    onChange(null);
+    void onPick(null);
   }
 
-  const previewUrl = localPreview?.storageId === image?.storageId ? localPreview?.url : image?.url;
-  const isPdf = image?.type === "application/pdf";
+  const previewUrl = receipt?.url ?? localPreview;
+  const isPdf = receipt?.type === "application/pdf";
 
   return (
     <>
@@ -114,7 +148,7 @@ export function ExpenseImageField({ image, onChange, canUpload }: ExpenseImageFi
         >
           <span className="flex items-center gap-1.5">
             <Paperclip className="h-4 w-4 text-brass" strokeWidth={2.25} />
-            {image ? "Receipt" : "Add a receipt"}
+            {receipt ? "Receipt" : "Add a receipt"}
           </span>
           <motion.span
             animate={{ rotate: open ? 180 : 0 }}
@@ -140,23 +174,15 @@ export function ExpenseImageField({ image, onChange, canUpload }: ExpenseImageFi
                       Optional — a photo or PDF of the receipt, up to 5MB.
                     </p>
 
-                    {image &&
+                    {receipt &&
                       (isPdf || !previewUrl ? (
-                        <a
-                          href={image.url ?? undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink transition hover:border-forest hover:text-forest"
-                        >
-                          <FileText className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-                          <span className="truncate">{image.name}</span>
-                        </a>
+                        <ReceiptFileRow name={receipt.name} href={receipt.url} />
                       ) : (
-                        <a href={image.url ?? previewUrl} target="_blank" rel="noreferrer" className="block">
+                        <a href={previewUrl} target="_blank" rel="noreferrer" className="block">
                           {/* eslint-disable-next-line @next/next/no-img-element -- a signed, per-read Convex storage URL, so there's no stable host for next/image to optimize. */}
                           <img
                             src={previewUrl}
-                            alt={image.name}
+                            alt={receipt.name}
                             className="max-h-64 w-full rounded-md border border-rule object-contain"
                           />
                         </a>
@@ -188,26 +214,26 @@ export function ExpenseImageField({ image, onChange, canUpload }: ExpenseImageFi
                       <button
                         type="button"
                         onClick={() => fileInput.current?.click()}
-                        disabled={uploading}
+                        disabled={busy}
                         className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        {uploading ? (
+                        {busy ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />
                         ) : (
                           <ImagePlus className="h-3.5 w-3.5" strokeWidth={2.5} />
                         )}
-                        {image ? "Replace file" : "Upload a file"}
+                        {receipt ? "Replace file" : "Upload a file"}
                       </button>
                       <button
                         type="button"
                         onClick={handleTakePhoto}
-                        disabled={uploading}
+                        disabled={busy}
                         className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         <Camera className="h-3.5 w-3.5" strokeWidth={2.5} />
                         Take a photo
                       </button>
-                      {image && !uploading && (
+                      {receipt && !busy && (
                         <button
                           type="button"
                           onClick={handleRemove}

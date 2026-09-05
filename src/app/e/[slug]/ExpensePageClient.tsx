@@ -13,7 +13,7 @@ import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { useTab, useTabActions } from "@/lib/tabSync";
 import { expenseReducer, type Action } from "@/lib/reducer";
 import { draftFromParams } from "@/lib/expenseDraft";
-import { useExpenseActions, useStoredExpense } from "@/lib/expenseSync";
+import { useExpenseActions, useStoredExpense, useUploadExpenseImage } from "@/lib/expenseSync";
 import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/tabMembers";
 import type { ExpenseState } from "@/lib/types";
 
@@ -48,6 +48,13 @@ export function ExpensePageClient() {
   // state, held only in memory.
   const [draft, setDraft] = useState<ExpenseState | null>(() => draftFromParams(searchParams));
   const state = stored ?? draft;
+
+  // A receipt picked before the expense exists is held here, in memory, and
+  // uploaded only when the expense is first saved (see handleFinalize) - so
+  // abandoning a draft doesn't leave an unreferenced file in storage. It's
+  // no more fragile than the draft itself, which is already lost on reload.
+  const uploadImage = useUploadExpenseImage();
+  const [pendingReceipt, setPendingReceipt] = useState<File | null>(null);
 
   useEffect(() => {
     if (hasHydrated && !loading && state === null) router.replace("/");
@@ -107,12 +114,41 @@ export function ExpensePageClient() {
 
   const destinedTab = state.tab ?? pendingTab;
 
-  function handleFinalize() {
+  // A saved expense uploads a picked receipt right away, since every edit is
+  // already being persisted. A draft just holds the file - uploading it now
+  // would strand it in storage if the expense is never saved.
+  async function handlePickReceipt(file: File | null) {
+    if (!file) {
+      setPendingReceipt(null);
+      if (stored) dispatch({ type: "SET_IMAGE", image: null });
+      return;
+    }
+    if (stored) {
+      dispatch({ type: "SET_IMAGE", image: await uploadImage(file) });
+    } else {
+      setPendingReceipt(file);
+    }
+  }
+
+  const receipt =
+    state.image ?? (pendingReceipt ? { name: pendingReceipt.name, type: pendingReceipt.type } : undefined);
+
+  async function handleFinalize() {
     if (!state) return;
+
+    // The one moment a draft's receipt becomes a real stored file. It goes up
+    // before anything is saved, so a failed upload leaves the draft untouched
+    // and the button can report it rather than silently dropping the receipt.
+    let finalState = state;
+    if (pendingReceipt) {
+      finalState = expenseReducer(finalState, { type: "SET_IMAGE", image: await uploadImage(pendingReceipt) });
+      setPendingReceipt(null);
+      setDraft(finalState);
+    }
 
     if (destinedTab) {
       if (!stored) {
-        save(slug, state);
+        save(slug, finalState);
         if (pendingTab) {
           void assignExpense({
             tabSlug: pendingTab.slug,
@@ -129,7 +165,7 @@ export function ExpensePageClient() {
       return;
     }
 
-    const next = expenseReducer(state, { type: "GO_TO_RESULTS" });
+    const next = expenseReducer(finalState, { type: "GO_TO_RESULTS" });
     save(slug, next);
     setDraft(next);
   }
@@ -204,8 +240,8 @@ export function ExpensePageClient() {
           contributions={state.contributions}
           note={state.note}
           onSetNote={(note) => dispatch({ type: "SET_NOTE", note })}
-          image={state.image}
-          onSetImage={(image) => dispatch({ type: "SET_IMAGE", image })}
+          receipt={receipt}
+          onPickReceipt={handlePickReceipt}
           canUploadImage={isAuthenticated}
           onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
           onSetDate={(date) => dispatch({ type: "SET_DATE", date })}

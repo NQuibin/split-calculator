@@ -75,6 +75,16 @@ function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
   };
 }
 
+/** Throws a message fit to show the user if a picked file can't be a receipt. */
+export function assertUploadableImage(file: File): void {
+  if (!isAcceptedImageType(file.type)) {
+    throw new Error("Upload a JPG, PNG, WebP, GIF, HEIC or PDF.");
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error("That file is over 5MB - try a smaller one.");
+  }
+}
+
 /**
  * Uploads a receipt file straight to Convex storage and returns the reference
  * to attach to an expense. The file itself never passes through a mutation -
@@ -87,12 +97,9 @@ export function useUploadExpenseImage(): (file: File) => Promise<ExpenseImage> {
 
   return useCallback(
     async (file: File) => {
-      if (!isAcceptedImageType(file.type)) {
-        throw new Error("Upload a JPG, PNG, WebP, GIF, HEIC or PDF.");
-      }
-      if (file.size > MAX_IMAGE_BYTES) {
-        throw new Error("That file is over 5MB - try a smaller one.");
-      }
+      // Also checked when the file is first picked, but a deferred upload
+      // runs this much later - at save time - so it's re-checked here.
+      assertUploadableImage(file);
       const uploadUrl = await generateUploadUrl();
       const response = await fetch(uploadUrl, {
         method: "POST",

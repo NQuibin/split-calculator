@@ -28,10 +28,10 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { PersonChip } from "@/components/ui/PersonChip";
 import { RateInput } from "@/components/ui/RateInput";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
-import { ExpenseImageField } from "@/components/ExpenseImageField";
+import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Contribution, Person, RateSetting, ExpenseImage, ExpenseItem, ExpenseMode } from "@/lib/types";
+import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
@@ -55,9 +55,9 @@ interface StageExpenseProps {
   /** The expense's note, if it has one - a blank note is stored as no note at all. */
   note?: string;
   onSetNote: (note: string) => void;
-  /** The expense's receipt image/PDF, if it has one. */
-  image?: ExpenseImage;
-  onSetImage: (image: ExpenseImage | null) => void;
+  /** The expense's receipt, whether it's already in storage or a file still waiting on the expense's first save. */
+  receipt?: ReceiptSummary;
+  onPickReceipt: (file: File | null) => void | Promise<void>;
   /** Whether the viewer can upload a receipt - uploads are stored against an account, so guests can't. */
   canUploadImage: boolean;
   onSetMode: (mode: ExpenseMode) => void;
@@ -72,7 +72,8 @@ interface StageExpenseProps {
   onRenamePerson: (id: string, name: string) => void;
   /** Label for the bottom action button - "Split the expense" for a standalone expense, "Add to tab" when it's in (or about to join) a tab. */
   continueLabel: string;
-  onContinue: () => void;
+  /** May be async - a receipt picked before the expense was ever saved is uploaded here, on the way out. */
+  onContinue: () => void | Promise<void>;
 }
 
 export function StageExpense({
@@ -91,8 +92,8 @@ export function StageExpense({
   contributions,
   note,
   onSetNote,
-  image,
-  onSetImage,
+  receipt,
+  onPickReceipt,
   canUploadImage,
   onSetMode,
   onSetDate,
@@ -124,8 +125,25 @@ export function StageExpense({
   const [contributionsOpen, setContributionsOpen] = useState(() =>
     contributions.some((c) => c.amount.value > 0),
   );
+  const [continuing, setContinuing] = useState(false);
+  const [continueError, setContinueError] = useState<string | null>(null);
 
   const totals = useMemo(() => computeSplit(people, items), [people, items]);
+
+  // Finalizing can do real work before it lands - uploading a receipt the
+  // draft has been holding onto - so the button waits on it and surfaces
+  // whatever fails instead of looking like nothing happened.
+  async function handleContinue() {
+    setContinueError(null);
+    setContinuing(true);
+    try {
+      await onContinue();
+    } catch (err) {
+      setContinueError(err instanceof Error ? err.message : "Couldn't save this expense.");
+    } finally {
+      setContinuing(false);
+    }
+  }
 
   function contributionFor(personId: string): RateSetting {
     return contributions.find((c) => c.personId === personId)?.amount ?? { mode: "amount", value: 0 };
@@ -529,18 +547,24 @@ export function StageExpense({
 
         <NoteField note={note} onSetNote={onSetNote} />
 
-        <ExpenseImageField image={image} onChange={onSetImage} canUpload={canUploadImage} />
+        <ExpenseImageField receipt={receipt} onPick={onPickReceipt} canUpload={canUploadImage} />
       </div>
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex flex-col items-end gap-2">
+        {continueError && <p className="text-sm text-margin-red">{continueError}</p>}
         <button
           type="button"
-          onClick={onContinue}
-          disabled={items.length === 0 || !expenseName.trim()}
+          onClick={handleContinue}
+          disabled={items.length === 0 || !expenseName.trim() || continuing}
+          aria-busy={continuing}
           className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-margin-red px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {continueLabel}
-          <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          {continuing ? (
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+          ) : (
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          )}
         </button>
       </div>
     </div>
