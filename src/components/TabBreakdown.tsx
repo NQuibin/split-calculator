@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight, HatGlasses, Wallet } from "lucide-react";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency } from "@/lib/format";
 import type { TabCurrencyBreakdown } from "@/lib/tabSync";
 
@@ -42,21 +43,24 @@ export function TabBreakdown({ tabSlug, breakdown, showCurrencyBadge = false }: 
           <ul className="space-y-3 text-sm">
             {breakdown.members.map((member) => (
               <li key={member.memberId} className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 truncate text-ink">
-                    {member.name}
-                    {!member.claimed && (
-                      <HatGlasses
-                        className="h-3.5 w-3.5 shrink-0 text-ink-soft"
-                        strokeWidth={2.25}
-                        aria-label="Anonymous member"
-                      />
-                    )}
-                  </p>
-                  <p className="text-xs text-ink-soft">
-                    {member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"} · spent{" "}
-                    {currency(member.totalSpent, breakdown.currency)}
-                  </p>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <MemberAvatar id={member.memberId} name={member.name} />
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 truncate text-ink">
+                      {member.name}
+                      {!member.claimed && (
+                        <HatGlasses
+                          className="h-3.5 w-3.5 shrink-0 text-ink-soft"
+                          strokeWidth={2.25}
+                          aria-label="Anonymous member"
+                        />
+                      )}
+                    </p>
+                    <p className="text-xs text-ink-soft">
+                      {member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"} · spent{" "}
+                      {currency(member.totalSpent, breakdown.currency)}
+                    </p>
+                  </div>
                 </div>
                 {member.netBalance > 0.005 ? (
                   <span className="font-numeric shrink-0 font-semibold text-forest">
@@ -72,12 +76,6 @@ export function TabBreakdown({ tabSlug, breakdown, showCurrencyBadge = false }: 
               </li>
             ))}
           </ul>
-          {breakdown.members.some((m) => !m.claimed) && (
-            <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-              <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-              Anonymous members haven&rsquo;t signed up yet.
-            </p>
-          )}
         </>
       )}
     </div>

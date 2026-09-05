@@ -8,6 +8,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
 import {
   Check,
+  ChevronDown,
   ChevronRight,
   Search,
   X,
@@ -17,6 +18,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Receipt,
   Trash2,
   Unlink,
   Users2,
@@ -24,6 +26,7 @@ import {
 import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { currency, parseISODate } from "@/lib/format";
@@ -330,13 +333,6 @@ function Roster({
         })}
       </ul>
 
-      {members.some((m) => !m.claimed) && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-          <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-          Anonymous members haven&rsquo;t signed up yet — invite them to claim their spot.
-        </p>
-      )}
-
       {isOwner &&
         (adding ? (
           <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2">
@@ -381,20 +377,40 @@ function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId
 }
 
 function TabSummary({ expenses, defaultCurrency }: { expenses: ReturnType<typeof useTabExpenses>; defaultCurrency: string }) {
-  const totals = new Map<string, { total: number; count: number }>();
+  const totals = new Map<string, number>();
   for (const expense of expenses) {
-    const entry = totals.get(expense.currency) ?? { total: 0, count: 0 };
-    entry.total += computeSplit(expense.people, expense.items).grandTotal;
-    entry.count++;
-    totals.set(expense.currency, entry);
+    const total = totals.get(expense.currency) ?? 0;
+    totals.set(expense.currency, total + computeSplit(expense.people, expense.items).grandTotal);
   }
-  if (!totals.size) totals.set(defaultCurrency, { total: 0, count: 0 });
+  if (!totals.size) totals.set(defaultCurrency, 0);
   const currencies = [...totals].sort(([a], [b]) => a.localeCompare(b));
-  return <section aria-label="Tab summary" className="grid gap-4 sm:grid-cols-3">
-    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5"><h2 className="text-sm text-ink-soft">Total spent</h2><div className="mt-3 space-y-2">{currencies.map(([code, entry]) => <p key={code} className="font-numeric text-xl font-semibold"><span className="mr-2 text-xs text-ink-soft">{code}</span>{currency(entry.total, code)}</p>)}</div></div>
+  return <section aria-label="Tab summary" className="grid gap-4 sm:grid-cols-2">
+    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5"><h2 className="text-sm text-ink-soft">Total spent</h2><div className="mt-3 space-y-2">{currencies.map(([code, total]) => <p key={code} className="font-numeric text-xl font-semibold"><span className="mr-2 text-xs text-ink-soft">{code}</span>{currency(total, code)}</p>)}</div></div>
     <div className="rounded-xl border border-rule/70 bg-surface/80 p-5"><h2 className="text-sm text-ink-soft">Expenses</h2><p className="mt-3 font-numeric text-2xl font-semibold">{expenses.length}</p><p className="mt-2 text-xs text-ink-soft">Across {currencies.length} {currencies.length === 1 ? "currency" : "currencies"}</p></div>
-    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5"><h2 className="text-sm text-ink-soft">Average expense</h2><div className="mt-3 space-y-2">{currencies.map(([code, entry]) => <p key={code} className="font-numeric text-xl font-semibold"><span className="mr-2 text-xs text-ink-soft">{code}</span>{currency(entry.count ? entry.total / entry.count : 0, code)}</p>)}</div></div>
   </section>;
+}
+
+// One grid template shared by the expense list's header and its rows so the
+// columns line up. Every track but the first is a fixed width: each row is its
+// own grid, so an `auto` track would size to that row's own content and the
+// columns would drift out of alignment with each other. Below `md` the middle
+// columns collapse into a metadata line underneath the name, leaving
+// expense / amount / chevron.
+const expenseRowGrid =
+  "grid grid-cols-[minmax(0,1fr)_6.5rem_1rem] items-center gap-x-4 gap-y-3 px-5 md:grid-cols-[minmax(0,1fr)_7rem_9rem_7.5rem_6.5rem_1rem]";
+
+function formatExpenseDate(iso: string | undefined) {
+  const date = iso ? parseISODate(iso) : undefined;
+  return date?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function AvatarStack({ people }: { people: { id: string; name: string }[] }) {
+  const shown = people.slice(0, 3);
+  const overflow = people.length - shown.length;
+  return <span className="flex items-center">
+    <span className="flex gap-1">{shown.map(person => <MemberAvatar key={person.id} id={person.id} name={person.name} size="sm" />)}</span>
+    {overflow > 0 && <span className="ml-2 text-xs text-ink-soft">+{overflow}</span>}
+  </span>;
 }
 
 function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpenses>[number] }) {
@@ -437,20 +453,48 @@ function ExpenseList({ isOwner, expenses }: {
     <div className="mb-4 flex flex-wrap items-center gap-3">
       <h2 className="mr-auto font-display text-lg font-semibold">Expenses <span className="ml-2 text-sm font-normal text-ink-soft">{filtered.length}</span></h2>
       <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-surface px-4 py-3 focus-within:ring-2 focus-within:ring-forest/20 sm:max-w-sm"><Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search tab expenses" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} className="w-full min-w-0 bg-transparent text-sm outline-none" /></label>
-      <select aria-label="Filter by currency" value={currencyFilter} onChange={e => setCurrencyFilter(e.target.value)} className="rounded-lg border border-rule bg-surface px-3 py-3 text-sm"><option value="all">All currencies</option>{codes.map(code => <option key={code}>{code}</option>)}</select>
-    </div>
-    <div className={`grid items-start gap-5 ${selected ? "xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]" : ""}`}>
-      <div className="overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
-        <div className="flex justify-between border-b border-rule/70 px-5 py-3 text-xs font-medium uppercase text-ink-soft"><span>Expense / split with</span><span>Amount</span></div>
-        {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{expenses.length ? "No expenses match your filters." : "No expenses yet. Add one to get started."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
-          <button type="button" aria-pressed={selected?.slug === expense.slug} onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`flex w-full cursor-pointer items-center gap-3 px-5 py-5 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${selected?.slug === expense.slug ? "bg-[#f3ead8]" : ""}`}>
-            <span className="min-w-0 flex-1"><span className="block font-semibold break-words">{expense.name ?? "Untitled expense"}</span><ExpenseMetadata expense={expense} /><span className="mt-3 flex flex-wrap gap-1.5">{expense.people.map(person => <MemberAvatar key={person.id} id={person.id} name={person.name} />)}</span></span>
-            <span className="shrink-0 text-right"><span className="block text-xs text-ink-soft">{expense.currency}</span><span className="font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)}</span></span><ChevronRight className="h-4 w-4 shrink-0 text-ink-soft" />
-          </button>
-        </li>)}</ul>}
+      <div className="relative shrink-0">
+        <select aria-label="Filter by currency" value={currencyFilter} onChange={e => setCurrencyFilter(e.target.value)} className="w-full cursor-pointer appearance-none rounded-lg border border-rule bg-surface py-3 pl-4 pr-10 text-sm focus-visible:border-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest/20"><option value="all">All currencies</option>{codes.map(code => <option key={code}>{code}</option>)}</select>
+        <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
       </div>
-      {selected && split && <aside aria-label="Expense details" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3"><h3 className="font-display text-lg font-semibold break-words">{selected.name ?? "Untitled expense"}</h3><button type="button" aria-label="Close expense details" onClick={() => setSelectedSlug(null)} className="rounded-md p-1 text-ink-soft hover:bg-[#f3ead8]"><X className="h-5 w-5" /></button></div>
+    </div>
+    <div className="overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
+      <div className={`${expenseRowGrid} border-b border-rule/70 py-3 text-xs font-medium uppercase text-ink-soft`}>
+        <span>Expense</span>
+        <span className="hidden md:block">Date</span>
+        <span className="hidden text-center md:block">Created by</span>
+        <span className="hidden text-center md:block">Split with</span>
+        <span className="text-right">Amount</span>
+        <span aria-hidden="true" />
+      </div>
+      {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{expenses.length ? "No expenses match your filters." : "No expenses yet. Add one to get started."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
+        <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} group w-full cursor-pointer py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
+          <span className="flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3ead8] text-brass"><Receipt className="h-5 w-5" strokeWidth={2.25} /></span>
+            <span className="min-w-0">
+              <span className="block font-semibold break-words">{expense.name ?? "Untitled expense"}</span>
+              <span className="block text-xs text-ink-soft">{expense.items.length} {expense.items.length === 1 ? "item" : "items"}</span>
+            </span>
+          </span>
+          <span className="hidden text-sm text-ink-soft md:block">{expense.date ? <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time> : "Not set"}</span>
+          <span className="hidden min-w-0 items-center justify-center gap-2 text-sm md:flex">
+            {expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}
+            <span className="truncate">{expense.createdBy?.name ?? "Unknown creator"}</span>
+          </span>
+          <span className="hidden justify-center md:flex"><AvatarStack people={expense.people} /></span>
+          <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)}</span><span className="block text-xs text-ink-soft">{expense.currency}</span></span>
+          <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft transition group-hover:translate-x-0.5" />
+          <span className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
+            {expense.date && <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>}
+            <span className="inline-flex items-center gap-1.5">{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}{expense.createdBy?.name ?? "Unknown creator"}</span>
+            <AvatarStack people={expense.people} />
+          </span>
+        </button>
+      </li>)}</ul>}
+    </div>
+    <Dialog open={Boolean(selected)} onOpenChange={next => { if (!next) { setSelectedSlug(null); setConfirmDelete(false); setError(null); } }}>
+      {selected && split && <DialogContent aria-label="Expense details">
+        <div className="flex items-start justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" className="cursor-pointer rounded-md p-1 text-ink-soft hover:bg-[#f3ead8]"><X className="h-5 w-5" /></DialogClose></div>
         <p className="mt-5 font-numeric text-2xl font-semibold">{currency(split.grandTotal, selected.currency)}</p><p className="mt-1 text-sm text-ink-soft">{selected.currency} · {selected.items.length} {selected.items.length === 1 ? "item" : "items"}</p>
         <ExpenseMetadata expense={selected} />
         {isOwner && <div className="mt-5 flex flex-wrap gap-2">
@@ -462,7 +506,7 @@ function ExpenseList({ isOwner, expenses }: {
         {error && <p role="alert" className="mt-3 text-sm text-margin-red">{error}</p>}
         <h4 className="mt-6 border-t border-rule/70 pt-5 text-sm font-semibold">Split with</h4><ul className="mt-3 space-y-3">{split.people.map(person => <li key={person.personId} className="flex items-center gap-2 text-sm"><MemberAvatar id={person.personId} name={person.name} /><span className="min-w-0 flex-1 break-words">{person.name}</span><span className="font-numeric">{currency(person.total, selected.currency)}</span></li>)}</ul>
         <h4 className="mt-6 border-t border-rule/70 pt-5 text-sm font-semibold">Items</h4><ul className="mt-3 space-y-3">{split.items.map(item => <li key={item.itemId} className="flex justify-between gap-3 text-sm"><span className="min-w-0 break-words">{item.itemName}</span><span className="font-numeric shrink-0">{currency(item.total, selected.currency)}</span></li>)}</ul>
-      </aside>}
-    </div>
+      </DialogContent>}
+    </Dialog>
   </section>;
 }

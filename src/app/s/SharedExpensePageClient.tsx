@@ -43,7 +43,7 @@ function SharedExpenseContent() {
   if (!hasHydrated || !decoded || owned) return null;
 
   return (
-    <main className="flex flex-1 flex-col">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12">
       <StageResults
         people={decoded.people}
         items={decoded.items}

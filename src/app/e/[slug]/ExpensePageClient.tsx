@@ -143,7 +143,12 @@ export function ExpensePageClient() {
             <Link href={state.tab ? "/tabs" : "/expenses"} className="hover:text-forest hover:underline">{state.tab ? "Tabs" : "Expenses"}</Link>
             <ChevronRight aria-hidden="true" className="h-4 w-4" />
             {state.tab && <><Link href={`/t/${state.tab.slug}`} className="hover:text-forest hover:underline">{state.tab.name}</Link><ChevronRight aria-hidden="true" className="h-4 w-4" /></>}
-            <span aria-current="page" className="font-medium text-ink break-words">{state.name}</span>
+            {/* On the split, the expense name steps back to the editor - it replaces the old "Edit the expense" link. */}
+            {state.stage === "results" ? <>
+              <button type="button" onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })} className="cursor-pointer break-words hover:text-forest hover:underline">{state.name}</button>
+              <ChevronRight aria-hidden="true" className="h-4 w-4" />
+              <span aria-current="page" className="font-medium text-ink">Split</span>
+            </> : <span aria-current="page" className="font-medium text-ink break-words">{state.name}</span>}
           </>}
         </nav>
       {state.tab ? (
@@ -248,7 +253,6 @@ export function ExpensePageClient() {
           currency={state.currency}
           isOwner
           shareSlug={slug}
-          onBack={() => dispatch({ type: "BACK_TO_EXPENSE" })}
           onReset={() => startNavigation(() => router.push("/"))}
           navigating={isNavigating}
         />

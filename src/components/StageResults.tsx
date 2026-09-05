@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronRight,
@@ -14,7 +13,7 @@ import {
   RotateCcw,
   Wallet,
 } from "lucide-react";
-import { ExpenseStub } from "@/components/ui/ExpenseStub";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { computeSettlement, computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
@@ -118,7 +117,6 @@ interface StageResultsProps {
   currency: string;
   onReset: () => void;
   isOwner: boolean;
-  onBack?: () => void;
   shareSlug?: string;
   navigating?: boolean;
 }
@@ -130,7 +128,6 @@ export function StageResults({
   currency: currencyCode,
   onReset,
   isOwner,
-  onBack,
   shareSlug,
   navigating = false,
 }: StageResultsProps) {
@@ -150,38 +147,26 @@ export function StageResults({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        {isOwner ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-          >
-            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-            Edit the expense
-          </button>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft">
-            <Eye className="h-4 w-4" strokeWidth={2.5} />
+    <div className="w-full">
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-3xl font-semibold text-ink">Here&rsquo;s who owes what</h1>
+          <p className="mt-2 text-sm text-ink-soft">Every person&rsquo;s share, line by line.</p>
+        </div>
+        {!isOwner && (
+          <span className="flex items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-ink-soft">
+            <Eye className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
             Shared expense
           </span>
         )}
-        <span className="font-display text-sm font-semibold tracking-wide text-brass uppercase">
-          The split
-        </span>
-      </div>
+      </header>
 
-      <h1 className="font-display mb-6 text-3xl font-semibold text-ink sm:text-4xl">
-        Here&rsquo;s who owes what
-      </h1>
-
-      <div className="mb-6 rounded-md border border-rule bg-surface transition has-[button:hover]:border-forest">
+      <div className="mb-5 overflow-hidden rounded-xl border border-rule/70 bg-surface/80 transition has-[button:hover]:border-forest">
         <button
           type="button"
           onClick={() => setExpenseOpen((o) => !o)}
           aria-expanded={expenseOpen}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+          className="flex w-full cursor-pointer items-center justify-between gap-2 px-5 py-4 text-sm font-medium text-ink"
         >
           <span className="flex items-center gap-1.5">
             <ExpenseIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -202,9 +187,9 @@ export function StageResults({
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={collapseTransition}
-              className="overflow-hidden border-t border-rule"
+              className="overflow-hidden border-t border-rule/70"
             >
-              <div className="px-4 py-3">
+              <div className="px-5 py-4">
                 <ul className="space-y-1 text-sm">
                   {result.items.map((item) => (
                     <DisclosureLine
@@ -244,15 +229,16 @@ export function StageResults({
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {result.people.map((person) => (
-          <ExpenseStub key={person.personId} className="ledger-margin px-5 pb-5">
-            <p className="font-display pl-8 text-sm font-semibold tracking-wide text-ink-soft uppercase">
-              {person.name} owes
+          <div key={person.personId} className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+            <p className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold tracking-wide text-ink-soft uppercase">
+              <MemberAvatar id={person.personId} name={person.name} size="sm" />
+              <span className="truncate">{person.name} owes</span>
             </p>
-            <p className="font-numeric pl-8 text-4xl font-medium text-ink">
+            <p className="font-numeric mt-2 text-3xl font-medium text-ink">
               {currency(person.total, currencyCode)}
             </p>
 
-            <ul className="mt-4 space-y-1 border-t border-dashed border-rule pl-8 pt-3 text-sm">
+            <ul className="mt-4 space-y-1 border-t border-dashed border-rule pt-3 text-sm">
               {person.lines.map((line) => (
                 <DisclosureLine
                   key={line.itemId}
@@ -271,20 +257,23 @@ export function StageResults({
                 </span>
               </li>
             </ul>
-          </ExpenseStub>
+          </div>
         ))}
       </div>
 
       {hasContributions && (
-        <div className="mt-6 rounded-md border border-rule bg-surface p-5">
+        <div className="mt-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
           <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
             <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
             Settling up
           </p>
-          <ul className="space-y-2 text-sm">
+          <ul className="space-y-3 text-sm">
             {settlement.map((row) => (
               <li key={row.personId} className="flex items-center justify-between gap-3">
-                <span className="text-ink">{row.name}</span>
+                <span className="flex min-w-0 items-center gap-2.5 text-ink">
+                  <MemberAvatar id={row.personId} name={row.name} />
+                  <span className="truncate">{row.name}</span>
+                </span>
                 {row.balance > 0.005 ? (
                   <span className="font-numeric font-semibold text-forest">
                     Gets back {currency(row.balance, currencyCode)}
@@ -302,18 +291,18 @@ export function StageResults({
         </div>
       )}
 
-      <div className="mt-8 flex flex-col items-center gap-4 border-t border-rule pt-6 text-center">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-rule/70 pt-5">
         <p className="text-sm text-ink-soft">
           Expense total{" "}
           <span className="font-numeric font-semibold text-ink">{currency(result.grandTotal, currencyCode)}</span>{" "}
           — split across {people.length} {people.length === 1 ? "person" : "people"}.
         </p>
-        {isOwner ? (
-          <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {isOwner && (
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-rule bg-surface px-4 py-3 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               {copied ? (
                 <>
@@ -327,32 +316,22 @@ export function StageResults({
                 </>
               )}
             </button>
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={navigating}
-              aria-busy={navigating}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-            >
-              {navigating ? (
-                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
-              ) : (
-                <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
-              )}
-              Start a new expense
-            </button>
-          </div>
-        ) : (
+          )}
           <button
             type="button"
             onClick={onReset}
             disabled={navigating}
             aria-busy={navigating}
-            className="cursor-pointer text-sm font-medium text-forest underline decoration-forest/40 underline-offset-4 transition hover:text-ink hover:decoration-ink/40 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
-            {navigating ? "Starting a new expense…" : "Want to split your own expense? Start one →"}
+            {navigating ? (
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+            ) : (
+              <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+            )}
+            {isOwner ? "Start a new expense" : "Split your own expense"}
           </button>
-        )}
+        </div>
       </div>
     </div>
   );

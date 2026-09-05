@@ -231,12 +231,6 @@ export function StageExpense({
             />
           ))}
         </ul>
-        {anonymousPersonIds.length > 0 && (
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-            <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-            Anonymous members haven&rsquo;t signed up yet.
-          </p>
-        )}
         {!inTab && people.some((p) => p.id === viewerId) && (
           <p className="mt-3 text-xs text-ink-soft">
             Your name comes from your account - update it in Settings.

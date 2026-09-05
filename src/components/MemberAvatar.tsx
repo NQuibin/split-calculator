@@ -13,8 +13,23 @@ function memberInitials(name: string) {
     : Array.from(words[0] ?? "?")[0]).toLocaleUpperCase().slice(0, 2);
 }
 
-export function MemberAvatar({ id, name }: { id: string; name: string }) {
+const avatarSizes = {
+  sm: "h-6 w-6 text-[10px]",
+  md: "h-8 w-8 text-xs",
+};
+
+export function MemberAvatar({
+  id,
+  name,
+  size = "md",
+  className = "",
+}: {
+  id: string;
+  name: string;
+  size?: keyof typeof avatarSizes;
+  className?: string;
+}) {
   const colorIndex = Array.from(id).reduce((sum, char) => sum + char.codePointAt(0)!, 0) % avatarColors.length;
-  return <span title={name} aria-label={name} className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarColors[colorIndex]}`}>{memberInitials(name)}</span>;
+  return <span title={name} aria-label={name} className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${avatarSizes[size]} ${avatarColors[colorIndex]} ${className}`}>{memberInitials(name)}</span>;
 }
 
