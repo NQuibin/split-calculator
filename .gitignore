@@ -39,7 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# local sandbox pnpm build-script approvals (not a real pnpm feature -
-# breaks the standard pnpm CLI used elsewhere, e.g. on Vercel)
-pnpm-workspace.yaml
