@@ -20,14 +20,14 @@ export function NewExpenseButton({ className }: { className?: string }) {
   function handleStart() {
     const slug = generateSlug();
     // The signed-in starter keeps their real user id so this person stays
-    // linked to their account (see expenseDraft.ts's `uid` param).
+    // linked to their account (see expenseDraft.ts's `ids` param).
     const people: Person[] = viewer
       ? [{ id: viewer._id, name: viewer.name ?? viewer.email ?? "Person 1" }, { id: "person-2", name: "Person 2" }]
       : [
           { id: "person-1", name: "Person 1" },
           { id: "person-2", name: "Person 2" },
         ];
-    const params = encodeDraftParams(people, true, viewer?._id);
+    const params = encodeDraftParams(people, true);
     startTransition(() => router.push(`/e/${slug}?${params.toString()}`));
   }
 

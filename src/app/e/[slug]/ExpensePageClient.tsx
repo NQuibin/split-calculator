@@ -191,6 +191,7 @@ export function ExpensePageClient() {
           expenseName={state.name}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
           people={state.people}
+          viewerId={viewer?._id}
           anonymousPersonIds={state.anonymousPersonIds}
           inTab={!!state.tab}
           availableTabMembers={state.availableTabMembers}

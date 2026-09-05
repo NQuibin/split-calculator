@@ -38,6 +38,8 @@ interface StageExpenseProps {
   expenseName: string;
   onRenameExpense: (name: string) => void;
   people: Person[];
+  /** The signed-in user's own id, if any - their person row is tied to their real account name, so it's locked from renaming here just like a claimed tab member. */
+  viewerId?: string;
   anonymousPersonIds?: string[];
   inTab?: boolean;
   availableTabMembers?: { id: string; name: string }[];
@@ -66,6 +68,7 @@ export function StageExpense({
   expenseName,
   onRenameExpense,
   people,
+  viewerId,
   anonymousPersonIds = [],
   inTab = false,
   availableTabMembers = [],
@@ -218,7 +221,7 @@ export function StageExpense({
               key={person.id}
               person={person}
               anonymous={anonymousPersonIds.includes(person.id)}
-              locked={inTab && !anonymousPersonIds.includes(person.id)}
+              locked={inTab ? !anonymousPersonIds.includes(person.id) : person.id === viewerId}
               onRename={(name) => onRenamePerson(person.id, name)}
             />
           ))}
@@ -227,6 +230,11 @@ export function StageExpense({
           <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
             <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
             Anonymous members haven&rsquo;t signed up yet.
+          </p>
+        )}
+        {!inTab && people.some((p) => p.id === viewerId) && (
+          <p className="mt-3 text-xs text-ink-soft">
+            Your name comes from your account - update it in Settings.
           </p>
         )}
         {inTab ? (

@@ -23,6 +23,8 @@ export interface TabMemberSummary {
   id: string;
   name: string;
   claimed: boolean;
+  /** The identity this member resolves to once assigned to an expense - their real account id if claimed, otherwise the same as `id`. */
+  resolvedId: string;
 }
 
 export interface TabDetail {

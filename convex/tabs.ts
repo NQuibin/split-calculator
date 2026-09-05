@@ -285,6 +285,11 @@ export const getBySlug = query({
         id: m.id,
         name: await resolveMemberName(ctx, m),
         claimed: m.claimedByUserId !== undefined,
+        // The identity a person gets remapped to once assigned to this tab
+        // (see assignExpense) - lets a brand-new expense started from this
+        // tab already carry a claimed member's real account id, instead of
+        // only picking it up once explicitly assigned.
+        resolvedId: m.claimedByUserId ?? m.id,
       })),
     );
     return {

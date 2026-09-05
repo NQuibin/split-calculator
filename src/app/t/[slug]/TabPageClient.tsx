@@ -367,7 +367,7 @@ function ExpenseList({
 }: {
   slug: string;
   isOwner: boolean;
-  members: { id: string; name: string; claimed: boolean }[];
+  members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
 }) {
   const router = useRouter();
@@ -376,7 +376,11 @@ function ExpenseList({
 
   function handleNewExpense() {
     const newSlug = generateSlug();
-    const params = encodeDraftParams(members, true);
+    // Seed each person with the identity they'll resolve to once assigned
+    // (their real account id if already claimed), so a claimed member's own
+    // name is locked from renaming immediately, not just after finalizing.
+    const people = members.map((m) => ({ id: m.resolvedId, name: m.name }));
+    const params = encodeDraftParams(people, true);
     router.push(`/e/${newSlug}?${params.toString()}&tab=${slug}`);
   }
 
