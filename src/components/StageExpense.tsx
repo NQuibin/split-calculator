@@ -218,7 +218,7 @@ export function StageExpense({
               key={person.id}
               person={person}
               anonymous={anonymousPersonIds.includes(person.id)}
-              locked={inTab}
+              locked={inTab && !anonymousPersonIds.includes(person.id)}
               onRename={(name) => onRenamePerson(person.id, name)}
             />
           ))}
@@ -232,7 +232,7 @@ export function StageExpense({
         {inTab ? (
           <>
             <p className="mt-3 text-xs text-ink-soft">
-              This expense is in a tab, so people here can only be added, not renamed.
+              This expense is in a tab, so only anonymous people here can be renamed.
             </p>
             <AddTabPersonForm availableMembers={availableTabMembers} onAdd={onAddTabMember} />
           </>
