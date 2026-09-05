@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, VenetianMask, Wallet } from "lucide-react";
+import { ChevronRight, HatGlasses, Wallet } from "lucide-react";
 import { currency } from "@/lib/format";
 import type { TabCurrencyBreakdown } from "@/lib/tabSync";
 
@@ -46,7 +46,7 @@ export function TabBreakdown({ tabSlug, breakdown, showCurrencyBadge = false }: 
                   <p className="flex items-center gap-1.5 truncate text-ink">
                     {member.name}
                     {!member.claimed && (
-                      <VenetianMask
+                      <HatGlasses
                         className="h-3.5 w-3.5 shrink-0 text-ink-soft"
                         strokeWidth={2.25}
                         aria-label="Anonymous member"
@@ -74,7 +74,7 @@ export function TabBreakdown({ tabSlug, breakdown, showCurrencyBadge = false }: 
           </ul>
           {breakdown.members.some((m) => !m.claimed) && (
             <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-              <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+              <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
               Anonymous members haven&rsquo;t signed up yet.
             </p>
           )}

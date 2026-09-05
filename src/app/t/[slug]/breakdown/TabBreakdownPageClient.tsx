@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, VenetianMask } from "lucide-react";
+import { ArrowLeft, HatGlasses } from "lucide-react";
 import { currency } from "@/lib/format";
 import { useTab, useTabBreakdown, type TabBreakdownMember, type TabCurrencyBreakdown } from "@/lib/tabSync";
 
@@ -77,7 +77,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
         <p className="flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
           {member.name}
           {!member.claimed && (
-            <VenetianMask
+            <HatGlasses
               className="h-3.5 w-3.5 shrink-0 text-ink-soft"
               strokeWidth={2.25}
               aria-label="Anonymous member"

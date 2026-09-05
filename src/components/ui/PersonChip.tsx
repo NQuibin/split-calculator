@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, VenetianMask } from "lucide-react";
+import { Check, HatGlasses } from "lucide-react";
 
 interface PersonChipProps {
   name: string;
@@ -24,7 +24,7 @@ export function PersonChip({ name, selected, onToggle, anonymous = false }: Pers
       {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
       {name}
       {anonymous && (
-        <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-label="Anonymous member" />
+        <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-label="Anonymous member" />
       )}
     </button>
   );

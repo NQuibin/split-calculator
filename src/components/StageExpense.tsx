@@ -11,6 +11,7 @@ import {
   Check,
   ChevronDown,
   Coins,
+  HatGlasses,
   ListChecks,
   Loader2,
   Pencil,
@@ -18,7 +19,6 @@ import {
   Plus,
   TicketPercent,
   Users2,
-  VenetianMask,
   Wallet,
 } from "lucide-react";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -228,7 +228,7 @@ export function StageExpense({
         </ul>
         {anonymousPersonIds.length > 0 && (
           <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
-            <VenetianMask className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
+            <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
             Anonymous members haven&rsquo;t signed up yet.
           </p>
         )}
@@ -740,7 +740,7 @@ function PersonRow({
       <span className="flex items-center gap-1.5 truncate text-ink">
         {person.name}
         {anonymous && (
-          <VenetianMask
+          <HatGlasses
             className="h-3.5 w-3.5 shrink-0 text-ink-soft"
             strokeWidth={2.25}
             aria-label="Anonymous member"
