@@ -47,7 +47,7 @@ interface StageExpenseProps {
   date: string;
   currency: string;
   contributions: Contribution[];
-  onSetMode: (mode: ExpenseMode, draftItem?: { id: string; name: string; cost: number; splitWith: string[] }) => void;
+  onSetMode: (mode: ExpenseMode) => void;
   onSetDate: (date: string) => void;
   onSetCurrency: (currency: string) => void;
   onAddItem: (item: ExpenseItem) => void;
@@ -116,35 +116,12 @@ export function StageExpense({
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   }
 
-  // Switching from "one total" into itemized mode doesn't carry that item
-  // over automatically - it just seeds the new-item form with its name and
-  // value, so the user reviews it before it's actually added.
+  // A one-total item has no name of its own (it takes the expense's), so
+  // there's nothing meaningful to carry between the two modes - just clear
+  // the itemized entry form when switching into it.
   function handleModeChange(nextMode: ExpenseMode) {
     if (nextMode === mode) return;
-    if (nextMode === "itemized" && items[0]) {
-      const [first] = items;
-      setEditingId(null);
-      setName(first.name);
-      setCost(String(first.cost));
-      setDiscount({ mode: "amount", value: 0 });
-      setTax(zeroRate);
-      setTip(zeroRate);
-      setSplitWith(first.splitWith);
-      setError(null);
-      onSetMode(nextMode);
-      return;
-    }
-    // Switching back to "one total" with nothing added yet shouldn't lose
-    // whatever's still sitting in the itemized entry form.
-    if (nextMode === "simple" && items.length === 0 && (name.trim() || Number(cost) > 0)) {
-      onSetMode(nextMode, {
-        id: editingId ?? crypto.randomUUID(),
-        name: name.trim(),
-        cost: Number(cost) || 0,
-        splitWith,
-      });
-      return;
-    }
+    if (nextMode === "itemized") resetForm();
     onSetMode(nextMode);
   }
 
@@ -302,6 +279,7 @@ export function StageExpense({
 
         {mode === "simple" ? (
           <SimpleTotalForm
+            expenseName={expenseName}
             people={people}
             anonymousPersonIds={anonymousPersonIds}
             item={items[0]}
@@ -570,23 +548,26 @@ function ModeButton({
 }
 
 function SimpleTotalForm({
+  expenseName,
   people,
   anonymousPersonIds,
   item,
   onSave,
   onRemove,
 }: {
+  expenseName: string;
   people: Person[];
   anonymousPersonIds: string[];
   item?: ExpenseItem;
   onSave: (item: ExpenseItem) => void;
   onRemove: (id: string) => void;
 }) {
-  const [name, setName] = useState(item?.name ?? "");
+  // A one-total item has no name of its own - it's always named after the
+  // expense - so this form only needs to capture the amount.
   const [cost, setCost] = useState(item ? String(item.cost) : "");
   const [splitWith, setSplitWith] = useState<string[]>(item?.splitWith ?? people.map((p) => p.id));
 
-  function commit(nextName: string, nextCost: string, nextSplitWith: string[]) {
+  function commit(nextCost: string, nextSplitWith: string[]) {
     const parsed = Number(nextCost);
     if (!(parsed > 0)) {
       if (item) onRemove(item.id);
@@ -594,7 +575,7 @@ function SimpleTotalForm({
     }
     onSave({
       id: item?.id ?? crypto.randomUUID(),
-      name: nextName.trim() || "Total",
+      name: expenseName,
       cost: parsed,
       discount: zeroRate,
       tax: zeroRate,
@@ -603,46 +584,31 @@ function SimpleTotalForm({
     });
   }
 
-  function handleNameChange(value: string) {
-    setName(value);
-    commit(value, cost, splitWith);
-  }
-
   function handleCostChange(value: string) {
     setCost(value);
-    commit(name, value, splitWith);
+    commit(value, splitWith);
   }
 
   function toggleSplitWith(id: string) {
     const next = splitWith.includes(id) ? splitWith.filter((p) => p !== id) : [...splitWith, id];
     if (next.length === 0) return;
     setSplitWith(next);
-    commit(name, cost, next);
+    commit(cost, next);
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => handleNameChange(e.target.value)}
-          placeholder="Total, e.g. Dinner"
-          aria-label="Expense name"
-          className="flex-1 rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
-        />
-        <input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step={0.01}
-          value={cost}
-          onChange={(e) => handleCostChange(e.target.value)}
-          placeholder="0.00"
-          aria-label="Expense total"
-          className="font-numeric w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40 sm:w-28"
-        />
-      </div>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={0.01}
+        value={cost}
+        onChange={(e) => handleCostChange(e.target.value)}
+        placeholder="0.00"
+        aria-label="Expense total"
+        className="font-numeric w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+      />
       <div>
         <p className="mb-1.5 text-xs font-medium tracking-wide text-ink-soft uppercase">Split with</p>
         <div className="flex flex-wrap gap-2">

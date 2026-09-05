@@ -2,12 +2,7 @@ import { computeSplit } from "./calculations";
 import type { ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
 
 export type Action =
-  | {
-      type: "SET_MODE";
-      mode: ExpenseMode;
-      /** When switching to "simple" with no items yet, seeds the one-total item from whatever was typed into the still-unsubmitted itemized entry form. */
-      draftItem?: { id: string; name: string; cost: number; splitWith: string[] };
-    }
+  | { type: "SET_MODE"; mode: ExpenseMode }
   | { type: "SET_DATE"; date: string }
   | { type: "SET_CURRENCY"; currency: string }
   | { type: "ADD_ITEM"; item: ExpenseItem }
@@ -23,18 +18,18 @@ export type Action =
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
-// Simple mode allows only one lump-sum item with no discount/tax/tip, so
-// switching into it from an itemized breakdown folds everything - cost,
-// discount, tax, tip, across every item - into that single item's cost,
-// named after whatever the first item was called.
-function collapseToSingleItem(people: Person[], items: ExpenseItem[]): ExpenseItem[] {
+// Simple mode allows only one lump-sum item with no discount/tax/tip and no
+// name of its own - it's always named after the expense - so switching into
+// it from an itemized breakdown folds everything (cost, discount, tax, tip,
+// across every item) into that single item's cost.
+function collapseToSingleItem(name: string, people: Person[], items: ExpenseItem[]): ExpenseItem[] {
   if (items.length === 0) return items;
   const total = computeSplit(people, items).grandTotal;
   const splitWith = Array.from(new Set(items.flatMap((i) => i.splitWith)));
   return [
     {
       id: items[0].id,
-      name: items[0].name,
+      name,
       cost: total,
       discount: zeroRate,
       tax: zeroRate,
@@ -48,29 +43,12 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
   switch (action.type) {
     case "SET_MODE": {
       if (action.mode === state.mode) return state;
-      // Switching into itemized mode doesn't carry the one-total item over
-      // as a real item - StageExpense prefills the new-item form with it
-      // instead, so the user reviews/edits before it's actually added.
+      // Switching modes always clears whatever's mid-entry rather than
+      // trying to carry it over - itemized items have their own name, one
+      // total doesn't (it just takes the expense's), so there's nothing
+      // meaningful to transfer between the two shapes.
       if (action.mode === "itemized") return { ...state, mode: "itemized", items: [] };
-      if (state.items.length === 0 && action.draftItem) {
-        const { id, name, cost, splitWith } = action.draftItem;
-        return {
-          ...state,
-          mode: "simple",
-          items: [
-            {
-              id,
-              name: name || "Total",
-              cost,
-              discount: zeroRate,
-              tax: zeroRate,
-              tip: zeroRate,
-              splitWith: splitWith.length > 0 ? splitWith : state.people.map((p) => p.id),
-            },
-          ],
-        };
-      }
-      return { ...state, mode: "simple", items: collapseToSingleItem(state.people, state.items) };
+      return { ...state, mode: "simple", items: collapseToSingleItem(state.name, state.people, state.items) };
     }
     case "SET_DATE":
       return { ...state, date: action.date };
@@ -102,8 +80,14 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
         ...state,
         people: state.people.map((p) => (p.id === action.id ? { ...p, name: action.name } : p)),
       };
-    case "RENAME_EXPENSE":
+    case "RENAME_EXPENSE": {
+      // In "one total" mode the single item is always named after the
+      // expense, so keep it in sync when the expense itself is renamed.
+      if (state.mode === "simple" && state.items[0]) {
+        return { ...state, name: action.name, items: [{ ...state.items[0], name: action.name }] };
+      }
       return { ...state, name: action.name };
+    }
     case "GO_TO_RESULTS":
       return { ...state, stage: "results" };
     case "BACK_TO_EXPENSE":

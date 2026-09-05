@@ -200,7 +200,7 @@ export function ExpensePageClient() {
           date={state.date}
           currency={state.currency}
           contributions={state.contributions}
-          onSetMode={(mode, draftItem) => dispatch({ type: "SET_MODE", mode, draftItem })}
+          onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
           onSetDate={(date) => dispatch({ type: "SET_DATE", date })}
           onSetCurrency={(currency) => dispatch({ type: "SET_CURRENCY", currency })}
           onAddItem={(item) => dispatch({ type: "ADD_ITEM", item })}
