@@ -39,7 +39,7 @@ export function AddToTabDialog({ people, onConfirm }: AddToTabDialogProps) {
         render={
           <button
             type="button"
-            className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-forest transition hover:bg-[#f3ead8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+            className="ml-auto flex items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-forest transition hover:bg-[#f3ead8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           />
         }
       >
@@ -59,7 +59,7 @@ export function AddToTabDialog({ people, onConfirm }: AddToTabDialogProps) {
                     <button
                       type="button"
                       onClick={() => setPickedSlug(tab.slug)}
-                      className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left text-sm transition hover:border-forest"
+                      className="flex w-full items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left text-sm transition hover:border-forest"
                     >
                       <span className="truncate text-ink">{tab.name}</span>
                       <span className="shrink-0 text-xs text-ink-soft">
@@ -76,7 +76,7 @@ export function AddToTabDialog({ people, onConfirm }: AddToTabDialogProps) {
             <button
               type="button"
               onClick={reset}
-              className="mb-3 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-soft hover:text-forest"
+              className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-ink-soft hover:text-forest"
             >
               <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
               Pick a different tab

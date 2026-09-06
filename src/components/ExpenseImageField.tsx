@@ -151,7 +151,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
         >
           <span className="flex items-center gap-1.5">
             <Paperclip className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -222,7 +222,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                         type="button"
                         onClick={() => fileInput.current?.click()}
                         disabled={busy}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         {busy ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />
@@ -235,7 +235,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                         type="button"
                         onClick={handleTakePhoto}
                         disabled={busy}
-                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         <Camera className="h-3.5 w-3.5" strokeWidth={2.5} />
                         Take a photo
@@ -244,7 +244,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                         <button
                           type="button"
                           onClick={handleRemove}
-                          className="flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
+                          className="flex items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                           Remove

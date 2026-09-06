@@ -66,7 +66,7 @@ export function MemberMappingForm({ members, initialMapping, confirmLabel, onCon
         type="button"
         onClick={handleConfirm}
         disabled={submitting}
-        className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
       >
         {submitting && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
         {confirmLabel}

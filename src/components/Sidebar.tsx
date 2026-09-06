@@ -35,7 +35,7 @@ export function Sidebar() {
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Open menu"
-          className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+          className="rounded-md p-1.5 text-ink-soft transition hover:text-forest"
         >
           <Menu className="h-5 w-5" strokeWidth={2.25} />
         </button>
@@ -60,7 +60,7 @@ export function Sidebar() {
             type="button"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red md:hidden"
+            className="rounded-md p-1.5 text-ink-soft transition hover:text-margin-red md:hidden"
           >
             <X className="h-4 w-4" strokeWidth={2.25} />
           </button>

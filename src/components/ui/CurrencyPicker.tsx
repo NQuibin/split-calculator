@@ -43,7 +43,7 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
           <Button
             variant="outline"
             aria-label={props["aria-label"]}
-            className="h-auto cursor-pointer gap-1.5 rounded-md border-rule bg-surface px-2 py-1.5 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface"
+            className="h-auto gap-1.5 rounded-md border-rule bg-surface px-2 py-1.5 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface"
           />
         }
       >
@@ -71,7 +71,7 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
                     setOpen(false);
                     setQuery("");
                   }}
-                  className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink transition hover:bg-paper"
+                  className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink transition hover:bg-paper"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="font-numeric font-semibold">{c.code}</span>

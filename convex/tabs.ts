@@ -451,20 +451,6 @@ export const addExpensePerson = mutation({
   },
 });
 
-export const unassignExpense = mutation({
-  args: { expenseSlug: v.string() },
-  handler: async (ctx, { expenseSlug }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const expense = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
-      .unique();
-    if (!expense) throw new Error("Expense not found");
-    await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined, exchangeRate: undefined });
-  },
-});
-
 export const setExpenseExchangeRate = mutation({
   args: { slug: v.string(), expenseSlug: v.string(), from: v.string(), to: v.string(), rate: v.union(v.number(), v.null()) },
   returns: v.null(),

@@ -39,7 +39,7 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel }: Rate
             onClick={() => onChange({ ...rate, mode: "percent" })}
             aria-pressed={rate.mode === "percent"}
             aria-label={`${label} as percent`}
-            className={`cursor-pointer px-2 py-1.5 transition ${
+            className={`px-2 py-1.5 transition ${
               rate.mode === "percent" ? "bg-forest text-surface" : "text-ink-soft hover:text-forest"
             }`}
           >
@@ -50,7 +50,7 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel }: Rate
             onClick={() => onChange({ ...rate, mode: "amount" })}
             aria-pressed={rate.mode === "amount"}
             aria-label={`${label} as dollar amount`}
-            className={`cursor-pointer px-2 py-1.5 transition ${
+            className={`px-2 py-1.5 transition ${
               rate.mode === "amount" ? "bg-forest text-surface" : "text-ink-soft hover:text-forest"
             }`}
           >

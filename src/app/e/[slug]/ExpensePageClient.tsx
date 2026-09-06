@@ -188,7 +188,7 @@ export function ExpensePageClient() {
             {state.tab && <><Link href={`/t/${state.tab.slug}`} className="hover:text-forest hover:underline">{state.tab.name}</Link><ChevronRight aria-hidden="true" className="h-4 w-4" /></>}
             {/* On the split, the expense name steps back to the editor - it replaces the old "Edit the expense" link. */}
             {state.stage === "results" ? <>
-              <button type="button" onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })} className="cursor-pointer break-words hover:text-forest hover:underline">{state.name}</button>
+              <button type="button" onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })} className="break-words hover:text-forest hover:underline">{state.name}</button>
               <ChevronRight aria-hidden="true" className="h-4 w-4" />
               <span aria-current="page" className="font-medium text-ink">Split</span>
             </> : <span aria-current="page" className="font-medium text-ink break-words">{state.name}</span>}
@@ -198,7 +198,7 @@ export function ExpensePageClient() {
         <button
           type="button"
           onClick={() => router.push(`/t/${state.tab!.slug}`)}
-          className="flex cursor-pointer items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-forest hover:bg-[#f3ead8]"
+          className="flex items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-forest hover:bg-[#f3ead8]"
         >
           <Users2 className="h-3.5 w-3.5" strokeWidth={2.25} />
           Part of {state.tab.name}
@@ -209,7 +209,7 @@ export function ExpensePageClient() {
           <button
             type="button"
             onClick={() => router.push(`/t/${pendingTab.slug}`)}
-            className="cursor-pointer hover:text-forest"
+            className="hover:text-forest"
           >
             Will join {pendingTab.name} once saved
           </button>
@@ -217,7 +217,7 @@ export function ExpensePageClient() {
             type="button"
             onClick={() => { setDraft(state); setPendingTab(null); setCancelledTab(true); }}
             aria-label="Cancel adding to this tab"
-            className="cursor-pointer text-ink-soft transition hover:text-margin-red"
+            className="text-ink-soft transition hover:text-margin-red"
           >
             <X className="h-3.5 w-3.5" strokeWidth={2.5} />
           </button>

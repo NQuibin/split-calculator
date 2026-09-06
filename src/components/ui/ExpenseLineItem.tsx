@@ -92,7 +92,7 @@ export function ExpenseLineItem({
             type="button"
             onClick={onEdit}
             aria-label={`Edit ${item.name}`}
-            className="cursor-pointer text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.25} />
           </button>
@@ -100,7 +100,7 @@ export function ExpenseLineItem({
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${item.name}`}
-            className="cursor-pointer text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             <Trash2 className="h-4 w-4" strokeWidth={2.25} />
           </button>

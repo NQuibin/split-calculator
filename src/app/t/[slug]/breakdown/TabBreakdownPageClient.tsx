@@ -26,7 +26,7 @@ export function TabBreakdownPageClient() {
         <button
           type="button"
           onClick={() => router.push(`/t/${slug}`)}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
           {tab.name}
@@ -107,7 +107,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
               <button
                 type="button"
                 onClick={() => router.push(`/e/${line.expenseSlug}`)}
-                className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+                className="flex w-full items-center justify-between gap-3 rounded-md border border-rule px-3 py-2 text-left transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-ink">{line.expenseName}</span>

@@ -59,7 +59,7 @@ function DisclosureLine({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between gap-3 text-left"
+        className="flex w-full items-center justify-between gap-3 text-left"
       >
         <span className="flex min-w-0 items-center gap-1">
           <motion.span
@@ -175,7 +175,7 @@ export function StageResults({
           type="button"
           onClick={() => setExpenseOpen((o) => !o)}
           aria-expanded={expenseOpen}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 px-5 py-4 text-sm font-medium text-ink"
+          className="flex w-full items-center justify-between gap-2 px-5 py-4 text-sm font-medium text-ink"
         >
           <span className="flex items-center gap-1.5">
             <ExpenseIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -350,7 +350,7 @@ export function StageResults({
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-rule bg-surface px-4 py-3 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              className="inline-flex items-center gap-2 rounded-lg border border-rule bg-surface px-4 py-3 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
             >
               {copied ? (
                 <>
@@ -370,7 +370,7 @@ export function StageResults({
             onClick={onReset}
             disabled={navigating}
             aria-busy={navigating}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+            className="inline-flex items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             {navigating ? (
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />

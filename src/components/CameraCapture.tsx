@@ -104,7 +104,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             type="button"
             onClick={onClose}
             aria-label="Close the camera"
-            className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+            className="rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
           >
             <X className="h-4 w-4" strokeWidth={2.5} />
           </button>
@@ -127,7 +127,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer text-sm font-medium text-ink-soft transition hover:text-margin-red"
+            className="text-sm font-medium text-ink-soft transition hover:text-margin-red"
           >
             Cancel
           </button>
@@ -136,7 +136,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
               type="button"
               onClick={handleCapture}
               disabled={!ready}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex items-center gap-1.5 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
             >
               <Camera className="h-4 w-4" strokeWidth={2.5} />
               Capture

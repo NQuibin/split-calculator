@@ -284,7 +284,7 @@ export function StageExpense({
           <button
             type="button"
             onClick={onAddPerson}
-            className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+            className="mt-3 flex items-center gap-1 text-xs font-medium text-forest hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Add person
@@ -415,7 +415,7 @@ export function StageExpense({
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-surface transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red ${
+                  className={`inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold text-surface transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red ${
                     editingId ? "bg-brass hover:bg-brass/80" : "bg-forest hover:bg-ink"
                   }`}
                 >
@@ -435,7 +435,7 @@ export function StageExpense({
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="cursor-pointer text-sm font-medium text-ink-soft transition hover:text-margin-red"
+                    className="text-sm font-medium text-ink-soft transition hover:text-margin-red"
                   >
                     Cancel
                   </button>
@@ -501,7 +501,7 @@ export function StageExpense({
             type="button"
             onClick={() => setContributionsOpen((o) => !o)}
             aria-expanded={contributionsOpen}
-            className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
           >
             <span className="flex items-center gap-1.5">
               <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -558,7 +558,7 @@ export function StageExpense({
           onClick={handleContinue}
           disabled={items.length === 0 || !expenseName.trim() || continuing}
           aria-busy={continuing}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          className="inline-flex items-center gap-2 rounded-lg bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {continueLabel}
           {continuing ? (
@@ -603,7 +603,7 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
       >
         <span className="flex items-center gap-1.5">
           <StickyNote className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -643,7 +643,7 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
                 <button
                   type="button"
                   onClick={handleRemove}
-                  className="flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
+                  className="flex items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
                 >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                   Delete note
@@ -673,7 +673,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition ${
+      className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition ${
         active
           ? "border-forest bg-forest text-surface"
           : "border-rule text-ink-soft hover:border-forest hover:text-forest"
@@ -819,7 +819,7 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
           setEditing(true);
         }}
         aria-label="Rename expense"
-        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+        className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-forest"
       >
         <Pencil className="h-4 w-4" strokeWidth={2.25} />
       </button>
@@ -892,7 +892,7 @@ function PersonRow({
             setEditing(true);
           }}
           aria-label={`Rename ${person.name}`}
-          className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+          className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-forest"
         >
           <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
         </button>
@@ -902,7 +902,7 @@ function PersonRow({
           type="button"
           onClick={onRemove}
           aria-label={`Remove ${person.name} from this expense`}
-          className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+          className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>

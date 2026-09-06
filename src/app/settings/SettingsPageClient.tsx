@@ -116,7 +116,7 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
         <button
           type="submit"
           disabled={status === "saving"}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
           {status === "saving" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
           {status === "saved" && <Check className="h-4 w-4" strokeWidth={2.5} />}

@@ -23,7 +23,7 @@ export function DatePicker({ value, onChange, ...props }: DatePickerProps) {
           <Button
             variant="outline"
             aria-label={props["aria-label"]}
-            className="h-auto cursor-pointer gap-1.5 rounded-md border-rule bg-surface px-2 py-1.5 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface"
+            className="h-auto gap-1.5 rounded-md border-rule bg-surface px-2 py-1.5 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface"
           />
         }
       >

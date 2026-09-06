@@ -66,7 +66,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
               type="button"
               aria-label="New tab"
               title="New tab"
-              className="cursor-pointer rounded-md p-1 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              className="rounded-md p-1 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
             />
           }
         >
@@ -78,8 +78,8 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
             <button
               type="button"
               className={variant === "primary"
-                ? "flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-                : "mx-auto flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"}
+                ? "flex items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+                : "mx-auto flex items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"}
             />
           }
         >
@@ -114,7 +114,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
                   type="button"
                   onClick={() => setMemberNames((prev) => prev.filter((_, idx) => idx !== i))}
                   aria-label={`Remove member ${i + 1}`}
-                  className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+                  className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
                 >
                   <X className="h-4 w-4" strokeWidth={2.25} />
                 </button>
@@ -124,7 +124,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
           <button
             type="button"
             onClick={() => setMemberNames((prev) => [...prev, ""])}
-            className="flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+            className="flex items-center gap-1 text-xs font-medium text-forest hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Add another member
@@ -133,7 +133,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full cursor-pointer rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="w-full rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             {submitting ? "Creating…" : "Create tab"}
           </button>

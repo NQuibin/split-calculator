@@ -10,7 +10,7 @@ import { generateSlug } from "@/lib/slug";
 import type { Person } from "@/lib/types";
 
 const defaultClass =
-  "inline-flex cursor-pointer items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red";
+  "inline-flex items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red";
 
 export function NewExpenseButton({ className, variant = "default" }: { className?: string; variant?: "default" | "primary" }) {
   const router = useRouter();
@@ -37,7 +37,7 @@ export function NewExpenseButton({ className, variant = "default" }: { className
       onClick={handleStart}
       disabled={isPending}
       aria-busy={isPending}
-      className={className ?? (variant === "primary" ? "flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red" : defaultClass)}
+      className={className ?? (variant === "primary" ? "flex items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red" : defaultClass)}
     >
       {variant === "primary" ? (
         <>

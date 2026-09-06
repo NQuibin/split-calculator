@@ -20,7 +20,6 @@ import {
   Plus,
   Receipt,
   Trash2,
-  Unlink,
 } from "lucide-react";
 import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
@@ -170,7 +169,7 @@ function TabTitle({ slug, name, isOwner }: { slug: string; name: string; isOwner
               setEditing(true);
             }}
             aria-label="Rename tab"
-            className="cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+            className="rounded-md p-1.5 text-ink-soft transition hover:text-forest"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.25} />
           </button>
@@ -225,7 +224,7 @@ function DeleteTabButton({ slug }: { slug: string }) {
           onClick={handleDelete}
           disabled={deleting}
           aria-busy={deleting}
-          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-margin-red px-2.5 py-1.5 text-xs font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex items-center gap-1 rounded-md border border-margin-red px-2.5 py-1.5 text-xs font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface disabled:cursor-not-allowed disabled:opacity-70"
         >
           {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />}
           Confirm delete
@@ -234,7 +233,7 @@ function DeleteTabButton({ slug }: { slug: string }) {
           type="button"
           onClick={() => setConfirming(false)}
           disabled={deleting}
-          className="cursor-pointer text-xs font-medium text-ink-soft transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-70"
+          className="text-xs font-medium text-ink-soft transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-70"
         >
           Cancel
         </button>
@@ -247,7 +246,7 @@ function DeleteTabButton({ slug }: { slug: string }) {
       type="button"
       onClick={() => setConfirming(true)}
       aria-label="Delete tab"
-      className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+      className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
     >
       <Trash2 className="h-4 w-4" strokeWidth={2.25} />
     </button>
@@ -294,7 +293,7 @@ function Roster({
         aria-expanded={expanded}
         aria-controls={membersId}
         onClick={() => setExpanded(value => !value)}
-        className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
+        className="flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
       >
         <span className="flex items-center gap-3 font-display text-sm font-semibold text-ink">
           Members <span className="font-numeric font-normal text-ink-soft">{members.length}</span>
@@ -337,7 +336,7 @@ function Roster({
                 <button
                   type="button"
                   onClick={() => copyInvite(member.id, invite.token)}
-                  className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+                  className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-forest hover:text-ink"
                 >
                   {copiedId === member.id ? (
                     <>
@@ -369,7 +368,7 @@ function Roster({
             />
             <button
               type="submit"
-              className="shrink-0 cursor-pointer rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink"
+              className="shrink-0 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink"
             >
               Add
             </button>
@@ -378,7 +377,7 @@ function Roster({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+            className="mt-3 flex items-center gap-1 text-xs font-medium text-forest hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Add member
@@ -398,7 +397,7 @@ function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId
   }
   return <>
     <AssignExpenseDialog tabSlug={slug} members={members} />
-    <button type="button" onClick={handleNewExpense} className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"><Plus className="h-4 w-4" />Add expense</button>
+    <button type="button" onClick={handleNewExpense} className="inline-flex items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"><Plus className="h-4 w-4" />Add expense</button>
   </>;
 }
 
@@ -463,7 +462,6 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
 }) {
-  const { unassignExpense } = useTabActions();
   const { remove } = useExpenseActions();
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("all");
@@ -475,12 +473,11 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
   const filtered = expenses.filter(e => (currencyFilter === "all" || e.settlementCurrency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
   const selected = filtered.find(e => e.slug === selectedSlug);
   const split = selected ? computeSplit(selected.people, selected.items) : null;
-  async function act(action: "remove" | "delete") {
+  async function deleteExpense() {
     if (!selected) return;
     setPending(true); setError(null);
     try {
-      if (action === "delete") await remove(selected.slug);
-      else await unassignExpense({ expenseSlug: selected.slug });
+      await remove(selected.slug);
       setSelectedSlug(null); setConfirmDelete(false);
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't update the expense."); }
     finally { setPending(false); }
@@ -500,7 +497,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
         <span className="text-right">Amount</span>
       </div>
       {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{expenses.length ? "No expenses match your filters." : "No expenses yet. Add one to get started."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
-        <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} w-full cursor-pointer py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
+        <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} w-full py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
           <span className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3ead8] text-brass"><Receipt className="h-5 w-5" strokeWidth={2.25} /></span>
             <span className="min-w-0">
@@ -525,7 +522,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
     </div>
     <Dialog open={Boolean(selected)} onOpenChange={next => { if (!next) { setSelectedSlug(null); setConfirmDelete(false); setError(null); } }}>
       {selected && split && <DialogContent aria-label="Expense details">
-        <div className="flex items-start justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" className="cursor-pointer rounded-md p-1 text-ink-soft hover:bg-[#f3ead8]"><X className="h-5 w-5" /></DialogClose></div>
+        <div className="flex items-start justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" className="rounded-md p-1 text-ink-soft hover:bg-[#f3ead8]"><X className="h-5 w-5" /></DialogClose></div>
         <p className="mt-5 font-numeric text-2xl font-semibold">{currency(split.grandTotal, selected.currency)}</p><p className="mt-1 text-sm text-ink-soft">{selected.currency} · {selected.items.length} {selected.items.length === 1 ? "item" : "items"}</p>
         <ExpenseMetadata expense={selected} />
         {selected.note && <section className="mt-5 border-t border-rule/70 pt-5">
@@ -546,10 +543,9 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
         {selected.currency !== defaultCurrency && <ExchangeRateForm key={`${selected.slug}:${selected.currency}:${defaultCurrency}:${selected.exchangeRate?.rate ?? "none"}`} tabSlug={slug} expense={selected} target={defaultCurrency} canEdit={isOwner} />}
         {isOwner && <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/e/${selected.slug}`} className="inline-flex items-center gap-2 rounded-lg border border-rule px-3 py-2 text-sm hover:bg-[#f3ead8]"><Pencil className="h-4 w-4" />Edit</Link>
-          <button type="button" disabled={pending} onClick={() => void act("remove")} className="inline-flex items-center gap-2 rounded-lg border border-rule px-3 py-2 text-sm hover:bg-[#f3ead8] disabled:opacity-50"><Unlink className="h-4 w-4" />Remove from tab</button>
           <button type="button" disabled={pending} onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-2 rounded-lg border border-rule px-3 py-2 text-sm text-margin-red hover:bg-[#f3ead8] disabled:opacity-50"><Trash2 className="h-4 w-4" />Delete</button>
         </div>}
-        {confirmDelete && <div className="mt-3 text-sm"><p>Delete this expense permanently?</p><div className="mt-2 flex gap-3"><button disabled={pending} onClick={() => void act("delete")} className="font-semibold text-margin-red">Confirm delete</button><button disabled={pending} onClick={() => setConfirmDelete(false)}>Cancel</button></div></div>}
+        {confirmDelete && <div className="mt-3 text-sm"><p>Delete this expense permanently?</p><div className="mt-2 flex gap-3"><button disabled={pending} onClick={() => void deleteExpense()} className="font-semibold text-margin-red">Confirm delete</button><button disabled={pending} onClick={() => setConfirmDelete(false)}>Cancel</button></div></div>}
         {error && <p role="alert" className="mt-3 text-sm text-margin-red">{error}</p>}
         <h4 className="mt-6 border-t border-rule/70 pt-5 text-sm font-semibold">Split with</h4><ul className="mt-3 space-y-3">{split.people.map(person => <li key={person.personId} className="flex items-center gap-2 text-sm"><MemberAvatar id={person.personId} name={person.name} /><span className="min-w-0 flex-1 break-words">{person.name}</span><span className="font-numeric">{currency(person.total, selected.currency)}</span></li>)}</ul>
         <h4 className="mt-6 border-t border-rule/70 pt-5 text-sm font-semibold">Items</h4><ul className="mt-3 space-y-3">{split.items.map(item => <li key={item.itemId} className="flex justify-between gap-3 text-sm"><span className="min-w-0 break-words">{item.itemName}</span><span className="font-numeric shrink-0">{currency(item.total, selected.currency)}</span></li>)}</ul>

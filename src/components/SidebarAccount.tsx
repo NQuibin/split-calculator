@@ -80,7 +80,7 @@ function SignInMenu() {
         render={
           <button
             type="button"
-            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           />
         }
       >
@@ -91,7 +91,7 @@ function SignInMenu() {
         <button
           type="button"
           onClick={() => void signIn("google")}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+          className="flex w-full items-center justify-center gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
         >
           <GoogleIcon className="h-4 w-4" />
           Sign in with Google
@@ -127,7 +127,7 @@ function SignInMenu() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full cursor-pointer rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="w-full rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             {submitting ? "Please wait…" : flow === "signIn" ? "Sign in" : "Create account"}
           </button>
@@ -139,7 +139,7 @@ function SignInMenu() {
             setFlow((f) => (f === "signIn" ? "signUp" : "signIn"));
             setError(null);
           }}
-          className="mt-3 cursor-pointer text-xs font-medium text-forest underline decoration-forest/40 underline-offset-4 hover:text-ink"
+          className="mt-3 text-xs font-medium text-forest underline decoration-forest/40 underline-offset-4 hover:text-ink"
         >
           {flow === "signIn" ? "Need an account? Sign up" : "Have an account? Sign in"}
         </button>
@@ -164,7 +164,7 @@ function SignedInMenu() {
         type="button"
         onClick={() => void signOut()}
         aria-label="Sign out"
-        className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
       >
         <LogOut className="h-4 w-4" strokeWidth={2.25} />
       </button>
