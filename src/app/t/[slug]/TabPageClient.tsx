@@ -528,6 +528,21 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
         <div className="flex items-start justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" className="cursor-pointer rounded-md p-1 text-ink-soft hover:bg-[#f3ead8]"><X className="h-5 w-5" /></DialogClose></div>
         <p className="mt-5 font-numeric text-2xl font-semibold">{currency(split.grandTotal, selected.currency)}</p><p className="mt-1 text-sm text-ink-soft">{selected.currency} · {selected.items.length} {selected.items.length === 1 ? "item" : "items"}</p>
         <ExpenseMetadata expense={selected} />
+        {selected.note && <section className="mt-5 border-t border-rule/70 pt-5">
+          <h4 className="text-sm font-semibold">Note</h4>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-soft">{selected.note}</p>
+        </section>}
+        {selected.image && <section className="mt-5 border-t border-rule/70 pt-5">
+          <h4 className="text-sm font-semibold">Receipt</h4>
+          {selected.image.url ? <a href={selected.image.url} target="_blank" rel="noreferrer" className="mt-3 block rounded-lg text-sm text-forest underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
+            {selected.image.type !== "application/pdf" && (
+              // eslint-disable-next-line @next/next/no-img-element -- Convex storage URL resolved at read time.
+              <img src={selected.image.url} alt={selected.image.name} className="mb-2 max-h-80 w-full rounded-lg border border-rule/70 object-contain" />
+            )}
+            <span className="break-words">{selected.image.name}</span><span className="sr-only"> (opens in a new tab)</span>
+          </a> : <p className="mt-2 text-sm text-ink-soft">This receipt is no longer available.</p>}
+        </section>}
+
         {selected.currency !== defaultCurrency && <ExchangeRateForm key={`${selected.slug}:${selected.currency}:${defaultCurrency}:${selected.exchangeRate?.rate ?? "none"}`} tabSlug={slug} expense={selected} target={defaultCurrency} canEdit={isOwner} />}
         {isOwner && <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/e/${selected.slug}`} className="inline-flex items-center gap-2 rounded-lg border border-rule px-3 py-2 text-sm hover:bg-[#f3ead8]"><Pencil className="h-4 w-4" />Edit</Link>

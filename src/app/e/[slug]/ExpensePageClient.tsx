@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Authenticated, useQuery } from "convex/react";
+import { Authenticated, useConvexAuth, useQuery } from "convex/react";
 import { ChevronRight, Trash2, Users2, X } from "lucide-react";
 import { AddToTabDialog } from "@/components/AddToTabDialog";
 import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
@@ -14,7 +14,7 @@ import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { useTab, useTabActions } from "@/lib/tabSync";
 import { expenseReducer, type Action } from "@/lib/reducer";
 import { draftFromParams, withTabPeople } from "@/lib/expenseDraft";
-import { useExpenseActions, useStoredExpense } from "@/lib/expenseSync";
+import { useExpenseActions, useStoredExpense, useUploadExpenseImage } from "@/lib/expenseSync";
 import { type MemberMappingSuggestion } from "@/lib/tabMembers";
 import type { ExpenseState } from "@/lib/types";
 
@@ -37,6 +37,7 @@ export function ExpensePageClient() {
   const { slug } = useParams<{ slug: string }>();
   const searchParams = useSearchParams();
 
+  const { isAuthenticated } = useConvexAuth();
   const { state: stored, loading } = useStoredExpense(slug);
   const { save, remove } = useExpenseActions();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -49,6 +50,9 @@ export function ExpensePageClient() {
   // state, held only in memory.
   const [draft, setDraft] = useState<ExpenseState | null>(() => draftFromParams(searchParams));
   const baseState = stored ?? draft;
+
+  const uploadImage = useUploadExpenseImage();
+  const [pendingReceipt, setPendingReceipt] = useState<File | null>(null);
 
   // If this expense was started from inside a tab (?tab={slug}), its
   // people were pre-filled from the tab's roster, so treat that tab as
@@ -117,14 +121,44 @@ export function ExpensePageClient() {
     ?? tabDraft?.members.filter((member) => !member.claimed).map((member) => member.resolvedId)
     ?? [];
 
-  function handleFinalize() {
+  // A saved expense uploads a picked receipt right away, since every edit is
+  // already being persisted. A draft just holds the file - uploading it now
+  // would strand it in storage if the expense is never saved.
+  async function handlePickReceipt(file: File | null) {
+    if (!file) {
+      setPendingReceipt(null);
+      if (stored && state) await save(slug, expenseReducer(state, { type: "SET_IMAGE", image: null }));
+      return;
+    }
+    if (stored) {
+      const image = await uploadImage(file);
+      if (state) await save(slug, expenseReducer(state, { type: "SET_IMAGE", image }));
+    } else {
+      setPendingReceipt(file);
+    }
+  }
+
+  const receipt =
+    state.image ?? (pendingReceipt ? { name: pendingReceipt.name, type: pendingReceipt.type } : undefined);
+
+  async function handleFinalize() {
     if (!state) return;
+
+    // The one moment a draft's receipt becomes a real stored file. It goes up
+    // before anything is saved, so a failed upload leaves the draft untouched
+    // and the button can report it rather than silently dropping the receipt.
+    let finalState = state;
+    if (pendingReceipt) {
+      finalState = expenseReducer(finalState, { type: "SET_IMAGE", image: await uploadImage(pendingReceipt) });
+      setPendingReceipt(null);
+      setDraft(finalState);
+    }
 
     if (destinedTab) {
       if (!stored) {
-        save(slug, state);
+        await save(slug, finalState);
         if (pendingTab) {
-          void assignExpense({
+          await assignExpense({
             tabSlug: pendingTab.slug,
             expenseSlug: slug,
             memberMapping: (tabDraft ? tabDraft.members.map(member => ({ personId: member.resolvedId, memberId: member.id, newMemberName: undefined })) : pendingTab.mapping).map(({ personId, memberId, newMemberName }) => ({
@@ -139,8 +173,8 @@ export function ExpensePageClient() {
       return;
     }
 
-    const next = expenseReducer(state, { type: "GO_TO_RESULTS" });
-    save(slug, next);
+    const next = expenseReducer(finalState, { type: "GO_TO_RESULTS" });
+    await save(slug, next);
     setDraft(next);
   }
 
@@ -237,6 +271,11 @@ export function ExpensePageClient() {
           date={state.date}
           currency={state.currency}
           contributions={state.contributions}
+          note={state.note}
+          onSetNote={(note) => dispatch({ type: "SET_NOTE", note })}
+          receipt={receipt}
+          onPickReceipt={handlePickReceipt}
+          canUploadImage={isAuthenticated}
           onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
           onSetDate={(date) => dispatch({ type: "SET_DATE", date })}
           onSetCurrency={(currency) => dispatch({ type: "SET_CURRENCY", currency })}
@@ -259,6 +298,8 @@ export function ExpensePageClient() {
           items={state.items}
           contributions={state.contributions}
           currency={state.currency}
+          note={state.note}
+          image={state.image}
           isOwner
           shareSlug={slug}
           onReset={() => startNavigation(() => router.push("/"))}

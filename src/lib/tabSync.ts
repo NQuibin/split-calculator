@@ -91,6 +91,8 @@ export function useTabBreakdown(slug: string): TabBreakdown | null | undefined {
 }
 
 export interface TabExpenseSummary {
+  note?: string;
+  image?: { name: string; type: string; url: string | null };
   date: string;
   createdBy: { id: string; name: string };
   slug: string;

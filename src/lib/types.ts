@@ -30,6 +30,16 @@ export interface Contribution {
   amount: RateSetting;
 }
 
+/** A receipt photo (or PDF) attached to an expense, held in Convex file storage. */
+export interface ExpenseImage {
+  storageId: string;
+  /** Original filename, used as the label on the open/download link. */
+  name: string;
+  type: string;
+  /** Signed URL for viewing the file - minted per read, so it's only present on an `expenses.get` result. */
+  url?: string | null;
+}
+
 export interface ExpenseState {
   stage: Stage;
   /** The expense's name - always set, initialized from the people's names joined together when first created. */
@@ -44,6 +54,10 @@ export interface ExpenseState {
   contributions: Contribution[];
   /** ISO 4217 code, e.g. "USD" - which currency the expense's amounts are in. */
   currency: string;
+  /** Free-form note about the expense. Undefined when there's no note - a blank note is deleted rather than stored empty. */
+  note?: string;
+  /** Receipt image/PDF attached to the expense. Undefined once removed. Only ever set while signed in - uploads need an account. */
+  image?: ExpenseImage;
   updatedAt?: number;
   /** Raw tab id, present (when set) on `expenses.list` results - just enough to tell whether an expense is already in a tab. */
   tabId?: string;

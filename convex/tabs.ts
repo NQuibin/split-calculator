@@ -483,7 +483,7 @@ export const setExpenseExchangeRate = mutation({
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return [];
@@ -495,10 +495,12 @@ export const expensesForTab = query({
       const user = await ctx.db.get(id);
       return [id, user?.name?.trim() || "Unknown creator"] as const;
     })));
-    return expenses
-      .map(({ slug, name, people, items, currency, exchangeRate, updatedAt, date, userId }) => ({
+    return (await Promise.all(expenses
+      .map(async ({ slug, name, note, image, people, items, currency, exchangeRate, updatedAt, date, userId }) => ({
         slug,
         name,
+        note,
+        image: image ? { name: image.name, type: image.type, url: await ctx.storage.getUrl(image.storageId) } : undefined,
         people,
         items,
         currency: currency ?? "USD",
@@ -507,7 +509,7 @@ export const expensesForTab = query({
         updatedAt,
         date,
         createdBy: { id: userId, name: creators.get(userId) ?? "Unknown creator" },
-      }))
+      }))))
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });

@@ -50,6 +50,8 @@ export function ExpenseSkeleton() {
             {[0, 1, 2, 3].map(row => <div key={row} className="flex justify-between gap-4"><Skeleton className="h-5 w-20" /><Skeleton className="h-5 w-24" /></div>)}
           </div>
           <Skeleton className="mt-4 h-12 w-full rounded-md" />
+          <Skeleton className="mt-4 h-11 w-full rounded-lg" />
+          <Skeleton className="mt-4 h-11 w-full rounded-lg" />
           <div className="mt-6 flex items-center justify-between gap-3">
             <Skeleton className="h-5 w-14" />
             <Skeleton className="h-12 w-40 rounded-lg" />
