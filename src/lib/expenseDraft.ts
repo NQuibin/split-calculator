@@ -54,3 +54,21 @@ export function draftFromParams(params: URLSearchParams): ExpenseState | null {
     currency: DEFAULT_CURRENCY,
   };
 }
+
+/** Refresh a tab draft without losing item choices or payments for remaining members. */
+export function withTabPeople(state: ExpenseState, people: Person[]): ExpenseState {
+  const ids = people.map(person => person.id);
+  const currentIds = new Set(ids);
+  return {
+    ...state,
+    people,
+    namePeople: true,
+    items: state.items.map(item => ({
+      ...item,
+      splitWith: state.people.every(person => item.splitWith.includes(person.id))
+        ? ids
+        : item.splitWith.filter(id => currentIds.has(id)),
+    })),
+    contributions: state.contributions.filter(contribution => currentIds.has(contribution.personId)),
+  };
+}

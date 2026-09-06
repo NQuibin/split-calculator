@@ -83,7 +83,7 @@ export const save = mutation({
     }
 
     if (existing) {
-      await ctx.db.patch(existing._id, { ...state, updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { ...state, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
     } else {
       await ctx.db.insert("expenses", { slug, userId, ...state, updatedAt: Date.now() });
     }

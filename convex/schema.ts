@@ -83,6 +83,7 @@ export default defineSchema({
     date: v.string(),
     contributions: v.array(contribution),
     currency: v.optional(v.string()),
+    exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })),
     updatedAt: v.number(),
     tabId: v.optional(v.id("tabs")),
     tabMemberIds: v.optional(v.array(tabMemberLink)),

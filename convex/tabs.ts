@@ -1,3 +1,4 @@
+import { activeExchangeRate, convertSettlement } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
@@ -123,7 +124,7 @@ export const deleteTab = mutation({
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     for (const expense of expenses) {
-      await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined });
+      await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined, exchangeRate: undefined });
     }
 
     for (const member of tab.members) {
@@ -393,7 +394,7 @@ export const assignExpense = mutation({
     const contributions = expense.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
     const tabMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
 
-    await ctx.db.patch(expense._id, { tabId: tab._id, tabMemberIds, people, items, contributions });
+    await ctx.db.patch(expense._id, { tabId: tab._id, tabMemberIds, people, items, contributions, exchangeRate: undefined });
   },
 });
 
@@ -460,13 +461,29 @@ export const unassignExpense = mutation({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
       .unique();
     if (!expense) throw new Error("Expense not found");
-    await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined });
+    await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined, exchangeRate: undefined });
+  },
+});
+
+export const setExpenseExchangeRate = mutation({
+  args: { slug: v.string(), expenseSlug: v.string(), from: v.string(), to: v.string(), rate: v.union(v.number(), v.null()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    const tab = await getTabBySlug(ctx, args.slug);
+    if (!userId || !tab || tab.ownerUserId !== userId) throw new Error("Only the tab owner can set exchange rates");
+    const expense = await ctx.db.query("expenses").withIndex("by_user_slug", q => q.eq("userId", userId).eq("slug", args.expenseSlug)).unique();
+    if (!expense || expense.tabId !== tab._id) throw new Error("Expense not found in this tab");
+    if (args.from !== (expense.currency ?? "USD") || args.to !== (tab.defaultCurrency ?? "USD")) throw new Error("Currency changed. Reopen the expense and try again.");
+    if (args.rate !== null && (!Number.isFinite(args.rate) || args.rate <= 0 || args.from === args.to)) throw new Error("Enter a positive exchange rate for different currencies");
+    await ctx.db.patch(expense._id, { exchangeRate: args.rate === null ? undefined : { from: args.from, to: args.to, rate: args.rate }, updatedAt: Date.now() });
+    return null;
   },
 });
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), people: v.array(person), items: v.array(expenseItem), currency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return [];
@@ -479,12 +496,14 @@ export const expensesForTab = query({
       return [id, user?.name?.trim() || "Unknown creator"] as const;
     })));
     return expenses
-      .map(({ slug, name, people, items, currency, updatedAt, date, userId }) => ({
+      .map(({ slug, name, people, items, currency, exchangeRate, updatedAt, date, userId }) => ({
         slug,
         name,
         people,
         items,
         currency: currency ?? "USD",
+        exchangeRate: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD"),
+        settlementCurrency: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD")?.to ?? currency ?? "USD",
         updatedAt,
         date,
         createdBy: { id: userId, name: creators.get(userId) ?? "Unknown creator" },
@@ -523,7 +542,9 @@ async function computeCurrencyBreakdown(
 
   for (const expense of currencyExpenses) {
     const split = computeSplit(expense.people, expense.items);
-    const settlement = computeSettlement(expense.contributions, split);
+    const rate = activeExchangeRate(expense, tab.defaultCurrency ?? "USD");
+    const original = computeSettlement(expense.contributions, split);
+    const settlement = rate ? convertSettlement(original, split.grandTotal, rate.rate) : original;
     for (const row of settlement) {
       const link = expense.tabMemberIds?.find((l) => l.personId === row.personId);
       if (!link) continue;
@@ -546,6 +567,7 @@ async function computeCurrencyBreakdown(
 
   return {
     expenseCount: currencyExpenses.length,
+    convertedExpenseCount: currencyExpenses.filter(expense => activeExchangeRate(expense, tab.defaultCurrency ?? "USD")).length,
     members: await Promise.all(
       tab.members.map(async (member) => {
         const entry = totals.get(member.id)!;
@@ -581,7 +603,7 @@ export const breakdown = query({
     // (empty) "USD" group so the roster shows everyone settled up.
     const byCurrency = new Map<string, Doc<"expenses">[]>();
     for (const expense of expenses) {
-      const code = expense.currency ?? "USD";
+      const code = activeExchangeRate(expense, tab.defaultCurrency ?? "USD")?.to ?? expense.currency ?? "USD";
       const list = byCurrency.get(code);
       if (list) list.push(expense);
       else byCurrency.set(code, [expense]);

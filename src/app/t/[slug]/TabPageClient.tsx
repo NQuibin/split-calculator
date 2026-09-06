@@ -75,7 +75,7 @@ export function TabPageClient() {
           <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
             <span>{tab.members.length} {tab.members.length === 1 ? "member" : "members"}</span>
-            {tab.isOwner ? <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} /> : <span>Default currency · {tab.defaultCurrency}</span>}
+            {tab.isOwner ? <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} /> : <span>Tab currency · {tab.defaultCurrency}</span>}
           </div>
         </div>
         {tab.isOwner && <div className="flex flex-wrap items-center gap-3"><ExpenseActions slug={slug} members={tab.members} /><DeleteTabButton slug={slug} /></div>}
@@ -85,7 +85,7 @@ export function TabPageClient() {
         <TabSummary expenses={expenses} defaultCurrency={tab.defaultCurrency} />
       </div>
       {breakdown && <div className="mt-7"><TabBreakdown tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
-      <div className="mt-7"><ExpenseList slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
+      <div className="mt-7"><ExpenseList defaultCurrency={tab.defaultCurrency} slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
     </main>
   );
 }
@@ -187,11 +187,11 @@ function TabDefaultCurrency({ slug, currency: currencyCode }: { slug: string; cu
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
       <Coins className="h-3.5 w-3.5 shrink-0 text-brass" strokeWidth={2.25} />
-      <span>Default currency for new expenses</span>
+      <span>Tab currency</span>
       <CurrencyPicker
         value={currencyCode}
         onChange={(code) => setDefaultCurrency({ slug, currency: code })}
-        aria-label="Tab default currency"
+        aria-label="Tab currency"
       />
     </div>
   );
@@ -359,7 +359,7 @@ function Roster({
 
       {isOwner &&
         (adding ? (
-          <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2">
+          <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2 p-0.5">
             <input
               autoFocus
               placeholder="Name"
@@ -405,8 +405,8 @@ function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId
 function TabSummary({ expenses, defaultCurrency }: { expenses: ReturnType<typeof useTabExpenses>; defaultCurrency: string }) {
   const totals = new Map<string, number>();
   for (const expense of expenses) {
-    const total = totals.get(expense.currency) ?? 0;
-    totals.set(expense.currency, total + computeSplit(expense.people, expense.items).grandTotal);
+    const total = totals.get(expense.settlementCurrency) ?? 0;
+    totals.set(expense.settlementCurrency, total + Math.round(computeSplit(expense.people, expense.items).grandTotal * (expense.exchangeRate?.rate ?? 1) * 100) / 100);
   }
   if (!totals.size) totals.set(defaultCurrency, 0);
   const currencies = [...totals].sort(([a], [b]) => a.localeCompare(b));
@@ -456,7 +456,8 @@ function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpense
   </span>;
 }
 
-function ExpenseList({ isOwner, expenses }: {
+function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
+  defaultCurrency: string;
   slug: string;
   isOwner: boolean;
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
@@ -470,8 +471,8 @@ function ExpenseList({ isOwner, expenses }: {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const codes = [...new Set(expenses.map(e => e.currency))].sort();
-  const filtered = expenses.filter(e => (currencyFilter === "all" || e.currency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
+  const codes = [...new Set(expenses.map(e => e.settlementCurrency))].sort();
+  const filtered = expenses.filter(e => (currencyFilter === "all" || e.settlementCurrency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
   const selected = filtered.find(e => e.slug === selectedSlug);
   const split = selected ? computeSplit(selected.people, selected.items) : null;
   async function act(action: "remove" | "delete") {
@@ -513,7 +514,7 @@ function ExpenseList({ isOwner, expenses }: {
             <span className="truncate">{expense.createdBy?.name ?? "Unknown creator"}</span>
           </span>
           <span className="hidden justify-center md:flex"><AvatarStack people={expense.people} /></span>
-          <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)}</span><span className="block text-xs text-ink-soft">{expense.currency}</span></span>
+          <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal * (expense.exchangeRate?.rate ?? 1), expense.settlementCurrency)}</span><span className="block text-xs text-ink-soft">{expense.exchangeRate ? `${currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)} · converted` : expense.currency}</span></span>
           <span className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
             {expense.date && <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>}
             <span className="inline-flex items-center gap-1.5">{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}{expense.createdBy?.name ?? "Unknown creator"}</span>
@@ -527,6 +528,7 @@ function ExpenseList({ isOwner, expenses }: {
         <div className="flex items-start justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" className="cursor-pointer rounded-md p-1 text-ink-soft hover:bg-[#f3ead8]"><X className="h-5 w-5" /></DialogClose></div>
         <p className="mt-5 font-numeric text-2xl font-semibold">{currency(split.grandTotal, selected.currency)}</p><p className="mt-1 text-sm text-ink-soft">{selected.currency} · {selected.items.length} {selected.items.length === 1 ? "item" : "items"}</p>
         <ExpenseMetadata expense={selected} />
+        {selected.currency !== defaultCurrency && <ExchangeRateForm key={`${selected.slug}:${selected.currency}:${defaultCurrency}:${selected.exchangeRate?.rate ?? "none"}`} tabSlug={slug} expense={selected} target={defaultCurrency} canEdit={isOwner} />}
         {isOwner && <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/e/${selected.slug}`} className="inline-flex items-center gap-2 rounded-lg border border-rule px-3 py-2 text-sm hover:bg-[#f3ead8]"><Pencil className="h-4 w-4" />Edit</Link>
           <button type="button" disabled={pending} onClick={() => void act("remove")} className="inline-flex items-center gap-2 rounded-lg border border-rule px-3 py-2 text-sm hover:bg-[#f3ead8] disabled:opacity-50"><Unlink className="h-4 w-4" />Remove from tab</button>
@@ -539,4 +541,34 @@ function ExpenseList({ isOwner, expenses }: {
       </DialogContent>}
     </Dialog>
   </section>;
+}
+
+function ExchangeRateForm({ tabSlug, expense, target, canEdit }: { tabSlug: string; expense: ReturnType<typeof useTabExpenses>[number]; target: string; canEdit: boolean }) {
+  const { setExpenseExchangeRate } = useTabActions();
+  const [value, setValue] = useState(expense.exchangeRate?.rate.toString() ?? "");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const rate = Number(value);
+  const valid = value.trim() !== "" && Number.isFinite(rate) && rate > 0;
+  async function save(next: number | null) {
+    setPending(true); setError(null);
+    try { await setExpenseExchangeRate({ slug: tabSlug, expenseSlug: expense.slug, from: expense.currency, to: target, rate: next }); }
+    catch (err) { setError(err instanceof Error ? err.message : "Couldn't save the exchange rate."); }
+    finally { setPending(false); }
+  }
+  return <form onSubmit={event => { event.preventDefault(); if (valid) void save(rate); }} className="mt-5 rounded-lg border border-rule bg-paper p-4">
+    <h4 className="text-sm font-semibold">Exchange to {target}</h4>
+    <p className="mt-1 text-xs text-ink-soft">Optional. Apply a rate to include this expense and its payments in the tab’s {target} balance.</p>
+    {canEdit ? <>
+      <label htmlFor="expense-exchange-rate" className="mt-3 flex items-center gap-2 text-sm">
+        <span className="shrink-0">1 {expense.currency} =</span>
+        <input id="expense-exchange-rate" type="number" inputMode="decimal" step="any" min="0" required value={value} disabled={pending} onChange={event => setValue(event.target.value)} placeholder="e.g. 1.38" aria-describedby="exchange-preview" className="w-full min-w-0 rounded-md border border-rule bg-surface px-3 py-2 font-numeric outline-none focus:ring-2 focus:ring-forest/30" />
+        <span>{target}</span>
+      </label>
+      <p id="exchange-preview" aria-live="polite" className="mt-2 text-xs text-ink-soft">{valid ? `Converted total: ${currency(computeSplit(expense.people, expense.items).grandTotal * rate, target)}` : "Enter a rate greater than zero."}</p>
+      <div className="mt-3 flex gap-3"><button disabled={!valid || pending} className="rounded-md bg-forest px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{pending ? "Saving…" : "Save rate"}</button>{expense.exchangeRate && <button type="button" disabled={pending} onClick={() => void save(null)} className="text-xs text-ink-soft hover:text-margin-red">Remove rate</button>}</div>
+    </> : <p className="mt-3 text-sm">{expense.exchangeRate ? `1 ${expense.currency} = ${expense.exchangeRate.rate} ${target}` : "No exchange rate applied."}</p>}
+    {expense.exchangeRate && <p role="status" className="mt-3 text-xs text-forest">Saved rate: 1 {expense.currency} = {expense.exchangeRate.rate} {target}. Included in {target} balances.</p>}
+    {error && <p role="alert" className="mt-2 text-xs text-margin-red">{error}</p>}
+  </form>;
 }

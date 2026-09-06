@@ -13,9 +13,9 @@ import { api } from "../../../../convex/_generated/api";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { useTab, useTabActions } from "@/lib/tabSync";
 import { expenseReducer, type Action } from "@/lib/reducer";
-import { draftFromParams } from "@/lib/expenseDraft";
+import { draftFromParams, withTabPeople } from "@/lib/expenseDraft";
 import { useExpenseActions, useStoredExpense } from "@/lib/expenseSync";
-import { suggestMemberMapping, type MemberMappingSuggestion } from "@/lib/tabMembers";
+import { type MemberMappingSuggestion } from "@/lib/tabMembers";
 import type { ExpenseState } from "@/lib/types";
 
 interface PendingTab {
@@ -48,26 +48,32 @@ export function ExpensePageClient() {
   // below. Until then this draft (from the URL) is the only copy of its
   // state, held only in memory.
   const [draft, setDraft] = useState<ExpenseState | null>(() => draftFromParams(searchParams));
-  const state = stored ?? draft;
-
-  useEffect(() => {
-    if (hasHydrated && !loading && state === null) router.replace("/");
-  }, [hasHydrated, loading, state, router]);
+  const baseState = stored ?? draft;
 
   // If this expense was started from inside a tab (?tab={slug}), its
   // people were pre-filled from the tab's roster, so treat that tab as
   // already picked - same mechanism as picking one manually below.
   const tabSlug = searchParams.get("tab");
   const tab = useTab(tabSlug ?? "");
-  const { assignExpense, addExpensePerson } = useTabActions();
+  const { assignExpense } = useTabActions();
   const [pendingTab, setPendingTab] = useState<PendingTab | null>(null);
   const hasInitializedTabFromParam = useRef(false);
+  const [cancelledTab, setCancelledTab] = useState(false);
+  const tabDraft = !stored && tab && tabSlug && !cancelledTab ? tab : null;
+  const state = baseState && tabDraft
+    ? withTabPeople(baseState, tabDraft.members.map(member => ({ id: member.resolvedId, name: member.name })))
+    : baseState;
+
+  useEffect(() => {
+    if (hasHydrated && !loading && state === null) router.replace("/");
+  }, [hasHydrated, loading, state, router]);
+
 
   useEffect(() => {
     if (!tabSlug || !tab || stored || hasInitializedTabFromParam.current) return;
     hasInitializedTabFromParam.current = true;
-    setPendingTab({ slug: tabSlug, name: tab.name, mapping: suggestMemberMapping(state?.people ?? [], tab.members) });
-  }, [tabSlug, tab, stored, state?.people]);
+    setPendingTab({ slug: tabSlug, name: tab.name, mapping: tab.members.map(member => ({ personId: member.resolvedId, personName: member.name, memberId: member.id })) });
+  }, [tabSlug, tab, stored]);
 
   // A brand-new expense's starting currency defaults to its destination
   // tab's default currency (only known once that tab loads), falling back
@@ -94,7 +100,7 @@ export function ExpensePageClient() {
     }
   }, [stored, tabSlug, tab, viewer]);
 
-  if (!hasHydrated || loading || !state) return <ExpenseSkeleton />;
+  if (!hasHydrated || loading || !state || (tabSlug && tab === undefined)) return <ExpenseSkeleton />;
 
   function dispatch(action: Action) {
     if (!state) return;
@@ -106,7 +112,10 @@ export function ExpensePageClient() {
     setDraft(next);
   }
 
-  const destinedTab = state.tab ?? pendingTab;
+  const destinedTab = state.tab ?? pendingTab ?? tabDraft;
+  const anonymousPersonIds = state.anonymousPersonIds
+    ?? tabDraft?.members.filter((member) => !member.claimed).map((member) => member.resolvedId)
+    ?? [];
 
   function handleFinalize() {
     if (!state) return;
@@ -118,7 +127,7 @@ export function ExpensePageClient() {
           void assignExpense({
             tabSlug: pendingTab.slug,
             expenseSlug: slug,
-            memberMapping: pendingTab.mapping.map(({ personId, memberId, newMemberName }) => ({
+            memberMapping: (tabDraft ? tabDraft.members.map(member => ({ personId: member.resolvedId, memberId: member.id, newMemberName: undefined })) : pendingTab.mapping).map(({ personId, memberId, newMemberName }) => ({
               personId,
               memberId,
               newMemberName,
@@ -172,14 +181,14 @@ export function ExpensePageClient() {
           </button>
           <button
             type="button"
-            onClick={() => setPendingTab(null)}
+            onClick={() => { setDraft(state); setPendingTab(null); setCancelledTab(true); }}
             aria-label="Cancel adding to this tab"
             className="cursor-pointer text-ink-soft transition hover:text-margin-red"
           >
             <X className="h-3.5 w-3.5" strokeWidth={2.5} />
           </button>
         </div>
-      ) : tabSlug ? null : (
+      ) : tabSlug && !cancelledTab ? null : (
         <Authenticated>
           <AddToTabDialog
             people={state.people}
@@ -221,10 +230,8 @@ export function ExpensePageClient() {
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
           people={state.people}
           viewerId={viewer?._id}
-          anonymousPersonIds={state.anonymousPersonIds}
-          inTab={!!state.tab}
-          availableTabMembers={state.availableTabMembers}
-          onAddTabMember={(params) => addExpensePerson({ expenseSlug: slug, ...params })}
+          anonymousPersonIds={anonymousPersonIds}
+          inTab={!!destinedTab}
           mode={state.mode}
           items={state.items}
           date={state.date}
@@ -239,6 +246,7 @@ export function ExpensePageClient() {
           onReorderItems={(items) => dispatch({ type: "REORDER_ITEMS", items })}
           onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
           onAddPerson={() => dispatch({ type: "ADD_PERSON" })}
+          onRemovePerson={(id) => dispatch({ type: "REMOVE_PERSON", id })}
           onRenamePerson={(id, name) => dispatch({ type: "RENAME_PERSON", id, name })}
           continueLabel={stored ? (destinedTab ? "Done" : "View split") : "Save expense"}
           onContinue={handleFinalize}

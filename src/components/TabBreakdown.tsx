@@ -37,6 +37,7 @@ export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps
           )}
         </div>
       </div>
+      {currencies.some(item => item.convertedExpenseCount > 0) && <p className="mb-4 text-xs text-ink-soft">Includes expenses converted using saved exchange rates.</p>}
       {!members.length ? <p className="text-sm text-ink-soft">No members yet.</p> : !currencies.length ? <p className="text-sm text-ink-soft">No expenses yet.</p> : (
         <div className="overflow-x-auto rounded-lg border border-rule/70">
           <table className="w-full border-collapse text-left text-sm">

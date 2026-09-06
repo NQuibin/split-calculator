@@ -38,6 +38,7 @@ export function TabBreakdownPageClient() {
         Every expense, per person
       </h1>
 
+      {breakdown.currencies.some(c => c.convertedExpenseCount > 0) && <p className="mb-4 text-xs text-ink-soft">Includes expenses and payments converted using saved exchange rates.</p>}
       {breakdown.currencies.every((c) => c.members.length === 0) ? (
         <p className="text-sm text-ink-soft">No members yet.</p>
       ) : (

@@ -72,6 +72,7 @@ export interface TabBreakdownMember {
 }
 
 export interface TabCurrencyBreakdown {
+  convertedExpenseCount: number;
   currency: string;
   expenseCount: number;
   members: TabBreakdownMember[];
@@ -97,6 +98,8 @@ export interface TabExpenseSummary {
   people: Person[];
   items: ExpenseItem[];
   currency: string;
+  settlementCurrency: string;
+  exchangeRate?: import("./exchangeRate").ExchangeRate;
   updatedAt: number;
 }
 
@@ -106,6 +109,7 @@ export function useTabExpenses(slug: string): TabExpenseSummary[] {
 
 export function useTabActions() {
   return {
+    setExpenseExchangeRate: useMutation(api.tabs.setExpenseExchangeRate),
     create: useMutation(api.tabs.create),
     rename: useMutation(api.tabs.rename),
     setDefaultCurrency: useMutation(api.tabs.setDefaultCurrency),

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { AnimatePresence, motion, Reorder } from "motion/react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -13,11 +13,11 @@ import {
   Coins,
   HatGlasses,
   ListChecks,
-  Loader2,
   Pencil,
   Percent,
   Plus,
   TicketPercent,
+  X,
   Users2,
   Wallet,
 } from "lucide-react";
@@ -46,8 +46,6 @@ interface StageExpenseProps {
   viewerId?: string;
   anonymousPersonIds?: string[];
   inTab?: boolean;
-  availableTabMembers?: { id: string; name: string }[];
-  onAddTabMember: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
   mode: ExpenseMode;
   items: ExpenseItem[];
   date: string;
@@ -62,6 +60,7 @@ interface StageExpenseProps {
   onReorderItems: (items: ExpenseItem[]) => void;
   onSetContribution: (personId: string, amount: RateSetting) => void;
   onAddPerson: () => void;
+  onRemovePerson: (id: string) => void;
   onRenamePerson: (id: string, name: string) => void;
   /** Label for the bottom action button - "Split the expense" for a standalone expense, "Add to tab" when it's in (or about to join) a tab. */
   continueLabel: string;
@@ -79,8 +78,6 @@ export function StageExpense({
   viewerId,
   anonymousPersonIds = [],
   inTab = false,
-  availableTabMembers = [],
-  onAddTabMember,
   mode,
   items,
   date,
@@ -95,6 +92,7 @@ export function StageExpense({
   onReorderItems,
   onSetContribution,
   onAddPerson,
+  onRemovePerson,
   onRenamePerson,
   continueLabel,
   onContinue,
@@ -125,6 +123,15 @@ export function StageExpense({
 
   function togglePerson(id: string) {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
+
+  function handleRemovePerson(id: string) {
+    const remainingIds = allIds.filter((personId) => personId !== id);
+    setSplitWith((previous) => {
+      const filtered = previous.filter((personId) => personId !== id);
+      return filtered.length > 0 ? filtered : remainingIds;
+    });
+    onRemovePerson(id);
   }
 
   // A one-total item has no name of its own (it takes the expense's), so
@@ -226,7 +233,9 @@ export function StageExpense({
               key={person.id}
               person={person}
               anonymous={anonymousPersonIds.includes(person.id)}
-              locked={inTab ? !anonymousPersonIds.includes(person.id) : person.id === viewerId}
+              locked={inTab || person.id === viewerId}
+              removable={!inTab && people.length > 1}
+              onRemove={() => handleRemovePerson(person.id)}
               onRename={(name) => onRenamePerson(person.id, name)}
             />
           ))}
@@ -236,18 +245,11 @@ export function StageExpense({
             Your name comes from your account - update it in Settings.
           </p>
         )}
-        {inTab ? (
-          <>
-            <p className="mt-3 text-xs text-ink-soft">
-              This expense is in a tab, so only anonymous people here can be renamed.
-            </p>
-            <AddTabPersonForm availableMembers={availableTabMembers} onAdd={onAddTabMember} />
-          </>
-        ) : (
+        {!inTab && (
           <button
             type="button"
             onClick={onAddPerson}
-            className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full border border-rule px-4 py-2 text-sm font-medium text-forest hover:bg-[#f3ead8]"
+            className="mt-3 flex cursor-pointer items-center gap-1 text-xs font-medium text-forest hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Add person
@@ -701,11 +703,15 @@ function PersonRow({
   person,
   anonymous,
   locked = false,
+  removable = false,
+  onRemove,
   onRename,
 }: {
   person: Person;
   anonymous: boolean;
   locked?: boolean;
+  removable?: boolean;
+  onRemove: () => void;
   onRename: (name: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -763,104 +769,16 @@ function PersonRow({
           <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
         </button>
       )}
-    </li>
-  );
-}
-
-function AddTabPersonForm({
-  availableMembers,
-  onAdd,
-}: {
-  availableMembers: { id: string; name: string }[];
-  onAdd: (params: { memberId?: string; newMemberName?: string }) => Promise<unknown>;
-}) {
-  const [adding, setAdding] = useState(false);
-  const [selection, setSelection] = useState("__new__");
-  const [newName, setNewName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function reset() {
-    setAdding(false);
-    setSelection("__new__");
-    setNewName("");
-    setSubmitting(false);
-    setError(null);
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const trimmedName = newName.trim();
-    if (selection === "__new__" && !trimmedName) {
-      setError("Enter a name.");
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await onAdd(selection === "__new__" ? { newMemberName: trimmedName } : { memberId: selection });
-      reset();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't add this person.");
-      setSubmitting(false);
-    }
-  }
-
-  if (!adding) {
-    return (
-      <button
-        type="button"
-        onClick={() => setAdding(true)}
-        className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full border border-rule px-4 py-2 text-sm font-medium text-forest hover:bg-[#f3ead8]"
-      >
-        <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-        Add person
-      </button>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-3 space-y-2">
-      <select
-        value={selection}
-        onChange={(e) => setSelection(e.target.value)}
-        className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
-      >
-        <option value="__new__">Someone new</option>
-        {availableMembers.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name}
-          </option>
-        ))}
-      </select>
-      {selection === "__new__" && (
-        <input
-          autoFocus
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Name"
-          className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
-        />
-      )}
-      {error && <p className="text-xs text-margin-red">{error}</p>}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-forest px-3 py-1.5 text-xs font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />}
-          Add
-        </button>
+      {removable && (
         <button
           type="button"
-          onClick={reset}
-          disabled={submitting}
-          className="cursor-pointer text-xs font-medium text-ink-soft transition hover:text-margin-red disabled:cursor-not-allowed disabled:opacity-70"
+          onClick={onRemove}
+          aria-label={`Remove ${person.name} from this expense`}
+          className="shrink-0 cursor-pointer rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
         >
-          Cancel
+          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
-      </div>
-    </form>
+      )}
+    </li>
   );
 }
