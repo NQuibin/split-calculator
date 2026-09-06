@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "../../../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -21,10 +21,10 @@ import {
   Receipt,
   Trash2,
   Unlink,
-  Users2,
 } from "lucide-react";
 import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
+import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
@@ -80,14 +80,12 @@ export function TabPageClient() {
         </div>
         {tab.isOwner && <div className="flex flex-wrap items-center gap-3"><ExpenseActions slug={slug} members={tab.members} /><DeleteTabButton slug={slug} /></div>}
       </header>
-      <TabSummary expenses={expenses} defaultCurrency={tab.defaultCurrency} />
-      <div className="mt-7"><ExpenseList slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
-      <div className="mt-7 grid items-start gap-5 xl:grid-cols-2">
+      <div className="space-y-4">
         <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
-        <div className="min-w-0 space-y-5">
-          {breakdown?.currencies.map(c => <TabBreakdown key={c.currency} tabSlug={slug} breakdown={c} showCurrencyBadge />)}
-        </div>
+        <TabSummary expenses={expenses} defaultCurrency={tab.defaultCurrency} />
       </div>
+      {breakdown && <div className="mt-7"><TabBreakdown tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
+      <div className="mt-7"><ExpenseList slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
     </main>
   );
 }
@@ -267,6 +265,8 @@ function Roster({
 }) {
   const { addMember } = useTabActions();
   const inviteLinks = useTabInviteLinks(slug, isOwner);
+  const [expanded, setExpanded] = useState(false);
+  const membersId = useId();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -289,11 +289,35 @@ function Roster({
 
   return (
     <div className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-      <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
-        <Users2 className="h-4 w-4 text-brass" strokeWidth={2.25} />
-        Members
-      </p>
-      <ul className="space-y-2 text-sm">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={membersId}
+        onClick={() => setExpanded(value => !value)}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
+      >
+        <span className="flex items-center gap-3 font-display text-sm font-semibold text-ink">
+          Members <span className="font-numeric font-normal text-ink-soft">{members.length}</span>
+        </span>
+        <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 text-ink-soft transition-transform duration-300 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      <div aria-hidden={expanded} inert={expanded} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${expanded ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}>
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex -space-x-2 pt-3">
+            {members.slice(0, 5).map(member => (
+              <MemberAvatar key={member.id} id={member.id} name={member.name} size="lg" />
+            ))}
+            {members.length > 5 && (
+              <span aria-label={`${members.length - 5} more members`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9e8d9] text-sm font-semibold text-ink">
+                +{members.length - 5}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div id={membersId} aria-hidden={!expanded} inert={!expanded} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+        <div className="min-h-0 overflow-hidden">
+      <ul className="mt-4 space-y-2 text-sm">
         {members.map((member) => {
           const invite = inviteLinks.find((l) => l.memberId === member.id);
           return (
@@ -360,6 +384,8 @@ function Roster({
             Add member
           </button>
         ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -384,10 +410,19 @@ function TabSummary({ expenses, defaultCurrency }: { expenses: ReturnType<typeof
   }
   if (!totals.size) totals.set(defaultCurrency, 0);
   const currencies = [...totals].sort(([a], [b]) => a.localeCompare(b));
-  return <section aria-label="Tab summary" className="grid gap-4 sm:grid-cols-2">
-    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5"><h2 className="text-sm text-ink-soft">Total spent</h2><div className="mt-3 space-y-2">{currencies.map(([code, total]) => <p key={code} className="font-numeric text-xl font-semibold"><span className="mr-2 text-xs text-ink-soft">{code}</span>{currency(total, code)}</p>)}</div></div>
-    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5"><h2 className="text-sm text-ink-soft">Expenses</h2><p className="mt-3 font-numeric text-2xl font-semibold">{expenses.length}</p><p className="mt-2 text-xs text-ink-soft">Across {currencies.length} {currencies.length === 1 ? "currency" : "currencies"}</p></div>
-  </section>;
+  return (
+    <section aria-label="Tab summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+      <h2 className="text-sm font-medium text-ink-soft">Total spent</h2>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-y-4">
+        {currencies.map(([code, total], index) => (
+          <p key={code} className={`flex min-w-0 items-center gap-2 font-numeric text-2xl font-semibold sm:flex-1 ${index > 0 ? "border-t border-rule/70 pt-3 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6" : ""}`}>
+            <span className="rounded-md border border-rule px-1.5 py-0.5 text-xs font-medium text-ink-soft">{code}</span>
+            <span className="break-all">{currency(total, code)}</span>
+          </p>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 // One grid template shared by the expense list's header and its rows so the
@@ -395,9 +430,9 @@ function TabSummary({ expenses, defaultCurrency }: { expenses: ReturnType<typeof
 // own grid, so an `auto` track would size to that row's own content and the
 // columns would drift out of alignment with each other. Below `md` the middle
 // columns collapse into a metadata line underneath the name, leaving
-// expense / amount / chevron.
+// expense / amount.
 const expenseRowGrid =
-  "grid grid-cols-[minmax(0,1fr)_6.5rem_1rem] items-center gap-x-4 gap-y-3 px-5 md:grid-cols-[minmax(0,1fr)_7rem_9rem_7.5rem_6.5rem_1rem]";
+  "grid grid-cols-[minmax(0,1fr)_6.5rem] items-center gap-x-4 gap-y-3 px-5 md:grid-cols-[minmax(0,1fr)_7rem_9rem_7.5rem_6.5rem]";
 
 function formatExpenseDate(iso: string | undefined) {
   const date = iso ? parseISODate(iso) : undefined;
@@ -449,26 +484,22 @@ function ExpenseList({ isOwner, expenses }: {
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't update the expense."); }
     finally { setPending(false); }
   }
-  return <section aria-label="Expenses">
+  return <section aria-label="Expenses" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
     <div className="mb-4 flex flex-wrap items-center gap-3">
       <h2 className="mr-auto font-display text-lg font-semibold">Expenses <span className="ml-2 text-sm font-normal text-ink-soft">{filtered.length}</span></h2>
-      <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-surface px-4 py-3 focus-within:ring-2 focus-within:ring-forest/20 sm:max-w-sm"><Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search tab expenses" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} className="w-full min-w-0 bg-transparent text-sm outline-none" /></label>
-      <div className="relative shrink-0">
-        <select aria-label="Filter by currency" value={currencyFilter} onChange={e => setCurrencyFilter(e.target.value)} className="w-full cursor-pointer appearance-none rounded-lg border border-rule bg-surface py-3 pl-4 pr-10 text-sm focus-visible:border-forest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest/20"><option value="all">All currencies</option>{codes.map(code => <option key={code}>{code}</option>)}</select>
-        <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-      </div>
+      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-paper px-3 focus-within:ring-2 focus-within:ring-forest/20 sm:max-w-sm"><Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search tab expenses" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} className="w-full min-w-0 bg-transparent text-xs outline-none" /></label>
+      <CurrencyFilter value={currencyFilter} onChange={setCurrencyFilter} codes={codes} label="Filter by currency" />
     </div>
-    <div className="overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
+    <div className="overflow-hidden rounded-lg border border-rule/70">
       <div className={`${expenseRowGrid} border-b border-rule/70 py-3 text-xs font-medium uppercase text-ink-soft`}>
         <span>Expense</span>
         <span className="hidden md:block">Date</span>
         <span className="hidden text-center md:block">Created by</span>
         <span className="hidden text-center md:block">Split with</span>
         <span className="text-right">Amount</span>
-        <span aria-hidden="true" />
       </div>
       {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{expenses.length ? "No expenses match your filters." : "No expenses yet. Add one to get started."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
-        <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} group w-full cursor-pointer py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
+        <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} w-full cursor-pointer py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
           <span className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3ead8] text-brass"><Receipt className="h-5 w-5" strokeWidth={2.25} /></span>
             <span className="min-w-0">
@@ -483,8 +514,7 @@ function ExpenseList({ isOwner, expenses }: {
           </span>
           <span className="hidden justify-center md:flex"><AvatarStack people={expense.people} /></span>
           <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)}</span><span className="block text-xs text-ink-soft">{expense.currency}</span></span>
-          <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft transition group-hover:translate-x-0.5" />
-          <span className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
+          <span className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
             {expense.date && <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>}
             <span className="inline-flex items-center gap-1.5">{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}{expense.createdBy?.name ?? "Unknown creator"}</span>
             <AvatarStack people={expense.people} />
