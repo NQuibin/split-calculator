@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useConvexAuth, useQueries, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, HatGlasses, Search } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
@@ -122,30 +122,42 @@ export function ExpensesDirectory() {
 
 export function FriendsDirectory() {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const viewer = useQuery(api.users.viewer, isAuthenticated ? {} : "skip");
   const tabs = useQuery(api.tabs.list, isAuthenticated ? {} : "skip");
   const queries = useMemo(() => Object.fromEntries((tabs ?? []).map(tab => [tab.slug, { query: api.tabs.getBySlug, args: { slug: tab.slug } }])), [tabs]);
   const results = useQueries(queries);
-  const people = new Map<string, { name: string; tabs: { slug: string; name: string }[] }>();
-  let loading = isLoading || (isAuthenticated && tabs === undefined);
+  // `claimed` members have an account behind them, so they merge across tabs by
+  // user id. Anonymous ones are per-tab placeholder slots keyed by their own
+  // member id, so a same-named placeholder in two tabs stays two entries -
+  // there's nothing tying them together until someone claims the invite.
+  const people = new Map<string, { name: string; claimed: boolean; tabs: { slug: string; name: string }[] }>();
+  let loading = isLoading || (isAuthenticated && (tabs === undefined || viewer === undefined));
   let failed = false;
   for (const tab of tabs ?? []) {
     const detail = results[tab.slug] as FunctionReturnType<typeof api.tabs.getBySlug> | Error | undefined;
     if (detail === undefined) { loading = true; continue; }
     if (detail instanceof Error) { failed = true; continue; }
     for (const member of detail?.members ?? []) {
-      const person = people.get(member.resolvedId) ?? { name: member.name, tabs: [] };
+      // You aren't your own friend - skip every slot you've claimed yourself.
+      if (viewer && member.resolvedId === viewer._id) continue;
+      const person = people.get(member.resolvedId) ?? { name: member.name, claimed: member.claimed, tabs: [] };
       person.tabs.push({ slug: tab.slug, name: tab.name });
       people.set(member.resolvedId, person);
     }
   }
-  return <Directory title="Friends" description="The friends you share tabs with.">
+  return <Directory title="Friends" description="The people you share tabs with. Anonymous friends haven’t claimed an invite yet.">
     {loading ? <Notice>Loading friends…</Notice> : !isAuthenticated ? <Notice>Sign in to see your friends across tabs.</Notice> : failed ? <Notice>Some friends couldn’t be loaded. Please refresh to try again.</Notice> : !people.size ? <Notice>Friends will appear here when you create or join a tab.</Notice> :
       <ul className={directoryListClass}>
-        {[...people].sort(([, a], [, b]) => a.name.localeCompare(b.name)).map(([id, person]) => (
+        {[...people].sort(([, a], [, b]) => Number(b.claimed) - Number(a.claimed) || a.name.localeCompare(b.name)).map(([id, person]) => (
           <li key={id} className="flex flex-wrap items-center gap-4 px-5 py-6 sm:flex-nowrap sm:px-6">
-            <MemberAvatar id={id} name={person.name} />
+            <MemberAvatar id={id} name={person.name} className={person.claimed ? "" : "opacity-60"} />
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-lg font-semibold break-words">{person.name}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-lg font-semibold break-words">{person.name}</h2>
+                {!person.claimed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs font-medium text-ink-soft">
+                  <HatGlasses aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />Anonymous
+                </span>}
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {person.tabs.map(tab => (
                   <Link key={tab.slug} href={`/t/${tab.slug}`} className="inline-flex max-w-full items-center gap-2 rounded-md bg-paper px-3 py-1.5 text-sm text-forest transition hover:bg-rule/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
