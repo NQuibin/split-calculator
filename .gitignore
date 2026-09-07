@@ -15,6 +15,7 @@
 
 # vite
 /dist/
+/.tanstack/
 
 # stale Next.js artifacts (Next was removed; a lingering `next dev` recreates these)
 /.next/

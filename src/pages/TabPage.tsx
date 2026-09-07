@@ -302,13 +302,15 @@ function Roster({ slug, isOwner, members }: {
   </form>;
 
   return <Dialog open={open} onOpenChange={next => { if (!pending) { setOpen(next); resetForm(); } }}>
-    <DialogTrigger aria-label={`View ${members.length} ${members.length === 1 ? "member" : "members"}`} className="inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-sm text-ink-soft transition hover:bg-surface hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
+    <DialogTrigger aria-label={`View ${members.length} ${members.length === 1 ? "member" : "members"}`} className="group inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-sm text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
       {members.length > 0 && <span aria-hidden="true" className="flex -space-x-2">
         {members.slice(0, 5).map(member => <MemberAvatar key={member.id} id={member.id} name={member.name} className="ring-2 ring-paper" />)}
         {members.length > 5 && <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface text-xs font-semibold ring-2 ring-paper">+{members.length - 5}</span>}
       </span>}
       <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
-      <ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0" />
+      {/* Chevron, not an arrow: this opens the members dialog in place rather
+          than navigating away. */}
+      <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 transition group-hover:translate-y-0.5" />
     </DialogTrigger>
     <DialogContent>
       <div className="flex items-start justify-between gap-3">

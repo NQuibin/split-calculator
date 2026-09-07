@@ -26,8 +26,8 @@ export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps
         </h2>
         <div className="flex flex-wrap items-center gap-4">
           {currencies.some(item => item.expenseCount > 0) && (
-            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
-              Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="group inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
+              Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
             </Link>
           )}
           {currencies.length > 1 && (
