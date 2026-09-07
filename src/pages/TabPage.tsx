@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { Authenticated, Unauthenticated, useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import {
   ArrowUpRight,
   FileText,
@@ -43,15 +43,61 @@ const inputClass =
 
 const route = getRouteApi("/t/$slug/");
 
+const pageClass = "mx-auto w-full max-w-7xl flex-1 px-5 py-8 md:px-10 md:py-12";
+
+/**
+ * An arriving invite is claimed *before* the tab itself is read. Everything
+ * below the claim - expenses, balances, the roster - is member-only on the
+ * server, so rendering it while the visitor is still an outsider would just
+ * bounce them to the forbidden page a moment before they're let in.
+ */
 export function TabPage() {
   const { slug } = route.useParams();
   const { token } = route.useSearch();
+  const { isLoading } = useConvexAuth();
+  const claim = useInviteClaim(slug, token);
 
-  const tab = useTab(slug);
-  const breakdown = useTabBreakdown(slug);
-  const expenses = useQuery(api.tabs.expensesForTab, { slug });
+  if (isLoading || claim.status === "claiming") {
+    return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">{claim.status === "claiming" ? "Joining tab…" : "Loading tab…"}</p></main>;
+  }
+  if (claim.status === "needsSignIn") return <InviteSignIn slug={slug} token={token!} />;
 
-  if (tab === undefined || expenses === undefined) return <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-8 md:px-10 md:py-12"><p role="status" className="text-sm text-ink-soft">Loading tab…</p></main>;
+  return <TabView slug={slug} claimError={claim.status === "error" ? claim.message : undefined} />;
+}
+
+type ClaimState =
+  | { status: "none" | "needsSignIn" | "claiming" | "done" }
+  | { status: "error"; message: string };
+
+function useInviteClaim(slug: string, token: string | undefined): ClaimState {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { claimMember } = useTabActions();
+  const attempted = useRef(false);
+  const [result, setResult] = useState<ClaimState | null>(null);
+  const canClaim = Boolean(token) && !isLoading && isAuthenticated;
+
+  useEffect(() => {
+    if (!token || !canClaim || attempted.current) return;
+    attempted.current = true;
+    claimMember({ slug, token })
+      .then(() => setResult({ status: "done" }))
+      .catch((err) =>
+        setResult({ status: "error", message: err instanceof Error ? err.message : "Couldn't claim this invite." }),
+      );
+  }, [canClaim, claimMember, slug, token]);
+
+  if (!token) return { status: "none" };
+  if (result) return result;
+  // Auth still resolving counts as claiming: the visitor may well be signed
+  // in, and flashing a sign-in prompt at them would be wrong.
+  return isLoading || isAuthenticated ? { status: "claiming" } : { status: "needsSignIn" };
+}
+
+/** All an unclaimed invite shows a signed-out visitor: which tab it's for. */
+function InviteSignIn({ slug, token }: { slug: string; token: string }) {
+  const tab = useTab(slug, token);
+
+  if (tab === undefined) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading invite…</p></main>;
   if (tab === null) {
     return (
       <main className="mx-auto w-full max-w-md px-6 py-16 text-center">
@@ -61,13 +107,42 @@ export function TabPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-8 md:px-10 md:py-12">
+    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-5 py-16 md:py-24">
+      <div className="rounded-xl border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8">
+        <span aria-hidden="true" className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-forest/10 text-forest"><Receipt className="h-6 w-6" strokeWidth={2.25} /></span>
+        <h1 className="mt-5 font-display text-2xl font-semibold text-ink break-words">You&rsquo;ve been invited to {tab.name}</h1>
+        <p className="mx-auto mt-3 max-w-sm text-sm text-ink-soft">
+          Sign in to claim your spot. Your place in the tab, and everything in it, opens up once you do.
+        </p>
+      </div>
+    </main>
+  );
+}
+
+function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
+  const tab = useTab(slug);
+  const breakdown = useTabBreakdown(slug);
+  const expenses = useQuery(api.tabs.expensesForTab, { slug });
+
+  if (tab === undefined || expenses === undefined) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading tab…</p></main>;
+  if (tab === null) {
+    return (
+      <main className="mx-auto w-full max-w-md px-6 py-16 text-center">
+        <p className="text-ink-soft">This tab doesn&rsquo;t exist.</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className={pageClass}>
       <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-sm text-ink-soft">
         <Link to="/tabs" className="hover:text-forest hover:underline">Tabs</Link>
         <ChevronRight aria-hidden="true" className="h-4 w-4" />
         <span aria-current="page" className="font-medium text-ink">{tab.name}</span>
       </nav>
-      {token && <ClaimBanner slug={slug} token={token} />}
+      {claimError && (
+        <p role="status" className="mb-6 rounded-md border border-rule bg-surface p-4 text-sm text-ink">{claimError}</p>
+      )}
       <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
         <div className="min-w-0">
           <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
@@ -81,44 +156,6 @@ export function TabPage() {
       {breakdown && <div className="mt-7"><TabBreakdown tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
       <div className="mt-7"><ExpenseList defaultCurrency={tab.defaultCurrency} slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
     </main>
-  );
-}
-
-function ClaimBanner({ slug, token }: { slug: string; token: string }) {
-  const { isAuthenticated } = useConvexAuth();
-  const { claimMember } = useTabActions();
-  const hasClaimed = useRef(false);
-  const [status, setStatus] = useState<"idle" | "claiming" | "done" | "error">("idle");
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated || hasClaimed.current) return;
-    hasClaimed.current = true;
-    setStatus("claiming");
-    claimMember({ slug, token })
-      .then(() => setStatus("done"))
-      .catch((err) => {
-        setStatus("error");
-        setMessage(err instanceof Error ? err.message : "Couldn't claim this invite.");
-      });
-  }, [isAuthenticated, slug, token, claimMember]);
-
-  if (status === "done") return null;
-
-  return (
-    <div className="mb-6 rounded-md border border-rule bg-surface p-4">
-      <Unauthenticated>
-        <p className="text-sm text-ink">
-          You&rsquo;ve been invited to this tab. Sign in to claim your spot.
-        </p>
-      </Unauthenticated>
-      <Authenticated>
-        <p className="flex items-center gap-2 text-sm text-ink">
-          {status === "claiming" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
-          {status === "error" ? (message ?? "Couldn't claim this invite.") : "Claiming your spot…"}
-        </p>
-      </Authenticated>
-    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AccessErrorPage } from "@/components/AccessErrorPage";
 import { ExpensePage } from "@/pages/ExpensePage";
 
 export interface ExpenseSearch {
@@ -18,4 +19,7 @@ export const Route = createFileRoute("/e/$slug")({
     tab: (search.tab as string) || undefined,
   }),
   component: ExpensePage,
+  // Convex throws from inside `useQuery`, so an expense that isn't the
+  // viewer's to open surfaces here rather than as a render crash.
+  errorComponent: ({ error }) => <AccessErrorPage error={error} resource="expense" />,
 });

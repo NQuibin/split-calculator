@@ -141,11 +141,19 @@ export function useStoredExpense(slug: string): { state: ExpenseState | null; lo
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const subscribe = useCallback((callback: () => void) => subscribeExpense(slug, callback), [slug]);
   const localState = useSyncExternalStore(subscribe, () => getExpenseSnapshot(slug), getExpenseServerSnapshot);
-  const remoteState = useQuery(api.expenses.get, isAuthenticated ? { slug } : "skip");
+  // A guest with no local copy of this slug may be following someone else's
+  // link, so the backend is still asked - it answers null for a genuinely
+  // new expense and throws an access error for one that already has an owner.
+  const remoteState = useQuery(
+    api.expenses.get,
+    authLoading || (!isAuthenticated && localState) ? "skip" : { slug },
+  );
 
   if (authLoading) return { state: null, loading: true };
   if (isAuthenticated) return { state: remoteState ?? null, loading: remoteState === undefined };
-  return { state: localState, loading: false };
+  // Stay loading until that check lands, so a guest following someone else's
+  // link doesn't get bounced to /expenses before the refusal arrives.
+  return { state: localState, loading: !localState && remoteState === undefined };
 }
 
 export function useExpenseActions(): {

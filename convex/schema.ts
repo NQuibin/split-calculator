@@ -103,6 +103,10 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_slug", ["userId", "slug"])
+    // Slugs are random and effectively unique, but they're only *enforced*
+    // unique per user - so this index exists to answer "does this /e/{slug}
+    // link belong to someone else?" and tell a forbidden page from a 404.
+    .index("by_slug", ["slug"])
     .index("by_tab", ["tabId"]),
   tabs: defineTable({
     slug: v.string(),

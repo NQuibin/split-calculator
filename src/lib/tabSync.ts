@@ -33,9 +33,14 @@ export interface TabDetail {
   defaultCurrency: string;
 }
 
-/** undefined while loading, null if the tab doesn't exist. */
-export function useTab(slug: string): TabDetail | null | undefined {
-  return useQuery(api.tabs.getBySlug, slug ? { slug } : "skip");
+/**
+ * undefined while loading, null if the tab doesn't exist. Throws an access
+ * error (caught by the route's error boundary) when the tab exists but isn't
+ * the viewer's. An invite `token` stands in for membership here, so an
+ * invitee can see which tab they've been invited to before claiming it.
+ */
+export function useTab(slug: string, token?: string): TabDetail | null | undefined {
+  return useQuery(api.tabs.getBySlug, slug ? { slug, token } : "skip");
 }
 
 export interface TabInviteLink {

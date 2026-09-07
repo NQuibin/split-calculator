@@ -6,6 +6,7 @@ import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations
 import { person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { forbidden, isInviteToken, requireTabOwner, requireTabViewer, requireUserId } from "./authz";
 import type { Doc, Id } from "./_generated/dataModel";
 
 async function getTabBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
@@ -13,6 +14,29 @@ async function getTabBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
     .query("tabs")
     .withIndex("by_slug", (q) => q.eq("slug", slug))
     .unique();
+}
+
+/**
+ * A tab the caller is allowed to read, or `null` when no tab has that slug.
+ * A caller who isn't in the tab never gets a document back - they get an
+ * access error, which the client turns into a forbidden page.
+ */
+async function viewableTab(ctx: QueryCtx | MutationCtx, slug: string) {
+  const tab = await getTabBySlug(ctx, slug);
+  if (!tab) return null;
+  const userId = await requireTabViewer(ctx, tab);
+  return { tab, userId };
+}
+
+/** A tab the caller owns. Throws rather than returning null - every caller here is acting on it. */
+async function ownedTab(ctx: QueryCtx | MutationCtx, slug: string) {
+  // Checked up front so a signed-out caller is told to sign in rather than
+  // told whether the slug exists.
+  await requireUserId(ctx);
+  const tab = await getTabBySlug(ctx, slug);
+  if (!tab) throw new Error("Tab not found");
+  const userId = await requireTabOwner(ctx, tab);
+  return { tab, userId };
 }
 
 function requireUniqueName(members: Doc<"tabs">["members"], name: string, excludeId?: string) {
@@ -74,8 +98,7 @@ async function resolveMembers(ctx: QueryCtx, tab: Doc<"tabs">) {
 export const create = mutation({
   args: { slug: v.string(), name: v.string(), memberNames: v.array(v.string()) },
   handler: async (ctx, { slug, name, memberNames }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
+    const userId = await requireUserId(ctx);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Tab name is required");
@@ -120,11 +143,7 @@ export const create = mutation({
 export const rename = mutation({
   args: { slug: v.string(), name: v.string() },
   handler: async (ctx, { slug, name }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Tab name is required");
@@ -135,11 +154,7 @@ export const rename = mutation({
 export const setDefaultCurrency = mutation({
   args: { slug: v.string(), currency: v.string() },
   handler: async (ctx, { slug, currency }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     await ctx.db.patch(tab._id, { defaultCurrency: currency, updatedAt: Date.now() });
   },
@@ -148,11 +163,7 @@ export const setDefaultCurrency = mutation({
 export const deleteTab = mutation({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     // Unlink (not delete) the tab's expenses - they still belong to
     // whoever owns them, just no longer attached to this tab.
@@ -181,11 +192,7 @@ export const deleteTab = mutation({
 export const addMember = mutation({
   args: { slug: v.string(), name: v.string() },
   handler: async (ctx, { slug, name }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
@@ -199,11 +206,7 @@ export const addMember = mutation({
 export const renameMember = mutation({
   args: { slug: v.string(), memberId: v.string(), name: v.string() },
   handler: async (ctx, { slug, memberId, name }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
@@ -218,11 +221,7 @@ export const renameMember = mutation({
 export const removeMember = mutation({
   args: { slug: v.string(), memberId: v.string() },
   handler: async (ctx, { slug, memberId }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     const removed = tab.members.find((m) => m.id === memberId);
     if (!removed) throw new Error("Member not found");
@@ -253,8 +252,7 @@ export const removeMember = mutation({
 export const claimMember = mutation({
   args: { slug: v.string(), token: v.string() },
   handler: async (ctx, { slug, token }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
+    const userId = await requireUserId(ctx);
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) throw new Error("Tab not found");
 
@@ -410,18 +408,25 @@ export async function friendsForUser(ctx: QueryCtx, userId: Id<"users">) {
     .sort((a, b) => Number(b.claimed) - Number(a.claimed) || a.name.localeCompare(b.name));
 }
 
+// The one tab read an outsider can make, and only while holding an unclaimed
+// invite token for it: the invite has to name the tab it's for before the
+// visitor signs in to claim their spot. It exposes nothing the invite isn't
+// already about - the tab's name and its roster. Every other tab read
+// (expenses, balances, invite links) needs real membership.
 export const getBySlug = query({
-  args: { slug: v.string() },
-  handler: async (ctx, { slug }) => {
-const tab = await getTabBySlug(ctx, slug);
-if (!tab) return null;
-const userId = await getAuthUserId(ctx);
-const members = await resolveMembers(ctx, tab);
+  args: { slug: v.string(), token: v.optional(v.string()) },
+  handler: async (ctx, { slug, token }) => {
+    const tab = await getTabBySlug(ctx, slug);
+    if (!tab) return null;
+
+    if (!isInviteToken(tab, token)) await requireTabViewer(ctx, tab);
+    const userId = await getAuthUserId(ctx);
+
     return {
       slug: tab.slug,
       name: tab.name,
       isOwner: userId !== null && tab.ownerUserId === userId,
-      members,
+      members: await resolveMembers(ctx, tab),
       defaultCurrency: tab.defaultCurrency ?? "USD",
     };
   },
@@ -430,11 +435,7 @@ const members = await resolveMembers(ctx, tab);
 export const getInviteLinks = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab } = await ownedTab(ctx, slug);
 
     return tab.members
       .filter((m) => !m.claimedByUserId)
@@ -457,12 +458,7 @@ export const createExpense = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { tabSlug, expenseSlug, state, memberMapping }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-
-    const tab = await getTabBySlug(ctx, tabSlug);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    const { tab, userId } = await ownedTab(ctx, tabSlug);
 
     const existing = await ctx.db
       .query("expenses")
@@ -538,8 +534,7 @@ export const addExpensePerson = mutation({
     newMemberName: v.optional(v.string()),
   },
   handler: async (ctx, { expenseSlug, memberId, newMemberName }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
+    const userId = await requireUserId(ctx);
 
     const expense = await ctx.db
       .query("expenses")
@@ -550,7 +545,7 @@ export const addExpensePerson = mutation({
 
     const tab = await ctx.db.get(expense.tabId);
     if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) throw new Error("Not authorized");
+    if (tab.ownerUserId !== userId) forbidden();
 
     const linkedMemberIds = new Set((expense.tabMemberIds ?? []).map((l) => l.memberId));
     let members = tab.members;
@@ -584,9 +579,10 @@ export const setExpenseExchangeRate = mutation({
   args: { slug: v.string(), expenseSlug: v.string(), from: v.string(), to: v.string(), rate: v.union(v.number(), v.null()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await requireUserId(ctx);
     const tab = await getTabBySlug(ctx, args.slug);
-    if (!userId || !tab || tab.ownerUserId !== userId) throw new Error("Only the tab owner can set exchange rates");
+    if (!tab) throw new Error("Tab not found");
+    if (tab.ownerUserId !== userId) forbidden("Only the tab owner can set exchange rates");
     const expense = await ctx.db.query("expenses").withIndex("by_user_slug", q => q.eq("userId", userId).eq("slug", args.expenseSlug)).unique();
     if (!expense || expense.tabId !== tab._id) throw new Error("Expense not found in this tab");
     if (args.from !== (expense.currency ?? "USD") || args.to !== (tab.defaultCurrency ?? "USD")) throw new Error("Currency changed. Reopen the expense and try again.");
@@ -600,8 +596,9 @@ export const expensesForTab = query({
   args: { slug: v.string() },
   returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) return [];
+    const viewable = await viewableTab(ctx, slug);
+    if (!viewable) return [];
+    const { tab } = viewable;
     const expenses = await ctx.db
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
@@ -707,8 +704,9 @@ async function computeCurrencyBreakdown(
 export const breakdown = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) return null;
+    const viewable = await viewableTab(ctx, slug);
+    if (!viewable) return null;
+    const { tab } = viewable;
 
     const expenses = await ctx.db
       .query("expenses")

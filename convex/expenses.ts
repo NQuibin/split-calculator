@@ -5,6 +5,7 @@ import { computeSplit, round2 } from "../src/lib/calculations";
 import { mutation, query } from "./_generated/server";
 import { expenseState, person } from "./schema";
 import { isAcceptedImageType, MAX_IMAGE_BYTES } from "./imageFormats";
+import { forbidden, requireUserId, unauthenticated } from "./authz";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { Infer } from "convex/values";
@@ -43,11 +44,36 @@ export const generateUploadUrl = mutation({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
+    await requireUserId(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
+
+/**
+ * The caller's own expense with this slug, or `null` when nobody has one.
+ * An expense that exists but belongs to somebody else is never returned - the
+ * caller gets an access error, so a shared `/e/{slug}` link lands on a
+ * forbidden page rather than silently looking like a brand-new expense.
+ */
+async function ownExpenseOrDeny(ctx: QueryCtx | MutationCtx, slug: string) {
+  const userId = await getAuthUserId(ctx);
+  if (userId) {
+    const own = await ctx.db
+      .query("expenses")
+      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
+      .unique();
+    if (own) return own;
+  }
+  // `first`, not `unique`: per-user uniqueness is all the schema guarantees,
+  // and any hit at all means this slug isn't the caller's to use.
+  const other = await ctx.db
+    .query("expenses")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .first();
+  if (!other) return null;
+  if (!userId) unauthenticated();
+  forbidden();
+}
 
 export const list = query({
   args: {},
@@ -160,12 +186,7 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
 export const get = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return null;
-    const doc = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
-      .unique();
+    const doc = await ownExpenseOrDeny(ctx, slug);
     if (!doc) return null;
     const { stage, name, people, namePeople, mode, items, date, contributions, currency, note, image, tabId, tabMemberIds } =
       doc;
@@ -215,13 +236,8 @@ export const save = mutation({
   args: { slug: v.string(), state: expenseState },
   returns: v.null(),
   handler: async (ctx, { slug, state }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const existing = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
-      .unique();
-
+    await requireUserId(ctx);
+    const existing = await ownExpenseOrDeny(ctx, slug);
     if (!existing) throw new Error("Choose a tab to create an expense");
 
     if (state.image && state.image.storageId !== existing.image?.storageId) {
@@ -243,12 +259,8 @@ export const save = mutation({
 export const remove = mutation({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    const existing = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
-      .unique();
+    await requireUserId(ctx);
+    const existing = await ownExpenseOrDeny(ctx, slug);
     if (!existing) return;
     await deleteImageIfUnused(ctx, existing.image?.storageId, undefined);
     await ctx.db.delete(existing._id);
