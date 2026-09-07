@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -24,7 +24,7 @@ import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { currency, parseISODate } from "@/lib/format";
@@ -73,16 +73,12 @@ export function TabPage() {
         <div className="min-w-0">
           <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-            <span>{tab.members.length} {tab.members.length === 1 ? "member" : "members"}</span>
-            {tab.isOwner ? <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} /> : <span>Tab currency · {tab.defaultCurrency}</span>}
+            <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
+            {tab.isOwner ? <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} /> : <span className="inline-flex items-center gap-2"><Coins aria-hidden="true" className="h-3.5 w-3.5 text-brass" strokeWidth={2.25} />Tab currency · {tab.defaultCurrency}</span>}
           </div>
         </div>
         {tab.isOwner && <div className="flex flex-wrap items-center gap-3"><ExpenseActions slug={slug} members={tab.members} /><DeleteTabButton slug={slug} /></div>}
       </header>
-      <div className="space-y-4">
-        <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
-        <TabSummary expenses={expenses} defaultCurrency={tab.defaultCurrency} />
-      </div>
       {breakdown && <div className="mt-7"><TabBreakdown tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
       <div className="mt-7"><ExpenseList defaultCurrency={tab.defaultCurrency} slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
     </main>
@@ -253,140 +249,97 @@ function DeleteTabButton({ slug }: { slug: string }) {
   );
 }
 
-function Roster({
-  slug,
-  isOwner,
-  members,
-}: {
+function Roster({ slug, isOwner, members }: {
   slug: string;
   isOwner: boolean;
   members: { id: string; name: string; claimed: boolean }[];
 }) {
-  const { addMember } = useTabActions();
+  const { addMember, renameMember, removeMember } = useTabActions();
   const inviteLinks = useTabInviteLinks(slug, isOwner);
-  const [expanded, setExpanded] = useState(false);
-  const membersId = useId();
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
+  const [name, setName] = useState("");
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    await addMember({ slug, name: trimmed });
-    setNewName("");
-    setAdding(false);
+  function resetForm() {
+    setEditingId(null); setAdding(false); setName(""); setRemovingId(null); setError(null);
   }
 
-  function copyInvite(memberId: string, token: string) {
-    const url = `${window.location.origin}${BASE_PATH}/t/${slug}?token=${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(memberId);
-    setTimeout(() => setCopiedId((id) => (id === memberId ? null : id)), 2000);
+  async function saveMember(event: FormEvent) {
+    event.preventDefault();
+    if (!name.trim() || pending) return;
+    setPending(true); setError(null);
+    try {
+      if (editingId) await renameMember({ slug, memberId: editingId, name: name.trim() });
+      else await addMember({ slug, name: name.trim() });
+      resetForm();
+    } catch (err) { setError(err instanceof Error ? err.message : "Couldn't save the member."); }
+    finally { setPending(false); }
   }
 
-  return (
-    <div className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-      <button
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={membersId}
-        onClick={() => setExpanded(value => !value)}
-        className="flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"
-      >
-        <span className="flex items-center gap-3 font-display text-sm font-semibold text-ink">
-          Members <span className="font-numeric font-normal text-ink-soft">{members.length}</span>
-        </span>
-        <ChevronDown aria-hidden="true" className={`h-4 w-4 shrink-0 text-ink-soft transition-transform duration-300 motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`} />
-      </button>
-      <div aria-hidden={expanded} inert={expanded} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${expanded ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}>
-        <div className="min-h-0 overflow-hidden">
-          <div className="flex -space-x-2 pt-3">
-            {members.slice(0, 5).map(member => (
-              <MemberAvatar key={member.id} id={member.id} name={member.name} size="lg" />
-            ))}
-            {members.length > 5 && (
-              <span aria-label={`${members.length - 5} more members`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9e8d9] text-sm font-semibold text-ink">
-                +{members.length - 5}
-              </span>
-            )}
-          </div>
-        </div>
+  async function handleRemove(memberId: string) {
+    setPending(true); setError(null);
+    try { await removeMember({ slug, memberId }); resetForm(); }
+    catch (err) { setError(err instanceof Error ? err.message : "Couldn't remove the member."); }
+    finally { setPending(false); }
+  }
+
+  async function copyInvite(memberId: string, token: string) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${BASE_PATH}/t/${slug}?token=${token}`);
+      setCopiedId(memberId);
+      setTimeout(() => setCopiedId(id => id === memberId ? null : id), 2000);
+    } catch { setError("Couldn't copy the invite. Please try again."); }
+  }
+
+  const memberForm = <form onSubmit={saveMember} className="mt-3 flex flex-wrap items-center gap-2">
+    <input autoFocus aria-label="Member name" placeholder="Name" value={name} disabled={pending} onChange={event => setName(event.target.value)} className={`${inputClass} min-w-0 flex-1 basis-40`} />
+    <button type="submit" disabled={pending || !name.trim()} className="rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface hover:bg-ink disabled:opacity-50">{pending ? "Saving…" : adding ? "Add" : "Save"}</button>
+    <button type="button" disabled={pending} onClick={resetForm} className="px-2 py-2 text-sm text-ink-soft hover:text-ink">Cancel</button>
+  </form>;
+
+  return <Dialog open={open} onOpenChange={next => { if (!pending) { setOpen(next); resetForm(); } }}>
+    <DialogTrigger aria-label={`View ${members.length} ${members.length === 1 ? "member" : "members"}`} className="inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-sm text-ink-soft transition hover:bg-surface hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
+      {members.length > 0 && <span aria-hidden="true" className="flex -space-x-2">
+        {members.slice(0, 5).map(member => <MemberAvatar key={member.id} id={member.id} name={member.name} className="ring-2 ring-paper" />)}
+        {members.length > 5 && <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface text-xs font-semibold ring-2 ring-paper">+{members.length - 5}</span>}
+      </span>}
+      <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
+      <ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0" />
+    </DialogTrigger>
+    <DialogContent>
+      <div className="flex items-start justify-between gap-3">
+        <div><DialogTitle>Members</DialogTitle><DialogDescription className="mt-1">{members.length} {members.length === 1 ? "person" : "people"} in this tab</DialogDescription></div>
+        <DialogClose disabled={pending} aria-label="Close members" className="rounded-md p-1 text-ink-soft hover:bg-paper"><X className="h-5 w-5" /></DialogClose>
       </div>
-      <div id={membersId} aria-hidden={!expanded} inert={!expanded} className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none ${expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
-        <div className="min-h-0 overflow-hidden">
-      <ul className="mt-4 space-y-2 text-sm">
-        {members.map((member) => {
-          const invite = inviteLinks.find((l) => l.memberId === member.id);
-          return (
-            <li key={member.id} className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-ink">
-                <MemberAvatar id={member.id} name={member.name} />
-                {member.name}
-                {!member.claimed && (
-                  <HatGlasses
-                    className="h-3.5 w-3.5 shrink-0 text-ink-soft"
-                    strokeWidth={2.25}
-                    aria-label="Anonymous member"
-                  />
-                )}
-              </span>
-              {isOwner && !member.claimed && invite && (
-                <button
-                  type="button"
-                  onClick={() => copyInvite(member.id, invite.token)}
-                  className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-forest hover:text-ink"
-                >
-                  {copiedId === member.id ? (
-                    <>
-                      <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Link2 className="h-3.5 w-3.5" strokeWidth={2.5} />
-                      Copy invite
-                    </>
-                  )}
-                </button>
-              )}
-            </li>
-          );
+      <ul className="mt-5 space-y-3">
+        {members.map(member => {
+          const invite = inviteLinks.find(link => link.memberId === member.id);
+          return <li key={member.id} className="rounded-lg border border-rule/70 p-3">
+            <div className="flex items-center gap-3">
+              <MemberAvatar id={member.id} name={member.name} size="lg" />
+              <span className="min-w-0 flex-1 break-words text-sm font-medium">{member.name}</span>
+              {!member.claimed && <HatGlasses className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
+              {isOwner && <div className="flex shrink-0 items-center">
+                <button type="button" disabled={pending} aria-label={`Edit ${member.name}`} onClick={() => { resetForm(); setEditingId(member.id); setName(member.name); }} className="rounded-md p-2 text-ink-soft hover:bg-paper hover:text-forest disabled:opacity-50"><Pencil className="h-4 w-4" /></button>
+                <button type="button" disabled={pending} aria-label={`Remove ${member.name}`} onClick={() => { resetForm(); setRemovingId(member.id); }} className="rounded-md p-2 text-ink-soft hover:bg-paper hover:text-margin-red disabled:opacity-50"><Trash2 className="h-4 w-4" /></button>
+              </div>}
+            </div>
+            {isOwner && !member.claimed && invite && <button type="button" onClick={() => void copyInvite(member.id, invite.token)} className="mt-2 inline-flex items-center gap-1.5 rounded-md py-1 text-xs font-medium text-forest hover:text-ink">{copiedId === member.id ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}{copiedId === member.id ? "Copied" : "Copy invite"}</button>}
+            {isOwner && editingId === member.id && memberForm}
+            {isOwner && removingId === member.id && <div className="mt-3 text-sm"><p>Remove {member.name} from this tab?</p><div className="mt-2 flex gap-3"><button type="button" disabled={pending} onClick={() => void handleRemove(member.id)} className="rounded-md py-1 font-semibold text-margin-red disabled:opacity-50">{pending ? "Removing…" : "Remove member"}</button><button type="button" disabled={pending} onClick={resetForm} className="rounded-md py-1 text-ink-soft">Cancel</button></div></div>}
+          </li>;
         })}
       </ul>
-
-      {isOwner &&
-        (adding ? (
-          <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2 p-0.5">
-            <input
-              autoFocus
-              placeholder="Name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className={inputClass}
-            />
-            <button
-              type="submit"
-              className="shrink-0 rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink"
-            >
-              Add
-            </button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="mt-3 flex items-center gap-1 text-xs font-medium text-forest hover:text-ink"
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            Add member
-          </button>
-        ))}
-        </div>
-      </div>
-    </div>
-  );
+      {!members.length && <p className="mt-4 text-sm text-ink-soft">No members yet.</p>}
+      {error && <p role="alert" className="mt-3 text-sm text-margin-red">{error}</p>}
+      {isOwner && (adding ? memberForm : <button type="button" disabled={pending} onClick={() => { resetForm(); setAdding(true); }} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-forest px-4 py-3 text-sm font-semibold text-surface hover:bg-ink disabled:opacity-50"><Plus className="h-4 w-4" />Add member</button>)}
+    </DialogContent>
+  </Dialog>;
 }
 
 function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId: string; id: string; name: string; claimed: boolean }[] }) {
@@ -403,29 +356,6 @@ function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId
     <AssignExpenseDialog tabSlug={slug} members={members} />
     <button type="button" onClick={handleNewExpense} className="inline-flex items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"><Plus className="h-4 w-4" />Add expense</button>
   </>;
-}
-
-function TabSummary({ expenses, defaultCurrency }: { expenses: ReturnType<typeof useTabExpenses>; defaultCurrency: string }) {
-  const totals = new Map<string, number>();
-  for (const expense of expenses) {
-    const total = totals.get(expense.settlementCurrency) ?? 0;
-    totals.set(expense.settlementCurrency, total + Math.round(computeSplit(expense.people, expense.items).grandTotal * (expense.exchangeRate?.rate ?? 1) * 100) / 100);
-  }
-  if (!totals.size) totals.set(defaultCurrency, 0);
-  const currencies = [...totals].sort(([a], [b]) => a.localeCompare(b));
-  return (
-    <section aria-label="Tab summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-      <h2 className="text-sm font-medium text-ink-soft">Total spent</h2>
-      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-y-4">
-        {currencies.map(([code, total], index) => (
-          <p key={code} className={`flex min-w-0 items-center gap-2 font-numeric text-2xl font-semibold sm:flex-1 ${index > 0 ? "border-t border-rule/70 pt-3 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6" : ""}`}>
-            <span className="rounded-md border border-rule px-1.5 py-0.5 text-xs font-medium text-ink-soft">{code}</span>
-            <span className="break-all">{currency(total, code)}</span>
-          </p>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 // One grid template shared by the expense list's header and its rows so the
