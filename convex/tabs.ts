@@ -40,42 +40,30 @@ async function ownedTab(ctx: QueryCtx | MutationCtx, slug: string) {
 }
 
 /**
- * Reconciles a tab's `tabMembers` rows to its `members[]` array - phase 1 of
- * moving the roster into its own table. The array is still authoritative, so
- * every mutation that writes it calls this with the array it just wrote and
- * the rows follow.
- *
- * Written as a reconcile rather than per-operation inserts and deletes so
- * there is one mirroring rule instead of seven, and so it is idempotent:
- * running it against an already-matching tab does nothing, which is also
- * what makes it reusable as the phase 2 backfill.
+ * Creates a seat row and returns the roster entry pointing at it. The row's
+ * `_id` is the seat id, so the row has to exist before the entry does - which
+ * is why every path that adds a member goes through here rather than minting
+ * an id of its own.
  */
-export async function syncTabMembers(
+async function createSeat(
   ctx: MutationCtx,
   tabId: Id<"tabs">,
-  members: Doc<"tabs">["members"],
-) {
-  const existing = await ctx.db
-    .query("tabMembers")
-    .withIndex("by_tab", (q) => q.eq("tabId", tabId))
-    .collect();
-  const unvisited = new Map(existing.map((row) => [row.memberId, row]));
+  name: string,
+  claimedByUserId?: Id<"users">,
+): Promise<Doc<"tabs">["members"][number]> {
+  const inviteToken = crypto.randomUUID();
+  const id = await ctx.db.insert("tabMembers", { tabId, name, inviteToken, userId: claimedByUserId });
+  return { id, name, inviteToken, ...(claimedByUserId ? { claimedByUserId } : {}) };
+}
 
-  for (const member of members) {
-    const row = unvisited.get(member.id);
-    const fields = { name: member.name, inviteToken: member.inviteToken, userId: member.claimedByUserId };
-    if (!row) {
-      await ctx.db.insert("tabMembers", { tabId, memberId: member.id, ...fields });
-      continue;
-    }
-    unvisited.delete(member.id);
-    if (row.name !== fields.name || row.inviteToken !== fields.inviteToken || row.userId !== fields.userId) {
-      await ctx.db.patch(row._id, fields);
-    }
-  }
-
-  // Whatever the array no longer lists has been removed from the roster.
-  for (const stale of unvisited.values()) await ctx.db.delete(stale._id);
+/**
+ * The row a roster entry points at. Null for a seat created before the table
+ * existed, whose id is still a bare UUID - those resolve once the backfill
+ * has re-keyed them, and until then the array alone carries the roster.
+ */
+async function seatRow(ctx: MutationCtx, seatId: string) {
+  const id = ctx.db.normalizeId("tabMembers", seatId);
+  return id === null ? null : await ctx.db.get(id);
 }
 
 function requireUniqueName(members: Doc<"tabs">["members"], name: string, excludeId?: string) {
@@ -159,24 +147,22 @@ export const create = mutation({
     const existing = await getTabBySlug(ctx, slug);
     if (existing) throw new Error("Slug already taken");
 
-    const members = [
-      { id: crypto.randomUUID(), name: creatorName, claimedByUserId: userId, inviteToken: crypto.randomUUID() },
-      ...trimmedMemberNames.map((memberName) => ({
-        id: crypto.randomUUID(),
-        name: memberName,
-        inviteToken: crypto.randomUUID(),
-      })),
-    ];
-
+    // Seat ids come from the rows, and rows need a tab to belong to, so the
+    // tab is inserted with an empty roster and patched once its seats exist.
     const tabId = await ctx.db.insert("tabs", {
       slug,
       ownerUserId: userId,
       name: trimmedName,
-      members,
+      members: [],
       defaultCurrency: creator?.defaultCurrency ?? "USD",
       updatedAt: Date.now(),
     });
-    await syncTabMembers(ctx, tabId, members);
+
+    const members = [await createSeat(ctx, tabId, creatorName, userId)];
+    for (const memberName of trimmedMemberNames) {
+      members.push(await createSeat(ctx, tabId, memberName));
+    }
+    await ctx.db.patch(tabId, { members });
   },
 });
 
@@ -227,7 +213,9 @@ export const deleteTab = mutation({
       if (stale) await ctx.db.delete(stale._id);
     }
 
-    await syncTabMembers(ctx, tab._id, []);
+    for (const seat of await ctx.db.query("tabMembers").withIndex("by_tab", (q) => q.eq("tabId", tab._id)).collect()) {
+      await ctx.db.delete(seat._id);
+    }
     await ctx.db.delete(tab._id);
   },
 });
@@ -241,9 +229,8 @@ export const addMember = mutation({
     if (!trimmedName) throw new Error("Member name is required");
     requireUniqueName(tab.members, trimmedName);
 
-    const members = [...tab.members, { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() }];
+    const members = [...tab.members, await createSeat(ctx, tab._id, trimmedName)];
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    await syncTabMembers(ctx, tab._id, members);
   },
 });
 
@@ -259,7 +246,8 @@ export const renameMember = mutation({
 
     const members = tab.members.map((m) => (m.id === memberId ? { ...m, name: trimmedName } : m));
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    await syncTabMembers(ctx, tab._id, members);
+    const renamed = await seatRow(ctx, memberId);
+    if (renamed) await ctx.db.patch(renamed._id, { name: trimmedName });
   },
 });
 
@@ -276,7 +264,8 @@ export const removeMember = mutation({
 
     const members = tab.members.filter((m) => m.id !== memberId);
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    await syncTabMembers(ctx, tab._id, members);
+    const vacated = await seatRow(ctx, memberId);
+    if (vacated) await ctx.db.delete(vacated._id);
 
     // If the removed slot was that user's only claimed slot in this tab, drop
     // the membership row too, so a removed member's account stops seeing this
@@ -315,7 +304,8 @@ export const claimMember = mutation({
 
     const members = tab.members.map((m) => (m.id === member.id ? { ...m, claimedByUserId: userId } : m));
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    await syncTabMembers(ctx, tab._id, members);
+    const claimed = await seatRow(ctx, member.id);
+    if (claimed) await ctx.db.patch(claimed._id, { userId });
 
     const existingMembership = await ctx.db
       .query("tabMemberships")
@@ -531,14 +521,13 @@ export const createExpense = mutation({
       const newMemberName = entry.newMemberName?.trim();
       if (!newMemberName) throw new Error("Each person needs a member to map to");
       requireUniqueName(members, newMemberName);
-      const newMember = { id: crypto.randomUUID(), name: newMemberName, inviteToken: crypto.randomUUID() };
+      const newMember = await createSeat(ctx, tab._id, newMemberName);
       members = [...members, newMember];
       links.push({ personId: entry.personId, memberId: newMember.id });
     }
 
     if (members !== tab.members) {
       await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-      await syncTabMembers(ctx, tab._id, members);
     }
 
     // Re-point each mapped person at their tab member's stable identity -
@@ -608,10 +597,9 @@ export const addExpensePerson = mutation({
       const trimmedName = newMemberName?.trim();
       if (!trimmedName) throw new Error("Name is required");
       requireUniqueName(members, trimmedName);
-      member = { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() };
+      member = await createSeat(ctx, tab._id, trimmedName);
       members = [...members, member];
       await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-      await syncTabMembers(ctx, tab._id, members);
     }
 
     const personId = member.claimedByUserId ?? member.id;

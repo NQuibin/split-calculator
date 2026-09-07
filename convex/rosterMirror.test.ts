@@ -27,10 +27,10 @@ async function setup() {
 /** Inferred from `setup` rather than instantiated by hand - convexTest is generic over the schema, and naming that type here buys nothing. */
 type TestConvex = Awaited<ReturnType<typeof setup>>["t"];
 
-/** Every seat the rows describe, keyed by seat id, for comparison with the array. */
+/** Every seat row, keyed by its id - which is the seat id the roster holds. */
 async function rows(t: TestConvex) {
   const docs = await t.run(ctx => ctx.db.query("tabMembers").collect());
-  return new Map(docs.map(r => [r.memberId, r]));
+  return new Map(docs.map(r => [r._id as string, r]));
 }
 
 /** The array and the rows agree, for every tab in the database. */
@@ -79,15 +79,15 @@ test("adding, renaming and removing a member all reach the rows", async () => {
   const added = [...(await rows(t)).values()].find(r => r.name === "Sam")!;
   expect(added).toBeTruthy();
 
-  await user.mutation(api.tabs.renameMember, { slug: "trip", memberId: added.memberId, name: "Samantha" });
+  await user.mutation(api.tabs.renameMember, { slug: "trip", memberId: added._id, name: "Samantha" });
   await expectMirrored(t);
-  // Renaming patches the existing row - the seat id is stable, so expenses
-  // pointing at it keep resolving.
-  expect((await rows(t)).get(added.memberId)!.name).toBe("Samantha");
+  // Renaming patches the existing row - the seat id is the row id, so it is
+  // stable and expenses pointing at it keep resolving.
+  expect((await rows(t)).get(added._id)!.name).toBe("Samantha");
 
-  await user.mutation(api.tabs.removeMember, { slug: "trip", memberId: added.memberId });
+  await user.mutation(api.tabs.removeMember, { slug: "trip", memberId: added._id });
   await expectMirrored(t);
-  expect((await rows(t)).has(added.memberId)).toBe(false);
+  expect((await rows(t)).has(added._id)).toBe(false);
 });
 
 test("claiming an invite sets userId on the existing row", async () => {
@@ -100,7 +100,7 @@ test("claiming an invite sets userId on the existing row", async () => {
   await sam.mutation(api.tabs.claimMember, { slug: "trip", token: seat.inviteToken });
 
   await expectMirrored(t);
-  const after = (await rows(t)).get(seat.memberId)!;
+  const after = (await rows(t)).get(seat._id)!;
   expect(after.userId).toBe(samId);
   // The row itself is the same document - claiming is a patch, not a move.
   expect(after._id).toBe(seat._id);
@@ -135,22 +135,4 @@ test("deleting a tab takes its rows with it", async () => {
   // The surviving tab keeps its own row; nothing is orphaned.
   await expectMirrored(t);
   expect([...(await rows(t)).values()].map(r => r.name)).toEqual(["Alex"]);
-});
-
-test("syncing is idempotent, so it can double as the backfill", async () => {
-  const { t, user } = await setup();
-  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: ["Sam"] });
-  const before = await t.run(ctx => ctx.db.query("tabMembers").collect());
-
-  // A tab whose rows already match: re-running must not duplicate or churn them.
-  await t.run(async ctx => {
-    const { syncTabMembers } = await import("./tabs");
-    const tab = (await ctx.db.query("tabs").first())!;
-    await syncTabMembers(ctx, tab._id, tab.members);
-    await syncTabMembers(ctx, tab._id, tab.members);
-  });
-
-  const after = await t.run(ctx => ctx.db.query("tabMembers").collect());
-  expect(after.map(r => r._id).sort()).toEqual(before.map(r => r._id).sort());
-  expect(after.map(r => r._creationTime).sort()).toEqual(before.map(r => r._creationTime).sort());
 });
