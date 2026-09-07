@@ -1,10 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { resolveMemberName } from "./tabs";
+import { listTabsForUser, resolveMemberName } from "./tabs";
+import { computeSplit, round2 } from "../src/lib/calculations";
 import { mutation, query } from "./_generated/server";
-import { expenseState } from "./schema";
+import { expenseState, person } from "./schema";
 import { isAcceptedImageType, MAX_IMAGE_BYTES } from "./imageFormats";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { Infer } from "convex/values";
 
@@ -60,6 +61,101 @@ export const list = query({
     return docs.map(({ slug, currency, ...state }) => ({ slug, state: { ...state, currency: currency ?? "USD" } }));
   },
 });
+
+// Every row the expenses directory renders - the user's own expenses plus the
+// expenses of every tab they belong to - merged and sorted in one subscription.
+// The directory used to fetch `expenses.list` and `tabs.list` and then fan out
+// `tabs.expensesForTab` per tab, so the page couldn't render until N+2 round
+// trips had landed. `kind`/`tabSlug` are returned instead of a built href so
+// URL shape stays a client concern.
+export const directory = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      key: v.string(),
+      kind: v.union(v.literal("own"), v.literal("tab")),
+      slug: v.string(),
+      tabSlug: v.optional(v.string()),
+      name: v.string(),
+      tabName: v.string(),
+      people: v.array(person),
+      itemCount: v.number(),
+      currency: v.string(),
+      total: v.number(),
+      updatedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await expenseDirectoryForUser(ctx, userId);
+  },
+});
+
+export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">) {
+  const own = await ctx.db
+    .query("expenses")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+
+  const rows: {
+    key: string;
+    kind: "own" | "tab";
+    slug: string;
+    tabSlug?: string;
+    name: string;
+    tabName: string;
+    people: Infer<typeof person>[];
+    itemCount: number;
+    currency: string;
+    total: number;
+    updatedAt: number;
+  }[] = own.map((e) => ({
+    key: `own-${e.slug}`,
+    kind: "own",
+    slug: e.slug,
+    tabSlug: undefined,
+    name: e.name,
+    tabName: "Personal expense",
+    people: e.people,
+    itemCount: e.items.length,
+    currency: e.currency ?? "USD",
+    total: round2(computeSplit(e.people, e.items).grandTotal),
+    updatedAt: e.updatedAt,
+  }));
+
+  for (const tab of await listTabsForUser(ctx, userId)) {
+    const expenses = await ctx.db
+      .query("expenses")
+      .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
+      .collect();
+    for (const e of expenses) {
+      // An owned expense appears once, with its tab name. Shared expenses
+      // open the tab's existing read-only view, not the owner-only editor.
+      const owned =
+        tab.ownerUserId === userId ? rows.find((row) => row.slug === e.slug) : undefined;
+      if (owned) {
+        owned.tabName = tab.name;
+        continue;
+      }
+      rows.push({
+        key: `${tab.slug}-${e.slug}`,
+        kind: "tab",
+        slug: e.slug,
+        tabSlug: tab.slug,
+        name: e.name || "Untitled expense",
+        tabName: tab.name,
+        people: e.people,
+        itemCount: e.items.length,
+        currency: e.currency ?? "USD",
+        total: round2(computeSplit(e.people, e.items).grandTotal),
+        updatedAt: e.updatedAt,
+      });
+    }
+  }
+
+  return rows.sort((a, b) => b.updatedAt - a.updatedAt || a.name.localeCompare(b.name));
+}
 
 export const get = query({
   args: { slug: v.string() },

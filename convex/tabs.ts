@@ -2,7 +2,7 @@ import { activeExchangeRate, convertSettlement } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
-import { person, expenseItem } from "./schema";
+import { person, expenseItem, expenseMode } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -32,6 +32,42 @@ export async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc
   if (!member.claimedByUserId) return member.name;
   const user = await ctx.db.get(member.claimedByUserId);
   return user?.name?.trim() || user?.email?.trim() || member.name;
+}
+
+// Every tab the user can see: the ones they own plus the ones they've claimed
+// a member slot in, deduped (owning a tab you also hold a slot in is common).
+export async function listTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
+  const owned = await ctx.db
+    .query("tabs")
+    .withIndex("by_owner", (q) => q.eq("ownerUserId", userId))
+    .collect();
+
+  const memberships = await ctx.db
+    .query("tabMemberships")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+  const claimedTabs = (
+    await Promise.all(memberships.map((m) => ctx.db.get(m.tabId)))
+  ).filter((t): t is Doc<"tabs"> => t !== null);
+
+  const byId = new Map<string, Doc<"tabs">>();
+  for (const t of [...owned, ...claimedTabs]) byId.set(t._id, t);
+  return Array.from(byId.values());
+}
+
+async function resolveMembers(ctx: QueryCtx, tab: Doc<"tabs">) {
+  return await Promise.all(
+    tab.members.map(async (m) => ({
+      id: m.id,
+      name: await resolveMemberName(ctx, m),
+      claimed: m.claimedByUserId !== undefined,
+      // The identity a person gets remapped to once assigned to this tab
+      // (see assignExpense) - lets a brand-new expense started from this
+      // tab already carry a claimed member's real account id, instead of
+      // only picking it up once explicitly assigned.
+      resolvedId: m.claimedByUserId ?? m.id,
+    })),
+  );
 }
 
 export const create = mutation({
@@ -251,23 +287,7 @@ export const list = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    const owned = await ctx.db
-      .query("tabs")
-      .withIndex("by_owner", (q) => q.eq("ownerUserId", userId))
-      .collect();
-
-    const memberships = await ctx.db
-      .query("tabMemberships")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    const claimedTabs = (
-      await Promise.all(memberships.map((m) => ctx.db.get(m.tabId)))
-    ).filter((t): t is Doc<"tabs"> => t !== null);
-
-    const byId = new Map<string, Doc<"tabs">>();
-    for (const t of [...owned, ...claimedTabs]) byId.set(t._id, t);
-
-    return Array.from(byId.values()).map((t) => ({
+    return (await listTabsForUser(ctx, userId)).map((t) => ({
       slug: t.slug,
       name: t.name,
       isOwner: t.ownerUserId === userId,
@@ -276,24 +296,126 @@ export const list = query({
   },
 });
 
+// Everything the tabs directory renders for every tab, in one subscription.
+// The directory used to fetch `list` and then fan out `getBySlug` +
+// `expensesForTab` per row, which cost 1 + 2N round trips and let each row
+// resolve on its own schedule (members and totals popping in one row at a
+// time). Fanning out here instead keeps it to a single transaction of local
+// reads, so the whole page resolves at once.
+export const listWithSummary = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      name: v.string(),
+      isOwner: v.boolean(),
+      memberCount: v.number(),
+      defaultCurrency: v.string(),
+      members: v.array(
+        v.object({
+          id: v.string(),
+          name: v.string(),
+          claimed: v.boolean(),
+          resolvedId: v.string(),
+        }),
+      ),
+      expenseCount: v.number(),
+      // Kept split by currency rather than summed - adding incompatible
+      // currencies together would be meaningless. Sorted by code so the row
+      // renders in a stable order without the client re-sorting.
+      totals: v.array(v.object({ currency: v.string(), total: v.number() })),
+    }),
+  ),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await summarizeTabsForUser(ctx, userId);
+  },
+});
+
+export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
+  const tabs = await listTabsForUser(ctx, userId);
+  return await Promise.all(
+    tabs.map(async (tab) => {
+      const expenses = await ctx.db
+        .query("expenses")
+        .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
+        .collect();
+
+      const totals = new Map<string, number>();
+      for (const expense of expenses) {
+        const code = expense.currency ?? "USD";
+        const { grandTotal } = computeSplit(expense.people, expense.items);
+        totals.set(code, (totals.get(code) ?? 0) + grandTotal);
+      }
+
+      return {
+        slug: tab.slug,
+        name: tab.name,
+        isOwner: tab.ownerUserId === userId,
+        memberCount: tab.members.length,
+        defaultCurrency: tab.defaultCurrency ?? "USD",
+        members: await resolveMembers(ctx, tab),
+        expenseCount: expenses.length,
+        totals: [...totals]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([currency, total]) => ({ currency, total: round2(total) })),
+      };
+    }),
+  );
+}
+
+// The people the user shares tabs with, deduped across tabs, in one
+// subscription - replacing a `list` + per-tab `getBySlug` fan-out.
+export const friends = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      id: v.string(),
+      name: v.string(),
+      claimed: v.boolean(),
+      tabs: v.array(v.object({ slug: v.string(), name: v.string() })),
+    }),
+  ),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await friendsForUser(ctx, userId);
+  },
+});
+
+export async function friendsForUser(ctx: QueryCtx, userId: Id<"users">) {
+  // `claimed` members have an account behind them, so they merge across tabs
+  // by user id. Anonymous ones are per-tab placeholder slots keyed by their
+  // own member id, so a same-named placeholder in two tabs stays two entries
+  // - there's nothing tying them together until someone claims the invite.
+  const people = new Map<string, { name: string; claimed: boolean; tabs: { slug: string; name: string }[] }>();
+  for (const tab of await listTabsForUser(ctx, userId)) {
+    for (const member of await resolveMembers(ctx, tab)) {
+      // You aren't your own friend - skip every slot you've claimed yourself.
+      if (member.resolvedId === userId) continue;
+      const person = people.get(member.resolvedId) ?? {
+        name: member.name,
+        claimed: member.claimed,
+        tabs: [],
+      };
+      person.tabs.push({ slug: tab.slug, name: tab.name });
+      people.set(member.resolvedId, person);
+    }
+  }
+
+  return [...people]
+    .map(([id, person]) => ({ id, ...person }))
+    .sort((a, b) => Number(b.claimed) - Number(a.claimed) || a.name.localeCompare(b.name));
+}
+
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const tab = await getTabBySlug(ctx, slug);
-    if (!tab) return null;
-    const userId = await getAuthUserId(ctx);
-    const members = await Promise.all(
-      tab.members.map(async (m) => ({
-        id: m.id,
-        name: await resolveMemberName(ctx, m),
-        claimed: m.claimedByUserId !== undefined,
-        // The identity a person gets remapped to once assigned to this tab
-        // (see assignExpense) - lets a brand-new expense started from this
-        // tab already carry a claimed member's real account id, instead of
-        // only picking it up once explicitly assigned.
-        resolvedId: m.claimedByUserId ?? m.id,
-      })),
-    );
+const tab = await getTabBySlug(ctx, slug);
+if (!tab) return null;
+const userId = await getAuthUserId(ctx);
+const members = await resolveMembers(ctx, tab);
     return {
       slug: tab.slug,
       name: tab.name,
@@ -469,7 +591,7 @@ export const setExpenseExchangeRate = mutation({
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return [];
@@ -482,9 +604,10 @@ export const expensesForTab = query({
       return [id, user?.name?.trim() || "Unknown creator"] as const;
     })));
     return (await Promise.all(expenses
-      .map(async ({ slug, name, note, image, people, items, currency, exchangeRate, updatedAt, date, userId }) => ({
+  .map(async ({ slug, name, mode, note, image, people, items, currency, exchangeRate, updatedAt, date, userId }) => ({
         slug,
         name,
+    mode,
         note,
         image: image ? { name: image.name, type: image.type, url: await ctx.storage.getUrl(image.storageId) } : undefined,
         people,
