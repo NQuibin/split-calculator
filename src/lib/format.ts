@@ -18,6 +18,23 @@ export function todayISODate(): string {
   return toISODate(new Date());
 }
 
+// How an expense's date reads everywhere it's listed, e.g. "Mar 3, 2027".
+// Undefined when there's no date, so callers can fall back to their own copy.
+export function formatExpenseDate(iso: string | undefined): string | undefined {
+  return (iso ? parseISODate(iso) : undefined)?.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+// An expense dated after today hasn't been charged yet. Both sides are
+// YYYY-MM-DD, so comparing the strings is the same as comparing the dates -
+// and it avoids the timezone drift that parsing to Date invites.
+export function isUpcoming(date: string | undefined): boolean {
+  return date !== undefined && date > todayISODate();
+}
+
 // Parses a YYYY-MM-DD string as a local date (not UTC, unlike `new Date(str)`).
 export function parseISODate(s: string): Date | undefined {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);

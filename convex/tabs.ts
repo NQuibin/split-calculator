@@ -594,7 +594,7 @@ export const setExpenseExchangeRate = mutation({
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), updatedAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), createdAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const viewable = await viewableTab(ctx, slug);
     if (!viewable) return [];
@@ -608,7 +608,7 @@ export const expensesForTab = query({
       return [id, user?.name?.trim() || "Unknown creator"] as const;
     })));
     return (await Promise.all(expenses
-  .map(async ({ slug, name, mode, note, image, people, items, currency, exchangeRate, updatedAt, date, userId }) => ({
+  .map(async ({ slug, name, mode, note, image, people, items, currency, exchangeRate, _creationTime, date, userId }) => ({
         slug,
         name,
     mode,
@@ -619,11 +619,13 @@ export const expensesForTab = query({
         currency: currency ?? "USD",
         exchangeRate: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD"),
         settlementCurrency: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD")?.to ?? currency ?? "USD",
-        updatedAt,
+        createdAt: _creationTime,
         date,
         createdBy: { id: userId, name: creators.get(userId) ?? "Unknown creator" },
       }))))
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      // Newest first. Ordering by creation keeps a tab's list stable - editing
+      // an old expense shouldn't jump it to the top of everyone else's view.
+      .sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 

@@ -108,6 +108,7 @@ export const directory = query({
       itemCount: v.number(),
       currency: v.string(),
       total: v.number(),
+      date: v.string(),
       updatedAt: v.number(),
     }),
   ),
@@ -135,6 +136,7 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
     itemCount: number;
     currency: string;
     total: number;
+    date: string;
     updatedAt: number;
   }[] = own.map((e) => ({
     key: `own-${e.slug}`,
@@ -147,6 +149,7 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
     itemCount: e.items.length,
     currency: e.currency ?? "USD",
     total: round2(computeSplit(e.people, e.items).grandTotal),
+    date: e.date,
     updatedAt: e.updatedAt,
   }));
 
@@ -175,11 +178,15 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
         itemCount: e.items.length,
         currency: e.currency ?? "USD",
         total: round2(computeSplit(e.people, e.items).grandTotal),
+        date: e.date,
         updatedAt: e.updatedAt,
       });
     }
   }
 
+  // Most recently touched first. Unlike a tab's own list (which stays in
+  // creation order), this one is the user's working set across every tab, so
+  // editing an expense is what should float it back to the top.
   return rows.sort((a, b) => b.updatedAt - a.updatedAt || a.name.localeCompare(b.name));
 }
 

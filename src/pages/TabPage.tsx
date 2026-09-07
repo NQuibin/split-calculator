@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
 import {
   ArrowUpRight,
@@ -26,7 +27,7 @@ import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
-import { currency, parseISODate } from "@/lib/format";
+import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
 import {
   useTab,
   useTabActions,
@@ -404,11 +405,6 @@ function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId
 const expenseRowGrid =
   "grid grid-cols-[minmax(0,1fr)_6.5rem] items-center gap-x-4 gap-y-3 px-5 md:grid-cols-[minmax(0,1fr)_7rem_9rem_7.5rem_6.5rem]";
 
-function formatExpenseDate(iso: string | undefined) {
-  const date = iso ? parseISODate(iso) : undefined;
-  return date?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
 function AvatarStack({ people }: { people: { id: string; name: string }[] }) {
   const shown = people.slice(0, 3);
   const overflow = people.length - shown.length;
@@ -419,9 +415,9 @@ function AvatarStack({ people }: { people: { id: string; name: string }[] }) {
 }
 
 function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpenses>[number] }) {
-  const date = expense.date ? parseISODate(expense.date) : undefined;
+  const date = formatExpenseDate(expense.date);
   return <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-soft">
-    <span><span className="mr-1 font-medium">Date</span>{date ? <time dateTime={expense.date}>{date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</time> : "Not set"}</span>
+    <span><span className="mr-1 font-medium">Date</span>{date ? <time dateTime={expense.date}>{date}</time> : "Not set"}</span>
     <span className="inline-flex items-center gap-2"><span className="font-medium">Created by</span>{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} />}<span>{expense.createdBy?.name ?? "Unknown creator"}</span></span>
   </span>;
 }
@@ -476,7 +472,10 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
               <span className="block text-xs text-ink-soft">{expense.items.length} {expense.items.length === 1 ? "item" : "items"}</span>
             </span>
           </span>
-          <span className="hidden text-sm text-ink-soft md:block">{expense.date ? <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time> : "Not set"}</span>
+          <span className="hidden items-center gap-1.5 text-sm text-ink-soft md:flex">
+            <UpcomingExpenseIcon date={expense.date} />
+            {expense.date ? <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time> : "Not set"}
+          </span>
           <span className="hidden min-w-0 items-center justify-center gap-2 text-sm md:flex">
             {expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}
             <span className="truncate">{expense.createdBy?.name ?? "Unknown creator"}</span>
@@ -484,13 +483,14 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
           <span className="hidden justify-center md:flex"><AvatarStack people={expense.people} /></span>
           <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal * (expense.exchangeRate?.rate ?? 1), expense.settlementCurrency)}</span><span className="block text-xs text-ink-soft">{expense.exchangeRate ? `${currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)} · converted` : expense.currency}</span></span>
           <span className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
-            {expense.date && <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>}
+            {expense.date && <span className="inline-flex items-center gap-1.5"><UpcomingExpenseIcon date={expense.date} /><time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time></span>}
             <span className="inline-flex items-center gap-1.5">{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}{expense.createdBy?.name ?? "Unknown creator"}</span>
             <AvatarStack people={expense.people} />
           </span>
         </button>
       </li>)}</ul>}
     </div>
+    {filtered.some(expense => isUpcoming(expense.date)) && <UpcomingExpenseLegend />}
     <Dialog open={Boolean(selected)} onOpenChange={next => { if (!next) { setSelectedSlug(null); setConfirmDelete(false); setError(null); } }}>
       {selected && split && <DialogContent key={selected.slug} aria-label="Expense details" className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">

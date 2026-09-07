@@ -106,7 +106,7 @@ export interface TabExpenseSummary {
   currency: string;
   settlementCurrency: string;
   exchangeRate?: import("./exchangeRate").ExchangeRate;
-  updatedAt: number;
+  createdAt: number;
 }
 
 export function useTabExpenses(slug: string): TabExpenseSummary[] {

@@ -9,9 +9,10 @@ import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
 import { NewExpenseButton } from "@/components/NewExpenseButton";
+import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useExpenseList } from "@/lib/expenseSync";
 import { computeSplit } from "@/lib/calculations";
-import { currency } from "@/lib/format";
+import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
 
 function Directory({ title, description, action, children }: { title: string; description: string; action?: ReactNode; children: ReactNode }) {
   return <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-10 md:py-12">
@@ -83,7 +84,8 @@ export function ExpensesDirectory() {
     itemCount: state.items.length,
     currency: state.currency,
     total: computeSplit(state.people, state.items).grandTotal,
-    updatedAt: "updatedAt" in state ? Number(state.updatedAt) : 0,
+    date: state.date,
+    updatedAt: state.updatedAt ?? 0,
   })), [localExpenses]);
   const loading = isLoading || (isAuthenticated && remoteRows === undefined);
   const rows = isAuthenticated ? remoteRows ?? [] : localRows;
@@ -93,13 +95,20 @@ export function ExpensesDirectory() {
       <Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search expenses or tabs" placeholder="Search expenses or tabs…" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
     </label>
     {loading ? <Notice>Loading expenses…</Notice> : !filtered.length ? <Notice>{rows.length ? "No expenses match your search." : "No expenses yet. Split an expense to get started."}</Notice> :
-      <ul className={directoryListClass}>{filtered.map(row => <li key={row.key}>
+      <><ul className={directoryListClass}>{filtered.map(row => <li key={row.key}>
         <Link {...(row.kind === "own"
           ? ({ to: "/e/$slug", params: { slug: row.slug } } as const)
           : ({ to: "/t/$slug", params: { slug: row.tabSlug! } } as const))} className={directoryRowClass}>
           <div className="min-w-0">
             <h2 className="font-display text-lg font-semibold break-words">{row.name}</h2>
             <p className="mt-1 text-sm text-ink-soft break-words">{row.tabName}</p>
+            {/* This list has no date column, so the date rides along under the
+                tab name. The icon only joins it when the expense is still
+                ahead - on its own it would say "later" without saying when. */}
+            {formatExpenseDate(row.date) && <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-soft">
+              <UpcomingExpenseIcon date={row.date} />
+              <time dateTime={row.date}>{formatExpenseDate(row.date)}</time>
+            </p>}
             <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label={`${row.people.length} participants`}>
               {row.people.map(person => <MemberAvatar key={person.id} id={person.id} name={person.name} />)}
               <span className="ml-2 text-xs text-ink-soft">{row.people.length} {row.people.length === 1 ? "person" : "people"}</span>
@@ -111,7 +120,7 @@ export function ExpensesDirectory() {
           </div>
           <ChevronRight aria-hidden="true" className="col-start-2 row-start-1 h-5 w-5 text-ink-soft transition group-hover:translate-x-0.5 sm:col-start-3" />
         </Link>
-      </li>)}</ul>}
+      </li>)}</ul>{filtered.some(row => isUpcoming(row.date)) && <UpcomingExpenseLegend />}</>}
   </Directory>;
 }
 

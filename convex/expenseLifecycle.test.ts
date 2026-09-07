@@ -63,3 +63,49 @@ test("another user's tab cannot receive a new expense", async () => {
   await expect(other.mutation(api.tabs.createExpense, { tabSlug: "trip", expenseSlug: "dinner", state, memberMapping: [] })).rejects.toThrow("Not authorized");
   expect(await other.query(api.expenses.list)).toEqual([]);
 });
+
+test("a tab's expenses stay in creation order, newest first", async () => {
+  const { user } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
+  const mapping = [{ personId: "person-1", memberId: tab.members[0].id }];
+
+  for (const name of ["first", "second", "third"]) {
+    await user.mutation(api.tabs.createExpense, {
+      tabSlug: "trip", expenseSlug: name, state: { ...state, name }, memberMapping: mapping,
+    });
+  }
+
+  // Touching the oldest expense must not move it in the tab's own list -
+  // that order is by creation, so it stays put for everyone looking at it.
+  await user.mutation(api.expenses.save, { slug: "first", state: { ...state, name: "first", date: "2026-01-01" } });
+
+  const inTab = await user.query(api.tabs.expensesForTab, { slug: "trip" });
+  expect(inTab.map(e => e.name)).toEqual(["third", "second", "first"]);
+  expect(inTab.map(e => e.createdAt)).toEqual([...inTab.map(e => e.createdAt)].sort((a, b) => b - a));
+});
+
+test("the expenses directory orders by last update, newest first", async () => {
+  const { t, user } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
+  const mapping = [{ personId: "person-1", memberId: tab.members[0].id }];
+
+  for (const name of ["first", "second", "third"]) {
+    await user.mutation(api.tabs.createExpense, {
+      tabSlug: "trip", expenseSlug: name, state: { ...state, name }, memberMapping: mapping,
+    });
+  }
+
+  // Stamped rather than saved through the mutation: three saves can land in
+  // the same millisecond, which would make the assertion depend on the clock.
+  const stamps: Record<string, number> = { first: 300, second: 100, third: 200 };
+  await t.run(async ctx => {
+    for (const doc of await ctx.db.query("expenses").collect()) {
+      await ctx.db.patch(doc._id, { updatedAt: stamps[doc.slug] });
+    }
+  });
+
+  const directory = await user.query(api.expenses.directory);
+  expect(directory.map(row => row.name)).toEqual(["first", "third", "second"]);
+});

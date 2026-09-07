@@ -80,6 +80,8 @@ export function getExpenseListSnapshot(): StoredExpense[] {
       return state ? { slug: key.slice(PREFIX.length), state } : null;
     })
     .filter((r): r is StoredExpense => r !== null)
+    // Most recently saved first, matching how the expenses list orders a
+    // signed-in user's rows.
     .sort((a, b) => (b.state.updatedAt ?? 0) - (a.state.updatedAt ?? 0));
 
   listCache = { raw, result };
