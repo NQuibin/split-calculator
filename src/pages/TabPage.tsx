@@ -152,7 +152,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
             {tab.isOwner ? <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} /> : <span className="inline-flex items-center gap-2"><Coins aria-hidden="true" className="h-3.5 w-3.5 text-brass" strokeWidth={2.25} />Tab currency · {tab.defaultCurrency}</span>}
           </div>
         </div>
-        {tab.isOwner && <div className="flex flex-wrap items-center gap-3"><ExpenseActions slug={slug} members={tab.members} /><DeleteTabButton slug={slug} /></div>}
+        {tab.isOwner && <div className="flex flex-wrap items-center gap-3"><ExpenseActions slug={slug} members={tab.members} /><DeleteTabButton slug={slug} expenseCount={expenses.length} /></div>}
       </header>
       {breakdown && <div className="mt-7"><TabBreakdown tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
       <div className="mt-7"><ExpenseList defaultCurrency={tab.defaultCurrency} slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
@@ -229,7 +229,7 @@ function TabDefaultCurrency({ slug, currency: currencyCode }: { slug: string; cu
   );
 }
 
-function DeleteTabButton({ slug }: { slug: string }) {
+function DeleteTabButton({ slug, expenseCount }: { slug: string; expenseCount: number }) {
   const navigate = useNavigate();
   const { deleteTab } = useTabActions();
   const [confirming, setConfirming] = useState(false);
@@ -250,7 +250,14 @@ function DeleteTabButton({ slug }: { slug: string }) {
 
   if (confirming) {
     return (
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
+        {/* Deleting a tab takes its expenses with it, so the count is spelled
+            out here rather than left to be discovered afterwards. */}
+        <span className="text-xs text-ink-soft">
+          {expenseCount === 0
+            ? "Delete this tab?"
+            : `Deletes ${expenseCount} ${expenseCount === 1 ? "expense" : "expenses"} too.`}
+        </span>
         {error && <span className="text-xs text-margin-red">{error}</span>}
         <button
           type="button"

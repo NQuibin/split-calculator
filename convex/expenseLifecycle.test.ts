@@ -109,3 +109,32 @@ test("the expenses directory orders by last update, newest first", async () => {
   const directory = await user.query(api.expenses.directory);
   expect(directory.map(row => row.name)).toEqual(["first", "third", "second"]);
 });
+
+test("deleting a tab deletes its expenses and their receipts", async () => {
+  const { t, user, userId } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
+  await user.mutation(api.tabs.createExpense, {
+    tabSlug: "trip", expenseSlug: "dinner", state,
+    memberMapping: [{ personId: "person-1", memberId: tab.members[0].id }],
+  });
+
+  // Attached directly: convex-test's storage.store records no contentType,
+  // so assertValidImage (rightly) refuses the file through the normal path.
+  const storageId = await t.run(async ctx => {
+    const id = await ctx.storage.store(new Blob(["receipt"]));
+    const expense = (await ctx.db.query("expenses").first())!;
+    await ctx.db.patch(expense._id, { image: { storageId: id, name: "receipt.png", type: "image/png" } });
+    return id;
+  });
+
+  await user.mutation(api.tabs.deleteTab, { slug: "trip" });
+
+  expect(await user.query(api.expenses.list)).toEqual([]);
+  expect(await user.query(api.expenses.get, { slug: "dinner" })).toBeNull();
+  expect(await t.run(ctx => ctx.db.query("expenses").collect())).toEqual([]);
+  // The receipt goes with the expense - nothing points at the file any more.
+  expect(await t.run(ctx => ctx.db.system.get("_storage", storageId))).toBeNull();
+  // And the owner's membership row is cleaned up, as before.
+  expect(await t.run(ctx => ctx.db.query("tabMemberships").withIndex("by_user", q => q.eq("userId", userId)).collect())).toEqual([]);
+});

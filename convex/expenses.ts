@@ -7,7 +7,7 @@ import { expenseState, person } from "./schema";
 import { isAcceptedImageType, MAX_IMAGE_BYTES } from "./imageFormats";
 import { forbidden, requireUserId, unauthenticated } from "./authz";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { Infer } from "convex/values";
 
 // A note that's empty (or only whitespace) means "no note" - it's stored as an
@@ -38,6 +38,16 @@ async function deleteImageIfUnused(
   next: Id<"_storage"> | undefined,
 ) {
   if (previous && previous !== next) await ctx.storage.delete(previous);
+}
+
+/**
+ * Removes an expense and the receipt file it holds. Storage isn't reachable
+ * once nothing points at it, so the file has to go with the document - every
+ * path that deletes an expense goes through here to keep that true.
+ */
+export async function deleteExpenseDoc(ctx: MutationCtx, expense: Doc<"expenses">) {
+  await deleteImageIfUnused(ctx, expense.image?.storageId, undefined);
+  await ctx.db.delete(expense._id);
 }
 
 export const generateUploadUrl = mutation({
@@ -269,7 +279,6 @@ export const remove = mutation({
     await requireUserId(ctx);
     const existing = await ownExpenseOrDeny(ctx, slug);
     if (!existing) return;
-    await deleteImageIfUnused(ctx, existing.image?.storageId, undefined);
-    await ctx.db.delete(existing._id);
+    await deleteExpenseDoc(ctx, existing);
   },
 });

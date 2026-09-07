@@ -1,4 +1,4 @@
-import { assertValidImage } from "./expenses";
+import { assertValidImage, deleteExpenseDoc } from "./expenses";
 import { activeExchangeRate, convertSettlement } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
@@ -165,14 +165,16 @@ export const deleteTab = mutation({
   handler: async (ctx, { slug }) => {
     const { tab } = await ownedTab(ctx, slug);
 
-    // Unlink (not delete) the tab's expenses - they still belong to
-    // whoever owns them, just no longer attached to this tab.
+    // The tab's expenses go with it. They used to be unlinked and kept, but a
+    // signed-in expense can no longer exist outside a tab, so that left rows
+    // the app has no way to recreate - and an expense's people, splits and
+    // balances only mean anything inside the tab that defined them.
     const expenses = await ctx.db
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     for (const expense of expenses) {
-      await ctx.db.patch(expense._id, { tabId: undefined, tabMemberIds: undefined, exchangeRate: undefined });
+      await deleteExpenseDoc(ctx, expense);
     }
 
     for (const member of tab.members) {
