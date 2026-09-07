@@ -692,6 +692,9 @@ async function computeCurrencyBreakdown(
         const entry = totals.get(member.id)!;
         return {
           memberId: member.id,
+          // The identity this member renders as - see MemberAvatar, which
+          // keys a person's colour on it so they look the same everywhere.
+          resolvedId: member.claimedByUserId ?? member.id,
           name: await resolveMemberName(ctx, member),
           claimed: member.claimedByUserId !== undefined,
           totalSpent: round2(entry.totalSpent),

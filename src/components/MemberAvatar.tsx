@@ -19,12 +19,21 @@ const avatarSizes = {
   lg: "h-11 w-11 text-sm",
 };
 
+/**
+ * The colour is a hash of `id`, so it is deterministic - but only as stable as
+ * the id the caller passes. Always pass the *resolved* identity: a claimed
+ * member's account id, otherwise their member id (`resolvedId` on a tab's
+ * members, `personId`/`people[].id` on an expense, which already store it).
+ * Passing a tab-local member id instead would give the same person a
+ * different colour on any screen that knows them by account.
+ */
 export function MemberAvatar({
   id,
   name,
   size = "md",
   className = "",
 }: {
+  /** The person's resolved identity - see above. Not a tab-local member id. */
   id: string;
   name: string;
   size?: keyof typeof avatarSizes;

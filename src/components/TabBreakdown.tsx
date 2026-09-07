@@ -55,7 +55,7 @@ export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps
                 <tr key={member.id} className="border-b border-rule/70 last:border-b-0">
                   <th scope="row" className="px-4 py-3 font-medium">
                     <span className="flex items-center gap-3">
-                      <MemberAvatar id={member.id} name={member.name} />
+                      <MemberAvatar id={member.resolvedId} name={member.name} />
                       <span className="break-words">{member.name}</span>
                       {!member.claimed && <HatGlasses className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
                     </span>

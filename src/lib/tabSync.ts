@@ -65,6 +65,8 @@ export interface TabBreakdownExpenseLine {
 
 export interface TabBreakdownMember {
   memberId: string;
+  /** The identity this member renders as - their account id once claimed, otherwise their member id. */
+  resolvedId: string;
   name: string;
   claimed: boolean;
   totalSpent: number;

@@ -74,7 +74,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
     <article className="overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
       <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <MemberAvatar id={member.memberId} name={member.name} size="lg" />
+          <MemberAvatar id={member.resolvedId} name={member.name} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="break-words font-display text-lg font-semibold text-ink">{member.name}</h2>
