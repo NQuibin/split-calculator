@@ -1,5 +1,3 @@
-"use client";
-
 export function Footer() {
   const year = new Date().getFullYear();
 

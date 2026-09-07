@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Loader2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/Dialog";

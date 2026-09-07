@@ -1,5 +1,3 @@
-"use client";
-
 import type { LucideIcon } from "lucide-react";
 import { DollarSign, Percent } from "lucide-react";
 import type { RateSetting } from "@/lib/types";

@@ -1,5 +1,3 @@
-"use client";
-
 import { type ReactNode, useMemo, useState } from "react";
 import { AnimatePresence, motion, Reorder } from "motion/react";
 import type { LucideIcon } from "lucide-react";

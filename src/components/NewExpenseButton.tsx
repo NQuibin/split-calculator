@@ -1,7 +1,5 @@
-"use client";
-
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { ArrowRight, Loader2, Plus } from "lucide-react";
 import { api } from "../../convex/_generated/api";
@@ -13,7 +11,7 @@ const defaultClass =
   "inline-flex items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red";
 
 export function NewExpenseButton({ className, variant = "default" }: { className?: string; variant?: "default" | "primary" }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();
   const viewer = useQuery(api.users.viewer);
 
@@ -28,7 +26,13 @@ export function NewExpenseButton({ className, variant = "default" }: { className
           { id: "person-2", name: "Person 2" },
         ];
     const params = encodeDraftParams(people, true);
-    startTransition(() => router.push(`/e/${slug}?${params.toString()}`));
+    startTransition(() => {
+      void navigate({
+        to: "/e/$slug",
+        params: { slug },
+        search: Object.fromEntries(params) as { count?: string; names?: string; ids?: string },
+      });
+    });
   }
 
   return (

@@ -1,8 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Menu, ReceiptText, Settings, Users, Wallet, X } from "lucide-react";
 import { SidebarAccount } from "@/components/SidebarAccount";
 
@@ -11,7 +8,7 @@ function isActive(pathname: string | null, href: string): boolean {
 }
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Close the mobile drawer whenever the route changes, without an Effect
@@ -73,7 +70,7 @@ export function Sidebar() {
             { label: "Friends", href: "/friends", icon: Users, active: isActive(pathname, "/friends") || isActive(pathname, "/people") },
             { label: "Settings", href: "/settings", icon: Settings, active: isActive(pathname, "/settings") },
           ].map(({ label, href, icon: Icon, active }) => (
-            <Link key={href} href={href} aria-current={active ? "page" : undefined}
+            <Link key={href} to={href} aria-current={active ? "page" : undefined}
               onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${active ? "bg-rule/30 font-semibold text-forest" : "text-ink-soft hover:bg-rule/20"}`}>
               <Icon aria-hidden="true" className={`h-5 w-5 shrink-0 ${active ? "text-brass" : "text-ink-soft"}`} strokeWidth={2} />
@@ -92,7 +89,7 @@ export function Sidebar() {
 
 function BrandLink() {
   return (
-    <Link href="/tabs" className="font-display text-lg font-semibold tracking-tight text-brass">
+    <Link to="/tabs" className="font-display text-lg font-semibold tracking-tight text-brass">
       Split Calculator
     </Link>
   );

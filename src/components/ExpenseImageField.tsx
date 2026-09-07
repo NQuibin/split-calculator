@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Camera, ChevronDown, FileText, ImagePlus, Loader2, Paperclip, Trash2 } from "lucide-react";
@@ -186,7 +184,6 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                         <ReceiptFileRow name={receipt.name} href={receipt.url} />
                       ) : (
                         <a href={previewUrl} target="_blank" rel="noreferrer" className="block">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- a signed, per-read Convex storage URL, so there's no stable host for next/image to optimize. */}
                           <img
                             src={previewUrl}
                             alt={receipt.name}

@@ -1,0 +1,168 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* next/font used to declare these on <html>; the faces themselves are now
+   self-hosted from @fontsource (imported in main.tsx), so the variables have
+   to be defined here instead. Names and fallbacks are unchanged, so every
+   `font-display` / `font-numeric` / body rule below still resolves. */
+:root {
+  --font-space-grotesk: "Space Grotesk Variable";
+  --font-plex-sans: "IBM Plex Sans";
+  --font-plex-mono: "IBM Plex Mono";
+}
+
+/* This app has no dark theme, but shadcn/ui components ship `dark:` utility
+   classes throughout. Without pinning the variant to a `.dark` ancestor
+   (which is never applied here), Tailwind falls back to matching it against
+   the OS/browser's prefers-color-scheme instead, activating those classes
+   unintentionally for anyone with dark mode on. */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --paper: #edf1e4;
+  --surface: #f7f5ec;
+  --ink: #1e2a22;
+  --ink-soft: #4b5a4f;
+  --forest: #2f4a3c;
+  --margin-red: #c1432b;
+  --brass: #b8933a;
+  --rule: #ccd5bd;
+
+  /* shadcn/ui semantic tokens, remapped to the app's own palette above
+     instead of shadcn's default theme, so components added via the CLI
+     (Button, Popover, Calendar, ...) automatically match the app. */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--forest);
+  --primary-foreground: var(--surface);
+  --secondary: var(--paper);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--paper);
+  --accent-foreground: var(--ink);
+  --destructive: var(--margin-red);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--margin-red);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-forest: var(--forest);
+  --color-margin-red: var(--margin-red);
+  --color-brass: var(--brass);
+  --color-rule: var(--rule);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /* Tailwind's preflight resets buttons (and friends) to the UA `default`
+     cursor, so every interactive control would otherwise need its own
+     `cursor-pointer`. Set it once here instead - covering native controls,
+     ARIA roles used by Radix/shadcn primitives, and links - so anything
+     clickable gets the pointer without per-element classes. Utilities still
+     win over this (base layer), so `cursor-grab` and friends keep working. */
+  button,
+  summary,
+  a[href],
+  label[for],
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="range"],
+  input[type="color"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="button"],
+  [role="button"],
+  [role="link"],
+  [role="tab"],
+  [role="option"],
+  [role="menuitem"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"] {
+    cursor: pointer;
+  }
+
+  /* ...but a control that can't be used shouldn't invite a click. */
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"],
+  [data-disabled] {
+    cursor: not-allowed;
+  }
+}
+
+.font-display {
+  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-numeric {
+  font-family: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Perforated rule between an item list and its total, like a receipt tear line. */
+.perforated-top {
+  border-top: 2px dashed color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

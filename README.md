@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Split Calculator
 
-## Getting Started
+Itemize any expense — restaurant, grocery, or service — and split it fairly.
 
-First, run the development server:
+A client-rendered SPA built with [Vite](https://vite.dev),
+[TanStack Router](https://tanstack.com/router),
+[TanStack Query](https://tanstack.com/query), and
+[Convex](https://convex.dev) as the backend.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev          # Vite dev server
+npx convex dev    # Convex backend (separate terminal)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app is served under a base path (`src/lib/basePath.ts`), so the dev URL is
+http://localhost:5173/projects/split-calculator/.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Vite dev server |
+| `pnpm build` | Typechecks, renders app icons, builds to `dist/` |
+| `pnpm typecheck` | `tsc --noEmit` — also runs first in `build`, so a type error fails the deploy |
+| `pnpm preview` | Serves the production build locally |
+| `pnpm icons` | Regenerates the PWA/Apple icons into `public/` |
+| `pnpm lint` | ESLint |
 
-## Learn More
+## Deploying
 
-To learn more about Next.js, take a look at the following resources:
+Deployed to Vercel as a static site (Framework Preset **Vite**, output
+directory `dist`), and reached through a rewrite from `nquibin.dev` that
+forwards `/projects/split-calculator/*` with the prefix intact.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Two things make that work:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **`vite.config.ts` nests the build under the base path**
+  (`outDir: dist/projects/split-calculator`). Vite's `base` only rewrites the
+  URLs inside `index.html`; it does not move the emitted files. Next's
+  `basePath` did both, so without this the HTML would ask for
+  `/projects/split-calculator/assets/…` while the files sat at `/assets/…`.
+- **`vercel.json` provides the SPA fallback.** Vercel checks the filesystem
+  before applying rewrites, so real assets are served directly and only
+  unmatched app routes fall through to the shell. There are two entries
+  because `:match*` does not match the bare, no-trailing-slash path — which
+  is the PWA `start_url`.
 
-## Deploy on Vercel
+Without the fallback, deep links such as `/t/{slug}` and `/e/{slug}` 404 on a
+hard load.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set **`VITE_CONVEX_URL`** in the Vercel project (Vite only exposes
+`VITE_`-prefixed vars). Using `npx convex deploy --cmd 'pnpm build'` as the
+build command injects it automatically and ships the backend at the same
+time; it needs `CONVEX_DEPLOY_KEY`.

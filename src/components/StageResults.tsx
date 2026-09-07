@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -328,7 +326,6 @@ export function StageResults({
             </a>
           ) : (
             <a href={image.url} target="_blank" rel="noreferrer" className="block">
-              {/* eslint-disable-next-line @next/next/no-img-element -- a signed, per-read Convex storage URL, so there's no stable host for next/image to optimize. */}
               <img
                 src={image.url}
                 alt={image.name}

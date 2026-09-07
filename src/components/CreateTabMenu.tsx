@@ -1,7 +1,5 @@
-"use client";
-
 import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "@tanstack/react-router";
 import { Authenticated } from "convex/react";
 import { Plus, Users2, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -20,7 +18,7 @@ export function CreateTabMenu({ variant = "button" }: { variant?: "button" | "ic
 }
 
 function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { create } = useTabActions();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -43,7 +41,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
       const slug = generateSlug();
       await create({ slug, name, memberNames });
       setOpen(false);
-      router.push(`/t/${slug}`);
+      void navigate({ to: "/t/$slug", params: { slug } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the tab.");
     } finally {

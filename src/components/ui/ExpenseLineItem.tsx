@@ -1,5 +1,3 @@
-"use client";
-
 import { motion, Reorder, useDragControls } from "motion/react";
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 import { discountAmount } from "@/lib/calculations";

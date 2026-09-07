@@ -1,7 +1,5 @@
-"use client";
-
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, ChevronRight, HatGlasses, Scale } from "lucide-react";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -28,7 +26,7 @@ export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps
         </h2>
         <div className="flex flex-wrap items-center gap-4">
           {currencies.some(item => item.expenseCount > 0) && (
-            <Link href={`/t/${tabSlug}/breakdown`} className="inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
+            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
               Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
             </Link>
           )}

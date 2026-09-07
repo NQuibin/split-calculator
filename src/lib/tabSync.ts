@@ -1,5 +1,3 @@
-"use client";
-
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Person, ExpenseItem } from "./types";
@@ -91,6 +89,7 @@ export function useTabBreakdown(slug: string): TabBreakdown | null | undefined {
 }
 
 export interface TabExpenseSummary {
+  mode: "simple" | "itemized";
   note?: string;
   image?: { name: string; type: string; url: string | null };
   date: string;

@@ -1,12 +1,19 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# Stack
 
-# This is NOT the Next.js you know
+A client-rendered SPA: **Vite** + **TanStack Router** (file-based routes in
+`src/routes/`) + **TanStack Query** (Convex subscriptions flow through its
+cache via `@convex-dev/react-query`). There is no server and no SSR - the
+app was migrated off Next.js, so ignore any Next-era instructions, and note
+that `next/*` imports, Server Components, `"use client"`, and route handlers
+no longer exist here.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+Because it ships as static files, **any host serving this app must fall back
+to `index.html` for unknown paths** - otherwise deep links like `/t/{slug}`
+and `/e/{slug}` 404 on a hard load.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+`pnpm dev` runs Vite; `pnpm build` typechecks (`pnpm typecheck`), renders the app
+icons (`scripts/build-icons.tsx`, satori + resvg), then builds to `dist/`. The
+typecheck runs first and gates the build, so a type error fails the deploy.
 
 <!-- convex-ai-start -->
 

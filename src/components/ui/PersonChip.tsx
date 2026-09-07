@@ -1,5 +1,3 @@
-"use client";
-
 import { Check, HatGlasses } from "lucide-react";
 
 interface PersonChipProps {

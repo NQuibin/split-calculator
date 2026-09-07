@@ -13,9 +13,13 @@
 # testing
 /coverage
 
-# next.js
+# vite
+/dist/
+
+# stale Next.js artifacts (Next was removed; a lingering `next dev` recreates these)
 /.next/
 /out/
+next-env.d.ts
 
 # production
 /build
@@ -38,4 +42,3 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts

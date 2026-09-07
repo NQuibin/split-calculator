@@ -1,5 +1,3 @@
-"use client";
-
 import { type FormEvent, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";

@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { ArrowLeft, Users2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
