@@ -39,6 +39,45 @@ async function ownedTab(ctx: QueryCtx | MutationCtx, slug: string) {
   return { tab, userId };
 }
 
+/**
+ * Reconciles a tab's `tabMembers` rows to its `members[]` array - phase 1 of
+ * moving the roster into its own table. The array is still authoritative, so
+ * every mutation that writes it calls this with the array it just wrote and
+ * the rows follow.
+ *
+ * Written as a reconcile rather than per-operation inserts and deletes so
+ * there is one mirroring rule instead of seven, and so it is idempotent:
+ * running it against an already-matching tab does nothing, which is also
+ * what makes it reusable as the phase 2 backfill.
+ */
+export async function syncTabMembers(
+  ctx: MutationCtx,
+  tabId: Id<"tabs">,
+  members: Doc<"tabs">["members"],
+) {
+  const existing = await ctx.db
+    .query("tabMembers")
+    .withIndex("by_tab", (q) => q.eq("tabId", tabId))
+    .collect();
+  const unvisited = new Map(existing.map((row) => [row.memberId, row]));
+
+  for (const member of members) {
+    const row = unvisited.get(member.id);
+    const fields = { name: member.name, inviteToken: member.inviteToken, userId: member.claimedByUserId };
+    if (!row) {
+      await ctx.db.insert("tabMembers", { tabId, memberId: member.id, ...fields });
+      continue;
+    }
+    unvisited.delete(member.id);
+    if (row.name !== fields.name || row.inviteToken !== fields.inviteToken || row.userId !== fields.userId) {
+      await ctx.db.patch(row._id, fields);
+    }
+  }
+
+  // Whatever the array no longer lists has been removed from the roster.
+  for (const stale of unvisited.values()) await ctx.db.delete(stale._id);
+}
+
 function requireUniqueName(members: Doc<"tabs">["members"], name: string, excludeId?: string) {
   const normalized = normalizeMemberName(name);
   const collision = members.some((m) => m.id !== excludeId && normalizeMemberName(m.name) === normalized);
@@ -129,7 +168,7 @@ export const create = mutation({
       })),
     ];
 
-    await ctx.db.insert("tabs", {
+    const tabId = await ctx.db.insert("tabs", {
       slug,
       ownerUserId: userId,
       name: trimmedName,
@@ -137,6 +176,7 @@ export const create = mutation({
       defaultCurrency: creator?.defaultCurrency ?? "USD",
       updatedAt: Date.now(),
     });
+    await syncTabMembers(ctx, tabId, members);
   },
 });
 
@@ -187,6 +227,7 @@ export const deleteTab = mutation({
       if (stale) await ctx.db.delete(stale._id);
     }
 
+    await syncTabMembers(ctx, tab._id, []);
     await ctx.db.delete(tab._id);
   },
 });
@@ -202,6 +243,7 @@ export const addMember = mutation({
 
     const members = [...tab.members, { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() }];
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+    await syncTabMembers(ctx, tab._id, members);
   },
 });
 
@@ -217,6 +259,7 @@ export const renameMember = mutation({
 
     const members = tab.members.map((m) => (m.id === memberId ? { ...m, name: trimmedName } : m));
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+    await syncTabMembers(ctx, tab._id, members);
   },
 });
 
@@ -233,6 +276,7 @@ export const removeMember = mutation({
 
     const members = tab.members.filter((m) => m.id !== memberId);
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+    await syncTabMembers(ctx, tab._id, members);
 
     // If the removed slot was that user's only claimed slot in this tab, drop
     // the membership row too, so a removed member's account stops seeing this
@@ -271,6 +315,7 @@ export const claimMember = mutation({
 
     const members = tab.members.map((m) => (m.id === member.id ? { ...m, claimedByUserId: userId } : m));
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+    await syncTabMembers(ctx, tab._id, members);
 
     const existingMembership = await ctx.db
       .query("tabMemberships")
@@ -493,6 +538,7 @@ export const createExpense = mutation({
 
     if (members !== tab.members) {
       await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+      await syncTabMembers(ctx, tab._id, members);
     }
 
     // Re-point each mapped person at their tab member's stable identity -
@@ -565,6 +611,7 @@ export const addExpensePerson = mutation({
       member = { id: crypto.randomUUID(), name: trimmedName, inviteToken: crypto.randomUUID() };
       members = [...members, member];
       await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+      await syncTabMembers(ctx, tab._id, members);
     }
 
     const personId = member.claimedByUserId ?? member.id;

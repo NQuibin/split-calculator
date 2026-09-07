@@ -123,4 +123,31 @@ export default defineSchema({
     userId: v.id("users"),
     tabId: v.id("tabs"),
   }).index("by_user", ["userId"]),
+  /**
+   * One row per seat in a tab's roster - phase 1 of moving the roster out of
+   * the `tabs.members[]` array. That array is still the source of truth and
+   * still what every read uses; these rows are kept in step with it by
+   * `syncTabMembers` so a later phase can switch the reads over.
+   *
+   * `userId` is absent for an anonymous seat - nobody has claimed the invite
+   * yet - which is what lets one table hold claimed and unclaimed seats
+   * alike: claiming becomes a patch of this one field rather than moving a
+   * row between tables.
+   *
+   * `memberId` is the seat's original UUID, carried over deliberately rather
+   * than re-keying seats onto this row's `_id`: expense documents reference
+   * it in `tabMemberIds[].memberId`, and - for anonymous members, whose
+   * resolved identity is their seat id - also in `people[].id`, every item's
+   * `splitWith[]`, and `contributions[].personId`.
+   */
+  tabMembers: defineTable({
+    tabId: v.id("tabs"),
+    memberId: v.string(),
+    name: v.string(),
+    inviteToken: v.string(),
+    userId: v.optional(v.id("users")),
+  })
+    .index("by_tab", ["tabId"])
+    .index("by_user", ["userId"])
+    .index("by_tab_member", ["tabId", "memberId"]),
 });
