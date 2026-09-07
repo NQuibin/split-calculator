@@ -68,8 +68,8 @@ export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps
                     return (
                       <td key={item.currency} className="border-l border-rule/70 px-5 py-3">
                         {owes || receives ? (
-                          <div className={`flex items-center gap-3 ${owes ? "text-margin-red" : "text-forest"}`}>
-                            <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${owes ? "bg-margin-red/10" : "bg-forest/10"}`}>
+                          <div className={`flex items-center gap-3 ${owes ? "text-margin-red" : "text-ledger-green"}`}>
+                            <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${owes ? "bg-margin-red/10" : "bg-ledger-green/20"}`}>
                               {owes ? <ArrowUp aria-hidden="true" className="h-4 w-4" /> : <ArrowDown aria-hidden="true" className="h-4 w-4" />}
                             </span>
                             <span><span className="block text-xs">{owes ? "Owes" : "Receives"}</span><span className="block font-numeric font-semibold">{currency(Math.abs(net), item.currency)}</span></span>

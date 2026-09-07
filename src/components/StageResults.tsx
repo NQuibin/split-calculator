@@ -282,7 +282,7 @@ export function StageResults({
                   <span className="truncate">{row.name}</span>
                 </span>
                 {row.balance > 0.005 ? (
-                  <span className="font-numeric font-semibold text-forest">
+                  <span className="font-numeric font-semibold text-ledger-green">
                     Gets back {currency(row.balance, currencyCode)}
                   </span>
                 ) : row.balance < -0.005 ? (

@@ -25,6 +25,13 @@
   --ink: #1e2a22;
   --ink-soft: #4b5a4f;
   --forest: #2f4a3c;
+  /* The positive counterpart to --margin-red, for money coming back to you.
+     --forest is only a few points of saturation off --paper's own green cast,
+     so it sinks into the page background; this is lighter and much more
+     saturated, and still clears AA on both grounds (5.6:1 on --paper,
+     5.9:1 on --surface). Use it for balances, not for chrome - links and
+     buttons stay --forest. */
+  --ledger-green: #276b46;
   --margin-red: #c1432b;
   --brass: #b8933a;
   --rule: #ccd5bd;
@@ -59,6 +66,7 @@
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-forest: var(--forest);
+  --color-ledger-green: var(--ledger-green);
   --color-margin-red: var(--margin-red);
   --color-brass: var(--brass);
   --color-rule: var(--rule);

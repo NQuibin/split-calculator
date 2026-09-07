@@ -84,8 +84,8 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
           </div>
         </div>
         {owes || receives ? (
-          <div className={`flex items-center gap-3 ${owes ? "text-margin-red" : "text-forest"}`}>
-            <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${owes ? "bg-margin-red/10" : "bg-forest/10"}`}>
+          <div className={`flex items-center gap-3 ${owes ? "text-margin-red" : "text-ledger-green"}`}>
+            <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${owes ? "bg-margin-red/10" : "bg-ledger-green/20"}`}>
               {owes ? <ArrowUp aria-hidden="true" className="h-4 w-4" /> : <ArrowDown aria-hidden="true" className="h-4 w-4" />}
             </span>
             <span><span className="block text-xs">{owes ? "Owes" : "Receives"}</span><span className="block font-numeric text-lg font-semibold">{currency(Math.abs(member.netBalance), currencyCode)}</span></span>
@@ -107,7 +107,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
               <div className="shrink-0 text-right">
                 <p className="text-ink"><span className="text-xs text-ink-soft">Share </span><span className="font-numeric font-medium">{currency(line.fairShare, currencyCode)}</span></p>
                 {Math.abs(line.balance) > 0.005 ? (
-                  <p className={`mt-1 text-xs ${line.balance < 0 ? "text-margin-red" : "text-forest"}`}>{line.balance < 0 ? "Owes" : "Receives"} <span className="font-numeric">{currency(Math.abs(line.balance), currencyCode)}</span></p>
+                  <p className={`mt-1 text-xs ${line.balance < 0 ? "text-margin-red" : "text-ledger-green"}`}>{line.balance < 0 ? "Owes" : "Receives"} <span className="font-numeric">{currency(Math.abs(line.balance), currencyCode)}</span></p>
                 ) : <p className="mt-1 text-xs text-ink-soft">Settled up</p>}
               </div>
             </li>
