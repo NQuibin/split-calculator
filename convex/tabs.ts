@@ -1,8 +1,9 @@
+import { assertValidImage } from "./expenses";
 import { activeExchangeRate, convertSettlement } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
-import { person, expenseItem, expenseMode } from "./schema";
+import { person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -62,7 +63,7 @@ async function resolveMembers(ctx: QueryCtx, tab: Doc<"tabs">) {
       name: await resolveMemberName(ctx, m),
       claimed: m.claimedByUserId !== undefined,
       // The identity a person gets remapped to once assigned to this tab
-      // (see assignExpense) - lets a brand-new expense started from this
+      // (see createExpense) - lets a brand-new expense started from this
       // tab already carry a claimed member's real account id, instead of
       // only picking it up once explicitly assigned.
       resolvedId: m.claimedByUserId ?? m.id,
@@ -441,10 +442,11 @@ export const getInviteLinks = query({
   },
 });
 
-export const assignExpense = mutation({
+export const createExpense = mutation({
   args: {
     tabSlug: v.string(),
     expenseSlug: v.string(),
+    state: expenseState,
     memberMapping: v.array(
       v.object({
         personId: v.string(),
@@ -453,7 +455,8 @@ export const assignExpense = mutation({
       }),
     ),
   },
-  handler: async (ctx, { tabSlug, expenseSlug, memberMapping }) => {
+  returns: v.null(),
+  handler: async (ctx, { tabSlug, expenseSlug, state, memberMapping }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
 
@@ -461,11 +464,14 @@ export const assignExpense = mutation({
     if (!tab) throw new Error("Tab not found");
     if (tab.ownerUserId !== userId) throw new Error("Not authorized");
 
-    const expense = await ctx.db
+    const existing = await ctx.db
       .query("expenses")
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
       .unique();
-    if (!expense) throw new Error("Expense not found");
+    if (existing) throw new Error("An existing expense cannot be added to a tab");
+    if (state.items.length === 0) throw new Error("Add an item before saving");
+    if (state.image) await assertValidImage(ctx, state.image.storageId);
+    const expense = state;
 
     let members = tab.members;
     const links: { personId: string; memberId: string }[] = [];
@@ -516,12 +522,13 @@ export const assignExpense = mutation({
     const contributions = expense.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
     const tabMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
 
-    await ctx.db.patch(expense._id, { tabId: tab._id, tabMemberIds, people, items, contributions, exchangeRate: undefined });
+    await ctx.db.insert("expenses", { ...state, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, tabMemberIds, people, items, contributions, updatedAt: Date.now() });
+    return null;
   },
 });
 
 // Once an expense belongs to a tab, its existing people are locked to the
-// tab mapping decided in assignExpense - the only way to change who's on
+// tab mapping decided in createExpense - the only way to change who's on
 // the expense is to add someone, either an existing member not yet on this
 // expense or a brand-new one (who is added to the tab at the same time).
 export const addExpensePerson = mutation({

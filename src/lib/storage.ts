@@ -96,12 +96,8 @@ export function subscribeExpenseList(callback: Listener): () => void {
 }
 
 export function saveExpense(slug: string, state: ExpenseState): void {
-  if (state.items.length === 0) {
-    window.localStorage.removeItem(PREFIX + slug);
-  } else {
-    const stamped: ExpenseState = { ...state, updatedAt: Date.now() };
-    window.localStorage.setItem(PREFIX + slug, JSON.stringify(stamped));
-  }
+  const stamped: ExpenseState = { ...state, updatedAt: Date.now() };
+  window.localStorage.setItem(PREFIX + slug, JSON.stringify(stamped));
   listeners.get(slug)?.forEach((callback) => callback());
   listListeners.forEach((callback) => callback());
 }

@@ -2,33 +2,41 @@ import { type FormEvent, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Authenticated } from "convex/react";
 import { Plus, Users2, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/Dialog";
 import { useTabActions } from "@/lib/tabSync";
 import { generateSlug } from "@/lib/slug";
 
 const inputClass =
   "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
-export function CreateTabMenu({ variant = "button" }: { variant?: "button" | "icon" | "primary" }) {
-  return (
-    <Authenticated>
-      <CreateTabPopover variant={variant} />
-    </Authenticated>
-  );
+interface CreateTabMenuProps {
+  variant?: "button" | "icon" | "primary" | "none";
+  onCreated?: (slug: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" }) {
+export function CreateTabMenu(props: CreateTabMenuProps) {
+  return <Authenticated><CreateTabModal {...props} /></Authenticated>;
+}
+
+function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, onOpenChange }: CreateTabMenuProps) {
   const navigate = useNavigate();
   const { create } = useTabActions();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  function setOpen(next: boolean) {
+    setInternalOpen(next);
+    onOpenChange?.(next);
+  }
   const [name, setName] = useState("");
-  const [memberNames, setMemberNames] = useState([""]);
+  const [memberNames, setMemberNames] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function resetForm() {
     setName("");
-    setMemberNames([""]);
+    setMemberNames([]);
     setError(null);
     setSubmitting(false);
   }
@@ -41,7 +49,9 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
       const slug = generateSlug();
       await create({ slug, name, memberNames });
       setOpen(false);
-      void navigate({ to: "/t/$slug", params: { slug } });
+      resetForm();
+      if (onCreated) onCreated(slug);
+      else void navigate({ to: "/t/$slug", params: { slug } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the tab.");
     } finally {
@@ -50,15 +60,15 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
   }
 
   return (
-    <Popover
+    <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) resetForm();
       }}
     >
-      {variant === "icon" ? (
-        <PopoverTrigger
+      {variant === "none" ? null : variant === "icon" ? (
+        <DialogTrigger
           render={
             <button
               type="button"
@@ -69,9 +79,9 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
           }
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </PopoverTrigger>
+        </DialogTrigger>
       ) : (
-        <PopoverTrigger
+        <DialogTrigger
           render={
             <button
               type="button"
@@ -83,19 +93,24 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
         >
           {variant === "primary" ? <Plus className="h-5 w-5" strokeWidth={2} /> : <Users2 className="h-4 w-4" strokeWidth={2.5} />}
           New tab
-        </PopoverTrigger>
+        </DialogTrigger>
       )}
-      <PopoverContent align="start" className="w-80 border border-rule bg-surface p-4">
+      <DialogContent>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <DialogTitle>New tab</DialogTitle>
+          <DialogClose aria-label="Close new tab" className="rounded-md p-1.5 text-ink-soft hover:text-ink"><X className="h-4 w-4" /></DialogClose>
+        </div>
+        <DialogDescription className="mb-5">You’re added automatically. Add other people below, or invite them later.</DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             type="text"
             required
             placeholder="Tab name"
+            aria-label="Tab name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={inputClass}
           />
-          <p className="text-xs text-ink-soft">You&rsquo;re added automatically. Add other people below, or invite them later.</p>
           <div className="space-y-2">
             {memberNames.map((memberName, i) => (
               <div key={i} className="flex items-center gap-1.5">
@@ -125,7 +140,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
             className="flex items-center gap-1 text-xs font-medium text-forest hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            Add another member
+            {memberNames.length === 0 ? "Add member" : "Add another member"}
           </button>
           {error && <p className="text-xs text-margin-red">{error}</p>}
           <button
@@ -136,7 +151,7 @@ function CreateTabPopover({ variant }: { variant: "button" | "icon" | "primary" 
             {submitting ? "Creating…" : "Create tab"}
           </button>
         </form>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }

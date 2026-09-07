@@ -2,8 +2,8 @@ import { DEFAULT_CURRENCY } from "./currencies";
 import { todayISODate } from "./format";
 import type { Person, ExpenseState } from "./types";
 
-// A brand-new expense isn't persisted until its first item is added (see
-// storage.ts), so its starting people/namePeople travel in the URL instead.
+// A brand-new expense is persisted only when explicitly saved, so its
+// starting people/namePeople travel in the URL instead.
 // Person.id is normally regenerated as `person-${index + 1}` on the other
 // end (see reducer.ts's ADD_PERSON) - real ids only need to survive the
 // round-trip for a person already tied to a real account (the signed-in

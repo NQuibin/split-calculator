@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -25,8 +25,7 @@ import type {
   ExpenseMode,
 } from "./types";
 
-// When signed in, Convex is the source of truth (live queries); localStorage
-// keeps being written to as a cache so the app still works offline/signed out.
+// Guest expenses live only in localStorage. Signed-in expenses live only in Convex.
 
 interface ExpenseStateArgs {
   stage: ExpenseState["stage"];
@@ -48,7 +47,7 @@ interface ExpenseStateArgs {
 // app - stale fields like a legacy expense-level `tax`/`tip` rate that
 // predates today's per-item `tax`/`tip`. Rebuild exactly the shape the
 // validator expects, at every nested level, before sending to Convex.
-function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
+export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
   const rate = ({ mode, value }: RateSetting): RateSetting => ({ mode, value });
   return {
     stage: state.stage,
@@ -128,14 +127,14 @@ function imageArg(image: ExpenseImage | undefined): { image?: ExpenseStateArgs["
 }
 
 export function useExpenseList(): StoredExpense[] {
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const localList = useSyncExternalStore(
     subscribeExpenseList,
     getExpenseListSnapshot,
     getExpenseListServerSnapshot,
   );
   const remoteList = useQuery(api.expenses.list, isAuthenticated ? {} : "skip");
-  return isAuthenticated && remoteList ? remoteList : localList;
+  return isLoading ? [] : isAuthenticated ? remoteList ?? [] : localList;
 }
 
 export function useStoredExpense(slug: string): { state: ExpenseState | null; loading: boolean } {
@@ -160,35 +159,18 @@ export function useExpenseActions(): {
   const save = useCallback(
     async (slug: string, state: ExpenseState) => {
       if (isAuthenticated) await saveMutation({ slug, state: toExpenseStateArgs(state) });
-      saveExpense(slug, state);
+      else saveExpense(slug, state);
     },
     [isAuthenticated, saveMutation],
   );
 
   const remove = useCallback(
     (slug: string) => {
-      deleteExpense(slug);
       if (isAuthenticated) void removeMutation({ slug });
+      else deleteExpense(slug);
     },
     [isAuthenticated, removeMutation],
   );
 
   return { save, remove };
-}
-
-/** Uploads guest-created localStorage expenses to Convex the moment the user signs in. */
-export function useSyncLocalExpensesOnLogin(): void {
-  const { isAuthenticated } = useConvexAuth();
-  const importLocal = useMutation(api.expenses.importLocal);
-  const hasSynced = useRef(false);
-
-  useEffect(() => {
-    if (!isAuthenticated || hasSynced.current) return;
-    hasSynced.current = true;
-    const expenses = getExpenseListSnapshot();
-    if (expenses.length === 0) return;
-    void importLocal({
-      expenses: expenses.map(({ slug, state }) => ({ slug, state: toExpenseStateArgs(state) })),
-    });
-  }, [isAuthenticated, importLocal]);
 }

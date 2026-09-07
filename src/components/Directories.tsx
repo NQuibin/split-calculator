@@ -88,7 +88,7 @@ export function ExpensesDirectory() {
   const loading = isLoading || (isAuthenticated && remoteRows === undefined);
   const rows = isAuthenticated ? remoteRows ?? [] : localRows;
   const filtered = rows.filter(row => `${row.name} ${row.tabName}`.toLowerCase().includes(search.trim().toLowerCase()));
-  return <Directory title="Expenses" description="All your expenses across all tabs, together in one place." action={<NewExpenseButton variant="primary" />}>
+  return <Directory title="Expenses" description={isAuthenticated ? "All your expenses across all tabs, together in one place." : "Guest expenses saved in this browser. These stay separate from your account."} action={<NewExpenseButton variant="primary" />}>
     <label className="mb-5 flex items-center gap-3 rounded-lg border border-rule bg-surface px-4 py-3 focus-within:border-forest focus-within:ring-2 focus-within:ring-forest/20">
       <Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search expenses or tabs" placeholder="Search expenses or tabs…" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
     </label>

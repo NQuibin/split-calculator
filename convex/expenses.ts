@@ -19,7 +19,7 @@ function withNormalizedNote(state: Infer<typeof expenseState>) {
 // The client uploads straight to Convex storage, so the file's real size and
 // type are only knowable here, from the stored file's metadata - re-check both
 // before letting a file be attached rather than trusting the browser's checks.
-async function assertValidImage(ctx: MutationCtx, storageId: Id<"_storage">) {
+export async function assertValidImage(ctx: MutationCtx, storageId: Id<"_storage">) {
   const metadata = await ctx.db.system.get("_storage", storageId);
   if (!metadata) throw new Error("That upload is no longer available - try again.");
   if (metadata.size > MAX_IMAGE_BYTES) throw new Error("Images must be 5MB or smaller.");
@@ -213,6 +213,7 @@ export const get = query({
 
 export const save = mutation({
   args: { slug: v.string(), state: expenseState },
+  returns: v.null(),
   handler: async (ctx, { slug, state }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
@@ -221,15 +222,9 @@ export const save = mutation({
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
       .unique();
 
-    if (state.items.length === 0) {
-      if (existing) {
-        await deleteImageIfUnused(ctx, existing.image?.storageId, undefined);
-        await ctx.db.delete(existing._id);
-      }
-      return;
-    }
+    if (!existing) throw new Error("Choose a tab to create an expense");
 
-    if (state.image && state.image.storageId !== existing?.image?.storageId) {
+    if (state.image && state.image.storageId !== existing.image?.storageId) {
       await assertValidImage(ctx, state.image.storageId);
     }
 
@@ -240,9 +235,8 @@ export const save = mutation({
       // it when there's no image, and only a present-but-undefined field
       // removes an image already on the doc.
       await ctx.db.patch(existing._id, { ...normalized, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
-    } else {
-      await ctx.db.insert("expenses", { slug, userId, ...normalized, updatedAt: Date.now() });
     }
+    return null;
   },
 });
 
@@ -258,26 +252,5 @@ export const remove = mutation({
     if (!existing) return;
     await deleteImageIfUnused(ctx, existing.image?.storageId, undefined);
     await ctx.db.delete(existing._id);
-  },
-});
-
-export const importLocal = mutation({
-  args: { expenses: v.array(v.object({ slug: v.string(), state: expenseState })) },
-  handler: async (ctx, { expenses }) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not signed in");
-    for (const { slug, state } of expenses) {
-      if (state.items.length === 0) continue;
-      const existing = await ctx.db
-        .query("expenses")
-        .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", slug))
-        .unique();
-      if (!existing) {
-        // Guest expenses can't carry an image (uploading needs an account),
-        // but the shape allows one, so validate anything that shows up.
-        if (state.image) await assertValidImage(ctx, state.image.storageId);
-        await ctx.db.insert("expenses", { slug, userId, ...withNormalizedNote(state), updatedAt: Date.now() });
-      }
-    }
   },
 });

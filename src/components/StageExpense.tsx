@@ -40,6 +40,9 @@ interface StageExpenseProps {
   expenseName: string;
   description?: string;
   headerAction?: ReactNode;
+  tabField?: ReactNode;
+  continueDisabled?: boolean;
+  showPeople?: boolean;
   onCancel?: () => void;
   cancelLabel?: string;
   onRenameExpense: (name: string) => void;
@@ -82,6 +85,9 @@ export function StageExpense({
   expenseName,
   description,
   headerAction,
+  tabField,
+  continueDisabled = false,
+  showPeople = true,
   onCancel,
   cancelLabel = "Cancel",
   onRenameExpense,
@@ -255,7 +261,9 @@ export function StageExpense({
         {headerAction}
       </header>
 
-      <div className="mb-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+      {tabField}
+
+      {showPeople && <div className="mb-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
         <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
           <Users2 className="h-4 w-4 text-brass" strokeWidth={2.25} />
           People
@@ -288,7 +296,7 @@ export function StageExpense({
             Add person
           </button>
         )}
-      </div>
+      </div>}
 
       <div className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule pb-4">
@@ -554,7 +562,7 @@ export function StageExpense({
         <button
           type="button"
           onClick={handleContinue}
-          disabled={items.length === 0 || !expenseName.trim() || continuing}
+          disabled={continueDisabled || items.length === 0 || !expenseName.trim() || continuing}
           aria-busy={continuing}
           className="inline-flex items-center gap-2 rounded-lg bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
         >
@@ -694,6 +702,9 @@ function SimpleTotalForm({
   expenseName: string;
   description?: string;
   headerAction?: ReactNode;
+  tabField?: ReactNode;
+  continueDisabled?: boolean;
+  showPeople?: boolean;
   onCancel?: () => void;
   cancelLabel?: string;
   people: Person[];

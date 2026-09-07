@@ -20,7 +20,6 @@ import {
   Receipt,
   Trash2,
 } from "lucide-react";
-import { AssignExpenseDialog } from "@/components/AssignExpenseDialog";
 import { TabBreakdown } from "@/components/TabBreakdown";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -353,7 +352,6 @@ function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId
     });
   }
   return <>
-    <AssignExpenseDialog tabSlug={slug} members={members} />
     <button type="button" onClick={handleNewExpense} className="inline-flex items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"><Plus className="h-4 w-4" />Add expense</button>
   </>;
 }

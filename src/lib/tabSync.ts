@@ -4,7 +4,7 @@ import type { Person, ExpenseItem } from "./types";
 
 // Tabs have no guest/localStorage mode - you can't invite people into a
 // tab that only exists in your own browser, so this hooks straight into
-// Convex with no offline fallback, unlike expenseSync.ts.
+// Convex; expenseSync.ts separately supports local-only guest expenses.
 
 export interface TabListItem {
   slug: string;
@@ -119,7 +119,7 @@ export function useTabActions() {
     renameMember: useMutation(api.tabs.renameMember),
     removeMember: useMutation(api.tabs.removeMember),
     claimMember: useMutation(api.tabs.claimMember),
-    assignExpense: useMutation(api.tabs.assignExpense),
+    createExpense: useMutation(api.tabs.createExpense),
     addExpensePerson: useMutation(api.tabs.addExpensePerson),
   };
 }
