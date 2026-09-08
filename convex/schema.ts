@@ -61,7 +61,9 @@ export const tabMemberLink = v.object({
 export default defineSchema({
   ...authTables,
   // Extends authTables' users table (see its docstring) with our own
-  // preference field.
+  // preference field. `isAnonymous` is deliberately absent: only Convex
+  // Auth's Anonymous provider ever writes it, and this app configures
+  // Google and Password. Add it back if that provider is ever adopted.
   users: defineTable({
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -69,7 +71,6 @@ export default defineSchema({
     emailVerificationTime: v.optional(v.number()),
     phone: v.optional(v.string()),
     phoneVerificationTime: v.optional(v.number()),
-    isAnonymous: v.optional(v.boolean()),
     /** ISO 4217 code, e.g. "USD" - used as the starting currency for a brand-new expense outside of a tab. */
     defaultCurrency: v.optional(v.string()),
   })
