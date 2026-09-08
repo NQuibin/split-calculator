@@ -55,8 +55,8 @@ test("a tab that doesn't exist reads as missing, not forbidden", async () => {
 test("an invite token opens the tab's name and roster, but nothing else", async () => {
   const { t, sam, tab } = await setup();
   const links = await t.run(async (ctx) => {
-    const doc = (await ctx.db.query("tabs").withIndex("by_slug", (q) => q.eq("slug", "trip")).unique())!;
-    return doc.members.filter((m) => !m.claimedByUserId).map((m) => m.inviteToken);
+    const seats = await ctx.db.query("tabMembers").collect();
+    return seats.filter((s) => !s.userId).map((s) => s.inviteToken);
   });
   const token = links[0];
 
@@ -72,8 +72,8 @@ test("an invite token opens the tab's name and roster, but nothing else", async 
 test("claiming an invite is what grants access", async () => {
   const { t, sam } = await setup();
   const token = await t.run(async (ctx) => {
-    const doc = (await ctx.db.query("tabs").withIndex("by_slug", (q) => q.eq("slug", "trip")).unique())!;
-    return doc.members.find((m) => !m.claimedByUserId)!.inviteToken;
+    const seats = await ctx.db.query("tabMembers").collect();
+    return seats.find((s) => !s.userId)!.inviteToken;
   });
 
   await sam.mutation(api.tabs.claimMember, { slug: "trip", token });
@@ -101,8 +101,8 @@ test("someone else's expense is forbidden, not invisible", async () => {
 test("a tab member cannot edit or delete the owner's expense", async () => {
   const { t, sam } = await setup();
   const token = await t.run(async (ctx) => {
-    const doc = (await ctx.db.query("tabs").withIndex("by_slug", (q) => q.eq("slug", "trip")).unique())!;
-    return doc.members.find((m) => !m.claimedByUserId)!.inviteToken;
+    const seats = await ctx.db.query("tabMembers").collect();
+    return seats.find((s) => !s.userId)!.inviteToken;
   });
   await sam.mutation(api.tabs.claimMember, { slug: "trip", token });
 

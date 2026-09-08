@@ -61,7 +61,7 @@ test("backfill re-keys the roster and every expense reference onto row ids", asy
   }));
 
   // Every seat id in the roster is now a real row id.
-  for (const member of tab.members) {
+  for (const member of tab.members!) {
     expect(seats.some(s => s._id === member.id), `${member.name} is not a row id`).toBe(true);
   }
   const guest = seats.find(s => s.name === "Guest")!;

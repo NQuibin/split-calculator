@@ -112,7 +112,13 @@ export default defineSchema({
     slug: v.string(),
     ownerUserId: v.id("users"),
     name: v.string(),
-    members: v.array(tabMember),
+    /**
+     * The roster as it used to be stored. Nothing reads or writes it any
+     * more - `tabMembers` is the roster - so what remains here is frozen at
+     * whatever it held when the writes stopped, kept only so existing tabs
+     * keep validating until the field is dropped.
+     */
+    members: v.optional(v.array(tabMember)),
     /** ISO 4217 code, e.g. "USD" - the starting currency for a new expense created directly inside this tab. */
     defaultCurrency: v.optional(v.string()),
     updatedAt: v.number(),

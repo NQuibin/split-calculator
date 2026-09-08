@@ -4,11 +4,10 @@ import { expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
-// Phase 3 moved every roster read onto `tabMembers`. The array is still
-// written, so a green suite proves nothing on its own - a read could be
-// served from either. These tests make the two disagree and assert the rows
-// win, which is exactly the invariant phase 4 relies on before it stops
-// writing the array at all.
+// Every roster read comes from `tabMembers`. `tabs.members[]` is no longer
+// written, but tabs created before phase 4 still carry whatever it held when
+// the writes stopped - so these tests plant a stale array, and a ghost seat
+// with its own invite token, and assert the rows win regardless.
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -20,14 +19,14 @@ async function setup() {
   return { t, userId, user };
 }
 
-/** Rewrites `tabs.members[]` to something the rows disagree with. */
+/** Plants a stale `tabs.members[]`, like a tab left over from before phase 4. */
 async function corruptArray(t: Awaited<ReturnType<typeof setup>>["t"]) {
   await t.run(async (ctx) => {
     const tab = (await ctx.db.query("tabs").first())!;
     await ctx.db.patch(tab._id, {
       members: [
         { id: "ghost-seat", name: "Ghost", inviteToken: "ghost-token" },
-        ...tab.members.map(m => ({ ...m, name: `STALE ${m.name}` })),
+        ...(tab.members ?? []).map(m => ({ ...m, name: `STALE ${m.name}` })),
       ],
     });
   });

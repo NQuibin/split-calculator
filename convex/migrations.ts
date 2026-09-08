@@ -18,6 +18,9 @@ import { internalMutation } from "./_generated/server";
  *
  * Idempotent: a tab whose seat ids already resolve to rows is skipped, so
  * this is safe to re-run and safe to run against a partly-migrated database.
+ * A tab with no `members` array has nothing to migrate - the roster stopped
+ * being written there - so it is skipped too. Kept for restores of snapshots
+ * that predate the move.
  */
 export const backfillSeatRows = internalMutation({
   args: {},
@@ -34,9 +37,10 @@ export const backfillSeatRows = internalMutation({
     let expensesRewritten = 0;
 
     for (const tab of await ctx.db.query("tabs").collect()) {
+      const legacyRoster = tab.members ?? [];
       const alreadyKeyed =
-        tab.members.length > 0 &&
-        tab.members.every((m) => ctx.db.normalizeId("tabMembers", m.id) !== null);
+        legacyRoster.length === 0 ||
+        legacyRoster.every((m) => ctx.db.normalizeId("tabMembers", m.id) !== null);
       if (alreadyKeyed) {
         tabsSkipped += 1;
         continue;
@@ -53,7 +57,7 @@ export const backfillSeatRows = internalMutation({
 
       const remap = new Map<string, string>();
       const members = [];
-      for (const member of tab.members) {
+      for (const member of legacyRoster) {
         const id = await ctx.db.insert("tabMembers", {
           tabId: tab._id,
           name: member.name,
