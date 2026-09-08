@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { listTabsForUser, resolveMemberName } from "./tabs";
+import { listTabsForUser, resolveSeatName, tabSeats } from "./tabs";
 import { computeSplit, round2 } from "../src/lib/calculations";
 import { mutation, query } from "./_generated/server";
 import { expenseState, person } from "./schema";
@@ -218,14 +218,15 @@ export const get = query({
     let availableTabMembers: { id: string; name: string }[] = [];
     if (tab) {
       const linkedMemberIds = new Set((tabMemberIds ?? []).map((link) => link.memberId));
-      const anonymousMemberIds = new Set(tab.members.filter((m) => !m.claimedByUserId).map((m) => m.id));
+      const seats = await tabSeats(ctx, tab._id);
+      const anonymousMemberIds = new Set<string>(seats.filter((s) => !s.userId).map((s) => s._id));
       anonymousPersonIds = (tabMemberIds ?? [])
         .filter((link) => anonymousMemberIds.has(link.memberId))
         .map((link) => link.personId);
       availableTabMembers = await Promise.all(
-        tab.members
-          .filter((m) => !linkedMemberIds.has(m.id))
-          .map(async (m) => ({ id: m.id, name: await resolveMemberName(ctx, m) })),
+        seats
+          .filter((s) => !linkedMemberIds.has(s._id))
+          .map(async (s) => ({ id: s._id, name: await resolveSeatName(ctx, s) })),
       );
     }
 

@@ -35,10 +35,9 @@ export async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<Id<"us
 }
 
 /**
- * Who is allowed to see a tab: the owner, and anyone holding a member slot
- * they've claimed. The `tabMemberships` row is checked too - it's what drives
- * "My Tabs", so a tab that lists for a user must also open for them, even if
- * the two ever drift apart.
+ * Who is allowed to see a tab: the owner, and anyone holding a seat in it.
+ * The ownership check comes first because it needs no read at all - the tab
+ * document is already in hand - and it covers the common case.
  */
 export async function canViewTab(
   ctx: QueryCtx | MutationCtx,
@@ -46,17 +45,27 @@ export async function canViewTab(
   userId: Id<"users">,
 ): Promise<boolean> {
   if (tab.ownerUserId === userId) return true;
-  if (tab.members.some((m) => m.claimedByUserId === userId)) return true;
-  const memberships = await ctx.db
-    .query("tabMemberships")
+  // Indexed by user rather than by tab: a person sits in few tabs, so this
+  // scans far less than a popular tab's whole roster would.
+  const seats = await ctx.db
+    .query("tabMembers")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
-  return memberships.some((m) => m.tabId === tab._id);
+  return seats.some((seat) => seat.tabId === tab._id);
 }
 
 /** An unclaimed invite link is a bearer capability for the tab it points at. */
-export function isInviteToken(tab: Doc<"tabs">, token: string | undefined): boolean {
-  return token !== undefined && tab.members.some((m) => m.inviteToken === token);
+export async function isInviteToken(
+  ctx: QueryCtx | MutationCtx,
+  tab: Doc<"tabs">,
+  token: string | undefined,
+): Promise<boolean> {
+  if (token === undefined) return false;
+  const seats = await ctx.db
+    .query("tabMembers")
+    .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
+    .collect();
+  return seats.some((seat) => seat.inviteToken === token);
 }
 
 /** Throws unless the caller is in the tab. Returns their user id. */

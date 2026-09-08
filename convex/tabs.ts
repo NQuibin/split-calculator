@@ -40,35 +40,51 @@ async function ownedTab(ctx: QueryCtx | MutationCtx, slug: string) {
 }
 
 /**
- * Creates a seat row and returns the roster entry pointing at it. The row's
- * `_id` is the seat id, so the row has to exist before the entry does - which
- * is why every path that adds a member goes through here rather than minting
- * an id of its own.
+ * Creates a seat row. The row's `_id` is the seat id, so the row has to exist
+ * before anything can point at it - which is why every path that adds a
+ * member goes through here rather than minting an id of its own.
  */
 async function createSeat(
   ctx: MutationCtx,
   tabId: Id<"tabs">,
   name: string,
-  claimedByUserId?: Id<"users">,
-): Promise<Doc<"tabs">["members"][number]> {
-  const inviteToken = crypto.randomUUID();
-  const id = await ctx.db.insert("tabMembers", { tabId, name, inviteToken, userId: claimedByUserId });
-  return { id, name, inviteToken, ...(claimedByUserId ? { claimedByUserId } : {}) };
+  userId?: Id<"users">,
+): Promise<Seat> {
+  const id = await ctx.db.insert("tabMembers", { tabId, name, inviteToken: crypto.randomUUID(), userId });
+  return (await ctx.db.get(id))!;
+}
+
+export type Seat = Doc<"tabMembers">;
+
+/**
+ * A tab's roster, oldest seat first. `by_tab` is ordered by creation time, so
+ * this preserves the order the roster was built in - the creator, then
+ * everyone added since.
+ */
+export async function tabSeats(ctx: QueryCtx | MutationCtx, tabId: Id<"tabs">): Promise<Seat[]> {
+  return await ctx.db
+    .query("tabMembers")
+    .withIndex("by_tab", (q) => q.eq("tabId", tabId))
+    .collect();
 }
 
 /**
- * The row a roster entry points at. Null for a seat created before the table
- * existed, whose id is still a bare UUID - those resolve once the backfill
- * has re-keyed them, and until then the array alone carries the roster.
+ * The roster entry mirroring a seat. `tabs.members[]` is no longer read, but
+ * it is still written until the next phase retires it, so writes keep it in
+ * step rather than letting it rot.
  */
-async function seatRow(ctx: MutationCtx, seatId: string) {
-  const id = ctx.db.normalizeId("tabMembers", seatId);
-  return id === null ? null : await ctx.db.get(id);
+function rosterEntry(seat: Seat): Doc<"tabs">["members"][number] {
+  return {
+    id: seat._id,
+    name: seat.name,
+    inviteToken: seat.inviteToken,
+    ...(seat.userId ? { claimedByUserId: seat.userId } : {}),
+  };
 }
 
-function requireUniqueName(members: Doc<"tabs">["members"], name: string, excludeId?: string) {
+function requireUniqueName(seats: Seat[], name: string, excludeId?: string) {
   const normalized = normalizeMemberName(name);
-  const collision = members.some((m) => m.id !== excludeId && normalizeMemberName(m.name) === normalized);
+  const collision = seats.some((s) => s._id !== excludeId && normalizeMemberName(s.name) === normalized);
   if (collision) throw new Error(`"${name.trim()}" is already in this tab`);
 }
 
@@ -77,47 +93,44 @@ async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) 
   return user?.name?.trim() || user?.email?.trim() || "You";
 }
 
-// Claimed members show their account's current name (falling back to email)
-// rather than the name frozen into the member row when they were added or
-// claimed - so a later Settings rename is reflected everywhere they appear.
-export async function resolveMemberName(ctx: QueryCtx | MutationCtx, member: Doc<"tabs">["members"][number]) {
-  if (!member.claimedByUserId) return member.name;
-  const user = await ctx.db.get(member.claimedByUserId);
-  return user?.name?.trim() || user?.email?.trim() || member.name;
+// A claimed seat shows its account's current name (falling back to email)
+// rather than the name frozen in when they were added or claimed - so a later
+// Settings rename is reflected everywhere they appear.
+export async function resolveSeatName(ctx: QueryCtx | MutationCtx, seat: Seat) {
+  if (!seat.userId) return seat.name;
+  const user = await ctx.db.get(seat.userId);
+  return user?.name?.trim() || user?.email?.trim() || seat.name;
 }
 
-// Every tab the user can see: the ones they own plus the ones they've claimed
-// a member slot in, deduped (owning a tab you also hold a slot in is common).
+// Every tab the user belongs to. One indexed query now that the owner holds a
+// seat like everyone else - `create` always seats them and `removeMember`
+// refuses to remove them, so ownership needs no separate lookup. Deduped
+// because nothing in the schema forbids a user holding two seats in a tab.
 export async function listTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
-  const owned = await ctx.db
-    .query("tabs")
-    .withIndex("by_owner", (q) => q.eq("ownerUserId", userId))
-    .collect();
-
-  const memberships = await ctx.db
-    .query("tabMemberships")
+  const seats = await ctx.db
+    .query("tabMembers")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
-  const claimedTabs = (
-    await Promise.all(memberships.map((m) => ctx.db.get(m.tabId)))
-  ).filter((t): t is Doc<"tabs"> => t !== null);
 
   const byId = new Map<string, Doc<"tabs">>();
-  for (const t of [...owned, ...claimedTabs]) byId.set(t._id, t);
+  for (const tab of await Promise.all(seats.map((s) => ctx.db.get(s.tabId)))) {
+    if (tab) byId.set(tab._id, tab);
+  }
   return Array.from(byId.values());
 }
 
 async function resolveMembers(ctx: QueryCtx, tab: Doc<"tabs">) {
+  const seats = await tabSeats(ctx, tab._id);
   return await Promise.all(
-    tab.members.map(async (m) => ({
-      id: m.id,
-      name: await resolveMemberName(ctx, m),
-      claimed: m.claimedByUserId !== undefined,
+    seats.map(async (seat) => ({
+      id: seat._id,
+      name: await resolveSeatName(ctx, seat),
+      claimed: seat.userId !== undefined,
       // The identity a person gets remapped to once assigned to this tab
       // (see createExpense) - lets a brand-new expense started from this
       // tab already carry a claimed member's real account id, instead of
       // only picking it up once explicitly assigned.
-      resolvedId: m.claimedByUserId ?? m.id,
+      resolvedId: seat.userId ?? seat._id,
     })),
   );
 }
@@ -158,11 +171,11 @@ export const create = mutation({
       updatedAt: Date.now(),
     });
 
-    const members = [await createSeat(ctx, tabId, creatorName, userId)];
+    const seats = [await createSeat(ctx, tabId, creatorName, userId)];
     for (const memberName of trimmedMemberNames) {
-      members.push(await createSeat(ctx, tabId, memberName));
+      seats.push(await createSeat(ctx, tabId, memberName));
     }
-    await ctx.db.patch(tabId, { members });
+    await ctx.db.patch(tabId, { members: seats.map(rosterEntry) });
   },
 });
 
@@ -203,11 +216,12 @@ export const deleteTab = mutation({
       await deleteExpenseDoc(ctx, expense);
     }
 
-    for (const member of tab.members) {
-      if (!member.claimedByUserId) continue;
+    for (const seat of await tabSeats(ctx, tab._id)) {
+      const seatUserId = seat.userId;
+      if (!seatUserId) continue;
       const memberships = await ctx.db
         .query("tabMemberships")
-        .withIndex("by_user", (q) => q.eq("userId", member.claimedByUserId!))
+        .withIndex("by_user", (q) => q.eq("userId", seatUserId))
         .collect();
       const stale = memberships.find((m) => m.tabId === tab._id);
       if (stale) await ctx.db.delete(stale._id);
@@ -227,10 +241,11 @@ export const addMember = mutation({
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
-    requireUniqueName(tab.members, trimmedName);
+    const seats = await tabSeats(ctx, tab._id);
+    requireUniqueName(seats, trimmedName);
 
-    const members = [...tab.members, await createSeat(ctx, tab._id, trimmedName)];
-    await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+    const added = await createSeat(ctx, tab._id, trimmedName);
+    await ctx.db.patch(tab._id, { members: [...seats, added].map(rosterEntry), updatedAt: Date.now() });
   },
 });
 
@@ -241,13 +256,14 @@ export const renameMember = mutation({
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
-    if (!tab.members.some((m) => m.id === memberId)) throw new Error("Member not found");
-    requireUniqueName(tab.members, trimmedName, memberId);
+    const seats = await tabSeats(ctx, tab._id);
+    const seat = seats.find((s) => s._id === memberId);
+    if (!seat) throw new Error("Member not found");
+    requireUniqueName(seats, trimmedName, memberId);
 
-    const members = tab.members.map((m) => (m.id === memberId ? { ...m, name: trimmedName } : m));
+    await ctx.db.patch(seat._id, { name: trimmedName });
+    const members = seats.map((s) => rosterEntry(s._id === seat._id ? { ...s, name: trimmedName } : s));
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    const renamed = await seatRow(ctx, memberId);
-    if (renamed) await ctx.db.patch(renamed._id, { name: trimmedName });
   },
 });
 
@@ -256,26 +272,26 @@ export const removeMember = mutation({
   handler: async (ctx, { slug, memberId }) => {
     const { tab } = await ownedTab(ctx, slug);
 
-    const removed = tab.members.find((m) => m.id === memberId);
+    const seats = await tabSeats(ctx, tab._id);
+    const removed = seats.find((s) => s._id === memberId);
     if (!removed) throw new Error("Member not found");
-    if (removed.claimedByUserId === tab.ownerUserId) {
+    if (removed.userId === tab.ownerUserId) {
       throw new Error("The tab creator can't be removed");
     }
 
-    const members = tab.members.filter((m) => m.id !== memberId);
-    await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    const vacated = await seatRow(ctx, memberId);
-    if (vacated) await ctx.db.delete(vacated._id);
+    await ctx.db.delete(removed._id);
+    const remaining = seats.filter((s) => s._id !== memberId);
+    await ctx.db.patch(tab._id, { members: remaining.map(rosterEntry), updatedAt: Date.now() });
 
     // If the removed slot was that user's only claimed slot in this tab, drop
     // the membership row too, so a removed member's account stops seeing this
     // tab in their own "My Tabs" list.
-    if (removed?.claimedByUserId) {
-      const stillClaims = members.some((m) => m.claimedByUserId === removed.claimedByUserId);
+    if (removed.userId) {
+      const stillClaims = remaining.some((s) => s.userId === removed.userId);
       if (!stillClaims) {
         const memberships = await ctx.db
           .query("tabMemberships")
-          .withIndex("by_user", (q) => q.eq("userId", removed.claimedByUserId!))
+          .withIndex("by_user", (q) => q.eq("userId", removed.userId!))
           .collect();
         const stale = memberships.find((m) => m.tabId === tab._id);
         if (stale) await ctx.db.delete(stale._id);
@@ -291,21 +307,21 @@ export const claimMember = mutation({
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) throw new Error("Tab not found");
 
-    const member = tab.members.find((m) => m.inviteToken === token);
-    if (!member) throw new Error("Invalid invite link");
-    if (member.claimedByUserId === userId) return;
+    const seats = await tabSeats(ctx, tab._id);
+    const seat = seats.find((s) => s.inviteToken === token);
+    if (!seat) throw new Error("Invalid invite link");
+    if (seat.userId === userId) return;
     if (tab.ownerUserId === userId) {
       throw new Error("You created this tab, so you're already a member");
     }
-    if (member.claimedByUserId) throw new Error("This spot has already been claimed");
-    if (tab.members.some((m) => m.claimedByUserId === userId)) {
+    if (seat.userId) throw new Error("This spot has already been claimed");
+    if (seats.some((s) => s.userId === userId)) {
       throw new Error("You're already a member of this tab");
     }
 
-    const members = tab.members.map((m) => (m.id === member.id ? { ...m, claimedByUserId: userId } : m));
+    await ctx.db.patch(seat._id, { userId });
+    const members = seats.map((s) => rosterEntry(s._id === seat._id ? { ...s, userId } : s));
     await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
-    const claimed = await seatRow(ctx, member.id);
-    if (claimed) await ctx.db.patch(claimed._id, { userId });
 
     const existingMembership = await ctx.db
       .query("tabMemberships")
@@ -323,12 +339,14 @@ export const list = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    return (await listTabsForUser(ctx, userId)).map((t) => ({
-      slug: t.slug,
-      name: t.name,
-      isOwner: t.ownerUserId === userId,
-      memberCount: t.members.length,
-    }));
+    return await Promise.all(
+      (await listTabsForUser(ctx, userId)).map(async (t) => ({
+        slug: t.slug,
+        name: t.name,
+        isOwner: t.ownerUserId === userId,
+        memberCount: (await tabSeats(ctx, t._id)).length,
+      })),
+    );
   },
 });
 
@@ -385,13 +403,14 @@ export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
         totals.set(code, (totals.get(code) ?? 0) + grandTotal);
       }
 
+      const members = await resolveMembers(ctx, tab);
       return {
         slug: tab.slug,
         name: tab.name,
         isOwner: tab.ownerUserId === userId,
-        memberCount: tab.members.length,
+        memberCount: members.length,
         defaultCurrency: tab.defaultCurrency ?? "USD",
-        members: await resolveMembers(ctx, tab),
+        members,
         expenseCount: expenses.length,
         totals: [...totals]
           .sort(([a], [b]) => a.localeCompare(b))
@@ -456,7 +475,7 @@ export const getBySlug = query({
     const tab = await getTabBySlug(ctx, slug);
     if (!tab) return null;
 
-    if (!isInviteToken(tab, token)) await requireTabViewer(ctx, tab);
+    if (!(await isInviteToken(ctx, tab, token))) await requireTabViewer(ctx, tab);
     const userId = await getAuthUserId(ctx);
 
     return {
@@ -474,9 +493,9 @@ export const getInviteLinks = query({
   handler: async (ctx, { slug }) => {
     const { tab } = await ownedTab(ctx, slug);
 
-    return tab.members
-      .filter((m) => !m.claimedByUserId)
-      .map((m) => ({ memberId: m.id, name: m.name, token: m.inviteToken }));
+    return (await tabSeats(ctx, tab._id))
+      .filter((seat) => !seat.userId)
+      .map((seat) => ({ memberId: seat._id, name: seat.name, token: seat.inviteToken }));
   },
 });
 
@@ -506,13 +525,14 @@ export const createExpense = mutation({
     if (state.image) await assertValidImage(ctx, state.image.storageId);
     const expense = state;
 
-    let members = tab.members;
+    const existingSeats = await tabSeats(ctx, tab._id);
+    let seats = existingSeats;
     const links: { personId: string; memberId: string }[] = [];
     const usedMemberIds = new Set<string>();
 
     for (const entry of memberMapping) {
       if (entry.memberId) {
-        if (!members.some((m) => m.id === entry.memberId)) throw new Error("Member not found");
+        if (!seats.some((s) => s._id === entry.memberId)) throw new Error("Member not found");
         if (usedMemberIds.has(entry.memberId)) throw new Error("Two people can't map to the same tab member");
         usedMemberIds.add(entry.memberId);
         links.push({ personId: entry.personId, memberId: entry.memberId });
@@ -520,14 +540,14 @@ export const createExpense = mutation({
       }
       const newMemberName = entry.newMemberName?.trim();
       if (!newMemberName) throw new Error("Each person needs a member to map to");
-      requireUniqueName(members, newMemberName);
-      const newMember = await createSeat(ctx, tab._id, newMemberName);
-      members = [...members, newMember];
-      links.push({ personId: entry.personId, memberId: newMember.id });
+      requireUniqueName(seats, newMemberName);
+      const newSeat = await createSeat(ctx, tab._id, newMemberName);
+      seats = [...seats, newSeat];
+      links.push({ personId: entry.personId, memberId: newSeat._id });
     }
 
-    if (members !== tab.members) {
-      await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+    if (seats !== existingSeats) {
+      await ctx.db.patch(tab._id, { members: seats.map(rosterEntry), updatedAt: Date.now() });
     }
 
     // Re-point each mapped person at their tab member's stable identity -
@@ -535,15 +555,15 @@ export const createExpense = mutation({
     // and rename them to match, so the expense (people, item splits, and
     // contributions) is fully owned by the mapping just decided instead of
     // carrying whatever ids/names it had before joining the tab.
-    const membersById = new Map(members.map((m) => [m.id, m]));
+    const seatsById = new Map<string, Seat>(seats.map((s) => [s._id, s]));
     const idRemap = new Map<string, string>();
     const nameByNewId = new Map<string, string>();
     for (const link of links) {
-      const member = membersById.get(link.memberId);
-      if (!member) continue;
-      const newId = member.claimedByUserId ?? member.id;
+      const seat = seatsById.get(link.memberId);
+      if (!seat) continue;
+      const newId = seat.userId ?? seat._id;
       idRemap.set(link.personId, newId);
-      nameByNewId.set(newId, await resolveMemberName(ctx, member));
+      nameByNewId.set(newId, await resolveSeatName(ctx, seat));
     }
     const remapId = (id: string) => idRemap.get(id) ?? id;
 
@@ -585,29 +605,28 @@ export const addExpensePerson = mutation({
     if (tab.ownerUserId !== userId) forbidden();
 
     const linkedMemberIds = new Set((expense.tabMemberIds ?? []).map((l) => l.memberId));
-    let members = tab.members;
-    let member: Doc<"tabs">["members"][number];
+    const seats = await tabSeats(ctx, tab._id);
+    let seat: Seat;
 
     if (memberId) {
-      const found = members.find((m) => m.id === memberId);
+      const found = seats.find((s) => s._id === memberId);
       if (!found) throw new Error("Member not found");
       if (linkedMemberIds.has(memberId)) throw new Error("This member is already on the expense");
-      member = found;
+      seat = found;
     } else {
       const trimmedName = newMemberName?.trim();
       if (!trimmedName) throw new Error("Name is required");
-      requireUniqueName(members, trimmedName);
-      member = await createSeat(ctx, tab._id, trimmedName);
-      members = [...members, member];
-      await ctx.db.patch(tab._id, { members, updatedAt: Date.now() });
+      requireUniqueName(seats, trimmedName);
+      seat = await createSeat(ctx, tab._id, trimmedName);
+      await ctx.db.patch(tab._id, { members: [...seats, seat].map(rosterEntry), updatedAt: Date.now() });
     }
 
-    const personId = member.claimedByUserId ?? member.id;
-    const name = await resolveMemberName(ctx, member);
+    const personId = seat.userId ?? seat._id;
+    const name = await resolveSeatName(ctx, seat);
 
     await ctx.db.patch(expense._id, {
       people: [...expense.people, { id: personId, name }],
-      tabMemberIds: [...(expense.tabMemberIds ?? []), { personId, memberId: member.id }],
+      tabMemberIds: [...(expense.tabMemberIds ?? []), { personId, memberId: seat._id }],
     });
   },
 });
@@ -671,8 +690,9 @@ export const expensesForTab = query({
 // distinct currency the tab's expenses use, so balances never mix currencies.
 async function computeCurrencyBreakdown(
   ctx: QueryCtx,
-  tab: Doc<"tabs">,
+  seats: Seat[],
   currencyExpenses: Doc<"expenses">[],
+  defaultCurrency: string,
 ) {
   const totals = new Map<
     string,
@@ -689,14 +709,14 @@ async function computeCurrencyBreakdown(
       balance: number;
     }[]
   >();
-  for (const member of tab.members) {
-    totals.set(member.id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
-    lines.set(member.id, []);
+  for (const seat of seats) {
+    totals.set(seat._id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
+    lines.set(seat._id, []);
   }
 
   for (const expense of currencyExpenses) {
     const split = computeSplit(expense.people, expense.items);
-    const rate = activeExchangeRate(expense, tab.defaultCurrency ?? "USD");
+    const rate = activeExchangeRate(expense, defaultCurrency);
     const original = computeSettlement(expense.contributions, split);
     const settlement = rate ? convertSettlement(original, split.grandTotal, rate.rate) : original;
     for (const row of settlement) {
@@ -721,22 +741,22 @@ async function computeCurrencyBreakdown(
 
   return {
     expenseCount: currencyExpenses.length,
-    convertedExpenseCount: currencyExpenses.filter(expense => activeExchangeRate(expense, tab.defaultCurrency ?? "USD")).length,
+    convertedExpenseCount: currencyExpenses.filter(expense => activeExchangeRate(expense, defaultCurrency)).length,
     members: await Promise.all(
-      tab.members.map(async (member) => {
-        const entry = totals.get(member.id)!;
+      seats.map(async (seat) => {
+        const entry = totals.get(seat._id)!;
         return {
-          memberId: member.id,
+          memberId: seat._id,
           // The identity this member renders as - see MemberAvatar, which
           // keys a person's colour on it so they look the same everywhere.
-          resolvedId: member.claimedByUserId ?? member.id,
-          name: await resolveMemberName(ctx, member),
-          claimed: member.claimedByUserId !== undefined,
+          resolvedId: seat.userId ?? seat._id,
+          name: await resolveSeatName(ctx, seat),
+          claimed: seat.userId !== undefined,
           totalSpent: round2(entry.totalSpent),
           totalContributed: round2(entry.totalContributed),
           netBalance: round2(entry.netBalance),
           expenseCount: entry.expenseCount,
-          expenses: lines.get(member.id)!.sort((a, b) => b.date.localeCompare(a.date)),
+          expenses: lines.get(seat._id)!.sort((a, b) => b.date.localeCompare(a.date)),
         };
       }),
     ),
@@ -768,10 +788,13 @@ export const breakdown = query({
     }
     if (byCurrency.size === 0) byCurrency.set("USD", []);
 
+    // Read once and share across the currency groups - each group covers the
+    // same roster, so re-reading it per currency would be pure waste.
+    const seats = await tabSeats(ctx, tab._id);
     const currencies = await Promise.all(
       Array.from(byCurrency.entries()).map(async ([currency, currencyExpenses]) => ({
         currency,
-        ...(await computeCurrencyBreakdown(ctx, tab, currencyExpenses)),
+        ...(await computeCurrencyBreakdown(ctx, seats, currencyExpenses, tab.defaultCurrency ?? "USD")),
       })),
     );
     currencies.sort((a, b) => b.expenseCount - a.expenseCount || a.currency.localeCompare(b.currency));
