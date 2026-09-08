@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
 import { ChevronRight, Trash2 } from "lucide-react";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseTabField } from "@/components/ExpenseTabField";
 import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
 import { StageExpense } from "@/components/StageExpense";
@@ -49,17 +50,28 @@ function ExpenseEditor() {
   const { state: stored, loading } = useStoredExpense(slug);
   const { save, remove } = useExpenseActions();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const hasHydrated = useHasHydrated();
   const [isNavigating, startNavigation] = useTransition();
 
-  // A brand-new expense isn't persisted (to Convex or localStorage) until
-  // it's explicitly finalized - by "Split the expense" or "Add to tab"
-  // below. Until then this draft (from the URL) is the only copy of its
-  // state, held only in memory.
+  // Nothing is persisted until the expense is explicitly finalized - "Save
+  // expense", "Add to tab", "View split" or "Done". Editing works on this
+  // in-memory copy throughout, seeded from the URL for a new expense and
+  // from the saved expense once it loads. Rendering from the working copy
+  // rather than from what's stored is what stops a keystroke's round trip
+  // to the server from arriving late and overwriting the field it came from.
   const [draft, setDraft] = useState<ExpenseState | null>(() =>
     draftFromParams(new URLSearchParams(Object.entries(search).filter(([, v]) => v !== undefined) as [string, string][])),
   );
-  const baseState = stored ?? draft;
+  const [seeded, setSeeded] = useState(false);
+  if (!seeded && stored) {
+    // Adjusting state during render, not in an effect: this has to happen
+    // before the first paint of a saved expense, and it runs once because
+    // `seeded` closes the door behind it.
+    setSeeded(true);
+    setDraft(stored);
+  }
+  const baseState = draft ?? stored;
 
   const uploadImage = useUploadExpenseImage();
   const [pendingReceipt, setPendingReceipt] = useState<File | null>(null);
@@ -104,38 +116,43 @@ function ExpenseEditor() {
 
   function dispatch(action: Action) {
     if (!state) return;
-    const next = expenseReducer(state, action);
-    // Once an expense is persisted, every further change keeps auto-saving
-    // immediately, as before - only the very first save is gated behind an
-    // explicit "Split the expense"/"Add to tab" click (see handleFinalize).
-    if (stored) save(slug, next);
-    setDraft(next);
+    setDraft(expenseReducer(state, action));
   }
+
 
   const destinedTab = state.tab ?? tabDraft;
   const anonymousPersonIds = state.anonymousPersonIds
     ?? tabDraft?.members.filter((member) => !member.claimed).map((member) => member.resolvedId)
     ?? [];
 
-  // A saved expense uploads a picked receipt right away, since every edit is
-  // already being persisted. A draft just holds the file - uploading it now
-  // would strand it in storage if the expense is never saved.
-  async function handlePickReceipt(file: File | null) {
-    if (!file) {
-      setPendingReceipt(null);
-      if (stored && state) await save(slug, expenseReducer(state, { type: "SET_IMAGE", image: null }));
-      return;
-    }
-    if (stored) {
-      const image = await uploadImage(file);
-      if (state) await save(slug, expenseReducer(state, { type: "SET_IMAGE", image }));
-    } else {
-      setPendingReceipt(file);
-    }
+  // Unsaved work, compared on the shape that actually gets saved so that
+  // fields the editor adds for rendering don't read as changes. `stage` is
+  // left out: stepping between the split and the editor is a position in the
+  // UI, not an edit, and is not worth prompting over.
+  const savedShape = (value: ExpenseState) => {
+    const args: Partial<ReturnType<typeof toExpenseStateArgs>> = { ...toExpenseStateArgs(value) };
+    delete args.stage;
+    return JSON.stringify(args);
+  };
+  const dirty = pendingReceipt !== null || (stored !== null && savedShape(state) !== savedShape(stored));
+
+  function leave() {
+    if (destinedTab) void navigate({ to: "/t/$slug", params: { slug: destinedTab.slug } });
+    else void navigate({ to: "/expenses" });
   }
 
-  const receipt =
-    state.image ?? (pendingReceipt ? { name: pendingReceipt.name, type: pendingReceipt.type } : undefined);
+  // The file is only held here - uploading now would strand it in storage if
+  // the expense is never saved. It goes up in handleFinalize.
+  function handlePickReceipt(file: File | null) {
+    setPendingReceipt(file);
+    if (!file) dispatch({ type: "SET_IMAGE", image: null });
+  }
+
+  // A freshly picked file wins over whatever is already attached, since it is
+  // what will replace it on save.
+  const receipt = pendingReceipt
+    ? { name: pendingReceipt.name, type: pendingReceipt.type }
+    : state.image;
 
   async function handleFinalize() {
     if (!state) return;
@@ -159,6 +176,8 @@ function ExpenseEditor() {
           state: toExpenseStateArgs(finalState),
           memberMapping: tabDraft.members.map(member => ({ personId: member.resolvedId, memberId: member.id })),
         });
+      } else {
+        await save(slug, finalState);
       }
       void navigate({ to: "/t/$slug", params: { slug: destinedTab.slug } });
       return;
@@ -204,7 +223,7 @@ function ExpenseEditor() {
           showPeople={!isAuthenticated || !!stored || !!tabDraft}
           continueDisabled={isAuthenticated && !stored && !tabDraft}
           expenseName={state.name}
-          description={stored ? "Edit the details of this expense. Changes save automatically." : isAuthenticated ? "Add the details of your new expense." : "Saved only in this browser. Guest expenses stay separate from your account."}
+          description={stored ? "Edit the details of this expense. Nothing is saved until you're done." : isAuthenticated ? "Add the details of your new expense." : "Saved only in this browser. Guest expenses stay separate from your account."}
           headerAction={stored ? <div className="flex flex-wrap items-center gap-2">
             {confirmDelete && <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-ink-soft">Cancel</button>}
             <button type="button" onClick={() => {
@@ -214,10 +233,7 @@ function ExpenseEditor() {
               else void navigate({ to: "/expenses" });
             }} className="inline-flex items-center gap-2 rounded-lg border border-margin-red/50 px-4 py-2.5 text-sm font-medium text-margin-red hover:bg-margin-red/5"><Trash2 className="h-4 w-4" />{confirmDelete ? "Confirm delete" : "Delete expense"}</button>
           </div> : undefined}
-          onCancel={() => {
-            if (destinedTab) void navigate({ to: "/t/$slug", params: { slug: destinedTab.slug } });
-            else void navigate({ to: "/expenses" });
-          }}
+          onCancel={() => (dirty ? setConfirmDiscard(true) : leave())}
           cancelLabel={stored ? "Close" : "Cancel"}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
           people={state.people}
@@ -264,6 +280,28 @@ function ExpenseEditor() {
           navigating={isNavigating}
         />
       )}
+
+      <Dialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <DialogContent aria-label="Discard changes">
+          <DialogTitle>Discard your changes?</DialogTitle>
+          <DialogDescription className="mt-2">
+            This expense hasn&rsquo;t been saved since you started editing. Leaving now loses what
+            you&rsquo;ve changed.
+          </DialogDescription>
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <DialogClose className="rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-paper">
+              Keep editing
+            </DialogClose>
+            <button
+              type="button"
+              onClick={() => { setConfirmDiscard(false); leave(); }}
+              className="rounded-lg border border-margin-red px-4 py-2.5 text-sm font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface"
+            >
+              Discard changes
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
