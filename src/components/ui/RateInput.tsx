@@ -8,9 +8,11 @@ interface RateInputProps {
   rate: RateSetting;
   onChange: (rate: RateSetting) => void;
   hideLabel?: boolean;
+  /** Sizes the field for a currency amount rather than a short rate - see below. */
+  wide?: boolean;
 }
 
-export function RateInput({ label, icon: Icon, rate, onChange, hideLabel }: RateInputProps) {
+export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }: RateInputProps) {
   return (
     <div className="flex items-center gap-2">
       {!hideLabel && (
@@ -28,7 +30,17 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel }: Rate
           value={rate.value === 0 ? "" : rate.value}
           placeholder="0"
           onChange={(e) => onChange({ ...rate, value: Number(e.target.value) || 0 })}
-          className="font-numeric w-16 bg-transparent px-2 py-1.5 text-sm text-ink outline-none"
+          className={`font-numeric bg-transparent px-2 py-1.5 text-sm text-ink outline-none ${
+            wide
+              // Room for eight characters - "12345.67" - measured in `ch`,
+              // which is exact here because .font-numeric is a monospace
+              // face. The input's own px-2 is added on top since the box is
+              // border-box. The number spinner is suppressed as well: it
+              // renders over the trailing digits on focus, which would undo
+              // the extra room.
+              ? "w-[calc(8ch+1rem)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              : "w-16"
+          }`}
           aria-label={`${label} value`}
         />
         <div className="flex border-l border-rule">

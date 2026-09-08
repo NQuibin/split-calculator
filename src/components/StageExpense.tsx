@@ -544,6 +544,7 @@ export function StageExpense({
                         rate={contributionFor(p.id)}
                         onChange={(rate) => onSetContribution(p.id, rate)}
                         hideLabel
+                        wide
                       />
                     </div>
                   ))}
