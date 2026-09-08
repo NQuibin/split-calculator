@@ -25,7 +25,7 @@ export function NewExpenseButton({ className, variant = "default" }: { className
           { id: "person-1", name: "Person 1" },
           { id: "person-2", name: "Person 2" },
         ];
-    const params = encodeDraftParams(people, true);
+    const params = encodeDraftParams(people);
     startTransition(() => {
       void navigate({
         to: "/e/$slug",

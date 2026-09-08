@@ -391,7 +391,7 @@ function Roster({ slug, isOwner, members }: {
 function ExpenseActions({ slug, members }: { slug: string; members: { resolvedId: string; id: string; name: string; claimed: boolean }[] }) {
   const navigate = useNavigate();
   function handleNewExpense() {
-    const params = encodeDraftParams(members.map(m => ({ id: m.resolvedId, name: m.name })), true);
+    const params = encodeDraftParams(members.map(m => ({ id: m.resolvedId, name: m.name })));
     void navigate({
       to: "/e/$slug",
       params: { slug: generateSlug() },
