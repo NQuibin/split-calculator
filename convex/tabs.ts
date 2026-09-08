@@ -201,19 +201,9 @@ export const deleteTab = mutation({
     }
 
     for (const seat of await tabSeats(ctx, tab._id)) {
-      const seatUserId = seat.userId;
-      if (!seatUserId) continue;
-      const memberships = await ctx.db
-        .query("tabMemberships")
-        .withIndex("by_user", (q) => q.eq("userId", seatUserId))
-        .collect();
-      const stale = memberships.find((m) => m.tabId === tab._id);
-      if (stale) await ctx.db.delete(stale._id);
-    }
-
-    for (const seat of await ctx.db.query("tabMembers").withIndex("by_tab", (q) => q.eq("tabId", tab._id)).collect()) {
       await ctx.db.delete(seat._id);
     }
+
     await ctx.db.delete(tab._id);
   },
 });
@@ -263,23 +253,7 @@ export const removeMember = mutation({
     }
 
     await ctx.db.delete(removed._id);
-    const remaining = seats.filter((s) => s._id !== memberId);
     await ctx.db.patch(tab._id, { updatedAt: Date.now() });
-
-    // If the removed slot was that user's only claimed slot in this tab, drop
-    // the membership row too, so a removed member's account stops seeing this
-    // tab in their own "My Tabs" list.
-    if (removed.userId) {
-      const stillClaims = remaining.some((s) => s.userId === removed.userId);
-      if (!stillClaims) {
-        const memberships = await ctx.db
-          .query("tabMemberships")
-          .withIndex("by_user", (q) => q.eq("userId", removed.userId!))
-          .collect();
-        const stale = memberships.find((m) => m.tabId === tab._id);
-        if (stale) await ctx.db.delete(stale._id);
-      }
-    }
   },
 });
 
@@ -305,13 +279,6 @@ export const claimMember = mutation({
     await ctx.db.patch(seat._id, { userId });
     await ctx.db.patch(tab._id, { updatedAt: Date.now() });
 
-    const existingMembership = await ctx.db
-      .query("tabMemberships")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    if (!existingMembership.some((m) => m.tabId === tab._id)) {
-      await ctx.db.insert("tabMemberships", { userId, tabId: tab._id });
-    }
   },
 });
 

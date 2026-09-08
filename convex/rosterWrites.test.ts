@@ -30,13 +30,9 @@ async function seats(t: TestConvex) {
   return await t.run(ctx => ctx.db.query("tabMembers").collect());
 }
 
-test("a new tab writes seats and no roster array at all", async () => {
+test("a new tab seats the creator first, then everyone named", async () => {
   const { t, user, userId } = await setup();
   await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: ["Sam", "Jo"] });
-
-  // The retired field is absent on tabs created from here on.
-  const tab = await t.run(ctx => ctx.db.query("tabs").first());
-  expect(tab!.members).toBeUndefined();
 
   const roster = await seats(t);
   expect(roster).toHaveLength(3);

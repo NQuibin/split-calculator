@@ -111,7 +111,7 @@ test("the expenses directory orders by last update, newest first", async () => {
 });
 
 test("deleting a tab deletes its expenses and their receipts", async () => {
-  const { t, user, userId } = await setup();
+  const { t, user } = await setup();
   await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
   const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
   await user.mutation(api.tabs.createExpense, {
@@ -135,6 +135,6 @@ test("deleting a tab deletes its expenses and their receipts", async () => {
   expect(await t.run(ctx => ctx.db.query("expenses").collect())).toEqual([]);
   // The receipt goes with the expense - nothing points at the file any more.
   expect(await t.run(ctx => ctx.db.system.get("_storage", storageId))).toBeNull();
-  // And the owner's membership row is cleaned up, as before.
-  expect(await t.run(ctx => ctx.db.query("tabMemberships").withIndex("by_user", q => q.eq("userId", userId)).collect())).toEqual([]);
+  // And the tab's seats go with it.
+  expect(await t.run(ctx => ctx.db.query("tabMembers").collect())).toEqual([]);
 });

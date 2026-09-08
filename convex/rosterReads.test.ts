@@ -4,10 +4,10 @@ import { expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
-// Every roster read comes from `tabMembers`. `tabs.members[]` is no longer
-// written, but tabs created before phase 4 still carry whatever it held when
-// the writes stopped - so these tests plant a stale array, and a ghost seat
-// with its own invite token, and assert the rows win regardless.
+// `tabMembers` is the only roster there is. These tests change the rows out
+// from under the read paths - directly, not through a mutation - and assert
+// every read follows, which is what the retired array used to be checked
+// against before it was dropped.
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -19,89 +19,75 @@ async function setup() {
   return { t, userId, user };
 }
 
-/** Plants a stale `tabs.members[]`, like a tab left over from before phase 4. */
-async function corruptArray(t: Awaited<ReturnType<typeof setup>>["t"]) {
-  await t.run(async (ctx) => {
-    const tab = (await ctx.db.query("tabs").first())!;
-    await ctx.db.patch(tab._id, {
-      members: [
-        { id: "ghost-seat", name: "Ghost", inviteToken: "ghost-token" },
-        ...(tab.members ?? []).map(m => ({ ...m, name: `STALE ${m.name}` })),
-      ],
-    });
-  });
-}
-
-test("the roster comes from the rows, not the array", async () => {
+test("every read follows the rows", async () => {
   const { t, user } = await setup();
-  await corruptArray(t);
+
+  await t.run(async (ctx) => {
+    const sam = (await ctx.db.query("tabMembers").collect()).find(s => s.name === "Sam")!;
+    await ctx.db.patch(sam._id, { name: "Samantha" });
+  });
 
   const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
-  expect(tab.members.map(m => m.name).sort()).toEqual(["Alex", "Sam"]);
-  expect(tab.members.some(m => m.name.startsWith("STALE"))).toBe(false);
-  expect(tab.members.some(m => m.name === "Ghost")).toBe(false);
-});
-
-test("member counts, breakdowns and invite links all read the rows", async () => {
-  const { t, user } = await setup();
-  await corruptArray(t);
-
-  expect((await user.query(api.tabs.list))[0].memberCount).toBe(2);
+  expect(tab.members.map(m => m.name)).toEqual(["Alex", "Samantha"]);
 
   const summary = (await user.query(api.tabs.listWithSummary))[0];
   expect(summary.memberCount).toBe(2);
-  expect(summary.members.map(m => m.name).sort()).toEqual(["Alex", "Sam"]);
+  expect(summary.members.map(m => m.name)).toEqual(["Alex", "Samantha"]);
 
   const breakdown = await user.query(api.tabs.breakdown, { slug: "trip" });
-  expect(breakdown!.currencies[0].members.map(m => m.name).sort()).toEqual(["Alex", "Sam"]);
+  expect(breakdown!.currencies[0].members.map(m => m.name).sort()).toEqual(["Alex", "Samantha"]);
 
-  // The ghost seat's token is in the array but has no row, so it is not
-  // offered as an invite - and the real unclaimed seat still is.
-  const invites = await user.query(api.tabs.getInviteLinks, { slug: "trip" });
-  expect(invites.map(i => i.name)).toEqual(["Sam"]);
-  expect(invites.some(i => i.token === "ghost-token")).toBe(false);
+  expect((await user.query(api.tabs.getInviteLinks, { slug: "trip" })).map(i => i.name)).toEqual(["Samantha"]);
+
+  // Deleting a row removes the member from every read.
+  await t.run(async (ctx) => {
+    const sam = (await ctx.db.query("tabMembers").collect()).find(s => s.name === "Samantha")!;
+    await ctx.db.delete(sam._id);
+  });
+  expect((await user.query(api.tabs.list))[0].memberCount).toBe(1);
+  expect((await user.query(api.tabs.getBySlug, { slug: "trip" }))!.members.map(m => m.name)).toEqual(["Alex"]);
 });
 
-test("a token only opens the tab if a row actually holds it", async () => {
+test("a token only opens the tab if a row holds it", async () => {
   const { t } = await setup();
-  await corruptArray(t);
 
-  // "ghost-token" exists only in the stale array.
-  await expect(t.query(api.tabs.getBySlug, { slug: "trip", token: "ghost-token" }))
+  await expect(t.query(api.tabs.getBySlug, { slug: "trip", token: "made-up" }))
     .rejects.toThrow("Not signed in");
 
   const realToken = await t.run(async ctx =>
     (await ctx.db.query("tabMembers").collect()).find(s => s.name === "Sam")!.inviteToken);
-  const invited = await t.query(api.tabs.getBySlug, { slug: "trip", token: realToken });
-  expect(invited!.name).toBe("Trip");
+  expect((await t.query(api.tabs.getBySlug, { slug: "trip", token: realToken }))!.name).toBe("Trip");
+
+  // A token stops working once its seat is gone.
+  await t.run(async (ctx) => {
+    const sam = (await ctx.db.query("tabMembers").collect()).find(s => s.name === "Sam")!;
+    await ctx.db.delete(sam._id);
+  });
+  await expect(t.query(api.tabs.getBySlug, { slug: "trip", token: realToken }))
+    .rejects.toThrow("Not signed in");
 });
 
-test("access and My Tabs follow the seat rows, not tabMemberships", async () => {
+test("My Tabs and access both come from holding a seat", async () => {
   const { t, user } = await setup();
+
+  // The owner finds their own tab through the seat `create` gave them.
+  expect((await user.query(api.tabs.list)).map(row => row.slug)).toEqual(["trip"]);
+
   const samId = await t.run(ctx => ctx.db.insert("users", { name: "Sam" }));
   const sam = t.withIdentity({ subject: `${samId}|session` });
+  expect(await sam.query(api.tabs.list)).toEqual([]);
+  await expect(sam.query(api.tabs.getBySlug, { slug: "trip" })).rejects.toThrow("Not authorized");
+
   const token = await t.run(async ctx =>
     (await ctx.db.query("tabMembers").collect()).find(s => s.name === "Sam")!.inviteToken);
   await sam.mutation(api.tabs.claimMember, { slug: "trip", token });
 
-  // Deleting every membership row changes nothing - that table is written but
-  // no longer read, which is what lets phase 5 drop it.
-  await t.run(async (ctx) => {
-    for (const row of await ctx.db.query("tabMemberships").collect()) await ctx.db.delete(row._id);
-  });
-  expect((await sam.query(api.tabs.list)).map(t => t.slug)).toEqual(["trip"]);
+  expect((await sam.query(api.tabs.list)).map(row => row.slug)).toEqual(["trip"]);
   expect((await sam.query(api.tabs.getBySlug, { slug: "trip" }))!.name).toBe("Trip");
 
-  // And a membership row on its own grants nothing.
-  const malloryId = await t.run(ctx => ctx.db.insert("users", { name: "Mallory" }));
-  await t.run(async (ctx) => {
-    const tab = (await ctx.db.query("tabs").first())!;
-    await ctx.db.insert("tabMemberships", { userId: malloryId, tabId: tab._id });
-  });
-  const mallory = t.withIdentity({ subject: `${malloryId}|session` });
-  expect(await mallory.query(api.tabs.list)).toEqual([]);
-  await expect(mallory.query(api.tabs.getBySlug, { slug: "trip" })).rejects.toThrow("Not authorized");
-
-  // The owner still finds their own tab without a membership row anywhere.
-  expect((await user.query(api.tabs.list)).map(t => t.slug)).toEqual(["trip"]);
+  // Losing the seat loses the access with it.
+  const seatId = (await t.run(ctx => ctx.db.query("tabMembers").collect())).find(s => s.userId === samId)!._id;
+  await user.mutation(api.tabs.removeMember, { slug: "trip", memberId: seatId });
+  expect(await sam.query(api.tabs.list)).toEqual([]);
+  await expect(sam.query(api.tabs.getBySlug, { slug: "trip" })).rejects.toThrow("Not authorized");
 });

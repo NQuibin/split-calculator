@@ -53,13 +53,6 @@ export const expenseState = v.object({
   image: v.optional(expenseImage),
 });
 
-export const tabMember = v.object({
-  id: v.string(),
-  name: v.string(),
-  claimedByUserId: v.optional(v.id("users")),
-  inviteToken: v.string(),
-});
-
 export const tabMemberLink = v.object({
   personId: v.string(),
   memberId: v.string(),
@@ -112,23 +105,10 @@ export default defineSchema({
     slug: v.string(),
     ownerUserId: v.id("users"),
     name: v.string(),
-    /**
-     * The roster as it used to be stored. Nothing reads or writes it any
-     * more - `tabMembers` is the roster - so what remains here is frozen at
-     * whatever it held when the writes stopped, kept only so existing tabs
-     * keep validating until the field is dropped.
-     */
-    members: v.optional(v.array(tabMember)),
     /** ISO 4217 code, e.g. "USD" - the starting currency for a new expense created directly inside this tab. */
     defaultCurrency: v.optional(v.string()),
     updatedAt: v.number(),
-  })
-    .index("by_owner", ["ownerUserId"])
-    .index("by_slug", ["slug"]),
-  tabMemberships: defineTable({
-    userId: v.id("users"),
-    tabId: v.id("tabs"),
-  }).index("by_user", ["userId"]),
+  }).index("by_slug", ["slug"]),
   /**
    * One row per seat in a tab's roster - the destination for moving the
    * roster out of the `tabs.members[]` array. That array is still the source

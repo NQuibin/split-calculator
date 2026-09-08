@@ -13,7 +13,6 @@ import type * as authz from "../authz.js";
 import type * as expenses from "../expenses.js";
 import type * as http from "../http.js";
 import type * as imageFormats from "../imageFormats.js";
-import type * as migrations from "../migrations.js";
 import type * as tabs from "../tabs.js";
 import type * as users from "../users.js";
 
@@ -29,7 +28,6 @@ declare const fullApi: ApiFromModules<{
   expenses: typeof expenses;
   http: typeof http;
   imageFormats: typeof imageFormats;
-  migrations: typeof migrations;
   tabs: typeof tabs;
   users: typeof users;
 }>;
