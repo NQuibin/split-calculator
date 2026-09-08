@@ -205,7 +205,7 @@ export const get = query({
   handler: async (ctx, { slug }) => {
     const doc = await ownExpenseOrDeny(ctx, slug);
     if (!doc) return null;
-    const { stage, name, people, namePeople, mode, items, date, contributions, currency, note, image, tabId, tabMemberIds } =
+    const { stage, name, people, mode, items, date, contributions, currency, note, image, tabId, tabMemberIds } =
       doc;
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
@@ -234,7 +234,6 @@ export const get = query({
       stage,
       name,
       people,
-      namePeople,
       mode,
       items,
       date,

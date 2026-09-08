@@ -31,7 +31,6 @@ interface ExpenseStateArgs {
   stage: ExpenseState["stage"];
   name: string;
   people: Person[];
-  namePeople: boolean;
   mode: ExpenseMode;
   items: ExpenseItem[];
   date: string;
@@ -52,7 +51,6 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
   return {
     stage: state.stage,
     name: state.name,
-    namePeople: state.namePeople,
     mode: state.mode ?? "itemized",
     date: state.date,
     people: state.people.map(({ id, name }) => ({ id, name })),

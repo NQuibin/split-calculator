@@ -10,7 +10,7 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 const state = {
-  stage: "receipt" as const, name: "Dinner", namePeople: true, mode: "simple" as const,
+  stage: "receipt" as const, name: "Dinner", mode: "simple" as const,
   date: "2026-09-07", currency: "USD", people: [{ id: "person-1", name: "Alex" }],
   items: [{ id: "total", name: "Dinner", cost: 30, splitWith: ["person-1"],
     discount: { mode: "amount" as const, value: 0 }, tax: { mode: "amount" as const, value: 0 }, tip: { mode: "amount" as const, value: 0 } }],

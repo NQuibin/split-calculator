@@ -45,7 +45,6 @@ export interface ExpenseState {
   /** The expense's name - always set, initialized from the people's names joined together when first created. */
   name: string;
   people: Person[];
-  namePeople: boolean;
   mode: ExpenseMode;
   items: ExpenseItem[];
   /** The date the expense was incurred, formatted YYYY-MM-DD. */

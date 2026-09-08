@@ -46,7 +46,6 @@ export function draftFromParams(params: URLSearchParams): ExpenseState | null {
     stage: "receipt",
     name: "",
     people,
-    namePeople,
     mode: "simple",
     items: [],
     date: todayISODate(),
@@ -62,7 +61,6 @@ export function withTabPeople(state: ExpenseState, people: Person[]): ExpenseSta
   return {
     ...state,
     people,
-    namePeople: true,
     items: state.items.map(item => ({
       ...item,
       splitWith: state.people.every(person => item.splitWith.includes(person.id))
