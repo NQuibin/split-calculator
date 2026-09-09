@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { ExpenseViewTabs, type ExpenseView } from "@/components/ExpenseViewTabs";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -124,6 +125,9 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   const tab = useTab(slug);
   const breakdown = useTabBreakdown(slug);
   const expenses = useQuery(api.tabs.expensesForTab, { slug });
+  const [expenseView, setExpenseView] = useState<ExpenseView>("paid");
+  const hasUpcoming = expenses?.some(expense => isUpcoming(expense.date)) ?? false;
+  if (!hasUpcoming && expenseView !== "paid") setExpenseView("paid");
 
   if (tab === undefined || expenses === undefined) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading tab…</p></main>;
   if (tab === null) {
@@ -133,6 +137,11 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       </main>
     );
   }
+
+  const tabContent = <>
+      {breakdown && <div><TabBreakdown expenseView={expenseView} expenses={expenses} hasUpcoming={hasUpcoming} tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
+      <div className="mt-7"><ExpenseList expenseView={expenseView} defaultCurrency={tab.defaultCurrency} slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
+  </>;
 
   return (
     <main className={pageClass}>
@@ -154,8 +163,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         </div>
         {tab.isOwner && <div className="flex flex-wrap items-center gap-3"><ExpenseActions slug={slug} members={tab.members} /><DeleteTabButton slug={slug} expenseCount={expenses.length} /></div>}
       </header>
-      {breakdown && <div className="mt-7"><TabBreakdown tabSlug={slug} currencies={breakdown.currencies} members={tab.members} /></div>}
-      <div className="mt-7"><ExpenseList defaultCurrency={tab.defaultCurrency} slug={slug} isOwner={tab.isOwner} members={tab.members} expenses={expenses} /></div>
+      {hasUpcoming ? <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Tab expense date">{tabContent}</ExpenseViewTabs> : tabContent}
     </main>
   );
 }
@@ -429,7 +437,8 @@ function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpense
   </span>;
 }
 
-function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
+function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: {
+  expenseView: ExpenseView;
   defaultCurrency: string;
   slug: string;
   isOwner: boolean;
@@ -444,8 +453,11 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const codes = [...new Set(expenses.map(e => e.settlementCurrency))].sort();
-  const filtered = expenses.filter(e => (currencyFilter === "all" || e.settlementCurrency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
-  const selected = filtered.find(e => e.slug === selectedSlug);
+  const hasUpcoming = expenses.some(expense => isUpcoming(expense.date));
+  const activeView = hasUpcoming ? expenseView : "all";
+  const visibleExpenses = expenses.filter(expense => activeView === "all" || (activeView === "upcoming" ? isUpcoming(expense.date) : !isUpcoming(expense.date)));
+  const filtered = visibleExpenses.filter(e => (currencyFilter === "all" || e.settlementCurrency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
+  const selected = expenses.find(e => e.slug === selectedSlug);
   const split = selected ? computeSplit(selected.people, selected.items) : null;
   async function deleteExpense() {
     if (!selected) return;
@@ -456,12 +468,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't update the expense."); }
     finally { setPending(false); }
   }
-  return <section aria-label="Expenses" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-    <div className="mb-4 flex flex-wrap items-center gap-3">
-      <h2 className="mr-auto font-display text-lg font-semibold">Expenses <span className="ml-2 text-sm font-normal text-ink-soft">{filtered.length}</span></h2>
-      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-paper px-3 focus-within:ring-2 focus-within:ring-forest/20 sm:max-w-sm"><Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search tab expenses" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} className="w-full min-w-0 bg-transparent text-xs outline-none" /></label>
-      <CurrencyFilter value={currencyFilter} onChange={setCurrencyFilter} codes={codes} label="Filter by currency" />
-    </div>
+  const expenseRows = <>
     <div className="overflow-hidden rounded-lg border border-rule/70">
       <div className={`${expenseRowGrid} border-b border-rule/70 py-3 text-xs font-medium uppercase text-ink-soft`}>
         <span>Expense</span>
@@ -470,7 +477,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
         <span className="hidden text-center md:block">Split with</span>
         <span className="text-right">Amount</span>
       </div>
-      {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{expenses.length ? "No expenses match your filters." : "No expenses yet. Add one to get started."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
+      {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{!expenses.length ? "No expenses yet. Add one to get started." : !visibleExpenses.length && activeView === "paid" ? "No paid expenses yet. Check Upcoming for planned expenses." : "No expenses match your filters."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
         <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} w-full py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
           <span className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3ead8] text-brass"><Receipt className="h-5 w-5" strokeWidth={2.25} /></span>
@@ -498,6 +505,14 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses }: {
       </li>)}</ul>}
     </div>
     {filtered.some(expense => isUpcoming(expense.date)) && <UpcomingExpenseLegend />}
+  </>;
+  return <section aria-label="Expenses" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+    <div className="mb-4 flex flex-wrap items-center gap-3">
+      <h2 className="mr-auto font-display text-lg font-semibold">Expenses <span className="ml-2 text-sm font-normal text-ink-soft">{filtered.length}</span></h2>
+      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-paper px-3 focus-within:ring-2 focus-within:ring-forest/20 sm:max-w-sm"><Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search tab expenses" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} className="w-full min-w-0 bg-transparent text-xs outline-none" /></label>
+      <CurrencyFilter value={currencyFilter} onChange={setCurrencyFilter} codes={codes} label="Filter by currency" />
+    </div>
+    {expenseRows}
     <Dialog open={Boolean(selected)} onOpenChange={next => { if (!next) { setSelectedSlug(null); setConfirmDelete(false); setError(null); } }}>
       {selected && split && <DialogContent key={selected.slug} aria-label="Expense details" className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">

@@ -1,3 +1,6 @@
+import type { ExpenseView } from "@/components/ExpenseViewTabs";
+import { filterBalanceSummary } from "@/lib/filterBalanceSummary";
+import type { TabExpenseSummary } from "@/lib/tabSync";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, ChevronRight, HatGlasses, Scale } from "lucide-react";
@@ -7,34 +10,21 @@ import { currency } from "@/lib/format";
 import type { TabCurrencyBreakdown, TabMemberSummary } from "@/lib/tabSync";
 
 interface TabBreakdownProps {
+  expenseView: ExpenseView;
+  hasUpcoming: boolean;
+  expenses: TabExpenseSummary[];
   tabSlug: string;
   currencies: TabCurrencyBreakdown[];
   members: TabMemberSummary[];
 }
 
-export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps) {
+export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expenseView, hasUpcoming, expenses }: TabBreakdownProps) {
+  const currencies = filterBalanceSummary(allCurrencies, expenses, hasUpcoming ? expenseView : "all");
   const [selectedCurrency, setSelectedCurrency] = useState("all");
   const activeCurrency = currencies.some(item => item.currency === selectedCurrency) ? selectedCurrency : "all";
   const visibleCurrencies = currencies.filter(item => activeCurrency === "all" || item.currency === activeCurrency);
 
-  return (
-    <section aria-label="Balance summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
-          <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
-          Balance summary
-        </h2>
-        <div className="flex flex-wrap items-center gap-4">
-          {currencies.some(item => item.expenseCount > 0) && (
-            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="group inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
-              Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-            </Link>
-          )}
-          {currencies.length > 1 && (
-            <CurrencyFilter value={activeCurrency} onChange={setSelectedCurrency} codes={currencies.map(item => item.currency)} label="Balance summary currency" />
-          )}
-        </div>
-      </div>
+  const summary = <>
       {currencies.some(item => item.convertedExpenseCount > 0) && <p className="mb-4 text-xs text-ink-soft">Includes expenses converted using saved exchange rates.</p>}
       {!members.length ? <p className="text-sm text-ink-soft">No members yet.</p> : !currencies.length ? <p className="text-sm text-ink-soft">No expenses yet.</p> : (
         <div className="overflow-x-auto rounded-lg border border-rule/70">
@@ -84,6 +74,27 @@ export function TabBreakdown({ tabSlug, currencies, members }: TabBreakdownProps
           </table>
         </div>
       )}
+  </>;
+
+  return (
+    <section aria-label="Balance summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
+          <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
+          Balance summary
+        </h2>
+        <div className="flex flex-wrap items-center gap-4">
+          {currencies.some(item => item.expenseCount > 0) && (
+            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="group inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
+              Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+            </Link>
+          )}
+          {currencies.length > 1 && (
+            <CurrencyFilter value={activeCurrency} onChange={setSelectedCurrency} codes={currencies.map(item => item.currency)} label="Balance summary currency" />
+          )}
+        </div>
+      </div>
+      {summary}
     </section>
   );
 }
