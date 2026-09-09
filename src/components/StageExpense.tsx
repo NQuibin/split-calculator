@@ -119,6 +119,7 @@ export function StageExpense({
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const [addingItem, setAddingItem] = useState(items.length === 0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -268,37 +269,63 @@ export function StageExpense({
         </div>
   );
   const peopleManagement = showPeople && !inTab ? (
-    <details className="mt-3 border-t border-rule pt-2">
-        <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-forest">Manage people</summary>
-        <ul className="flex flex-wrap gap-2 text-sm">
-          {people.map((person) => (
-            <PersonRow
-              key={person.id}
-              person={person}
-              anonymous={anonymousPersonIds.includes(person.id)}
-              locked={inTab || person.id === viewerId}
-              removable={!inTab && people.length > 1}
-              onRemove={() => handleRemovePerson(person.id)}
-              onRename={(name) => onRenamePerson(person.id, name)}
-            />
-          ))}
-        </ul>
-        {!inTab && people.some((p) => p.id === viewerId) && (
-          <p className="mt-3 text-xs text-ink-soft">
-            Your name comes from your account - update it in Settings.
-          </p>
-        )}
-        {!inTab && (
-          <button
-            type="button"
-            onClick={onAddPerson}
-            className="mt-3 flex min-h-11 items-center gap-1 text-sm font-medium text-forest hover:text-ink"
+    <div className="mt-3 border-t border-rule pt-2">
+      <button
+        type="button"
+        onClick={() => setPeopleOpen((o) => !o)}
+        aria-expanded={peopleOpen}
+        className="flex min-h-11 w-full items-center justify-between gap-2 py-3 text-sm font-medium text-forest"
+      >
+        Manage people
+        <motion.span
+          animate={{ rotate: peopleOpen ? 180 : 0 }}
+          transition={collapseTransition}
+          className="shrink-0"
+        >
+          <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {peopleOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={collapseTransition}
+            className="overflow-hidden"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            Add person
-          </button>
+            <div className="pb-1">
+              <ul className="flex flex-wrap gap-2 text-sm">
+                {people.map((person) => (
+                  <PersonRow
+                    key={person.id}
+                    person={person}
+                    anonymous={anonymousPersonIds.includes(person.id)}
+                    locked={person.id === viewerId}
+                    removable={people.length > 1}
+                    onRemove={() => handleRemovePerson(person.id)}
+                    onRename={(name) => onRenamePerson(person.id, name)}
+                  />
+                ))}
+              </ul>
+              {people.some((p) => p.id === viewerId) && (
+                <p className="mt-3 text-xs text-ink-soft">
+                  Your name comes from your account - update it in Settings.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={onAddPerson}
+                className="mt-3 flex min-h-11 items-center gap-1 text-sm font-medium text-forest hover:text-ink"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                Add person
+              </button>
+            </div>
+          </motion.div>
         )}
-      </details>
+      </AnimatePresence>
+    </div>
   ) : null;
 
   const itemEditor = (
