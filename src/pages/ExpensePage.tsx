@@ -4,7 +4,6 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { ChevronRight, Trash2 } from "lucide-react";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseTabField } from "@/components/ExpenseTabField";
-import { ExpenseSkeleton } from "@/components/ExpenseSkeleton";
 import { StageExpense } from "@/components/StageExpense";
 import { StageResults } from "@/components/StageResults";
 import { api } from "../../convex/_generated/api";
@@ -25,6 +24,8 @@ function useHasHydrated(): boolean {
 
 const route = getRouteApi("/e/$slug");
 
+const pageClass = "mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12";
+
 export function ExpensePage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const viewer = useQuery(api.users.viewer);
@@ -37,7 +38,7 @@ export function ExpensePage() {
     if (changedIdentity) void navigate({ to: "/expenses", replace: true });
   }, [identity, changedIdentity, navigate]);
   const { slug } = route.useParams();
-  if (identity === null || changedIdentity) return <ExpenseSkeleton />;
+  if (identity === null || changedIdentity) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading expense…</p></main>;
   return <ExpenseEditor key={`${identity}:${slug}`} />;
 }
 
@@ -112,7 +113,7 @@ function ExpenseEditor() {
     }
   }, [stored, tabSlug, tab, viewer]);
 
-  if (!hasHydrated || loading || !state) return <ExpenseSkeleton />;
+  if (!hasHydrated || loading || !state) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading expense…</p></main>;
 
   function dispatch(action: Action) {
     if (!state) return;
@@ -193,12 +194,14 @@ function ExpenseEditor() {
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-ink-soft">
-          {!stored ? <span aria-current="page">New Expense</span> : <>
-            <Link to={state.tab ? "/tabs" : "/expenses"} className="hover:text-forest hover:underline">{state.tab ? "Tabs" : "Expenses"}</Link>
+          {/* A new expense only gets a trail once it has somewhere to sit - an
+              unsaved one outside a tab has nothing above it but "New Expense". */}
+          {!stored && !destinedTab ? <span aria-current="page">New Expense</span> : <>
+            <Link to={destinedTab ? "/tabs" : "/expenses"} className="hover:text-forest hover:underline">{destinedTab ? "Tabs" : "Expenses"}</Link>
             <ChevronRight aria-hidden="true" className="h-4 w-4" />
-            {state.tab && <><Link to="/t/$slug" params={{ slug: state.tab.slug }} className="hover:text-forest hover:underline">{state.tab.name}</Link><ChevronRight aria-hidden="true" className="h-4 w-4" /></>}
+            {destinedTab && <><Link to="/t/$slug" params={{ slug: destinedTab.slug }} className="hover:text-forest hover:underline">{destinedTab.name}</Link><ChevronRight aria-hidden="true" className="h-4 w-4" /></>}
             {/* On the split, the expense name steps back to the editor - it replaces the old "Edit the expense" link. */}
-            {state.stage === "results" ? <>
+            {!stored ? <span aria-current="page" className="font-medium text-ink">New Expense</span> : state.stage === "results" ? <>
               <button type="button" onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })} className="break-words hover:text-forest hover:underline">{state.name}</button>
               <ChevronRight aria-hidden="true" className="h-4 w-4" />
               <span aria-current="page" className="font-medium text-ink">Split</span>

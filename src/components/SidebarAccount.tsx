@@ -1,19 +1,18 @@
 import { type FormEvent, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
-import { Skeleton } from "@/components/ui/Skeleton";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 
 export function SidebarAccount() {
   return (
     <div className="flex items-center">
       <AuthLoading>
-        {/* Matches SignedInMenu's actual row height (28px, measured) so this
-            block doesn't change height once auth resolves. */}
-        <Skeleton className="h-7 w-24 rounded-full" />
+        {/* The 28px height matches SignedInMenu's actual row height (measured),
+            so this block doesn't change height once auth resolves. */}
+        <p role="status" className="flex h-7 items-center text-xs text-ink-soft">Loading…</p>
       </AuthLoading>
       <Unauthenticated>
         <SignInMenu />
@@ -64,14 +63,14 @@ function SignInMenu() {
   }
 
   return (
-    <Popover
+    <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) resetForm();
       }}
     >
-      <PopoverTrigger
+      <DialogTrigger
         render={
           <button
             type="button"
@@ -81,15 +80,24 @@ function SignInMenu() {
       >
         <LogIn className="h-3.5 w-3.5" strokeWidth={2.25} />
         Sign in
-      </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-72 border border-rule bg-surface p-4">
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <DialogTitle>{flow === "signIn" ? "Sign in" : "Create account"}</DialogTitle>
+          <DialogClose aria-label="Close sign in" className="rounded-md p-1.5 text-ink-soft hover:text-ink"><X className="h-4 w-4" /></DialogClose>
+        </div>
+        <DialogDescription className="mb-5">
+          {flow === "signIn"
+            ? "Sign in to sync your tabs and expenses across devices."
+            : "Create an account to sync your tabs and expenses across devices."}
+        </DialogDescription>
         <button
           type="button"
           onClick={() => void signIn("google")}
           className="flex w-full items-center justify-center gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
         >
           <GoogleIcon className="h-4 w-4" />
-          Sign in with Google
+          {flow === "signIn" ? "Sign in with Google" : "Sign up with Google"}
         </button>
 
         <div className="my-3 flex items-center gap-2 text-xs text-ink-soft">
@@ -138,8 +146,8 @@ function SignInMenu() {
         >
           {flow === "signIn" ? "Need an account? Sign up" : "Have an account? Sign in"}
         </button>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   );
 }
 
