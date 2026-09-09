@@ -223,7 +223,7 @@ function ExpenseEditor() {
           showPeople={!isAuthenticated || !!stored || !!tabDraft}
           continueDisabled={isAuthenticated && !stored && !tabDraft}
           expenseName={state.name}
-          description={stored ? "Edit the details of this expense. Nothing is saved until you're done." : isAuthenticated ? "Add the details of your new expense." : "Saved only in this browser. Guest expenses stay separate from your account."}
+          description={stored ? "Edit the details of this expense. Nothing is saved until you're done." : isAuthenticated ? undefined : "Saved only in this browser. Guest expenses stay separate from your account."}
           headerAction={stored ? <div className="flex flex-wrap items-center gap-2">
             {confirmDelete && <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-ink-soft">Cancel</button>}
             <button type="button" onClick={() => {
@@ -231,7 +231,7 @@ function ExpenseEditor() {
               remove(slug);
               if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
               else void navigate({ to: "/expenses" });
-            }} className="inline-flex items-center gap-2 rounded-lg border border-margin-red/50 px-4 py-2.5 text-sm font-medium text-margin-red hover:bg-margin-red/5"><Trash2 className="h-4 w-4" />{confirmDelete ? "Confirm delete" : "Delete expense"}</button>
+            }} aria-label={confirmDelete ? "Confirm delete" : "Delete expense"} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-margin-red/50 px-3 py-2.5 text-sm font-medium text-margin-red hover:bg-margin-red/5"><Trash2 className="h-4 w-4" /><span className={confirmDelete ? "" : "hidden sm:inline"}>{confirmDelete ? "Confirm delete" : "Delete expense"}</span></button>
           </div> : undefined}
           onCancel={() => (dirty ? setConfirmDiscard(true) : leave())}
           cancelLabel={stored ? "Close" : "Cancel"}
@@ -256,12 +256,11 @@ function ExpenseEditor() {
           onAddItem={(item) => dispatch({ type: "ADD_ITEM", item })}
           onUpdateItem={(item) => dispatch({ type: "UPDATE_ITEM", item })}
           onRemoveItem={(id) => dispatch({ type: "REMOVE_ITEM", id })}
-          onReorderItems={(items) => dispatch({ type: "REORDER_ITEMS", items })}
           onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
           onAddPerson={() => dispatch({ type: "ADD_PERSON" })}
           onRemovePerson={(id) => dispatch({ type: "REMOVE_PERSON", id })}
           onRenamePerson={(id, name) => dispatch({ type: "RENAME_PERSON", id, name })}
-          continueLabel={stored ? (destinedTab ? "Done" : "View split") : "Save expense"}
+          continueLabel={stored ? (destinedTab ? "Save expense" : "View split") : "Save expense"}
           onContinue={handleFinalize}
         />
       )}

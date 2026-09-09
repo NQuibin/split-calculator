@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, Plus, Wallet } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -24,7 +24,7 @@ function TabLink({ slug, name }: { slug: string; name: string }) {
     <Link
       to="/t/$slug"
       params={{ slug }}
-      className="group inline-flex items-baseline gap-1 text-forest hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+      className="group inline-flex min-h-11 min-w-0 items-center break-words gap-1 text-forest hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
     >
       {name}
       <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 self-center transition group-hover:translate-x-0.5" strokeWidth={2.25} />
@@ -37,20 +37,19 @@ export function ExpenseTabField({ tabs, value, name, loading, locked, saved, onC
   const [creating, setCreating] = useState(false);
   const label = name ?? tabs.find(tab => tab.slug === value)?.name;
 
-  return <section className="mb-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-    <p id="expense-tab-label" className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold uppercase tracking-wide text-ink">
-      <Wallet aria-hidden="true" className="h-4 w-4 text-brass" strokeWidth={2.25} />
-      Tab
+  return <section className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+    <p id="expense-tab-label" className="shrink-0 text-sm text-ink-soft">
+      In tab ·
     </p>
     {saved ? <p className="text-sm text-ink">{value && label ? <TabLink slug={value} name={label} /> : "Personal expense"}</p> : locked ? <>
       <p aria-labelledby="expense-tab-label" className="text-sm font-medium text-ink">{value && label ? <TabLink slug={value} name={label} /> : loading ? "Loading tab…" : "Tab unavailable"}</p>
       {/* Nothing to add once the tab is named above - the hint only earns its
           place when there is no name to show. */}
-      {!label && <p className="mt-3 text-xs text-ink-soft">{loading ? "Loading the destination tab." : "This tab is unavailable. Return to your tabs to start a new expense."}</p>}
+      {!label && <p className="w-full text-xs text-ink-soft">{loading ? "Loading the destination tab." : "This tab is unavailable. Return to your tabs to start a new expense."}</p>}
     </> : <>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 max-w-full items-center gap-2">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger render={<Button variant="outline" aria-labelledby="expense-tab-label expense-tab-value" aria-required="true" className="h-auto min-w-0 flex-1 justify-between gap-2 rounded-md border-rule bg-surface px-3 py-2 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface" />}>
+        <PopoverTrigger render={<Button variant="outline" aria-labelledby="expense-tab-label expense-tab-value" aria-required="true" className="h-auto min-h-11 min-w-0 flex-1 justify-between gap-2 rounded-md border-rule bg-surface px-3 py-2 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface" />}>
           <span id="expense-tab-value" className="truncate">{label ?? (value ? loading ? "Loading tab…" : "Tab unavailable" : "Choose a tab")}</span>
           <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft" />
         </PopoverTrigger>
@@ -78,13 +77,13 @@ export function ExpenseTabField({ tabs, value, name, loading, locked, saved, onC
         params={{ slug: value }}
         aria-label={`Go to ${label}`}
         title={`Go to ${label}`}
-        className="group inline-flex shrink-0 items-center rounded-md p-2 text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        className="group inline-flex min-h-11 min-w-11 justify-center shrink-0 items-center rounded-md p-2 text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         <ChevronRight aria-hidden="true" className="h-4 w-4 transition group-hover:translate-x-0.5" strokeWidth={2.25} />
       </Link>}
       </div>
       <CreateTabMenu variant="none" open={creating} onOpenChange={setCreating} onCreated={onChange} />
-      <p className="mt-3 text-xs text-ink-soft">{label ? "People come from this tab. Changing tabs updates the people and their splits." : "Choose a tab or create one to add people and save this expense."}</p>
+      <p className="w-full text-xs text-ink-soft">{label ? "People come from this tab. Changing tabs updates the people and their splits." : "Choose a tab or create one to add people and save this expense."}</p>
     </>}
   </section>;
 }

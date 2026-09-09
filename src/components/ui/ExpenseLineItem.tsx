@@ -1,96 +1,76 @@
-import { motion, Reorder, useDragControls } from "motion/react";
-import { GripVertical, Pencil, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { MemberAvatar } from "@/components/MemberAvatar";
+import { Pencil, Trash2 } from "lucide-react";
 import { discountAmount } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import type { Person, ExpenseItem, RateSetting } from "@/lib/types";
 
-function formatRate(label: string, rate: RateSetting, code: string): string | null {
-  if (rate.value <= 0) return null;
+function formatRate(label: string, rate: RateSetting, code: string): string {
   return rate.mode === "percent" ? `${label} ${rate.value}%` : `${label} ${currency(rate.value, code)}`;
 }
 
 interface ExpenseLineItemProps {
+  children?: ReactNode;
   item: ExpenseItem;
   index: number;
   people: Person[];
   currency: string;
   isEditing: boolean;
-  isNew: boolean;
   onEdit: () => void;
   onRemove: () => void;
 }
 
 export function ExpenseLineItem({
+  children,
   item,
   index,
   people,
   currency: currencyCode,
   isEditing,
-  isNew,
   onEdit,
   onRemove,
 }: ExpenseLineItemProps) {
-  const controls = useDragControls();
-
   function personName(id: string): string {
     return people.find((p) => p.id === id)?.name ?? "?";
   }
 
-  const rateLabels = [formatRate("tax", item.tax, currencyCode), formatRate("tip", item.tip, currencyCode)].filter(
+  const rateLabels = [item.tax.value > 0 ? formatRate("Tax", item.tax, currencyCode) : null, item.tip.value > 0 ? formatRate("Tip", item.tip, currencyCode) : null].filter(
     (s): s is string => s !== null,
   );
 
   return (
-    <Reorder.Item
-      value={item}
-      dragListener={false}
-      dragControls={controls}
-      as="li"
-      whileDrag={{ scale: 1.02, boxShadow: "0 6px 16px rgba(30, 42, 34, 0.18)" }}
-    >
-      <motion.div
-        initial={isNew ? { opacity: 0, y: -8 } : false}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-        className={`flex items-start gap-2 rounded-md bg-surface text-sm ${isEditing ? "ring-2 ring-brass" : ""}`}
+    <li
+        className={`rounded-lg border bg-surface text-sm ${isEditing ? "border-forest" : "border-rule"}`}
       >
-        <button
-          type="button"
-          onPointerDown={(e) => controls.start(e)}
-          aria-label={`Reorder ${item.name}`}
-          className="mt-0.5 shrink-0 cursor-grab touch-none text-ink-soft/50 transition hover:text-ink-soft active:cursor-grabbing"
-        >
-          <GripVertical className="h-4 w-4" strokeWidth={2} />
-        </button>
-
-        <div className="min-w-0 flex-1">
-          <p className="text-ink">
+        <div className="flex flex-wrap items-center gap-1 px-4 py-2 sm:gap-2">
+        <button type="button" onClick={onEdit} aria-expanded={isEditing} className="min-h-11 min-w-24 flex-1 text-left">
+          <p className="break-words text-ink">
             <span className="font-numeric text-ink-soft">{index + 1}.</span> {item.name}
           </p>
-          <p className="truncate text-xs text-ink-soft">
-            {rateLabels.length > 0 && `${rateLabels.join(" · ")} · `}
-            {item.splitWith.length === people.length
-              ? "everyone"
-              : item.splitWith.map(personName).join(", ")}
-          </p>
-        </div>
+          <span className="mt-2 flex flex-wrap gap-y-2 pl-1" aria-label={`Split with ${item.splitWith.map(personName).join(", ") || "no one"}`}>
+            {item.splitWith.map(id => <MemberAvatar key={id} id={id} name={personName(id)} size="sm" className="-ml-1 ring-2 ring-surface" />)}
+          </span>
+          {rateLabels.length > 0 && <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-soft">
+            {rateLabels.map(label => <span key={label}>{label}</span>)}
+          </span>}
+        </button>
 
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="font-numeric text-ink">
-            {item.discount.value > 0 ? (
-              <>
-                <span className="text-ink-soft line-through">{currency(item.cost, currencyCode)}</span>{" "}
-                {currency(Math.max(0, item.cost - discountAmount(item)), currencyCode)}
-              </>
-            ) : (
-              currency(item.cost, currencyCode)
-            )}
+        <div className="ml-auto flex flex-wrap items-center gap-1">
+          <span className="font-numeric flex flex-wrap items-baseline justify-end gap-x-2 text-ink">
+            {item.discount.value > 0 && <>
+              <span className="sr-only">Original price </span>
+              <s className="text-xs text-ink-soft">{currency(item.cost, currencyCode)}</s>
+            </>}
+            <span>
+              <span className="sr-only">{item.discount.value > 0 ? "Discounted price before tax and tip " : "Price before tax and tip "}</span>
+              {currency(Math.max(0, item.cost - discountAmount(item)), currencyCode)}
+            </span>
           </span>
           <button
             type="button"
             onClick={onEdit}
             aria-label={`Edit ${item.name}`}
-            className="text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.25} />
           </button>
@@ -98,12 +78,13 @@ export function ExpenseLineItem({
             type="button"
             onClick={onRemove}
             aria-label={`Remove ${item.name}`}
-            className="text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
           >
             <Trash2 className="h-4 w-4" strokeWidth={2.25} />
           </button>
         </div>
-      </motion.div>
-    </Reorder.Item>
+        </div>
+        {children && <div className="border-t border-rule p-4">{children}</div>}
+    </li>
   );
 }
