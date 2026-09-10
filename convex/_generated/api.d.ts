@@ -10,9 +10,14 @@
 
 import type * as auth from "../auth.js";
 import type * as authz from "../authz.js";
+import type * as expenseMembers from "../expenseMembers.js";
 import type * as expenses from "../expenses.js";
 import type * as http from "../http.js";
 import type * as imageFormats from "../imageFormats.js";
+import type * as migrations_expenseMemberReferences from "../migrations/expenseMemberReferences.js";
+import type * as migrations_markEmailVerified from "../migrations/markEmailVerified.js";
+import type * as otp_PasswordOTP from "../otp/PasswordOTP.js";
+import type * as otp_ResendOTP from "../otp/ResendOTP.js";
 import type * as tabs from "../tabs.js";
 import type * as users from "../users.js";
 
@@ -25,9 +30,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authz: typeof authz;
+  expenseMembers: typeof expenseMembers;
   expenses: typeof expenses;
   http: typeof http;
   imageFormats: typeof imageFormats;
+  "migrations/expenseMemberReferences": typeof migrations_expenseMemberReferences;
+  "migrations/markEmailVerified": typeof migrations_markEmailVerified;
+  "otp/PasswordOTP": typeof otp_PasswordOTP;
+  "otp/ResendOTP": typeof otp_ResendOTP;
   tabs: typeof tabs;
   users: typeof users;
 }>;
@@ -58,4 +68,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+};

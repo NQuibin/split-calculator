@@ -1,6 +1,7 @@
+import { resolveExpenseMembers, assertExpenseMembers } from "./expenseMembers";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { listTabsForUser, resolveSeatName, tabSeats } from "./tabs";
+import { listTabsForUser, tabSeats } from "./tabs";
 import { computeSplit, round2 } from "../src/lib/calculations";
 import { mutation, query } from "./_generated/server";
 import { expenseState, person } from "./schema";
@@ -14,7 +15,7 @@ import type { Infer } from "convex/values";
 // absent field rather than an empty string, so saving a blank note deletes it.
 // Patching the field to `undefined` is what removes it from an existing doc.
 function withNormalizedNote(state: Infer<typeof expenseState>) {
-  return { ...state, note: state.note?.trim() || undefined };
+  return { ...state, stage: undefined, note: state.note?.trim() || undefined };
 }
 
 // The client uploads straight to Convex storage, so the file's real size and
@@ -94,7 +95,7 @@ export const list = query({
       .query("expenses")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    return docs.map(({ slug, currency, ...state }) => ({ slug, state: { ...state, currency: currency ?? "USD" } }));
+    return (await Promise.all(docs.map(doc => resolveExpenseMembers(ctx, doc)))).map(({ slug, currency, ...state }) => ({ slug, state: { ...state, stage: "receipt" as const, currency: currency ?? "USD" } }));
   },
 });
 
@@ -130,11 +131,12 @@ export const directory = query({
 });
 
 export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">) {
-  const own = await ctx.db
+  const ownDocs = await ctx.db
     .query("expenses")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
 
+  const own = await Promise.all(ownDocs.map(doc => resolveExpenseMembers(ctx, doc)));
   const rows: {
     key: string;
     kind: "own" | "tab";
@@ -168,7 +170,8 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
-    for (const e of expenses) {
+    for (const raw of expenses) {
+      const e = await resolveExpenseMembers(ctx, raw);
       // An owned expense appears once, with its tab name. Shared expenses
       // open the tab's existing read-only view, not the owner-only editor.
       const owned =
@@ -194,9 +197,7 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
     }
   }
 
-  // Most recently touched first. Unlike a tab's own list (which stays in
-  // creation order), this one is the user's working set across every tab, so
-  // editing an expense is what should float it back to the top.
+  // The directory is the user's working set: most recently edited first.
   return rows.sort((a, b) => b.updatedAt - a.updatedAt || a.name.localeCompare(b.name));
 }
 
@@ -205,33 +206,15 @@ export const get = query({
   handler: async (ctx, { slug }) => {
     const doc = await ownExpenseOrDeny(ctx, slug);
     if (!doc) return null;
-    const { stage, name, people, mode, items, date, contributions, currency, note, image, tabId, tabMemberIds } =
-      doc;
+    const { name, people, mode, items, date, contributions, currency, note, image, tabId } =
+      await resolveExpenseMembers(ctx, doc);
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
-    // Flag people linked to a still-anonymous tab member, so the expense
-    // form can show the same indicator the tab's roster does. Also list
-    // tab members not yet on this expense, so the expense form can offer
-    // them (or a brand-new person) as the only way to add someone once an
-    // expense belongs to a tab.
-    let anonymousPersonIds: string[] = [];
-    let availableTabMembers: { id: string; name: string }[] = [];
-    if (tab) {
-      const linkedMemberIds = new Set((tabMemberIds ?? []).map((link) => link.memberId));
-      const seats = await tabSeats(ctx, tab._id);
-      const anonymousMemberIds = new Set<string>(seats.filter((s) => !s.userId).map((s) => s._id));
-      anonymousPersonIds = (tabMemberIds ?? [])
-        .filter((link) => anonymousMemberIds.has(link.memberId))
-        .map((link) => link.personId);
-      availableTabMembers = await Promise.all(
-        seats
-          .filter((s) => !linkedMemberIds.has(s._id))
-          .map(async (s) => ({ id: s._id, name: await resolveSeatName(ctx, s) })),
-      );
-    }
+    const seats = tab ? await tabSeats(ctx, tab._id) : [];
+    const anonymousPersonIds = seats.filter(s => !s.userId).map(s => s._id);
 
     return {
-      stage,
+      stage: "receipt" as const,
       name,
       people,
       mode,
@@ -244,7 +227,7 @@ export const get = query({
       image: image ? { ...image, url: await ctx.storage.getUrl(image.storageId) } : undefined,
       tab: tab ? { slug: tab.slug, name: tab.name } : null,
       anonymousPersonIds,
-      availableTabMembers,
+
     };
   },
 });
@@ -261,13 +244,16 @@ export const save = mutation({
       await assertValidImage(ctx, state.image.storageId);
     }
 
+    const resolved = await resolveExpenseMembers(ctx, existing);
+    const roundingOrder = resolved.people.map(person => person.id) as Id<"tabMembers">[];
     const normalized = withNormalizedNote(state);
+    await assertExpenseMembers(ctx, { ...normalized, tabId: existing.tabId });
     if (existing) {
       await deleteImageIfUnused(ctx, existing.image?.storageId, state.image?.storageId);
       // `image` is spelled out so the key is always present: the client omits
       // it when there's no image, and only a present-but-undefined field
       // removes an image already on the doc.
-      await ctx.db.patch(existing._id, { ...normalized, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { ...normalized, people: undefined, tabMemberIds: undefined, memberReferencesVersion: 1, roundingOrder, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
     }
     return null;
   },

@@ -127,6 +127,5 @@ export function useTabActions() {
     removeMember: useMutation(api.tabs.removeMember),
     claimMember: useMutation(api.tabs.claimMember),
     createExpense: useMutation(api.tabs.createExpense),
-    addExpensePerson: useMutation(api.tabs.addExpensePerson),
   };
 }

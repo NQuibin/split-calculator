@@ -72,7 +72,12 @@ function ExpenseEditor() {
     setSeeded(true);
     setDraft(stored);
   }
-  const baseState = draft ?? stored;
+  const workingState = draft ?? stored;
+  // The live roster can change while this expense has unsaved edits. Refresh
+  // available people without selecting new members or replacing those edits.
+  const baseState = workingState && stored?.tab
+    ? { ...workingState, people: stored.people, anonymousPersonIds: stored.anonymousPersonIds }
+    : workingState;
 
   const uploadImage = useUploadExpenseImage();
   const [pendingReceipt, setPendingReceipt] = useState<File | null>(null);
@@ -84,7 +89,7 @@ function ExpenseEditor() {
   const { createExpense } = useTabActions();
   const tabDraft = isAuthenticated && !stored && tab?.isOwner ? tab : null;
   const state = baseState && tabDraft
-    ? withTabPeople(baseState, tabDraft.members.map(member => ({ id: member.resolvedId, name: member.name })))
+    ? withTabPeople(baseState, tabDraft.members.map(member => ({ id: member.id, name: member.name })))
     : baseState && isAuthenticated && !stored ? withTabPeople(baseState, []) : baseState;
 
   useEffect(() => {
@@ -123,18 +128,11 @@ function ExpenseEditor() {
 
   const destinedTab = state.tab ?? tabDraft;
   const anonymousPersonIds = state.anonymousPersonIds
-    ?? tabDraft?.members.filter((member) => !member.claimed).map((member) => member.resolvedId)
+    ?? tabDraft?.members.filter((member) => !member.claimed).map((member) => member.id)
     ?? [];
 
-  // Unsaved work, compared on the shape that actually gets saved so that
-  // fields the editor adds for rendering don't read as changes. `stage` is
-  // left out: stepping between the split and the editor is a position in the
-  // UI, not an edit, and is not worth prompting over.
-  const savedShape = (value: ExpenseState) => {
-    const args: Partial<ReturnType<typeof toExpenseStateArgs>> = { ...toExpenseStateArgs(value) };
-    delete args.stage;
-    return JSON.stringify(args);
-  };
+  // Compare only persisted data; switching editor/results is local UI state.
+  const savedShape = (value: ExpenseState) => JSON.stringify(toExpenseStateArgs(value));
   const dirty = pendingReceipt !== null || (stored !== null && savedShape(state) !== savedShape(stored));
 
   function leave() {
@@ -175,7 +173,7 @@ function ExpenseEditor() {
           tabSlug: tabDraft.slug,
           expenseSlug: slug,
           state: toExpenseStateArgs(finalState),
-          memberMapping: tabDraft.members.map(member => ({ personId: member.resolvedId, memberId: member.id })),
+          memberMapping: tabDraft.members.map(member => ({ personId: member.id, memberId: member.id })),
         });
       } else {
         await save(slug, finalState);

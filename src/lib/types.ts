@@ -64,6 +64,4 @@ export interface ExpenseState {
   tab?: { slug: string; name: string } | null;
   /** Ids of people linked to a still-anonymous tab member, present on a single `expenses.get` result. */
   anonymousPersonIds?: string[];
-  /** Tab members not yet on this expense, present (when in a tab) on a single `expenses.get` result - the only people addable once an expense is in a tab. */
-  availableTabMembers?: { id: string; name: string }[];
 }

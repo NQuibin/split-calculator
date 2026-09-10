@@ -1,3 +1,4 @@
+import { resolveExpenseMembers, assertExpenseMembers } from "./expenseMembers";
 import { assertValidImage, deleteExpenseDoc } from "./expenses";
 import { activeExchangeRate, convertSettlement } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -196,7 +197,8 @@ export const deleteTab = mutation({
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
-    for (const expense of expenses) {
+    for (const raw of expenses) {
+        const expense = await resolveExpenseMembers(ctx, raw);
       await deleteExpenseDoc(ctx, expense);
     }
 
@@ -252,6 +254,14 @@ export const removeMember = mutation({
       throw new Error("The tab creator can't be removed");
     }
 
+    const expenses = ctx.db.query("expenses").withIndex("by_tab", q => q.eq("tabId", tab._id));
+    for await (const raw of expenses) {
+      const expense = await resolveExpenseMembers(ctx, raw);
+      if (expense.items.some(item => item.splitWith.includes(memberId)) ||
+          expense.contributions.some(c => c.personId === memberId)) {
+        throw new Error("This person is used by an expense and cannot be removed");
+      }
+    }
     await ctx.db.delete(removed._id);
     await ctx.db.patch(tab._id, { updatedAt: Date.now() });
   },
@@ -346,7 +356,8 @@ export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
         .collect();
 
       const totals = new Map<string, number>();
-      for (const expense of expenses) {
+      for (const raw of expenses) {
+        const expense = await resolveExpenseMembers(ctx, raw);
         const code = expense.currency ?? "USD";
         const { grandTotal } = computeSplit(expense.people, expense.items);
         totals.set(code, (totals.get(code) ?? 0) + grandTotal);
@@ -499,84 +510,25 @@ export const createExpense = mutation({
       await ctx.db.patch(tab._id, { updatedAt: Date.now() });
     }
 
-    // Re-point each mapped person at their tab member's stable identity -
-    // the claiming user's id when claimed, otherwise the member's own id -
-    // and rename them to match, so the expense (people, item splits, and
-    // contributions) is fully owned by the mapping just decided instead of
-    // carrying whatever ids/names it had before joining the tab.
+    // Persist stable seat IDs; account claims and renames never rewrite splits.
     const seatsById = new Map<string, Seat>(seats.map((s) => [s._id, s]));
     const idRemap = new Map<string, string>();
-    const nameByNewId = new Map<string, string>();
     for (const link of links) {
       const seat = seatsById.get(link.memberId);
       if (!seat) continue;
-      const newId = seat.userId ?? seat._id;
+      const newId = seat._id;
       idRemap.set(link.personId, newId);
-      nameByNewId.set(newId, await resolveSeatName(ctx, seat));
     }
     const remapId = (id: string) => idRemap.get(id) ?? id;
 
-    const people = expense.people.map((person) => {
-      const id = remapId(person.id);
-      return { id, name: nameByNewId.get(id) ?? person.name };
-    });
     const items = expense.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
     const contributions = expense.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
-    const tabMemberIds = links.map((link) => ({ personId: remapId(link.personId), memberId: link.memberId }));
+    await assertExpenseMembers(ctx, { tabId: tab._id, items, contributions });
+    const roundingOrder = expense.people.map(person => remapId(person.id))
+      .filter(id => seatsById.has(id)) as Id<"tabMembers">[];
 
-    await ctx.db.insert("expenses", { ...state, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, tabMemberIds, people, items, contributions, updatedAt: Date.now() });
+    await ctx.db.insert("expenses", { ...state, stage: undefined, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, people: undefined, items, contributions, updatedAt: Date.now() });
     return null;
-  },
-});
-
-// Once an expense belongs to a tab, its existing people are locked to the
-// tab mapping decided in createExpense - the only way to change who's on
-// the expense is to add someone, either an existing member not yet on this
-// expense or a brand-new one (who is added to the tab at the same time).
-export const addExpensePerson = mutation({
-  args: {
-    expenseSlug: v.string(),
-    memberId: v.optional(v.string()),
-    newMemberName: v.optional(v.string()),
-  },
-  handler: async (ctx, { expenseSlug, memberId, newMemberName }) => {
-    const userId = await requireUserId(ctx);
-
-    const expense = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
-      .unique();
-    if (!expense) throw new Error("Expense not found");
-    if (!expense.tabId) throw new Error("Expense is not in a tab");
-
-    const tab = await ctx.db.get(expense.tabId);
-    if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) forbidden();
-
-    const linkedMemberIds = new Set((expense.tabMemberIds ?? []).map((l) => l.memberId));
-    const seats = await tabSeats(ctx, tab._id);
-    let seat: Seat;
-
-    if (memberId) {
-      const found = seats.find((s) => s._id === memberId);
-      if (!found) throw new Error("Member not found");
-      if (linkedMemberIds.has(memberId)) throw new Error("This member is already on the expense");
-      seat = found;
-    } else {
-      const trimmedName = newMemberName?.trim();
-      if (!trimmedName) throw new Error("Name is required");
-      requireUniqueName(seats, trimmedName);
-      seat = await createSeat(ctx, tab._id, trimmedName);
-      await ctx.db.patch(tab._id, { updatedAt: Date.now() });
-    }
-
-    const personId = seat.userId ?? seat._id;
-    const name = await resolveSeatName(ctx, seat);
-
-    await ctx.db.patch(expense._id, {
-      people: [...expense.people, { id: personId, name }],
-      tabMemberIds: [...(expense.tabMemberIds ?? []), { personId, memberId: seat._id }],
-    });
   },
 });
 
@@ -612,7 +564,8 @@ export const expensesForTab = query({
       const user = await ctx.db.get(id);
       return [id, user?.name?.trim() || "Unknown creator"] as const;
     })));
-    return (await Promise.all(expenses
+    const resolvedExpenses = await Promise.all(expenses.map(doc => resolveExpenseMembers(ctx, doc)));
+    return (await Promise.all(resolvedExpenses
   .map(async ({ slug, name, mode, note, image, people, items, currency, exchangeRate, _creationTime, date, userId }) => ({
         slug,
         name,
@@ -628,9 +581,8 @@ export const expensesForTab = query({
         date,
         createdBy: { id: userId, name: creators.get(userId) ?? "Unknown creator" },
       }))))
-      // Newest first. Ordering by creation keeps a tab's list stable - editing
-      // an old expense shouldn't jump it to the top of everyone else's view.
-      .sort((a, b) => b.createdAt - a.createdAt);
+      // Latest expense date first; most recently created first on the same date.
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   },
 });
 
@@ -663,21 +615,22 @@ async function computeCurrencyBreakdown(
     lines.set(seat._id, []);
   }
 
-  for (const expense of currencyExpenses) {
+  for (const raw of currencyExpenses) {
+    const expense = await resolveExpenseMembers(ctx, raw);
     const split = computeSplit(expense.people, expense.items);
     const rate = activeExchangeRate(expense, defaultCurrency);
     const original = computeSettlement(expense.contributions, split);
     const settlement = rate ? convertSettlement(original, split.grandTotal, rate.rate) : original;
     for (const row of settlement) {
-      const link = expense.tabMemberIds?.find((l) => l.personId === row.personId);
-      if (!link) continue;
-      const entry = totals.get(link.memberId);
+      if (!expense.items.some(item => item.splitWith.includes(row.personId)) &&
+          !expense.contributions.some(c => c.personId === row.personId)) continue;
+      const entry = totals.get(row.personId);
       if (!entry) continue;
       entry.totalSpent += row.fairShare;
       entry.totalContributed += row.contributed;
       entry.netBalance += row.balance;
       entry.expenseCount += 1;
-      lines.get(link.memberId)!.push({
+      lines.get(row.personId)!.push({
         expenseSlug: expense.slug,
         expenseName: expense.name,
         date: expense.date,

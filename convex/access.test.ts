@@ -110,5 +110,4 @@ test("a tab member cannot edit or delete the owner's expense", async () => {
   await expect(
     sam.mutation(api.tabs.setExpenseExchangeRate, { slug: "trip", expenseSlug: "dinner", from: "USD", to: "EUR", rate: 2 }),
   ).rejects.toThrow("Only the tab owner");
-  await expect(sam.mutation(api.tabs.addExpensePerson, { expenseSlug: "dinner", newMemberName: "Mallory" })).rejects.toThrow("Expense not found");
 });

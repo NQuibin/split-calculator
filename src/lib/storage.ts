@@ -2,7 +2,7 @@ import { DEFAULT_CURRENCY } from "./currencies";
 import { todayISODate } from "./format";
 import type { ExpenseState } from "./types";
 
-const PREFIX = "split-calculator:expense:";
+const PREFIX = "sumshare:expense:";
 
 type Listener = () => void;
 

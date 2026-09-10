@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
+import { toExpenseStateArgs } from "../src/lib/expenseSync";
 
 const modules = import.meta.glob("./**/*.ts");
 const state = {
@@ -44,7 +45,7 @@ test("creating in a tab and editing preserves membership even with no items", as
   const empty = await user.query(api.expenses.get, { slug: "dinner" });
   expect(empty?.items).toEqual([]);
   expect(empty?.tab?.slug).toBe("trip");
-  await user.mutation(api.expenses.save, { slug: "dinner", state });
+  await user.mutation(api.expenses.save, { slug: "dinner", state: toExpenseStateArgs(saved!) });
   expect((await user.query(api.expenses.get, { slug: "dinner" }))?.items).toHaveLength(1);
 });
 
@@ -64,7 +65,7 @@ test("another user's tab cannot receive a new expense", async () => {
   expect(await other.query(api.expenses.list)).toEqual([]);
 });
 
-test("a tab's expenses stay in creation order, newest first", async () => {
+test("a tab sorts by descending date, then descending creation time", async () => {
   const { user } = await setup();
   await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
   const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
@@ -76,13 +77,12 @@ test("a tab's expenses stay in creation order, newest first", async () => {
     });
   }
 
-  // Touching the oldest expense must not move it in the tab's own list -
-  // that order is by creation, so it stays put for everyone looking at it.
-  await user.mutation(api.expenses.save, { slug: "first", state: { ...state, name: "first", date: "2026-01-01" } });
+  // An older-created expense with a later date must move ahead of newer rows.
+  await user.mutation(api.expenses.save, { slug: "first", state: { ...toExpenseStateArgs((await user.query(api.expenses.get, { slug: "first" }))!), name: "first", date: "2026-12-01" } });
 
   const inTab = await user.query(api.tabs.expensesForTab, { slug: "trip" });
-  expect(inTab.map(e => e.name)).toEqual(["third", "second", "first"]);
-  expect(inTab.map(e => e.createdAt)).toEqual([...inTab.map(e => e.createdAt)].sort((a, b) => b - a));
+  expect(inTab.map(e => e.name)).toEqual(["first", "third", "second"]);
+  expect(inTab[1].createdAt).toBeGreaterThan(inTab[2].createdAt);
 });
 
 test("the expenses directory orders by last update, newest first", async () => {
@@ -137,4 +137,65 @@ test("deleting a tab deletes its expenses and their receipts", async () => {
   expect(await t.run(ctx => ctx.db.system.get("_storage", storageId))).toBeNull();
   // And the tab's seats go with it.
   expect(await t.run(ctx => ctx.db.query("tabMembers").collect())).toEqual([]);
+});
+
+test("new tab members are available on old expenses without changing selections or balances", async () => {
+  const { t, user } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
+  const owner = tab.members[0].id;
+  await user.mutation(api.tabs.createExpense, {
+    tabSlug: "trip", expenseSlug: "dinner", state,
+    memberMapping: [{ personId: "person-1", memberId: owner }],
+  });
+  await user.mutation(api.tabs.addMember, { slug: "trip", name: "Sam" });
+  const saved = (await user.query(api.expenses.get, { slug: "dinner" }))!;
+  const sam = saved.people.find(p => p.name === "Sam")!;
+  expect(sam).toBeDefined();
+  expect(saved.items[0].splitWith).toEqual([owner]);
+  const edited = toExpenseStateArgs(saved);
+  edited.items[0].splitWith.push(sam.id);
+  edited.contributions = [{ personId: sam.id, amount: { mode: "amount", value: 30 } }];
+  await user.mutation(api.expenses.save, { slug: "dinner", state: edited });
+  const raw = (await t.run(ctx => ctx.db.query("expenses").first()))!;
+  expect(raw.people).toBeUndefined();
+  expect(raw.tabMemberIds).toBeUndefined();
+  expect(raw.items[0].splitWith).toEqual([owner, sam.id]);
+  await expect(user.mutation(api.tabs.removeMember, { slug: "trip", memberId: sam.id })).rejects.toThrow("used by an expense");
+  const samUserId = await t.run(ctx => ctx.db.insert("users", { name: "Samuel" }));
+  const seat = (await t.run(ctx => ctx.db.query("tabMembers").collect())).find(s => s._id === sam.id)!;
+  await t.withIdentity({ subject: `${samUserId}|session` }).mutation(api.tabs.claimMember, { slug: "trip", token: seat.inviteToken });
+  const after = (await user.query(api.expenses.get, { slug: "dinner" }))!;
+  expect(after.people.find(p => p.id === sam.id)?.name).toBe("Samuel");
+  expect(after.items).toEqual(edited.items);
+  expect(after.contributions).toEqual(edited.contributions);
+  await user.mutation(api.tabs.create, { slug: "other", name: "Other", memberNames: [] });
+  const foreign = (await user.query(api.tabs.getBySlug, { slug: "other" }))!.members[0].id;
+  edited.items[0].splitWith = [foreign];
+  await expect(user.mutation(api.expenses.save, { slug: "dinner", state: edited })).rejects.toThrow("must belong to this tab");
+  edited.items[0].splitWith = [owner];
+  edited.contributions[0].personId = foreign;
+  await expect(user.mutation(api.expenses.save, { slug: "dinner", state: edited })).rejects.toThrow("must belong to this tab");
+});
+
+test("legacy user IDs translate to seat IDs and saving removes the old mapping", async () => {
+  const { t, user, userId } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
+  const tabDoc = (await t.run(ctx => ctx.db.query("tabs").first()))!;
+  await t.run(ctx => ctx.db.insert("expenses", {
+    ...state, slug: "legacy", userId, tabId: tabDoc._id, updatedAt: 0,
+    people: [{ id: userId, name: "Old name" }],
+    items: state.items.map(item => ({ ...item, splitWith: [userId] })),
+    contributions: [{ personId: userId, amount: { mode: "amount", value: 30 } }],
+    tabMemberIds: [{ personId: userId, memberId: tab.members[0].id }],
+  }));
+  const resolved = (await user.query(api.expenses.get, { slug: "legacy" }))!;
+  expect(resolved.items[0].splitWith).toEqual([tab.members[0].id]);
+  expect(resolved.contributions[0].personId).toBe(tab.members[0].id);
+  await user.mutation(api.expenses.save, { slug: "legacy", state: toExpenseStateArgs(resolved) });
+  const raw = (await t.run(ctx => ctx.db.query("expenses").first()))!;
+  expect(raw.memberReferencesVersion).toBe(1);
+  expect(raw.people).toBeUndefined();
+  expect(raw.tabMemberIds).toBeUndefined();
 });

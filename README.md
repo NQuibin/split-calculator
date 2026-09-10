@@ -1,4 +1,4 @@
-# Split Calculator
+# SumShare
 
 Itemize any expense — restaurant, grocery, or service — and split it fairly.
 
@@ -17,6 +17,17 @@ npx convex dev    # Convex backend (separate terminal)
 
 The app is served under a base path (`src/lib/basePath.ts`), so the dev URL is
 http://localhost:5173/projects/split-calculator/.
+
+Local email authentication still requires a password, but can skip OTP by
+setting `AUTH_SKIP_OTP=true` on the **development Convex deployment**:
+
+```bash
+pnpm exec convex env set AUTH_SKIP_OTP true
+```
+
+The bypass also requires the backend's `SITE_URL` to use `localhost`,
+`127.0.0.1`, or `[::1]`. It defaults off and is ignored for non-local site URLs.
+Set `AUTH_SKIP_OTP=false` to test the full password-plus-OTP flow locally.
 
 ## Scripts
 
@@ -55,3 +66,15 @@ Set **`VITE_CONVEX_URL`** in the Vercel project (Vite only exposes
 `VITE_`-prefixed vars). Using `npx convex deploy --cmd 'pnpm build'` as the
 build command injects it automatically and ships the backend at the same
 time; it needs `CONVEX_DEPLOY_KEY`.
+
+## Expense member references
+
+Saved splits and payments reference `tabMembers._id` directly. Names and the
+available roster are resolved when reading; adding a member never selects them
+on an existing item. `roundingOrder` preserves rounding ties across migration.
+Editor/results `stage` is UI state and is not stored on expense documents.
+
+The production email OTP rollout can be held with `AUTH_REQUIRE_EMAIL_OTP=false`
+until `RESEND_API_KEY` and a verified `AUTH_EMAIL` sender are configured. This
+retains password authentication. Other deployments require password plus OTP,
+subject to the explicitly enabled localhost development bypass above.

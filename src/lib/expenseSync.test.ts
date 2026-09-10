@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, test, vi } from "vitest";
-import { useExpenseActions, useExpenseList } from "./expenseSync";
+import { toExpenseStateArgs, useExpenseActions, useExpenseList } from "./expenseSync";
 
 const mocks = vi.hoisted(() => ({
   auth: { isAuthenticated: false, isLoading: false },
@@ -58,4 +58,10 @@ test("local expenses are hidden during login and while account data loads", () =
   expect(renderHook(useExpenseList)).toEqual(mocks.remote);
   mocks.auth.isAuthenticated = false;
   expect(renderHook(useExpenseList)).toEqual(mocks.local);
+});
+
+
+test("editor stage is never included in a saved expense", () => {
+  expect(toExpenseStateArgs(state)).not.toHaveProperty("stage");
+  expect(toExpenseStateArgs({ ...state, stage: "results" })).toEqual(toExpenseStateArgs(state));
 });

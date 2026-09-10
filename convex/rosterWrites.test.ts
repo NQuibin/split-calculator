@@ -98,13 +98,15 @@ test("members added while creating an expense become seats too", async () => {
   });
   expect((await seats(t)).map(s => s.name)).toEqual(["Alex", "Guest"]);
 
-  await user.mutation(api.tabs.addExpensePerson, { expenseSlug: "dinner", newMemberName: "Late Arrival" });
+  await user.mutation(api.tabs.addMember, { slug: "trip", name: "Late Arrival" });
   expect((await seats(t)).map(s => s.name)).toEqual(["Alex", "Guest", "Late Arrival"]);
 
   // The expense references the seat by its row id.
   const expense = await t.run(ctx => ctx.db.query("expenses").first());
   const guest = (await seats(t)).find(s => s.name === "Guest")!;
-  expect(expense!.tabMemberIds!.some(l => l.memberId === guest._id)).toBe(true);
+  expect(expense!.items[0].splitWith).toEqual([guest._id]);
+  expect(expense!.tabMemberIds).toBeUndefined();
+  expect(expense!.people).toBeUndefined();
 });
 
 test("deleting a tab takes its seats with it", async () => {

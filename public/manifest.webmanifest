@@ -1,6 +1,6 @@
 {
-  "name": "Split Calculator",
-  "short_name": "Split Calc",
+  "name": "SumShare",
+  "short_name": "SumShare",
   "description": "Itemize any expense — restaurant, grocery, or service — and split it fairly.",
   "start_url": "/projects/split-calculator",
   "scope": "/projects/split-calculator/",

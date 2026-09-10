@@ -37,7 +37,7 @@ export const expenseImage = v.object({
 });
 
 export const expenseState = v.object({
-  stage: v.union(v.literal("receipt"), v.literal("results")),
+  stage: v.optional(v.union(v.literal("receipt"), v.literal("results"))),
   name: v.string(),
   people: v.array(person),
   mode: expenseMode,
@@ -62,7 +62,7 @@ export default defineSchema({
   // Extends authTables' users table (see its docstring) with our own
   // preference field. `isAnonymous` is deliberately absent: only Convex
   // Auth's Anonymous provider ever writes it, and this app configures
-  // Google and Password. Add it back if that provider is ever adopted.
+  // Google and an email OTP. Add it back if that provider is ever adopted.
   users: defineTable({
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -78,9 +78,13 @@ export default defineSchema({
   expenses: defineTable({
     slug: v.string(),
     userId: v.id("users"),
-    stage: v.union(v.literal("receipt"), v.literal("results")),
+    stage: v.optional(v.union(v.literal("receipt"), v.literal("results"))),
     name: v.string(),
-    people: v.array(person),
+    /** Legacy snapshot; current rosters are read from tabMembers. */
+    people: v.optional(v.array(person)),
+    memberReferencesVersion: v.optional(v.literal(1)),
+    /** Stable tie order for assigning rounding pennies; contains seat IDs only. */
+    roundingOrder: v.optional(v.array(v.id("tabMembers"))),
     mode: expenseMode,
     items: v.array(expenseItem),
     date: v.string(),
@@ -108,24 +112,7 @@ export default defineSchema({
     defaultCurrency: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
-  /**
-   * One row per seat in a tab's roster - the destination for moving the
-   * roster out of the `tabs.members[]` array. That array is still the source
-   * of truth and still what every read uses; these rows are kept in step with
-   * it so a later phase can switch the reads over.
-   *
-   * The row's own `_id` is the seat's identity. `tabs.members[].id` holds it,
-   * and so does every expense field that references a seat:
-   * `tabMemberIds[].memberId`, and - for anonymous members, whose resolved
-   * identity is their seat id - `people[].id`, each item's `splitWith[]`, and
-   * `contributions[].personId`. There is no second key.
-   *
-   * `userId` is absent for an anonymous seat - nobody has claimed the invite
-   * yet - which is what lets one table hold claimed and unclaimed seats
-   * alike: claiming becomes a patch of this one field rather than moving a
-   * row between tables, and an index on the optional field answers "which
-   * tabs do I belong to" without matching anonymous rows.
-   */
+  /** Stable identity for splits and payments. Claiming only sets userId. */
   tabMembers: defineTable({
     tabId: v.id("tabs"),
     name: v.string(),

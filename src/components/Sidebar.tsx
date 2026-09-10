@@ -90,7 +90,7 @@ export function Sidebar() {
 function BrandLink() {
   return (
     <Link to="/tabs" className="font-display text-lg font-semibold tracking-tight text-brass">
-      Split Calculator
+      SumShare
     </Link>
   );
 }

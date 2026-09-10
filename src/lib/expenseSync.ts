@@ -28,7 +28,6 @@ import type {
 // Guest expenses live only in localStorage. Signed-in expenses live only in Convex.
 
 interface ExpenseStateArgs {
-  stage: ExpenseState["stage"];
   name: string;
   people: Person[];
   mode: ExpenseMode;
@@ -49,7 +48,6 @@ interface ExpenseStateArgs {
 export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
   const rate = ({ mode, value }: RateSetting): RateSetting => ({ mode, value });
   return {
-    stage: state.stage,
     name: state.name,
     mode: state.mode ?? "itemized",
     date: state.date,
