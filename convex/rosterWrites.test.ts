@@ -10,7 +10,7 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 const state = {
-  stage: "receipt" as const, name: "Dinner", mode: "simple" as const,
+  name: "Dinner", mode: "simple" as const,
   date: "2026-09-07", currency: "USD", people: [{ id: "person-1", name: "Alex" }],
   items: [{ id: "total", name: "Dinner", cost: 30, splitWith: ["person-1"],
     discount: { mode: "amount" as const, value: 0 }, tax: { mode: "amount" as const, value: 0 }, tip: { mode: "amount" as const, value: 0 } }],
@@ -105,7 +105,7 @@ test("members added while creating an expense become seats too", async () => {
   const expense = await t.run(ctx => ctx.db.query("expenses").first());
   const guest = (await seats(t)).find(s => s.name === "Guest")!;
   expect(expense!.items[0].splitWith).toEqual([guest._id]);
-  expect(expense!.tabMemberIds).toBeUndefined();
+  expect(expense).not.toHaveProperty("tabMemberIds");
   expect(expense!.people).toBeUndefined();
 });
 

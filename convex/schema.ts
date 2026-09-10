@@ -37,6 +37,7 @@ export const expenseImage = v.object({
 });
 
 export const expenseState = v.object({
+  // Accepted only from older clients and discarded; never stored on expenses.
   stage: v.optional(v.union(v.literal("receipt"), v.literal("results"))),
   name: v.string(),
   people: v.array(person),
@@ -50,11 +51,6 @@ export const expenseState = v.object({
   note: v.optional(v.string()),
   /** Receipt image/PDF attached to the expense, if any. Absent once removed. */
   image: v.optional(expenseImage),
-});
-
-export const tabMemberLink = v.object({
-  personId: v.string(),
-  memberId: v.string(),
 });
 
 export default defineSchema({
@@ -78,7 +74,6 @@ export default defineSchema({
   expenses: defineTable({
     slug: v.string(),
     userId: v.id("users"),
-    stage: v.optional(v.union(v.literal("receipt"), v.literal("results"))),
     name: v.string(),
     /** Legacy snapshot; current rosters are read from tabMembers. */
     people: v.optional(v.array(person)),
@@ -95,7 +90,6 @@ export default defineSchema({
     image: v.optional(expenseImage),
     updatedAt: v.number(),
     tabId: v.optional(v.id("tabs")),
-    tabMemberIds: v.optional(v.array(tabMemberLink)),
   })
     .index("by_user", ["userId"])
     .index("by_user_slug", ["userId", "slug"])

@@ -15,7 +15,9 @@ import type { Infer } from "convex/values";
 // absent field rather than an empty string, so saving a blank note deletes it.
 // Patching the field to `undefined` is what removes it from an existing doc.
 function withNormalizedNote(state: Infer<typeof expenseState>) {
-  return { ...state, stage: undefined, note: state.note?.trim() || undefined };
+  const data = { ...state };
+  delete data.stage;
+  return { ...data, note: state.note?.trim() || undefined };
 }
 
 // The client uploads straight to Convex storage, so the file's real size and
@@ -253,7 +255,7 @@ export const save = mutation({
       // `image` is spelled out so the key is always present: the client omits
       // it when there's no image, and only a present-but-undefined field
       // removes an image already on the doc.
-      await ctx.db.patch(existing._id, { ...normalized, people: undefined, tabMemberIds: undefined, memberReferencesVersion: 1, roundingOrder, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { ...normalized, people: undefined, memberReferencesVersion: 1, roundingOrder, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
     }
     return null;
   },

@@ -527,7 +527,9 @@ export const createExpense = mutation({
     const roundingOrder = expense.people.map(person => remapId(person.id))
       .filter(id => seatsById.has(id)) as Id<"tabMembers">[];
 
-    await ctx.db.insert("expenses", { ...state, stage: undefined, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, people: undefined, items, contributions, updatedAt: Date.now() });
+    const data = { ...state };
+    delete data.stage;
+    await ctx.db.insert("expenses", { ...data, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, people: undefined, items, contributions, updatedAt: Date.now() });
     return null;
   },
 });
