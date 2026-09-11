@@ -1,4 +1,4 @@
-import type { ExpenseItem, Person, RateSetting } from "./types";
+import type { ExpenseAdjustments, ExpenseItem, Person, RateSetting } from "./types";
 
 export interface ItemLine {
   itemId: string;
@@ -55,7 +55,32 @@ function netCost(item: ExpenseItem): number {
   return Math.max(0, item.cost - discountAmount(item));
 }
 
-export function computeSplit(people: Person[], items: ExpenseItem[]): SplitResult {
+/** Older items with adjustments retain their individual settings. */
+export function hasIndividualAdjustments(item: ExpenseItem): boolean {
+  return item.overrideAdjustments ?? [item.discount, item.tax, item.tip].some(rate => rate.value !== 0);
+}
+
+/** Allocate each global fixed amount once, across only the participating items. */
+export function resolveItemAdjustments(items: ExpenseItem[], global?: ExpenseAdjustments): ExpenseItem[] {
+  global ??= { discount: { mode: "percent", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
+  const eligible = items.filter(item => !hasIndividualAdjustments(item));
+  const gross = eligible.reduce((sum, item) => sum + item.cost, 0);
+  const globalDiscount = Math.min(gross, rateAmount(global.discount, gross));
+  const net = Math.max(0, gross - globalDiscount);
+  return items.map(item => {
+    if (hasIndividualAdjustments(item)) return item;
+    const weight = gross > 0 ? item.cost / gross : 0;
+    return {
+      ...item,
+      discount: { mode: "amount", value: globalDiscount * weight },
+      tax: { mode: "amount", value: net > 0 ? rateAmount(global.tax, net) * weight : 0 },
+      tip: { mode: "amount", value: net > 0 ? rateAmount(global.tip, net) * weight : 0 },
+    };
+  });
+}
+
+export function computeSplit(people: Person[], items: ExpenseItem[], global?: ExpenseAdjustments): SplitResult {
+  items = resolveItemAdjustments(items, global);
   const subtotal = items.reduce((sum, item) => sum + netCost(item), 0);
 
   if (people.length === 0 || subtotal === 0) {

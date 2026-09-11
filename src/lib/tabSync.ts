@@ -101,6 +101,7 @@ export interface TabExpenseSummary {
   name?: string;
   people: Person[];
   items: ExpenseItem[];
+  globalAdjustments?: import("./types").ExpenseAdjustments;
   currency: string;
   settlementCurrency: string;
   exchangeRate?: import("./exchangeRate").ExchangeRate;

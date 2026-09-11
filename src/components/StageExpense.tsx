@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
+  Asterisk,
   Banknote,
   Calculator,
   Calendar,
@@ -24,11 +25,14 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { RateInput } from "@/components/ui/RateInput";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
-import { computeSplit } from "@/lib/calculations";
+import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+import type { ExpenseAdjustments, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+
+const zeroAdjustments: ExpenseAdjustments = { discount: { mode: "amount", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
@@ -51,6 +55,8 @@ interface StageExpenseProps {
   inTab?: boolean;
   mode: ExpenseMode;
   items: ExpenseItem[];
+  globalAdjustments?: ExpenseAdjustments;
+  onSetGlobalAdjustments: (adjustments: ExpenseAdjustments) => void;
   date: string;
   currency: string;
   /** The expense's note, if it has one - a blank note is stored as no note at all. */
@@ -92,6 +98,8 @@ export function StageExpense({
   inTab = false,
   mode,
   items,
+  globalAdjustments = zeroAdjustments,
+  onSetGlobalAdjustments,
   date,
   currency: currencyCode,
   note,
@@ -115,7 +123,7 @@ export function StageExpense({
 
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
-  const [addingItem, setAddingItem] = useState(items.length === 0);
+  const [addingItem, setAddingItem] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [cost, setCost] = useState("");
@@ -127,7 +135,8 @@ export function StageExpense({
   const [continuing, setContinuing] = useState(false);
   const [continueError, setContinueError] = useState<string | null>(null);
 
-  const totals = useMemo(() => computeSplit(people, items), [people, items]);
+  const resolvedItems = useMemo(() => resolveItemAdjustments(items, globalAdjustments), [items, globalAdjustments]);
+  const totals = useMemo(() => computeSplit(people, items, globalAdjustments), [people, items, globalAdjustments]);
 
   // Finalizing can do real work before it lands - uploading a receipt the
   // draft has been holding onto - so the button waits on it and surfaces
@@ -167,7 +176,7 @@ export function StageExpense({
   // the itemized entry form when switching into it.
   function handleModeChange(nextMode: ExpenseMode) {
     if (nextMode === mode) return;
-    if (nextMode === "itemized") resetForm();
+    closeItemEditor();
     onSetMode(nextMode);
   }
 
@@ -183,8 +192,13 @@ export function StageExpense({
     setError(null);
   }
 
+  function closeItemEditor() {
+    resetForm();
+    setAddingItem(false);
+  }
+
   function startEdit(item: ExpenseItem) {
-    setAdjustmentsOpen(item.discount.value > 0 || item.tax.value > 0 || item.tip.value > 0);
+    setAdjustmentsOpen(hasIndividualAdjustments(item));
     setAddingItem(false);
     setEditingId(item.id);
     setName(item.name);
@@ -211,15 +225,15 @@ export function StageExpense({
       setError("Enter a cost greater than $0.");
       return;
     }
-    if (discount.value < 0) {
+    if (adjustmentsOpen && discount.value < 0) {
       setError("Discount can't be negative.");
       return;
     }
-    if (tax.value < 0) {
+    if (adjustmentsOpen && tax.value < 0) {
       setError("Tax can't be negative.");
       return;
     }
-    if (tip.value < 0) {
+    if (adjustmentsOpen && tip.value < 0) {
       setError("Tip can't be negative.");
       return;
     }
@@ -235,14 +249,14 @@ export function StageExpense({
       tax,
       tip,
       splitWith,
+      overrideAdjustments: adjustmentsOpen,
     };
     if (editingId) {
       onUpdateItem(item);
     } else {
       onAddItem(item);
     }
-    resetForm();
-    setAddingItem(false);
+    closeItemEditor();
   }
 
   const expenseMetadata = (
@@ -330,15 +344,21 @@ export function StageExpense({
             <input type="number" inputMode="decimal" min={0} step={0.01} value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" className="font-numeric mt-1 min-h-11 w-full min-w-0 rounded-md border border-rule bg-paper px-3 py-2" />
           </label>
         </div>
-        <details key={editingId ?? "new"} open={adjustmentsOpen} onToggle={event => setAdjustmentsOpen(event.currentTarget.open)} className="group/adjustments mt-3">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm text-ink-soft [&::-webkit-details-marker]:hidden"><span>Discount, tax &amp; tip{discount.value || tax.value || tip.value ? " · Applied" : ""}</span><ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 transition-transform group-open/adjustments:rotate-180" strokeWidth={2.5} /></summary>
+        <div className="mt-3">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 py-3 text-sm text-ink">
+            <input type="checkbox" checked={adjustmentsOpen} onChange={event => setAdjustmentsOpen(event.target.checked)} className="h-5 w-5 shrink-0 accent-forest" />
+            Use individual discount, tax &amp; tip
+          </label>
+          <p className="mb-3 text-xs text-ink-soft">{adjustmentsOpen ? "Replaces all global adjustments for this item. Blank or zero means none." : "Uses the expense’s global discount, tax and tip."}</p>
+          {adjustmentsOpen && <>
           <div className="flex flex-wrap gap-4 [&>div]:flex-wrap">
             <RateInput wide label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} />
             <RateInput wide label="Tax" icon={Percent} rate={tax} onChange={setTax} />
             <RateInput wide label="Tip" icon={Coins} rate={tip} onChange={setTip} />
           </div>
           <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
-        </details>
+          </>}
+        </div>
       </div>
       <div className="min-w-0">
         <h3 className="text-sm font-medium text-ink">Split this item</h3>
@@ -352,7 +372,7 @@ export function StageExpense({
       </div>
       {error && <p role="alert" className="text-sm text-margin-red md:col-span-2">{error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-        <button type="button" onClick={() => { resetForm(); setAddingItem(false); }} className="min-h-11 text-sm text-ink-soft">Cancel item changes</button>
+        <button type="button" onClick={closeItemEditor} className="min-h-11 text-sm text-ink-soft">Cancel item changes</button>
         <button type="button" onClick={handleSubmit} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-forest px-4 py-2 text-sm font-medium text-forest hover:bg-paper">
           {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{editingId ? "Done with item" : "Add to expense"}
         </button>
@@ -404,11 +424,31 @@ export function StageExpense({
           />
         ) : (
           <>
+            <section aria-label="Global adjustments" className="mb-4 border-b border-rule pb-4">
+              <h2 className="mb-3 text-sm font-medium text-ink">Global discount, tax &amp; tip</h2>
+              <div className="flex flex-wrap gap-4 [&>div]:flex-wrap">
+                <RateInput wide label="Discount" icon={TicketPercent} rate={globalAdjustments.discount} onChange={discount => onSetGlobalAdjustments({ ...globalAdjustments, discount })} />
+                <RateInput wide label="Tax" icon={Percent} rate={globalAdjustments.tax} onChange={tax => onSetGlobalAdjustments({ ...globalAdjustments, tax })} />
+                <RateInput wide label="Tip" icon={Coins} rate={globalAdjustments.tip} onChange={tip => onSetGlobalAdjustments({ ...globalAdjustments, tip })} />
+              </div>
+              <p className="mt-3 text-xs text-ink-soft">Applies to items without individual adjustments. Fixed amounts are shared proportionally. Discount applies before tax and tip.</p>
+            </section>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-medium text-ink">Items <span className="text-ink-soft">({items.length})</span></h2>
               <button type="button" onClick={() => { resetForm(); setAddingItem(true); }} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-forest"><Plus className="h-4 w-4" />Add item</button>
             </div>
-            {addingItem && <div className="mt-2 rounded-lg border border-rule p-4"><h3 className="mb-3 text-sm font-medium text-ink">New item</h3>{itemEditor}</div>}
+            <Dialog open={addingItem || editingId !== null} onOpenChange={open => { if (!open) closeItemEditor(); }}>
+              <DialogContent className="max-w-2xl [&_input]:text-base sm:[&_input]:text-sm">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <DialogTitle>{editingId ? "Edit item" : "New item"}</DialogTitle>
+                  <DialogClose aria-label="Close item editor" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-ink-soft hover:text-ink">
+                    <X className="h-4 w-4" />
+                  </DialogClose>
+                </div>
+                <DialogDescription className="mb-5">Enter the item details and choose who shares it.</DialogDescription>
+                {itemEditor}
+              </DialogContent>
+            </Dialog>
 
             {items.length > 0 && (
               <ul
@@ -417,18 +457,23 @@ export function StageExpense({
                 {items.map((item, i) => (
                   <ExpenseLineItem
                     key={item.id}
-                    item={item}
+                    item={resolvedItems[i]}
+                    hasOverrides={hasIndividualAdjustments(item)}
                     index={i}
                     people={people}
                     currency={currencyCode}
                     isEditing={item.id === editingId}
                     onEdit={() => startEdit(item)}
                     onRemove={() => handleRemove(item.id)}
-                  >
-                    {editingId === item.id && itemEditor}
-                  </ExpenseLineItem>
+                  />
                 ))}
               </ul>
+            )}
+            {items.some(hasIndividualAdjustments) && (
+              <p className="mt-3 flex items-start gap-1.5 text-xs text-ink-soft">
+                <Asterisk aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0 text-brass" />
+                <span>Uses individual discount, tax and tip instead of global adjustments. Blank or zero means none.</span>
+              </p>
             )}
             <div className="mt-5 grid gap-5 border-t border-rule pt-5 md:grid-cols-2 md:gap-6">
               <section className="min-w-0">
@@ -436,7 +481,7 @@ export function StageExpense({
                 <p className="font-numeric mt-2 break-words text-3xl text-ink">{currency(totals.grandTotal, currencyCode)}</p>
                 <p className="mt-1 text-xs text-ink-soft">Calculated from {items.length} {items.length === 1 ? "item" : "items"}</p>
                 {(totals.taxTotal > 0 || totals.tipTotal > 0) && <dl className="mt-4 space-y-2 border-t border-rule pt-3 text-sm text-ink-soft">
-                  <div className="flex justify-between gap-3"><dt>{items.some(item => item.discount.value > 0) ? "Subtotal after discounts" : "Subtotal"}</dt><dd className="font-numeric">{currency(totals.subtotal, currencyCode)}</dd></div>
+                  <div className="flex justify-between gap-3"><dt>{resolvedItems.some(item => item.discount.value > 0) ? "Subtotal after discounts" : "Subtotal"}</dt><dd className="font-numeric">{currency(totals.subtotal, currencyCode)}</dd></div>
                   {totals.taxTotal > 0 && <div className="flex justify-between gap-3"><dt>Tax</dt><dd className="font-numeric">{currency(totals.taxTotal, currencyCode)}</dd></div>}
                   {totals.tipTotal > 0 && <div className="flex justify-between gap-3"><dt>Tip</dt><dd className="font-numeric">{currency(totals.tipTotal, currencyCode)}</dd></div>}
                 </dl>}

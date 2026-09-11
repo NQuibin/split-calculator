@@ -7,6 +7,8 @@ export const rateSetting = v.object({
   value: v.number(),
 });
 
+export const expenseAdjustments = v.object({ discount: rateSetting, tax: rateSetting, tip: rateSetting });
+
 export const person = v.object({
   id: v.string(),
   name: v.string(),
@@ -20,6 +22,7 @@ export const expenseItem = v.object({
   tax: rateSetting,
   tip: rateSetting,
   splitWith: v.array(v.string()),
+  overrideAdjustments: v.optional(v.boolean()),
 });
 
 export const expenseMode = v.union(v.literal("simple"), v.literal("itemized"));
@@ -37,6 +40,7 @@ export const expenseState = v.object({
   people: v.array(person),
   mode: expenseMode,
   items: v.array(expenseItem),
+  globalAdjustments: v.optional(expenseAdjustments),
   date: v.string(),
   /** ISO 4217 code, e.g. "USD". Optional on the stored doc so expenses saved before this field existed keep validating - default to "USD" when reading. */
   currency: v.optional(v.string()),
@@ -73,6 +77,7 @@ export default defineSchema({
     roundingOrder: v.optional(v.array(v.id("tabMembers"))),
     mode: expenseMode,
     items: v.array(expenseItem),
+    globalAdjustments: v.optional(expenseAdjustments),
     date: v.string(),
     currency: v.optional(v.string()),
     exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })),

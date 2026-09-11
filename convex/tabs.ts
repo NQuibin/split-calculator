@@ -4,7 +4,7 @@ import { activeExchangeRate, convertShares } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { computeShares, computeSplit, round2 } from "../src/lib/calculations";
-import { person, expenseItem, expenseMode, expenseState } from "./schema";
+import { expenseAdjustments, person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { forbidden, isInviteToken, requireTabOwner, requireTabViewer, requireUserId } from "./authz";
@@ -358,7 +358,7 @@ export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
       for (const raw of expenses) {
         const expense = await resolveExpenseMembers(ctx, raw);
         const code = expense.currency ?? "USD";
-        const { grandTotal } = computeSplit(expense.people, expense.items);
+        const { grandTotal } = computeSplit(expense.people, expense.items, expense.globalAdjustments);
         totals.set(code, (totals.get(code) ?? 0) + grandTotal);
       }
 
@@ -554,7 +554,7 @@ export const setExpenseExchangeRate = mutation({
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), createdAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), globalAdjustments: v.optional(expenseAdjustments), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), createdAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const viewable = await viewableTab(ctx, slug);
     if (!viewable) return [];
@@ -577,7 +577,7 @@ export const expensesForTab = query({
       .flatMap(seat => seat.userId ? [[seat.userId as string, seat._id as string] as const] : []));
     const resolvedExpenses = await Promise.all(expenses.map(doc => resolveExpenseMembers(ctx, doc)));
     return (await Promise.all(resolvedExpenses
-  .map(async ({ slug, name, mode, note, image, people, items, currency, exchangeRate, _creationTime, date, userId }) => ({
+  .map(async ({ slug, name, mode, note, image, people, items, globalAdjustments, currency, exchangeRate, _creationTime, date, userId }) => ({
         slug,
         name,
     mode,
@@ -585,6 +585,7 @@ export const expensesForTab = query({
         image: image ? { name: image.name, type: image.type, url: await ctx.storage.getUrl(image.storageId) } : undefined,
         people,
         items,
+        globalAdjustments,
         currency: currency ?? "USD",
         exchangeRate: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD"),
         settlementCurrency: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD")?.to ?? currency ?? "USD",
@@ -623,7 +624,7 @@ async function computeCurrencyBreakdown(
 
   for (const raw of currencyExpenses) {
     const expense = await resolveExpenseMembers(ctx, raw);
-    const split = computeSplit(expense.people, expense.items);
+    const split = computeSplit(expense.people, expense.items, expense.globalAdjustments);
     const rate = activeExchangeRate(expense, defaultCurrency);
     const original = computeShares(split);
     const shares = rate ? convertShares(original, split.grandTotal, rate.rate) : original;

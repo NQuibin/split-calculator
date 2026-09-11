@@ -1,7 +1,8 @@
 import { computeSplit } from "./calculations";
-import type { ExpenseImage, ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
+import type { ExpenseAdjustments, ExpenseImage, ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
 
 export type Action =
+  | { type: "SET_GLOBAL_ADJUSTMENTS"; adjustments: ExpenseAdjustments }
   | { type: "SET_MODE"; mode: ExpenseMode }
   | { type: "SET_DATE"; date: string }
   | { type: "SET_CURRENCY"; currency: string }
@@ -24,9 +25,9 @@ const zeroRate: RateSetting = { mode: "percent", value: 0 };
 // name of its own - it's always named after the expense - so switching into
 // it from an itemized breakdown folds everything (cost, discount, tax, tip,
 // across every item) into that single item's cost.
-function collapseToSingleItem(name: string, people: Person[], items: ExpenseItem[]): ExpenseItem[] {
+function collapseToSingleItem(name: string, people: Person[], items: ExpenseItem[], global?: ExpenseAdjustments): ExpenseItem[] {
   if (items.length === 0) return items;
-  const total = computeSplit(people, items).grandTotal;
+  const total = computeSplit(people, items, global).grandTotal;
   const splitWith = Array.from(new Set(items.flatMap((i) => i.splitWith)));
   return [
     {
@@ -43,6 +44,8 @@ function collapseToSingleItem(name: string, people: Person[], items: ExpenseItem
 
 export function expenseReducer(state: ExpenseState, action: Action): ExpenseState {
   switch (action.type) {
+    case "SET_GLOBAL_ADJUSTMENTS":
+      return { ...state, globalAdjustments: action.adjustments };
     case "SET_MODE": {
       if (action.mode === state.mode) return state;
       // Switching modes always clears whatever's mid-entry rather than
@@ -50,7 +53,7 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       // total doesn't (it just takes the expense's), so there's nothing
       // meaningful to transfer between the two shapes.
       if (action.mode === "itemized") return { ...state, mode: "itemized", items: [] };
-      return { ...state, mode: "simple", items: collapseToSingleItem(state.name, state.people, state.items) };
+      return { ...state, mode: "simple", globalAdjustments: undefined, items: collapseToSingleItem(state.name, state.people, state.items, state.globalAdjustments) };
     }
     case "SET_DATE":
       return { ...state, date: action.date };

@@ -458,7 +458,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
   const visibleExpenses = expenses.filter(expense => activeView === "all" || (activeView === "upcoming" ? isUpcoming(expense.date) : !isUpcoming(expense.date)));
   const filtered = visibleExpenses.filter(e => (currencyFilter === "all" || e.settlementCurrency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
   const selected = expenses.find(e => e.slug === selectedSlug);
-  const split = selected ? computeSplit(selected.people, selected.items) : null;
+  const split = selected ? computeSplit(selected.people, selected.items, selected.globalAdjustments) : null;
   async function deleteExpense() {
     if (!selected) return;
     setPending(true); setError(null);
@@ -495,7 +495,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
             <span className="truncate">{expense.createdBy?.name ?? "Unknown creator"}</span>
           </span>
           <span className="hidden justify-center md:flex"><AvatarStack people={expense.people} /></span>
-          <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items).grandTotal * (expense.exchangeRate?.rate ?? 1), expense.settlementCurrency)}</span><span className="block text-xs text-ink-soft">{expense.exchangeRate ? `${currency(computeSplit(expense.people, expense.items).grandTotal, expense.currency)} · converted` : expense.currency}</span></span>
+          <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal * (expense.exchangeRate?.rate ?? 1), expense.settlementCurrency)}</span><span className="block text-xs text-ink-soft">{expense.exchangeRate ? `${currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal, expense.currency)} · converted` : expense.currency}</span></span>
           <span className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
             {expense.date && <span className="inline-flex items-center gap-1.5"><UpcomingExpenseIcon date={expense.date} /><time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time></span>}
             <span className="inline-flex items-center gap-1.5">{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}{expense.createdBy?.name ?? "Unknown creator"}</span>
@@ -572,7 +572,7 @@ function ExchangeRateForm({ tabSlug, expense, target, canEdit }: { tabSlug: stri
   return <form onSubmit={event => { event.preventDefault(); if (valid) void save(rate); }} className="mt-5 rounded-lg border border-rule bg-paper p-4">
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <h4 className="text-sm font-semibold">{expense.exchangeRate ? currency(computeSplit(expense.people, expense.items).grandTotal * expense.exchangeRate.rate, target) : `Exchange to ${target}`}</h4>
+        <h4 className="text-sm font-semibold">{expense.exchangeRate ? currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal * expense.exchangeRate.rate, target) : `Exchange to ${target}`}</h4>
         <p className="mt-1 text-xs text-ink-soft">{expense.exchangeRate ? `Included in ${target} totals · 1 ${expense.currency} = ${expense.exchangeRate.rate} ${target}` : `No rate added. This expense stays in ${expense.currency} totals.`}</p>
       </div>
       {canEdit && <button type="button" disabled={pending} aria-expanded={expanded} aria-controls="exchange-rate-fields" onClick={() => setExpanded(!expanded)} className="shrink-0 text-xs font-medium text-forest underline underline-offset-4">{expanded ? "Cancel" : expense.exchangeRate ? "Change" : "Add rate"}</button>}
@@ -584,7 +584,7 @@ function ExchangeRateForm({ tabSlug, expense, target, canEdit }: { tabSlug: stri
         <input id="expense-exchange-rate" type="number" inputMode="decimal" step="any" min="0" required value={value} disabled={pending} onChange={event => setValue(event.target.value)} placeholder="e.g. 1.38" aria-describedby="exchange-preview" className="w-full min-w-0 rounded-md border border-rule bg-surface px-3 py-2 font-numeric outline-none focus:ring-2 focus:ring-forest/30" />
         <span>{target}</span>
       </label>
-      <p id="exchange-preview" aria-live="polite" className="mt-2 text-xs text-ink-soft">{valid ? `Converted total: ${currency(computeSplit(expense.people, expense.items).grandTotal * rate, target)}` : "Enter a rate greater than zero."}</p>
+      <p id="exchange-preview" aria-live="polite" className="mt-2 text-xs text-ink-soft">{valid ? `Converted total: ${currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal * rate, target)}` : "Enter a rate greater than zero."}</p>
       <div className="mt-3 flex gap-3"><button disabled={!valid || pending} className="rounded-md bg-forest px-3 py-2 text-xs font-medium text-white disabled:opacity-50">{pending ? "Saving…" : "Save rate"}</button>{expense.exchangeRate && <button type="button" disabled={pending} onClick={() => void save(null)} className="text-xs text-ink-soft hover:text-margin-red">Remove rate</button>}</div>
     </div>}
     {error && <p role="alert" className="mt-2 text-xs text-margin-red">{error}</p>}

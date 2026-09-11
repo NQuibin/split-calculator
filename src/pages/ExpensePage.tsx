@@ -243,6 +243,7 @@ function ExpenseEditor() {
           inTab={!!destinedTab}
           mode={state.mode}
           items={state.items}
+          globalAdjustments={state.globalAdjustments}
           date={state.date}
           currency={state.currency}
           note={state.note}
@@ -250,6 +251,7 @@ function ExpenseEditor() {
           receipt={receipt}
           onPickReceipt={handlePickReceipt}
           canUploadImage={isAuthenticated}
+          onSetGlobalAdjustments={adjustments => dispatch({ type: "SET_GLOBAL_ADJUSTMENTS", adjustments })}
           onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
           onSetDate={(date) => dispatch({ type: "SET_DATE", date })}
           onSetCurrency={(currency) => { hasEditedCurrency.current = true; dispatch({ type: "SET_CURRENCY", currency }); }}
@@ -268,6 +270,7 @@ function ExpenseEditor() {
         <StageResults
           people={state.people}
           items={state.items}
+          globalAdjustments={state.globalAdjustments}
           currency={state.currency}
           note={state.note}
           image={state.image}

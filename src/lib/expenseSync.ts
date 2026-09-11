@@ -16,6 +16,7 @@ import {
   type StoredExpense,
 } from "./storage";
 import type {
+  ExpenseAdjustments,
   Person,
   RateSetting,
   ExpenseImage,
@@ -31,6 +32,7 @@ interface ExpenseStateArgs {
   people: Person[];
   mode: ExpenseMode;
   items: ExpenseItem[];
+  globalAdjustments?: ExpenseAdjustments;
   date: string;
   currency: string;
   note?: string;
@@ -50,7 +52,7 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
     mode: state.mode ?? "itemized",
     date: state.date,
     people: state.people.map(({ id, name }) => ({ id, name })),
-    items: state.items.map(({ id, name, cost, discount, tax, tip, splitWith }) => ({
+    items: state.items.map(({ id, name, cost, discount, tax, tip, splitWith, overrideAdjustments }) => ({
       id,
       name,
       cost,
@@ -58,7 +60,9 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
       tax: rate(tax),
       tip: rate(tip),
       splitWith,
+      ...(overrideAdjustments === undefined ? {} : { overrideAdjustments }),
     })),
+    ...(state.globalAdjustments ? { globalAdjustments: { discount: rate(state.globalAdjustments.discount), tax: rate(state.globalAdjustments.tax), tip: rate(state.globalAdjustments.tip) } } : {}),
     currency: state.currency ?? DEFAULT_CURRENCY,
     ...noteArg(state.note),
     ...imageArg(state.image),

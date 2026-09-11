@@ -4,6 +4,7 @@ export interface SharePayload {
   slug: string;
   people: Person[];
   items: ExpenseItem[];
+  globalAdjustments?: import("./types").ExpenseAdjustments;
   /** Absent on links generated before currency support existed - callers should default to "USD". */
   currency?: string;
 }

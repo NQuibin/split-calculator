@@ -113,6 +113,7 @@ function DisclosureLine({
 interface StageResultsProps {
   people: Person[];
   items: ExpenseItem[];
+  globalAdjustments?: import("@/lib/types").ExpenseAdjustments;
   currency: string;
   /** The expense's note, if it has one - shown to the owner only; share links don't carry it. */
   note?: string;
@@ -127,6 +128,7 @@ interface StageResultsProps {
 export function StageResults({
   people,
   items,
+  globalAdjustments,
   currency: currencyCode,
   note,
   image,
@@ -137,11 +139,11 @@ export function StageResults({
 }: StageResultsProps) {
   const [copied, setCopied] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
-  const result = useMemo(() => computeSplit(people, items), [people, items]);
+  const result = useMemo(() => computeSplit(people, items, globalAdjustments), [people, items, globalAdjustments]);
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, items, currency: currencyCode });
+    const payload = encodeSharePayload({ slug: shareSlug, people, items, globalAdjustments, currency: currencyCode });
     const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);

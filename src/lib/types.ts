@@ -5,6 +5,12 @@ export interface RateSetting {
   value: number;
 }
 
+export interface ExpenseAdjustments {
+  discount: RateSetting;
+  tax: RateSetting;
+  tip: RateSetting;
+}
+
 export interface Person {
   id: string;
   name: string;
@@ -18,6 +24,7 @@ export interface ExpenseItem {
   tax: RateSetting;
   tip: RateSetting;
   splitWith: string[];
+  overrideAdjustments?: boolean;
 }
 
 export type Stage = "receipt" | "results";
@@ -42,6 +49,7 @@ export interface ExpenseState {
   people: Person[];
   mode: ExpenseMode;
   items: ExpenseItem[];
+  globalAdjustments?: ExpenseAdjustments;
   /** The date the expense was incurred, formatted YYYY-MM-DD. */
   date: string;
   /** ISO 4217 code, e.g. "USD" - which currency the expense's amounts are in. */

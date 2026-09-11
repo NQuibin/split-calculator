@@ -46,6 +46,7 @@ function SharedExpenseContent() {
       <StageResults
         people={decoded.people}
         items={decoded.items}
+        globalAdjustments={decoded.globalAdjustments}
         currency={decoded.currency ?? "USD"}
         isOwner={false}
         onReset={() => startNavigation(() => { void navigate({ to: "/" }); })}

@@ -83,7 +83,7 @@ export function ExpensesDirectory() {
     people: state.people,
     itemCount: state.items.length,
     currency: state.currency,
-    total: computeSplit(state.people, state.items).grandTotal,
+    total: computeSplit(state.people, state.items, state.globalAdjustments).grandTotal,
     date: state.date,
     updatedAt: state.updatedAt ?? 0,
   })), [localExpenses]);

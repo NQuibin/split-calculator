@@ -177,3 +177,30 @@ test("new tab members are available on old expenses without changing selections 
   await expect(user.mutation(api.expenses.save, { slug: "dinner", state: edited })).rejects.toThrow("must belong to this tab");
 });
 
+
+test("global adjustments and zero overrides survive create, read, share summary, and edit", async () => {
+  const { user } = await setup();
+  await user.mutation(api.tabs.create, { slug: "adjustments", name: "Adjustments", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "adjustments" }))!;
+  const globalAdjustments = {
+    discount: { mode: "amount" as const, value: 0 },
+    tax: { mode: "percent" as const, value: 10 },
+    tip: { mode: "amount" as const, value: 0 },
+  };
+  await user.mutation(api.tabs.createExpense, {
+    tabSlug: "adjustments", expenseSlug: "meal",
+    state: { ...state, mode: "itemized", globalAdjustments, items: [
+      { ...state.items[0], overrideAdjustments: false },
+      { ...state.items[0], id: "exempt", overrideAdjustments: true },
+    ] },
+    memberMapping: [{ personId: "person-1", memberId: tab.members[0].id }],
+  });
+  const saved = (await user.query(api.expenses.get, { slug: "meal" }))!;
+  expect(saved.globalAdjustments).toEqual(globalAdjustments);
+  expect(saved.items.map(i => i.overrideAdjustments)).toEqual([false, true]);
+  expect((await user.query(api.tabs.expensesForTab, { slug: "adjustments" }))[0].globalAdjustments).toEqual(globalAdjustments);
+  expect((await user.query(api.expenses.directory, {}))[0].total).toBe(63);
+  await user.mutation(api.expenses.save, { slug: "meal", state: toExpenseStateArgs({ ...saved, globalAdjustments: undefined }) });
+  expect((await user.query(api.expenses.get, { slug: "meal" }))!.globalAdjustments).toBeUndefined();
+  expect((await user.query(api.expenses.directory, {}))[0].total).toBe(60);
+});
