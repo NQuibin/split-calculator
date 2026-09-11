@@ -1,4 +1,4 @@
-import type { Contribution, ExpenseItem, Person, RateSetting } from "./types";
+import type { ExpenseItem, Person, RateSetting } from "./types";
 
 export interface ItemLine {
   itemId: string;
@@ -193,27 +193,17 @@ export function computeSplit(people: Person[], items: ExpenseItem[]): SplitResul
   };
 }
 
-export interface SettlementRow {
+/** One person's share of an expense. */
+export interface ShareRow {
   personId: string;
   name: string;
-  contributed: number;
   fairShare: number;
-  /** contributed - fairShare: positive means owed money back, negative means still needs to front more. */
-  balance: number;
 }
 
-export function computeSettlement(contributions: Contribution[], split: SplitResult): SettlementRow[] {
-  return split.people.map((p) => {
-    const contribution = contributions.find((c) => c.personId === p.personId)?.amount;
-    const contributed = contribution
-      ? round2(rateAmount(contribution, split.grandTotal))
-      : 0;
-    return {
-      personId: p.personId,
-      name: p.name,
-      contributed,
-      fairShare: p.total,
-      balance: round2(contributed - p.total),
-    };
-  });
+export function computeShares(split: SplitResult): ShareRow[] {
+  return split.people.map((p) => ({
+    personId: p.personId,
+    name: p.name,
+    fairShare: p.total,
+  }));
 }

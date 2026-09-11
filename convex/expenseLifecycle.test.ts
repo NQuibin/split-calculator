@@ -11,7 +11,6 @@ const state = {
   date: "2026-09-07", currency: "USD", people: [{ id: "person-1", name: "Alex" }],
   items: [{ id: "total", name: "Dinner", cost: 30, splitWith: ["person-1"],
     discount: { mode: "amount" as const, value: 0 }, tax: { mode: "amount" as const, value: 0 }, tip: { mode: "amount" as const, value: 0 } }],
-  contributions: [],
 };
 
 async function setup() {
@@ -159,7 +158,6 @@ test("new tab members are available on old expenses without changing selections 
   expect(saved.items[0].splitWith).toEqual([owner]);
   const edited = toExpenseStateArgs(saved);
   edited.items[0].splitWith.push(sam.id);
-  edited.contributions = [{ personId: sam.id, amount: { mode: "amount", value: 30 } }];
   await user.mutation(api.expenses.save, { slug: "dinner", state: edited });
   const raw = (await t.run(ctx => ctx.db.query("expenses").first()))!;
   expect(raw).not.toHaveProperty("people");
@@ -173,13 +171,9 @@ test("new tab members are available on old expenses without changing selections 
   const after = (await user.query(api.expenses.get, { slug: "dinner" }))!;
   expect(after.people.find(p => p.id === sam.id)?.name).toBe("Samuel");
   expect(after.items).toEqual(edited.items);
-  expect(after.contributions).toEqual(edited.contributions);
   await user.mutation(api.tabs.create, { slug: "other", name: "Other", memberNames: [] });
   const foreign = (await user.query(api.tabs.getBySlug, { slug: "other" }))!.members[0].id;
   edited.items[0].splitWith = [foreign];
-  await expect(user.mutation(api.expenses.save, { slug: "dinner", state: edited })).rejects.toThrow("must belong to this tab");
-  edited.items[0].splitWith = [owner];
-  edited.contributions[0].personId = foreign;
   await expect(user.mutation(api.expenses.save, { slug: "dinner", state: edited })).rejects.toThrow("must belong to this tab");
 });
 

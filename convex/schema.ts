@@ -22,11 +22,6 @@ export const expenseItem = v.object({
   splitWith: v.array(v.string()),
 });
 
-export const contribution = v.object({
-  personId: v.string(),
-  amount: rateSetting,
-});
-
 export const expenseMode = v.union(v.literal("simple"), v.literal("itemized"));
 
 /** A receipt photo (or PDF) attached to an expense. `name` is the original filename, kept for the download/open link. */
@@ -37,15 +32,12 @@ export const expenseImage = v.object({
 });
 
 export const expenseState = v.object({
-  // Accepted only from older clients and discarded; never stored on expenses.
-  stage: v.optional(v.union(v.literal("receipt"), v.literal("results"))),
   name: v.string(),
   /** The editor's working roster. Accepted from the client but never stored on an expense - `tabMembers` seats are the source of truth, and only `roundingOrder` is kept from it. */
   people: v.array(person),
   mode: expenseMode,
   items: v.array(expenseItem),
   date: v.string(),
-  contributions: v.array(contribution),
   /** ISO 4217 code, e.g. "USD". Optional on the stored doc so expenses saved before this field existed keep validating - default to "USD" when reading. */
   currency: v.optional(v.string()),
   /** Free-form note about the expense. Absent when there's no note - an empty/whitespace-only note is stored as no note at all. */
@@ -82,7 +74,6 @@ export default defineSchema({
     mode: expenseMode,
     items: v.array(expenseItem),
     date: v.string(),
-    contributions: v.array(contribution),
     currency: v.optional(v.string()),
     exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })),
     note: v.optional(v.string()),

@@ -11,7 +11,6 @@ export type Action =
   | { type: "UPDATE_ITEM"; item: ExpenseItem }
   | { type: "REMOVE_ITEM"; id: string }
   | { type: "REORDER_ITEMS"; items: ExpenseItem[] }
-  | { type: "SET_CONTRIBUTION"; personId: string; amount: RateSetting }
   | { type: "ADD_PERSON" }
   | { type: "REMOVE_PERSON"; id: string }
   | { type: "RENAME_PERSON"; id: string; name: string }
@@ -75,15 +74,6 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       return { ...state, items: state.items.filter((i) => i.id !== action.id) };
     case "REORDER_ITEMS":
       return { ...state, items: action.items };
-    case "SET_CONTRIBUTION": {
-      const exists = state.contributions.some((c) => c.personId === action.personId);
-      const contributions = exists
-        ? state.contributions.map((c) =>
-            c.personId === action.personId ? { ...c, amount: action.amount } : c,
-          )
-        : [...state.contributions, { personId: action.personId, amount: action.amount }];
-      return { ...state, contributions };
-    }
     case "ADD_PERSON": {
       let n = state.people.length + 1;
       while (state.people.some((person) => person.id === `person-${n}`)) n += 1;
@@ -100,7 +90,6 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
           const splitWith = item.splitWith.filter((id) => id !== action.id);
           return { ...item, splitWith: splitWith.length > 0 ? splitWith : remainingIds };
         }),
-        contributions: state.contributions.filter((contribution) => contribution.personId !== action.id),
       };
     }
     case "RENAME_PERSON":

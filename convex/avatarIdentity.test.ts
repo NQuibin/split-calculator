@@ -12,7 +12,6 @@ const state = {
   date: "2026-09-07", currency: "USD", people: [{ id: "person-1", name: "Nikki Q" }],
   items: [{ id: "total", name: "Dinner", cost: 30, splitWith: ["person-1"],
     discount: { mode: "amount" as const, value: 0 }, tax: { mode: "amount" as const, value: 0 }, tip: { mode: "amount" as const, value: 0 } }],
-  contributions: [],
 };
 
 /**

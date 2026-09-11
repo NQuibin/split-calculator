@@ -24,13 +24,11 @@ function parse(raw: string | null): ExpenseState | null {
     // Expenses saved before the date field existed don't have one - default
     // to today rather than leaving the picker blank.
     const withDate = state.date ? state : { ...state, date: todayISODate() };
-    // Same for contributions, added after some expenses were already saved.
-    const withContributions = withDate.contributions ? withDate : { ...withDate, contributions: [] };
     // Same for mode, added after some expenses were already saved as plain
     // item breakdowns.
-    const withMode = withContributions.mode
-      ? withContributions
-      : { ...withContributions, mode: "itemized" as const };
+    const withMode = withDate.mode
+      ? withDate
+      : { ...withDate, mode: "itemized" as const };
     // Same for currency, added after some expenses were already saved in
     // what was implicitly always USD.
     return withMode.currency ? withMode : { ...withMode, currency: DEFAULT_CURRENCY };

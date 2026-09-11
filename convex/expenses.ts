@@ -16,10 +16,9 @@ import type { Infer } from "convex/values";
 // Patching the field to `undefined` is what removes it from an existing doc.
 function withNormalizedNote(state: Infer<typeof expenseState>) {
   const data = { ...state };
-  delete data.stage;
-  // Like `stage`, the client's roster is accepted but never stored: the tab's
-  // seats are the only source of truth for who is on an expense, and the doc
-  // has no `people` field to spread this into.
+  // The client's roster is accepted but never stored: the tab's seats are the
+  // only source of truth for who is on an expense, and the doc has no `people`
+  // field to spread this into.
   delete (data as { people?: unknown }).people;
   return { ...data, note: state.note?.trim() || undefined };
 }
@@ -212,7 +211,7 @@ export const get = query({
   handler: async (ctx, { slug }) => {
     const doc = await ownExpenseOrDeny(ctx, slug);
     if (!doc) return null;
-    const { name, people, mode, items, date, contributions, currency, note, image, tabId } =
+    const { name, people, mode, items, date, currency, note, image, tabId } =
       await resolveExpenseMembers(ctx, doc);
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
@@ -226,7 +225,6 @@ export const get = query({
       mode,
       items,
       date,
-      contributions,
       currency: currency ?? "USD",
       note,
       // The stored file is only reachable through a signed URL, minted per read.

@@ -48,7 +48,6 @@ export function draftFromParams(params: URLSearchParams): ExpenseState | null {
     mode: "simple",
     items: [],
     date: todayISODate(),
-    contributions: [],
     currency: DEFAULT_CURRENCY,
   };
 }
@@ -66,6 +65,5 @@ export function withTabPeople(state: ExpenseState, people: Person[]): ExpenseSta
         ? ids
         : item.splitWith.filter(id => currentIds.has(id)),
     })),
-    contributions: state.contributions.filter(contribution => currentIds.has(contribution.personId)),
   };
 }

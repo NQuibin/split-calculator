@@ -1,9 +1,9 @@
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
-import { filterBalanceSummary } from "@/lib/filterBalanceSummary";
+import { filterSpendSummary } from "@/lib/filterSpendSummary";
 import type { TabExpenseSummary } from "@/lib/tabSync";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, ChevronRight, HatGlasses, Scale } from "lucide-react";
+import { ChevronRight, HatGlasses, Scale } from "lucide-react";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency } from "@/lib/format";
@@ -19,7 +19,7 @@ interface TabBreakdownProps {
 }
 
 export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expenseView, hasUpcoming, expenses }: TabBreakdownProps) {
-  const currencies = filterBalanceSummary(allCurrencies, expenses, hasUpcoming ? expenseView : "all");
+  const currencies = filterSpendSummary(allCurrencies, expenses, hasUpcoming ? expenseView : "all");
   const [selectedCurrency, setSelectedCurrency] = useState("all");
   const activeCurrency = currencies.some(item => item.currency === selectedCurrency) ? selectedCurrency : "all";
   const visibleCurrencies = currencies.filter(item => activeCurrency === "all" || item.currency === activeCurrency);
@@ -51,20 +51,12 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
                     </span>
                   </th>
                   {visibleCurrencies.map(item => {
-                    const balance = item.members.find(entry => entry.memberId === member.id);
-                    const net = balance?.netBalance ?? 0;
-                    const owes = net < -0.005;
-                    const receives = net > 0.005;
+                    const entry = item.members.find(row => row.memberId === member.id);
                     return (
                       <td key={item.currency} className="border-l border-rule/70 px-5 py-3">
-                        {owes || receives ? (
-                          <div className={`flex items-center gap-3 ${owes ? "text-margin-red" : "text-ledger-green"}`}>
-                            <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${owes ? "bg-margin-red/10" : "bg-ledger-green/20"}`}>
-                              {owes ? <ArrowUp aria-hidden="true" className="h-4 w-4" /> : <ArrowDown aria-hidden="true" className="h-4 w-4" />}
-                            </span>
-                            <span><span className="block text-xs">{owes ? "Owes" : "Receives"}</span><span className="block font-numeric font-semibold">{currency(Math.abs(net), item.currency)}</span></span>
-                          </div>
-                        ) : <span className="text-xs text-ink-soft">{balance ? "Settled up" : "No expenses"}</span>}
+                        {entry && entry.expenseCount > 0
+                          ? <span className="font-numeric font-semibold text-ink">{currency(entry.totalSpent, item.currency)}</span>
+                          : <span className="text-xs text-ink-soft">No expenses</span>}
                       </td>
                     );
                   })}
@@ -77,11 +69,11 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
   </>;
 
   return (
-    <section aria-label="Balance summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+    <section aria-label="Spend summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
           <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
-          Balance summary
+          Spend summary
         </h2>
         <div className="flex flex-wrap items-center gap-4">
           {currencies.some(item => item.expenseCount > 0) && (
@@ -90,7 +82,7 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
             </Link>
           )}
           {currencies.length > 1 && (
-            <CurrencyFilter value={activeCurrency} onChange={setSelectedCurrency} codes={currencies.map(item => item.currency)} label="Balance summary currency" />
+            <CurrencyFilter value={activeCurrency} onChange={setSelectedCurrency} codes={currencies.map(item => item.currency)} label="Spend summary currency" />
           )}
         </div>
       </div>

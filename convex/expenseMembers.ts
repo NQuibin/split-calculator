@@ -26,12 +26,11 @@ export async function resolveExpenseMembers(ctx: QueryCtx | MutationCtx, expense
 export async function assertExpenseMembers(ctx: QueryCtx | MutationCtx, expense: {
   tabId?: Doc<"expenses">["tabId"];
   items: Doc<"expenses">["items"];
-  contributions: Doc<"expenses">["contributions"];
 }) {
   if (!expense.tabId) throw new Error("Expense must belong to a tab");
   const seats = await ctx.db.query("tabMembers").withIndex("by_tab", q => q.eq("tabId", expense.tabId!)).collect();
   const ids = new Set<string>(seats.map(seat => seat._id));
-  for (const id of [...expense.items.flatMap(item => item.splitWith), ...expense.contributions.map(c => c.personId)]) {
+  for (const id of expense.items.flatMap(item => item.splitWith)) {
     if (!ids.has(id)) throw new Error("Split and payment participants must belong to this tab");
   }
 }

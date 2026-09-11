@@ -19,7 +19,6 @@ import {
   TicketPercent,
   X,
   Trash2,
-  Wallet,
 } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -29,7 +28,7 @@ import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
-import type { Contribution, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+import type { Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
@@ -54,7 +53,6 @@ interface StageExpenseProps {
   items: ExpenseItem[];
   date: string;
   currency: string;
-  contributions: Contribution[];
   /** The expense's note, if it has one - a blank note is stored as no note at all. */
   note?: string;
   onSetNote: (note: string) => void;
@@ -69,7 +67,6 @@ interface StageExpenseProps {
   onAddItem: (item: ExpenseItem) => void;
   onUpdateItem: (item: ExpenseItem) => void;
   onRemoveItem: (id: string) => void;
-  onSetContribution: (personId: string, amount: RateSetting) => void;
   onAddPerson: () => void;
   onRemovePerson: (id: string) => void;
   onRenamePerson: (id: string, name: string) => void;
@@ -97,7 +94,6 @@ export function StageExpense({
   items,
   date,
   currency: currencyCode,
-  contributions,
   note,
   onSetNote,
   receipt,
@@ -109,7 +105,6 @@ export function StageExpense({
   onAddItem,
   onUpdateItem,
   onRemoveItem,
-  onSetContribution,
   onAddPerson,
   onRemovePerson,
   onRenamePerson,
@@ -129,7 +124,6 @@ export function StageExpense({
   const [tip, setTip] = useState<RateSetting>(zeroRate);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
   const [error, setError] = useState<string | null>(null);
-  const [contributionsOpen, setContributionsOpen] = useState(true);
   const [continuing, setContinuing] = useState(false);
   const [continueError, setContinueError] = useState<string | null>(null);
 
@@ -154,9 +148,6 @@ export function StageExpense({
     }
   }
 
-  function contributionFor(personId: string): RateSetting {
-    return contributions.find((c) => c.personId === personId)?.amount ?? { mode: "amount", value: 0 };
-  }
 
   function togglePerson(id: string) {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
@@ -466,58 +457,6 @@ export function StageExpense({
             </div>
           </>
         )}
-
-        <div className="mt-4 rounded-md border border-rule transition has-[button:hover]:border-forest">
-          <button
-            type="button"
-            onClick={() => setContributionsOpen((o) => !o)}
-            aria-expanded={contributionsOpen}
-            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
-          >
-            <span className="flex items-center gap-1.5">
-              <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
-              Who&rsquo;s paid so far
-            </span>
-            <motion.span
-              animate={{ rotate: contributionsOpen ? 180 : 0 }}
-              transition={collapseTransition}
-              className="shrink-0"
-            >
-              <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
-            </motion.span>
-          </button>
-          <AnimatePresence initial={false}>
-            {contributionsOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={collapseTransition}
-                className="overflow-hidden border-t border-rule"
-              >
-                <div className="space-y-3 px-4 py-3">
-                  <p className="text-xs text-ink-soft">
-                    Optional — record what each person already paid, so the split below can show
-                    who&rsquo;s owed money back.
-                  </p>
-                  {people.map((p) => (
-                    <div key={p.id} className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2"><MemberAvatar id={p.id} name={p.name} /><span className="truncate text-sm text-ink">{p.name}</span></span>
-                      <RateInput
-                        label={`${p.name} contribution`}
-                        icon={Wallet}
-                        rate={contributionFor(p.id)}
-                        onChange={(rate) => onSetContribution(p.id, rate)}
-                        hideLabel
-                        wide
-                      />
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
         <NoteField note={note} onSetNote={onSetNote} />
         <ExpenseImageField receipt={receipt} onPick={onPickReceipt} canUpload={canUploadImage} />

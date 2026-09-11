@@ -1,9 +1,9 @@
 import { resolveExpenseMembers, assertExpenseMembers } from "./expenseMembers";
 import { assertValidImage, deleteExpenseDoc } from "./expenses";
-import { activeExchangeRate, convertSettlement } from "../src/lib/exchangeRate";
+import { activeExchangeRate, convertShares } from "../src/lib/exchangeRate";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { computeSettlement, computeSplit, round2 } from "../src/lib/calculations";
+import { computeShares, computeSplit, round2 } from "../src/lib/calculations";
 import { person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
@@ -257,8 +257,7 @@ export const removeMember = mutation({
     const expenses = ctx.db.query("expenses").withIndex("by_tab", q => q.eq("tabId", tab._id));
     for await (const raw of expenses) {
       const expense = await resolveExpenseMembers(ctx, raw);
-      if (expense.items.some(item => item.splitWith.includes(memberId)) ||
-          expense.contributions.some(c => c.personId === memberId)) {
+      if (expense.items.some(item => item.splitWith.includes(memberId))) {
         throw new Error("This person is used by an expense and cannot be removed");
       }
     }
@@ -522,18 +521,16 @@ export const createExpense = mutation({
     const remapId = (id: string) => idRemap.get(id) ?? id;
 
     const items = expense.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
-    const contributions = expense.contributions.map((c) => ({ ...c, personId: remapId(c.personId) }));
-    await assertExpenseMembers(ctx, { tabId: tab._id, items, contributions });
+    await assertExpenseMembers(ctx, { tabId: tab._id, items });
     const roundingOrder = expense.people.map(person => remapId(person.id))
       .filter(id => seatsById.has(id)) as Id<"tabMembers">[];
 
     const data = { ...state };
-    delete data.stage;
     // The roster travels with the client's state but is never stored - seats
     // in `tabMembers` are the source of truth, and `roundingOrder` above is
     // the only thing the doc keeps from it.
     delete (data as { people?: unknown }).people;
-    await ctx.db.insert("expenses", { ...data, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, items, contributions, updatedAt: Date.now() });
+    await ctx.db.insert("expenses", { ...data, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, items, updatedAt: Date.now() });
     return null;
   },
 });
@@ -602,17 +599,14 @@ export const expensesForTab = query({
 
 // Computes one currency's slice of the tab breakdown - member totals and
 // per-expense lines - scoped to just the expenses passed in. Called once per
-// distinct currency the tab's expenses use, so balances never mix currencies.
+// distinct currency the tab's expenses use, so spend never mixes currencies.
 async function computeCurrencyBreakdown(
   ctx: QueryCtx,
   seats: Seat[],
   currencyExpenses: Doc<"expenses">[],
   defaultCurrency: string,
 ) {
-  const totals = new Map<
-    string,
-    { totalSpent: number; totalContributed: number; netBalance: number; expenseCount: number }
-  >();
+  const totals = new Map<string, { totalSpent: number; expenseCount: number }>();
   const lines = new Map<
     string,
     {
@@ -620,12 +614,10 @@ async function computeCurrencyBreakdown(
       expenseName: string;
       date: string;
       fairShare: number;
-      contributed: number;
-      balance: number;
     }[]
   >();
   for (const seat of seats) {
-    totals.set(seat._id, { totalSpent: 0, totalContributed: 0, netBalance: 0, expenseCount: 0 });
+    totals.set(seat._id, { totalSpent: 0, expenseCount: 0 });
     lines.set(seat._id, []);
   }
 
@@ -633,24 +625,19 @@ async function computeCurrencyBreakdown(
     const expense = await resolveExpenseMembers(ctx, raw);
     const split = computeSplit(expense.people, expense.items);
     const rate = activeExchangeRate(expense, defaultCurrency);
-    const original = computeSettlement(expense.contributions, split);
-    const settlement = rate ? convertSettlement(original, split.grandTotal, rate.rate) : original;
-    for (const row of settlement) {
-      if (!expense.items.some(item => item.splitWith.includes(row.personId)) &&
-          !expense.contributions.some(c => c.personId === row.personId)) continue;
+    const original = computeShares(split);
+    const shares = rate ? convertShares(original, split.grandTotal, rate.rate) : original;
+    for (const row of shares) {
+      if (!expense.items.some(item => item.splitWith.includes(row.personId))) continue;
       const entry = totals.get(row.personId);
       if (!entry) continue;
       entry.totalSpent += row.fairShare;
-      entry.totalContributed += row.contributed;
-      entry.netBalance += row.balance;
       entry.expenseCount += 1;
       lines.get(row.personId)!.push({
         expenseSlug: expense.slug,
         expenseName: expense.name,
         date: expense.date,
         fairShare: round2(row.fairShare),
-        contributed: round2(row.contributed),
-        balance: round2(row.balance),
       });
     }
   }
@@ -671,8 +658,6 @@ async function computeCurrencyBreakdown(
           name: await resolveSeatName(ctx, seat),
           claimed: seat.userId !== undefined,
           totalSpent: round2(entry.totalSpent),
-          totalContributed: round2(entry.totalContributed),
-          netBalance: round2(entry.netBalance),
           expenseCount: entry.expenseCount,
           expenses: lines.get(seat._id)!.sort((a, b) => b.date.localeCompare(a.date)),
         };
@@ -694,9 +679,9 @@ export const breakdown = query({
       .collect();
 
     // Group expenses by currency so each currency gets its own independent
-    // settlement/breakdown - balances in different currencies can't be
-    // netted against each other. A tab with no expenses yet still gets one
-    // (empty) "USD" group so the roster shows everyone settled up.
+    // breakdown - amounts in different currencies can't be added together. A
+    // tab with no expenses yet still gets one (empty) "USD" group so the
+    // roster still renders.
     const byCurrency = new Map<string, Doc<"expenses">[]>();
     for (const expense of expenses) {
       const code = activeExchangeRate(expense, tab.defaultCurrency ?? "USD")?.to ?? expense.currency ?? "USD";

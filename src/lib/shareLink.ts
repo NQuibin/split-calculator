@@ -1,10 +1,9 @@
-import type { Contribution, ExpenseItem, Person } from "./types";
+import type { ExpenseItem, Person } from "./types";
 
 export interface SharePayload {
   slug: string;
   people: Person[];
   items: ExpenseItem[];
-  contributions: Contribution[];
   /** Absent on links generated before currency support existed - callers should default to "USD". */
   currency?: string;
 }

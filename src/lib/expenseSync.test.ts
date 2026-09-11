@@ -29,7 +29,7 @@ function renderHook<T>(hook: () => T): T {
   renderToStaticMarkup(createElement(Probe));
   return result!;
 }
-const state = { stage: "receipt" as const, name: "Dinner", people: [], mode: "simple" as const, items: [], contributions: [], date: "2026-09-07", currency: "USD" };
+const state = { stage: "receipt" as const, name: "Dinner", people: [], mode: "simple" as const, items: [], date: "2026-09-07", currency: "USD" };
 
 test("guest writes and deletes stay local", async () => {
   const actions = renderHook(useExpenseActions);

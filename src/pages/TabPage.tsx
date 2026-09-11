@@ -573,12 +573,12 @@ function ExchangeRateForm({ tabSlug, expense, target, canEdit }: { tabSlug: stri
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <h4 className="text-sm font-semibold">{expense.exchangeRate ? currency(computeSplit(expense.people, expense.items).grandTotal * expense.exchangeRate.rate, target) : `Exchange to ${target}`}</h4>
-        <p className="mt-1 text-xs text-ink-soft">{expense.exchangeRate ? `Included in ${target} balances · 1 ${expense.currency} = ${expense.exchangeRate.rate} ${target}` : `No rate added. This expense stays in ${expense.currency} balances.`}</p>
+        <p className="mt-1 text-xs text-ink-soft">{expense.exchangeRate ? `Included in ${target} totals · 1 ${expense.currency} = ${expense.exchangeRate.rate} ${target}` : `No rate added. This expense stays in ${expense.currency} totals.`}</p>
       </div>
       {canEdit && <button type="button" disabled={pending} aria-expanded={expanded} aria-controls="exchange-rate-fields" onClick={() => setExpanded(!expanded)} className="shrink-0 text-xs font-medium text-forest underline underline-offset-4">{expanded ? "Cancel" : expense.exchangeRate ? "Change" : "Add rate"}</button>}
     </div>
     {canEdit && expanded && <div id="exchange-rate-fields">
-      {!expense.exchangeRate && <p className="mt-3 text-xs text-ink-soft">Add a rate to include this expense and its payments in the tab’s {target} balance.</p>}
+      {!expense.exchangeRate && <p className="mt-3 text-xs text-ink-soft">Add a rate to include this expense in the tab’s {target} totals.</p>}
       <label htmlFor="expense-exchange-rate" className="mt-3 flex items-center gap-2 text-sm">
         <span className="shrink-0">1 {expense.currency} =</span>
         <input id="expense-exchange-rate" type="number" inputMode="decimal" step="any" min="0" required value={value} disabled={pending} onChange={event => setValue(event.target.value)} placeholder="e.g. 1.38" aria-describedby="exchange-preview" className="w-full min-w-0 rounded-md border border-rule bg-surface px-3 py-2 font-numeric outline-none focus:ring-2 focus:ring-forest/30" />

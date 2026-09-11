@@ -16,7 +16,6 @@ import {
   type StoredExpense,
 } from "./storage";
 import type {
-  Contribution,
   Person,
   RateSetting,
   ExpenseImage,
@@ -33,7 +32,6 @@ interface ExpenseStateArgs {
   mode: ExpenseMode;
   items: ExpenseItem[];
   date: string;
-  contributions: Contribution[];
   currency: string;
   note?: string;
   image?: { storageId: Id<"_storage">; name: string; type: string };
@@ -61,7 +59,6 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
       tip: rate(tip),
       splitWith,
     })),
-    contributions: state.contributions.map(({ personId, amount }) => ({ personId, amount: rate(amount) })),
     currency: state.currency ?? DEFAULT_CURRENCY,
     ...noteArg(state.note),
     ...imageArg(state.image),

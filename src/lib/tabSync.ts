@@ -59,8 +59,6 @@ export interface TabBreakdownExpenseLine {
   expenseName: string;
   date: string;
   fairShare: number;
-  contributed: number;
-  balance: number;
 }
 
 export interface TabBreakdownMember {
@@ -70,8 +68,6 @@ export interface TabBreakdownMember {
   name: string;
   claimed: boolean;
   totalSpent: number;
-  totalContributed: number;
-  netBalance: number;
   expenseCount: number;
   expenses: TabBreakdownExpenseLine[];
 }

@@ -25,11 +25,6 @@ export type Stage = "receipt" | "results";
 /** "simple" restricts an expense to one lump-sum item with no discount/tax/tip; "itemized" is the full line-item breakdown. */
 export type ExpenseMode = "simple" | "itemized";
 
-export interface Contribution {
-  personId: string;
-  amount: RateSetting;
-}
-
 /** A receipt photo (or PDF) attached to an expense, held in Convex file storage. */
 export interface ExpenseImage {
   storageId: string;
@@ -49,8 +44,6 @@ export interface ExpenseState {
   items: ExpenseItem[];
   /** The date the expense was incurred, formatted YYYY-MM-DD. */
   date: string;
-  /** What each person already paid toward the expense, so the split can show who's owed money back. */
-  contributions: Contribution[];
   /** ISO 4217 code, e.g. "USD" - which currency the expense's amounts are in. */
   currency: string;
   /** Free-form note about the expense. Undefined when there's no note - a blank note is deleted rather than stored empty. */

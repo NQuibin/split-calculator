@@ -245,7 +245,6 @@ function ExpenseEditor() {
           items={state.items}
           date={state.date}
           currency={state.currency}
-          contributions={state.contributions}
           note={state.note}
           onSetNote={(note) => dispatch({ type: "SET_NOTE", note })}
           receipt={receipt}
@@ -257,7 +256,6 @@ function ExpenseEditor() {
           onAddItem={(item) => dispatch({ type: "ADD_ITEM", item })}
           onUpdateItem={(item) => dispatch({ type: "UPDATE_ITEM", item })}
           onRemoveItem={(id) => dispatch({ type: "REMOVE_ITEM", id })}
-          onSetContribution={(personId, amount) => dispatch({ type: "SET_CONTRIBUTION", personId, amount })}
           onAddPerson={() => dispatch({ type: "ADD_PERSON" })}
           onRemovePerson={(id) => dispatch({ type: "REMOVE_PERSON", id })}
           onRenamePerson={(id, name) => dispatch({ type: "RENAME_PERSON", id, name })}
@@ -270,7 +268,6 @@ function ExpenseEditor() {
         <StageResults
           people={state.people}
           items={state.items}
-          contributions={state.contributions}
           currency={state.currency}
           note={state.note}
           image={state.image}

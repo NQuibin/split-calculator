@@ -12,13 +12,12 @@ import {
   Receipt as ExpenseIcon,
   RotateCcw,
   StickyNote,
-  Wallet,
 } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { computeSettlement, computeSplit } from "@/lib/calculations";
+import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
-import type { Contribution, Person, ExpenseImage, ExpenseItem } from "@/lib/types";
+import type { Person, ExpenseImage, ExpenseItem } from "@/lib/types";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -114,7 +113,6 @@ function DisclosureLine({
 interface StageResultsProps {
   people: Person[];
   items: ExpenseItem[];
-  contributions: Contribution[];
   currency: string;
   /** The expense's note, if it has one - shown to the owner only; share links don't carry it. */
   note?: string;
@@ -129,7 +127,6 @@ interface StageResultsProps {
 export function StageResults({
   people,
   items,
-  contributions,
   currency: currencyCode,
   note,
   image,
@@ -141,12 +138,10 @@ export function StageResults({
   const [copied, setCopied] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const result = useMemo(() => computeSplit(people, items), [people, items]);
-  const settlement = useMemo(() => computeSettlement(contributions, result), [contributions, result]);
-  const hasContributions = settlement.some((s) => s.contributed !== 0);
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, items, contributions, currency: currencyCode });
+    const payload = encodeSharePayload({ slug: shareSlug, people, items, currency: currencyCode });
     const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
@@ -267,36 +262,6 @@ export function StageResults({
           </div>
         ))}
       </div>
-
-      {hasContributions && (
-        <div className="mt-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
-          <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
-            <Wallet className="h-4 w-4 text-brass" strokeWidth={2.25} />
-            Settling up
-          </p>
-          <ul className="space-y-3 text-sm">
-            {settlement.map((row) => (
-              <li key={row.personId} className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2.5 text-ink">
-                  <MemberAvatar id={row.personId} name={row.name} />
-                  <span className="truncate">{row.name}</span>
-                </span>
-                {row.balance > 0.005 ? (
-                  <span className="font-numeric font-semibold text-ledger-green">
-                    Gets back {currency(row.balance, currencyCode)}
-                  </span>
-                ) : row.balance < -0.005 ? (
-                  <span className="font-numeric font-semibold text-margin-red">
-                    Still needs to front {currency(-row.balance, currencyCode)}
-                  </span>
-                ) : (
-                  <span className="font-numeric text-ink-soft">Settled up</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {note && isOwner && (
         <div className="mt-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
