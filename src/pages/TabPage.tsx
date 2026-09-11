@@ -479,12 +479,9 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
       </div>
       {!filtered.length ? <p role="status" className="p-8 text-center text-sm text-ink-soft">{!expenses.length ? "No expenses yet. Add one to get started." : !visibleExpenses.length && activeView === "paid" ? "No paid expenses yet. Check Upcoming for planned expenses." : "No expenses match your filters."}</p> : <ul className="divide-y divide-rule/70">{filtered.map(expense => <li key={expense.slug}>
         <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className={`${expenseRowGrid} w-full py-4 text-left transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest`}>
-          <span className="flex min-w-0 items-center gap-3">
-            <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f3ead8] text-brass"><Receipt className="h-5 w-5" strokeWidth={2.25} /></span>
-            <span className="min-w-0">
+          <span className="min-w-0">
               <span className="block font-semibold break-words">{expense.name ?? "Untitled expense"}</span>
               <span className="block text-xs text-ink-soft">{expense.items.length} {expense.items.length === 1 ? "item" : "items"}</span>
-            </span>
           </span>
           <span className="hidden items-center gap-1.5 text-sm text-ink-soft md:flex">
             <UpcomingExpenseIcon date={expense.date} />
@@ -508,7 +505,10 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
   </>;
   return <section aria-label="Expenses" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
     <div className="mb-4 flex flex-wrap items-center gap-3">
-      <h2 className="mr-auto font-display text-lg font-semibold">Expenses <span className="ml-2 text-sm font-normal text-ink-soft">{filtered.length}</span></h2>
+      <h2 className="mr-auto flex items-center gap-2 font-display text-lg font-semibold text-ink">
+        <Receipt aria-hidden="true" className="h-5 w-5 shrink-0 text-brass" strokeWidth={2.25} />
+        Expenses <span className="text-sm font-normal text-ink-soft">{filtered.length}</span>
+      </h2>
       <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-rule bg-paper px-3 focus-within:ring-2 focus-within:ring-forest/20 sm:max-w-sm"><Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search tab expenses" placeholder="Search expenses…" value={search} onChange={e => setSearch(e.target.value)} className="w-full min-w-0 bg-transparent text-xs outline-none" /></label>
       <CurrencyFilter value={currencyFilter} onChange={setCurrencyFilter} codes={codes} label="Filter by currency" />
     </div>

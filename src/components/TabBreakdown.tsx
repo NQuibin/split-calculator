@@ -71,7 +71,7 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
   return (
     <section aria-label="Spend summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
+        <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
           <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
           Spend summary
         </h2>
