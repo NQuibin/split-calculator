@@ -51,7 +51,11 @@ test("creating in a tab and editing preserves membership even with no items", as
 
 test("an existing expense cannot be added to a tab", async () => {
   const { t, user, userId } = await setup();
-  await t.run(ctx => ctx.db.insert("expenses", { ...state, slug: "old", userId, updatedAt: 0 }));
+  // `people` is deliberately dropped: it lives on the client's state but not
+  // on the stored doc, so spreading the whole state in would not validate.
+  const stored = { ...state, people: undefined };
+  delete stored.people;
+  await t.run(ctx => ctx.db.insert("expenses", { ...stored, slug: "old", userId, updatedAt: 0 }));
   await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
   await expect(user.mutation(api.tabs.createExpense, { tabSlug: "trip", expenseSlug: "old", state, memberMapping: [] })).rejects.toThrow("existing expense");
 });
@@ -158,7 +162,7 @@ test("new tab members are available on old expenses without changing selections 
   edited.contributions = [{ personId: sam.id, amount: { mode: "amount", value: 30 } }];
   await user.mutation(api.expenses.save, { slug: "dinner", state: edited });
   const raw = (await t.run(ctx => ctx.db.query("expenses").first()))!;
-  expect(raw.people).toBeUndefined();
+  expect(raw).not.toHaveProperty("people");
   expect(raw).not.toHaveProperty("tabMemberIds");
   expect(raw).not.toHaveProperty("stage");
   expect(raw.items[0].splitWith).toEqual([owner, sam.id]);

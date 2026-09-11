@@ -106,7 +106,7 @@ test("members added while creating an expense become seats too", async () => {
   const guest = (await seats(t)).find(s => s.name === "Guest")!;
   expect(expense!.items[0].splitWith).toEqual([guest._id]);
   expect(expense).not.toHaveProperty("tabMemberIds");
-  expect(expense!.people).toBeUndefined();
+  expect(expense).not.toHaveProperty("people");
 });
 
 test("deleting a tab takes its seats with it", async () => {

@@ -3,13 +3,18 @@ import type { QueryCtx, MutationCtx } from "./_generated/server";
 
 /** Expense participants come from the current tab roster, using stable seat IDs. */
 export async function resolveExpenseMembers(ctx: QueryCtx | MutationCtx, expense: Doc<"expenses">) {
-  if (!expense.tabId) return { ...expense, people: expense.people ?? [] };
+  // Every expense belongs to a tab: `tabs.createExpense` is the only insert
+  // path and always sets `tabId`, and `expenses.save` refuses a doc without
+  // one. The field stays optional for the type, so this keeps an empty roster
+  // rather than asserting - a tab-less doc would have had no roster to read
+  // anyway now that the legacy `people` snapshot is gone.
+  if (!expense.tabId) return { ...expense, people: [] };
   const seats = await ctx.db.query("tabMembers").withIndex("by_tab", q => q.eq("tabId", expense.tabId!)).collect();
   const people = await Promise.all(seats.map(async seat => {
     const user = seat.userId ? await ctx.db.get(seat.userId) : null;
     return { id: seat._id as string, name: user?.name?.trim() || user?.email?.trim() || seat.name };
   }));
-  const order = expense.roundingOrder ?? expense.people?.map(person => person.id) ?? [];
+  const order = expense.roundingOrder ?? [];
   const priority = new Map<string, number>(order.map((memberId, index) => [memberId, index]));
   people.sort((a, b) => (priority.get(a.id) ?? order.length) - (priority.get(b.id) ?? order.length));
   return {

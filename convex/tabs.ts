@@ -529,7 +529,11 @@ export const createExpense = mutation({
 
     const data = { ...state };
     delete data.stage;
-    await ctx.db.insert("expenses", { ...data, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, people: undefined, items, contributions, updatedAt: Date.now() });
+    // The roster travels with the client's state but is never stored - seats
+    // in `tabMembers` are the source of truth, and `roundingOrder` above is
+    // the only thing the doc keeps from it.
+    delete (data as { people?: unknown }).people;
+    await ctx.db.insert("expenses", { ...data, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, items, contributions, updatedAt: Date.now() });
     return null;
   },
 });

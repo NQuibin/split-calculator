@@ -40,6 +40,7 @@ export const expenseState = v.object({
   // Accepted only from older clients and discarded; never stored on expenses.
   stage: v.optional(v.union(v.literal("receipt"), v.literal("results"))),
   name: v.string(),
+  /** The editor's working roster. Accepted from the client but never stored on an expense - `tabMembers` seats are the source of truth, and only `roundingOrder` is kept from it. */
   people: v.array(person),
   mode: expenseMode,
   items: v.array(expenseItem),
@@ -75,8 +76,6 @@ export default defineSchema({
     slug: v.string(),
     userId: v.id("users"),
     name: v.string(),
-    /** Legacy snapshot; current rosters are read from tabMembers. */
-    people: v.optional(v.array(person)),
     memberReferencesVersion: v.optional(v.literal(1)),
     /** Stable tie order for assigning rounding pennies; contains seat IDs only. */
     roundingOrder: v.optional(v.array(v.id("tabMembers"))),

@@ -17,6 +17,10 @@ import type { Infer } from "convex/values";
 function withNormalizedNote(state: Infer<typeof expenseState>) {
   const data = { ...state };
   delete data.stage;
+  // Like `stage`, the client's roster is accepted but never stored: the tab's
+  // seats are the only source of truth for who is on an expense, and the doc
+  // has no `people` field to spread this into.
+  delete (data as { people?: unknown }).people;
   return { ...data, note: state.note?.trim() || undefined };
 }
 
@@ -255,7 +259,7 @@ export const save = mutation({
       // `image` is spelled out so the key is always present: the client omits
       // it when there's no image, and only a present-but-undefined field
       // removes an image already on the doc.
-      await ctx.db.patch(existing._id, { ...normalized, people: undefined, memberReferencesVersion: 1, roundingOrder, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { ...normalized, memberReferencesVersion: 1, roundingOrder, image: state.image, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
     }
     return null;
   },
