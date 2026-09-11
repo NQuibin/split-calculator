@@ -357,7 +357,7 @@ function Roster({ slug, isOwner, members }: {
   return <Dialog open={open} onOpenChange={next => { if (!pending) { setOpen(next); resetForm(); } }}>
     <DialogTrigger aria-label={`View ${members.length} ${members.length === 1 ? "member" : "members"}`} className="group inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-sm text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
       {members.length > 0 && <span aria-hidden="true" className="flex -space-x-2">
-        {members.slice(0, 5).map(member => <MemberAvatar key={member.id} id={member.resolvedId} name={member.name} className="ring-2 ring-paper" />)}
+        {members.slice(0, 5).map(member => <MemberAvatar key={member.id} id={member.id} name={member.name} className="ring-2 ring-paper" />)}
         {members.length > 5 && <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface text-xs font-semibold ring-2 ring-paper">+{members.length - 5}</span>}
       </span>}
       <span>{members.length} {members.length === 1 ? "member" : "members"}</span>
@@ -375,7 +375,7 @@ function Roster({ slug, isOwner, members }: {
           const invite = inviteLinks.find(link => link.memberId === member.id);
           return <li key={member.id} className="rounded-lg border border-rule/70 p-3">
             <div className="flex items-center gap-3">
-              <MemberAvatar id={member.resolvedId} name={member.name} size="lg" />
+              <MemberAvatar id={member.id} name={member.name} size="lg" />
               <span className="min-w-0 flex-1 break-words text-sm font-medium">{member.name}</span>
               {!member.claimed && <HatGlasses className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
               {isOwner && <div className="flex shrink-0 items-center">

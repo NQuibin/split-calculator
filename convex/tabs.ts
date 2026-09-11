@@ -566,6 +566,14 @@ export const expensesForTab = query({
       const user = await ctx.db.get(id);
       return [id, user?.name?.trim() || "Unknown creator"] as const;
     })));
+    // A creator renders with the same avatar colour as their seat in this tab,
+    // which means handing the client the seat id rather than the account id -
+    // `people` below is already seat-keyed (see resolveExpenseMembers), and the
+    // two id spaces gave one person two colours in the same row. A creator with
+    // no seat here (they left the tab, say) has nothing to stay consistent
+    // with, so they keep falling back to the account id.
+    const seatByUser = new Map((await tabSeats(ctx, tab._id))
+      .flatMap(seat => seat.userId ? [[seat.userId as string, seat._id as string] as const] : []));
     const resolvedExpenses = await Promise.all(expenses.map(doc => resolveExpenseMembers(ctx, doc)));
     return (await Promise.all(resolvedExpenses
   .map(async ({ slug, name, mode, note, image, people, items, currency, exchangeRate, _creationTime, date, userId }) => ({
@@ -581,7 +589,7 @@ export const expensesForTab = query({
         settlementCurrency: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD")?.to ?? currency ?? "USD",
         createdAt: _creationTime,
         date,
-        createdBy: { id: userId, name: creators.get(userId) ?? "Unknown creator" },
+        createdBy: { id: seatByUser.get(userId) ?? userId, name: creators.get(userId) ?? "Unknown creator" },
       }))))
       // Latest expense date first; most recently created first on the same date.
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
@@ -651,8 +659,10 @@ async function computeCurrencyBreakdown(
         const entry = totals.get(seat._id)!;
         return {
           memberId: seat._id,
-          // The identity this member renders as - see MemberAvatar, which
-          // keys a person's colour on it so they look the same everywhere.
+          // The identity this member is remapped to when assigned to an
+          // expense. Not what the avatar renders as - MemberAvatar keys colour
+          // on the seat id (`memberId`) so claimed and anonymous members are
+          // treated alike.
           resolvedId: seat.userId ?? seat._id,
           name: await resolveSeatName(ctx, seat),
           claimed: seat.userId !== undefined,

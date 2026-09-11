@@ -50,7 +50,7 @@ function TabDirectoryRow({ tab }: { tab: FunctionReturnType<typeof api.tabs.list
       <div className="min-w-0">
         <h2 className="font-display text-lg font-semibold break-words">{tab.name}</h2>
         <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label={`${tab.memberCount} ${tab.memberCount === 1 ? "member" : "members"}`}>
-          {tab.members.map(member => <MemberAvatar key={member.id} id={member.resolvedId} name={member.name} />)}
+          {tab.members.map(member => <MemberAvatar key={member.id} id={member.id} name={member.name} />)}
           <span className="ml-2 text-xs text-ink-soft">{tab.memberCount} {tab.memberCount === 1 ? "member" : "members"}</span>
         </div>
       </div>

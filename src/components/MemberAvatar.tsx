@@ -1,10 +1,4 @@
-const avatarColors = [
-  "bg-[#f1d9d3] text-[#923e37]",
-  "bg-[#d7e4ed] text-[#32648a]",
-  "bg-[#dbe5d2] text-[#3d6045]",
-  "bg-[#e1dcf0] text-[#65528d]",
-  "bg-[#e9e8d9] text-[#62684e]",
-];
+import { avatarColorIndex, avatarColors } from "@/lib/avatarColors";
 
 function memberInitials(name: string) {
   const words = name.trim().split(/\s+/u).filter(Boolean);
@@ -21,11 +15,20 @@ const avatarSizes = {
 
 /**
  * The colour is a hash of `id`, so it is deterministic - but only as stable as
- * the id the caller passes. Always pass the *resolved* identity: a claimed
- * member's account id, otherwise their member id (`resolvedId` on a tab's
- * members, `personId`/`people[].id` on an expense, which already store it).
- * Passing a tab-local member id instead would give the same person a
- * different colour on any screen that knows them by account.
+ * the id the caller passes. Inside a tab, always pass the **tab member (seat)
+ * id**: `id` on a tab's members, `personId`/`people[].id` on an expense, and
+ * `createdBy.id`, which the server maps back to the creator's seat for exactly
+ * this reason. Every participant has a seat whether or not they have claimed an
+ * account, so one person keeps one colour across the roster, the expense list
+ * and the breakdown.
+ *
+ * Do *not* pass `resolvedId`. It is an account id for claimed members and a
+ * seat id for anonymous ones, so a claimed member came out a different colour
+ * beside seat-keyed avatars in the same row. It still exists for identity
+ * remapping and balance grouping - it is just not a colour key.
+ *
+ * Colour is therefore stable within a tab, not across tabs: the same person
+ * holds a different seat in each tab, so their colour changes between them.
  */
 export function MemberAvatar({
   id,
@@ -39,7 +42,7 @@ export function MemberAvatar({
   size?: keyof typeof avatarSizes;
   className?: string;
 }) {
-  const colorIndex = Array.from(id).reduce((sum, char) => sum + char.codePointAt(0)!, 0) % avatarColors.length;
+  const colorIndex = avatarColorIndex(id);
   return <span title={name} aria-label={name} className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${avatarSizes[size]} ${avatarColors[colorIndex]} ${className}`}>{memberInitials(name)}</span>;
 }
 
