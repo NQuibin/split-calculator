@@ -55,3 +55,28 @@ test("switching to one total includes adjustments exactly once", () => {
   expect(simple.globalAdjustments).toBeUndefined();
   expect(computeSplit(simple.people, simple.items).grandTotal).toBe(117);
 });
+
+test("a global percent tip marked after tax is charged on the taxed subtotal", () => {
+  const afterTax: ExpenseAdjustments = { ...global, tipAfterTax: true };
+  const result = computeSplit(people, [item("a", 100), item("b", 50)], afterTax);
+  // 150 gross - 10% discount = 135 net, 10% tax = 13.5, 20% tip on 148.5 = 29.7.
+  expect(result).toMatchObject({ subtotal: 135, taxTotal: 13.5, tipTotal: 29.7, grandTotal: 178.2 });
+  expect(result.people.map(p => p.total)).toEqual([118.8, 59.4]);
+});
+
+test("a fixed-amount tip ignores the after-tax flag", () => {
+  const fixed: ExpenseAdjustments = { ...global, tip: { mode: "amount", value: 20 }, tipAfterTax: true };
+  expect(computeSplit(people, [item("a", 100), item("b", 50)], fixed).tipTotal).toBe(20);
+});
+
+test("an item's own percent tip can be charged after its own tax", () => {
+  const own: ExpenseItem = {
+    ...item("a", 100, true),
+    tax: { mode: "percent", value: 10 },
+    tip: { mode: "percent", value: 20 },
+    tipAfterTax: true,
+  };
+  const result = computeSplit(people, [own], global);
+  // 100 net, 10 tax, 20% of 110 = 22.
+  expect(result).toMatchObject({ taxTotal: 10, tipTotal: 22, grandTotal: 132 });
+});

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { DollarSign, Percent } from "lucide-react";
 import type { RateSetting } from "@/lib/types";
@@ -11,9 +11,11 @@ interface RateInputProps {
   hideLabel?: boolean;
   /** Sizes the field for a currency amount rather than a short rate - see below. */
   wide?: boolean;
+  /** Rendered under the field, in the field's own column so it lines up with the input box. `wide` only. */
+  footer?: ReactNode;
 }
 
-export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }: RateInputProps) {
+export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide, footer }: RateInputProps) {
   // The field holds what was typed, not a re-rendered number. `type="number"`
   // reports an in-progress value like "12." as "", which would parse to 0 and
   // wipe the field halfway through entering a decimal - so this is a text
@@ -41,13 +43,18 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }
   }
 
   return (
-    <div className={`rate-input-row ${wide && !hideLabel ? "grid grid-cols-[5rem_minmax(0,1fr)] gap-4 sm:flex sm:items-center sm:gap-2" : "flex items-center gap-2"} ${wide ? "w-full sm:w-auto sm:flex-none" : ""}`}>
+    <div className={`rate-input-row ${wide && !hideLabel ? "grid grid-cols-[5rem_minmax(0,1fr)] gap-4 sm:flex sm:items-start sm:gap-2" : "flex items-center gap-2"} ${wide ? "w-full sm:w-auto sm:flex-none" : ""}`}>
       {!hideLabel && (
-        <div className={wide ? "rate-input-label flex min-w-0 items-center gap-2 sm:contents" : "contents"}>
+        // The label matches the field's height so the two line up however the
+        // row is laid out - side by side, or stacked into a label column.
+        <div className={wide ? "rate-input-label flex min-h-11 min-w-0 items-center gap-2" : "contents"}>
           <Icon className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
           <span className="min-w-0 font-display text-sm font-medium text-ink-soft">{label}</span>
         </div>
       )}
+      {/* Anything under the field shares its column, so it starts at the input
+          box's left edge rather than the row's. */}
+      <div className={wide && footer ? "flex min-w-0 flex-col" : "contents"}>
       <div className={`rate-input-control flex min-w-0 items-stretch rounded-md border border-edge bg-field ${wide ? "min-h-11 w-full flex-1 sm:w-auto sm:flex-none" : ""}`}>
         <input
           type="text"
@@ -90,6 +97,8 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }
             <DollarSign className="h-3.5 w-3.5" strokeWidth={2.5} />
           </button>
         </div>
+      </div>
+      {footer}
       </div>
     </div>
   );

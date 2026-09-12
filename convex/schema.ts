@@ -7,7 +7,7 @@ export const rateSetting = v.object({
   value: v.number(),
 });
 
-export const expenseAdjustments = v.object({ discount: rateSetting, tax: rateSetting, tip: rateSetting });
+export const expenseAdjustments = v.object({ discount: rateSetting, tax: rateSetting, tip: rateSetting, tipAfterTax: v.optional(v.boolean()) });
 
 export const person = v.object({
   id: v.string(),
@@ -21,6 +21,7 @@ export const expenseItem = v.object({
   discount: rateSetting,
   tax: rateSetting,
   tip: rateSetting,
+  tipAfterTax: v.optional(v.boolean()),
   splitWith: v.array(v.string()),
   overrideAdjustments: v.optional(v.boolean()),
 });

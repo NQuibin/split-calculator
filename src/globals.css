@@ -238,6 +238,10 @@ body {
 @container (min-width: 44rem) {
   .rate-inputs {
     flex-direction: row;
+    /* The tip group carries an "after tax" toggle under its field, so the row
+       is taller than a bare control - line the controls up along the top
+       rather than centring them against that extra height. */
+    align-items: flex-start;
   }
 }
 
@@ -251,10 +255,6 @@ body {
       grid-template-columns: 5rem max-content;
       column-gap: 1rem;
       width: max-content;
-    }
-
-    .rate-inputs > .rate-input-row .rate-input-label {
-      display: flex;
     }
 
     .rate-inputs > .rate-input-row .rate-input-control {

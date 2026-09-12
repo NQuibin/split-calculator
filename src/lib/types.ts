@@ -9,6 +9,8 @@ export interface ExpenseAdjustments {
   discount: RateSetting;
   tax: RateSetting;
   tip: RateSetting;
+  /** Charge a percent tip on the taxed subtotal rather than the pre-tax one - the usual Canadian order. Inert for a fixed-amount tip. */
+  tipAfterTax?: boolean;
 }
 
 export interface Person {
@@ -23,6 +25,8 @@ export interface ExpenseItem {
   discount: RateSetting;
   tax: RateSetting;
   tip: RateSetting;
+  /** See `ExpenseAdjustments.tipAfterTax`. */
+  tipAfterTax?: boolean;
   splitWith: string[];
   overrideAdjustments?: boolean;
 }

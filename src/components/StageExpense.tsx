@@ -9,7 +9,6 @@ import {
   Calendar,
   Check,
   ChevronDown,
-  Coins,
   HatGlasses,
   ListChecks,
   Loader2,
@@ -38,6 +37,7 @@ import type { ExpenseAdjustments, Person, RateSetting, ExpenseItem, ExpenseMode 
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
+import { TipRateInput } from "@/components/ui/TipRateInput";
 
 const zeroAdjustments: ExpenseAdjustments = { discount: { mode: "amount", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
 
@@ -142,6 +142,7 @@ export function StageExpense({
   const [discount, setDiscount] = useState<RateSetting>({ mode: "amount", value: 0 });
   const [tax, setTax] = useState<RateSetting>(zeroRate);
   const [tip, setTip] = useState<RateSetting>(zeroRate);
+  const [tipAfterTax, setTipAfterTax] = useState(false);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
   const [error, setError] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
@@ -208,6 +209,7 @@ export function StageExpense({
     setDiscount({ mode: "amount", value: 0 });
     setTax(zeroRate);
     setTip(zeroRate);
+    setTipAfterTax(false);
     setSplitWith(allIds);
     setError(null);
   }
@@ -226,6 +228,7 @@ export function StageExpense({
     setDiscount(item.discount);
     setTax(item.tax);
     setTip(item.tip);
+    setTipAfterTax(item.tipAfterTax ?? false);
     setSplitWith(item.splitWith);
     setError(null);
   }
@@ -268,6 +271,7 @@ export function StageExpense({
       discount,
       tax,
       tip,
+      tipAfterTax,
       splitWith,
       overrideAdjustments: adjustmentsOpen,
     };
@@ -417,12 +421,12 @@ export function StageExpense({
             <input type="checkbox" checked={adjustmentsOpen} onChange={event => setAdjustmentsOpen(event.target.checked)} className="h-5 w-5 shrink-0 accent-forest" />
             Use individual discount, tax &amp; tip
           </label>
-          <p className="mb-3 text-xs text-ink-soft">{adjustmentsOpen ? "Replaces all global adjustments for this item. Blank or zero means none." : "Uses the expense’s global discount, tax and tip."}</p>
+          <p className="mb-3 text-xs text-ink-soft">Override global adjustments for this item.</p>
           {adjustmentsOpen && <>
           <div className="rate-inputs-container"><div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
             <RateInput wide label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} />
             <RateInput wide label="Tax" icon={Percent} rate={tax} onChange={setTax} />
-            <RateInput wide label="Tip" icon={Coins} rate={tip} onChange={setTip} />
+            <TipRateInput rate={tip} onChange={setTip} afterTax={tipAfterTax} onAfterTaxChange={setTipAfterTax} />
           </div>
           </div>
           <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
@@ -505,7 +509,12 @@ export function StageExpense({
               <div className="rate-inputs-container"><div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
                 <RateInput wide label="Discount" icon={TicketPercent} rate={globalAdjustments.discount} onChange={discount => onSetGlobalAdjustments({ ...globalAdjustments, discount })} />
                 <RateInput wide label="Tax" icon={Percent} rate={globalAdjustments.tax} onChange={tax => onSetGlobalAdjustments({ ...globalAdjustments, tax })} />
-                <RateInput wide label="Tip" icon={Coins} rate={globalAdjustments.tip} onChange={tip => onSetGlobalAdjustments({ ...globalAdjustments, tip })} />
+                <TipRateInput
+                  rate={globalAdjustments.tip}
+                  onChange={tip => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
+                  afterTax={globalAdjustments.tipAfterTax ?? false}
+                  onAfterTaxChange={tipAfterTax => onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })}
+                />
               </div>
               </div>
               <p className="mt-3 text-xs text-ink-soft">Applies to items without individual adjustments. Fixed amounts are shared proportionally. Discount applies before tax and tip.</p>

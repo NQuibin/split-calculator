@@ -55,6 +55,15 @@ function netCost(item: ExpenseItem): number {
   return Math.max(0, item.cost - discountAmount(item));
 }
 
+/**
+ * A percent tip marked "after tax" is charged on the taxed subtotal - the usual
+ * Canadian order. A fixed-amount tip is the same figure either way.
+ */
+function tipAmount(item: ExpenseItem, net: number): number {
+  const base = item.tipAfterTax && item.tip.mode === "percent" ? net + rateAmount(item.tax, net) : net;
+  return rateAmount(item.tip, base);
+}
+
 /** Older items with adjustments retain their individual settings. */
 export function hasIndividualAdjustments(item: ExpenseItem): boolean {
   return item.overrideAdjustments ?? [item.discount, item.tax, item.tip].some(rate => rate.value !== 0);
@@ -67,14 +76,16 @@ export function resolveItemAdjustments(items: ExpenseItem[], global?: ExpenseAdj
   const gross = eligible.reduce((sum, item) => sum + item.cost, 0);
   const globalDiscount = Math.min(gross, rateAmount(global.discount, gross));
   const net = Math.max(0, gross - globalDiscount);
+  const globalTax = net > 0 ? rateAmount(global.tax, net) : 0;
+  const globalTipBase = global.tipAfterTax && global.tip.mode === "percent" ? net + globalTax : net;
   return items.map(item => {
     if (hasIndividualAdjustments(item)) return item;
     const weight = gross > 0 ? item.cost / gross : 0;
     return {
       ...item,
       discount: { mode: "amount", value: globalDiscount * weight },
-      tax: { mode: "amount", value: net > 0 ? rateAmount(global.tax, net) * weight : 0 },
-      tip: { mode: "amount", value: net > 0 ? rateAmount(global.tip, net) * weight : 0 },
+      tax: { mode: "amount", value: globalTax * weight },
+      tip: { mode: "amount", value: net > 0 ? rateAmount(global.tip, globalTipBase) * weight : 0 },
     };
   });
 }
@@ -117,7 +128,7 @@ export function computeSplit(people: Person[], items: ExpenseItem[], global?: Ex
   const itemBreakdowns: ItemBreakdown[] = items.map((item) => {
     const net = netCost(item);
     const itemTax = rateAmount(item.tax, net);
-    const itemTip = rateAmount(item.tip, net);
+    const itemTip = tipAmount(item, net);
     return {
       itemId: item.id,
       itemName: item.name,
@@ -144,7 +155,7 @@ export function computeSplit(people: Person[], items: ExpenseItem[], global?: Ex
   for (const item of items) {
     const itemCost = netCost(item);
     const itemTax = rateAmount(item.tax, itemCost);
-    const itemTip = rateAmount(item.tip, itemCost);
+    const itemTip = tipAmount(item, itemCost);
     taxTotal += itemTax;
     tipTotal += itemTip;
 
