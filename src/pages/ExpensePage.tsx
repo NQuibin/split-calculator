@@ -225,15 +225,7 @@ function ExpenseEditor() {
           continueDisabled={isAuthenticated && !stored && !tabDraft}
           expenseName={state.name}
           description={stored ? "Edit the details of this expense. Nothing is saved until you're done." : isAuthenticated ? undefined : "Saved only in this browser. Guest expenses stay separate from your account."}
-          headerAction={stored ? <div className="flex flex-wrap items-center gap-2">
-            {confirmDelete && <button type="button" onClick={() => setConfirmDelete(false)} className="text-sm text-ink-soft">Cancel</button>}
-            <button type="button" onClick={() => {
-              if (!confirmDelete) { setConfirmDelete(true); return; }
-              remove(slug);
-              if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
-              else void navigate({ to: "/expenses" });
-            }} aria-label={confirmDelete ? "Confirm delete" : "Delete expense"} className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-margin-red/50 px-3 py-2.5 text-sm font-medium text-margin-red hover:bg-margin-red/5"><Trash2 className="h-4 w-4" /><span className={confirmDelete ? "" : "hidden sm:inline"}>{confirmDelete ? "Confirm delete" : "Delete expense"}</span></button>
-          </div> : undefined}
+          headerAction={stored ? <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-2 rounded-lg bg-margin-red px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-margin-red/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"><Trash2 className="h-4 w-4" />Delete</button> : undefined}
           onCancel={() => (dirty ? setConfirmDiscard(true) : leave())}
           cancelLabel={stored ? "Close" : "Cancel"}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
@@ -298,6 +290,31 @@ function ExpenseEditor() {
               className="rounded-lg border border-margin-red px-4 py-2.5 text-sm font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface"
             >
               Discard changes
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent aria-label="Delete expense">
+          <DialogTitle>Delete this expense?</DialogTitle>
+          <DialogDescription className="mt-2">
+            This permanently deletes the expense and its itemized split. This can&rsquo;t be undone.
+          </DialogDescription>
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <DialogClose className="rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-paper">
+              Cancel
+            </DialogClose>
+            <button
+              type="button"
+              onClick={() => {
+                remove(slug);
+                if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
+                else void navigate({ to: "/expenses" });
+              }}
+              className="rounded-lg bg-margin-red px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-margin-red/90"
+            >
+              Delete expense
             </button>
           </div>
         </DialogContent>

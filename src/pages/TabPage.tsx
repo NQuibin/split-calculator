@@ -256,48 +256,42 @@ function DeleteTabButton({ slug, expenseCount }: { slug: string; expenseCount: n
     }
   }
 
-  if (confirming) {
-    return (
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
-        {/* Deleting a tab takes its expenses with it, so the count is spelled
-            out here rather than left to be discovered afterwards. */}
-        <span className="text-xs text-ink-soft">
-          {expenseCount === 0
-            ? "Delete this tab?"
-            : `Deletes ${expenseCount} ${expenseCount === 1 ? "expense" : "expenses"} too.`}
-        </span>
-        {error && <span className="text-xs text-margin-red">{error}</span>}
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          aria-busy={deleting}
-          className="inline-flex items-center gap-1 rounded-md border border-margin-red px-2.5 py-1.5 text-xs font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />}
-          Confirm delete
-        </button>
-        <button
-          type="button"
-          onClick={() => setConfirming(false)}
-          disabled={deleting}
-          className="text-xs font-medium text-ink-soft transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={() => setConfirming(true)}
-      aria-label="Delete tab"
-      className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
-    >
-      <Trash2 className="h-4 w-4" strokeWidth={2.25} />
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => { setError(null); setConfirming(true); }}
+        className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-margin-red px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-margin-red/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+      >
+        <Trash2 className="h-4 w-4" />Delete
+      </button>
+      <Dialog open={confirming} onOpenChange={next => { if (!deleting) setConfirming(next); }}>
+        <DialogContent aria-label="Delete tab">
+          <DialogTitle>Delete this tab?</DialogTitle>
+          <DialogDescription className="mt-2">
+            {expenseCount === 0
+              ? "This permanently deletes the tab. This can’t be undone."
+              : `This permanently deletes the tab and its ${expenseCount} ${expenseCount === 1 ? "expense" : "expenses"}. This can’t be undone.`}
+          </DialogDescription>
+          {error && <p role="alert" className="mt-3 text-sm text-margin-red">{error}</p>}
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <DialogClose disabled={deleting} className="rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-70">
+              Cancel
+            </DialogClose>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              aria-busy={deleting}
+              className="inline-flex items-center gap-2 rounded-lg bg-margin-red px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-margin-red/90 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
+              Delete tab
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
