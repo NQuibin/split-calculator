@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Panel } from "@/components/ui/Page";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
 import { currency, formatExpenseDate, todayISODate } from "@/lib/format";
@@ -22,7 +23,7 @@ type PaymentDraft = Suggestion & { currency: string; amountText: string; date: s
 export type SettlementSummaryData = {
   viewerMemberId: string | null;
   missingPayers: { slug: string; name: string }[];
-  currencies: { currency: string; members: { memberId: string; balance: number }[] }[];
+  currencies: { currency: string; members: { memberId: string; name: string; balance: number }[] }[];
 };
 
 function BalanceValue({ balance, code, prominent = false }: { balance: number; code: string; prominent?: boolean }) {
@@ -38,9 +39,15 @@ export function SettlementSummary({ data }: { data: SettlementSummaryData }) {
     {data.missingPayers.length > 0 && <p className="text-margin-red-ink">Balances incomplete: payer needed for {data.missingPayers.length} {data.missingPayers.length === 1 ? "expense" : "expenses"}.</p>}
     {!data.viewerMemberId ? <p className="text-ink-soft">View balances and payments</p>
       : data.currencies.length === 0 ? <p className="text-ink-soft">{data.missingPayers.length ? "Assign payers to calculate what everyone owes." : "No outstanding balances."}</p>
-        : <div className="flex flex-wrap items-center gap-x-6 gap-y-2">{data.currencies.map(group => {
-          const viewer = group.members.find(member => member.memberId === data.viewerMemberId);
-          return <span key={group.currency} className="inline-flex items-center gap-2"><span className="text-xs text-ink-soft">{group.currency}</span>{viewer ? <BalanceValue balance={viewer.balance} code={group.currency} prominent /> : "No balance"}</span>;
+        : <div className="space-y-3">{[...data.currencies[0].members].sort((a, b) => Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId)).map(member => {
+          const isViewer = member.memberId === data.viewerMemberId;
+          return <div key={member.memberId} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="flex min-w-0 items-center gap-2 text-sm font-medium"><MemberAvatar id={member.memberId} name={member.name} size="sm" /><span className="min-w-0 break-words">{member.name}{isViewer && <span className="text-ink-soft"> (you)</span>}</span></span>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">{data.currencies.map(group => {
+              const balance = group.members.find(candidate => candidate.memberId === member.memberId)?.balance;
+              return <span key={group.currency} className="inline-flex items-center gap-2"><span className="text-xs text-ink-soft">{group.currency}</span>{balance === undefined ? "No balance" : <BalanceValue balance={balance} code={group.currency} prominent={isViewer} />}</span>;
+            })}</div>
+          </div>;
         })}</div>}
   </div>;
 }

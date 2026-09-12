@@ -14,8 +14,8 @@ const viewerData: SettlementSummaryData = {
   viewerMemberId: "alex",
   missingPayers: [],
   currencies: [
-    { currency: "CAD", members: [{ memberId: "alex", balance: 7.34 }] },
-    { currency: "USD", members: [{ memberId: "alex", balance: -0.5 }] },
+    { currency: "CAD", members: [{ memberId: "alex", name: "Alex", balance: 7.34 }] },
+    { currency: "USD", members: [{ memberId: "alex", name: "Alex", balance: -0.5 }] },
   ],
 };
 
@@ -33,8 +33,8 @@ test("centers mixed settled and outstanding currency summaries", () => {
   const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
     ...viewerData,
     currencies: [
-      { currency: "CAD", members: [{ memberId: "alex", balance: 0 }] },
-      { currency: "USD", members: [{ memberId: "alex", balance: 0.5 }] },
+      { currency: "CAD", members: [{ memberId: "alex", name: "Alex", balance: 0 }] },
+      { currency: "USD", members: [{ memberId: "alex", name: "Alex", balance: 0.5 }] },
     ],
   } }));
 
@@ -43,6 +43,27 @@ test("centers mixed settled and outstanding currency summaries", () => {
   expect(markup).toContain("Settled");
   expect(markup).toContain("Gets ");
   expect(markup).toContain("text-ink text-lg font-semibold");
+});
+
+test("shows every member while putting the viewer first", () => {
+  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
+    viewerMemberId: "alex",
+    missingPayers: [],
+    currencies: [{
+      currency: "USD",
+      members: [
+        { memberId: "bea", name: "Bea", balance: -5 },
+        { memberId: "alex", name: "Alex", balance: 10 },
+        { memberId: "cam", name: "Cam", balance: -5 },
+      ],
+    }],
+  } }));
+
+  expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
+  expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Cam"));
+  expect(markup).toContain("> (you)</span>");
+  expect(markup).toContain("Gets ");
+  expect(markup.match(/Owes /g)).toHaveLength(2);
 });
 
 test("shows incomplete, empty, viewer-free, and loading settlement states", () => {
