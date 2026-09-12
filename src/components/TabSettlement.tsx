@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { ArrowRight, ChevronDown, HandCoins, RotateCcw, X } from "lucide-react";
+import { ArrowRight, ChevronDown, HandCoins, MoveDown, MoveUp, RotateCcw, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -25,10 +25,11 @@ export type SettlementSummaryData = {
   currencies: { currency: string; members: { memberId: string; balance: number }[] }[];
 };
 
-function BalanceValue({ balance, code }: { balance: number; code: string }) {
-  const color = balance > 0 ? "text-ledger-green" : balance < 0 ? "text-margin-red-ink" : "text-ink-soft";
-  return <span className={color}>
-    {balance === 0 ? "Settled" : <>{balance > 0 ? "Receives " : "Owes "}<span className="font-numeric whitespace-nowrap">{currency(Math.abs(balance), code)}</span></>}
+function BalanceValue({ balance, code, prominent = false }: { balance: number; code: string; prominent?: boolean }) {
+  const color = balance > 0 ? "text-ledger-green" : balance < 0 ? "text-margin-red-ink" : "text-ink";
+  const DirectionIcon = balance > 0 ? MoveUp : MoveDown;
+  return <span className={`inline-flex flex-wrap items-center gap-1 ${color} ${prominent ? "text-lg font-semibold" : ""}`}>
+    {balance === 0 ? "Settled" : <>{balance > 0 ? "Gets " : "Owes "}<span className="inline-flex items-center gap-1 whitespace-nowrap"><span className="font-numeric">{currency(Math.abs(balance), code)}</span><DirectionIcon aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={2.5} /></span></>}
   </span>;
 }
 
@@ -37,9 +38,9 @@ export function SettlementSummary({ data }: { data: SettlementSummaryData }) {
     {data.missingPayers.length > 0 && <p className="text-margin-red-ink">Balances incomplete: payer needed for {data.missingPayers.length} {data.missingPayers.length === 1 ? "expense" : "expenses"}.</p>}
     {!data.viewerMemberId ? <p className="text-ink-soft">View balances and payments</p>
       : data.currencies.length === 0 ? <p className="text-ink-soft">{data.missingPayers.length ? "Assign payers to calculate what everyone owes." : "No outstanding balances."}</p>
-        : <div className="flex flex-wrap gap-x-6 gap-y-2">{data.currencies.map(group => {
+        : <div className="flex flex-wrap items-center gap-x-6 gap-y-2">{data.currencies.map(group => {
           const viewer = group.members.find(member => member.memberId === data.viewerMemberId);
-          return <span key={group.currency}><span className="mr-2 text-xs text-ink-soft">{group.currency}</span>{viewer ? <BalanceValue balance={viewer.balance} code={group.currency} /> : "No balance"}</span>;
+          return <span key={group.currency} className="inline-flex items-center gap-2"><span className="text-xs text-ink-soft">{group.currency}</span>{viewer ? <BalanceValue balance={viewer.balance} code={group.currency} prominent /> : "No balance"}</span>;
         })}</div>}
   </div>;
 }

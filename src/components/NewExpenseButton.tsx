@@ -36,7 +36,7 @@ export function NewExpenseButton({ className, variant = "default" }: { className
   return (
     <Button
       type="button"
-      size="hero"
+      size="touch"
       onClick={handleStart}
       disabled={isPending}
       aria-busy={isPending}

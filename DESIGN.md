@@ -498,7 +498,7 @@ row look permanently hovered.
 - Always formatted through `src/lib/format.ts` with an explicit currency —
   never a bare `toFixed(2)` in a component.
 - Positive to you: `text-ledger-green`. Negative: `text-margin-red` (on
-  `--surface`). Zero/settled: `text-ink-soft`.
+  `--surface`). Zero/settled: `text-ink`.
 - Never convey a balance's sign by colour alone — keep the `−`/`+` or the word.
 
 ---

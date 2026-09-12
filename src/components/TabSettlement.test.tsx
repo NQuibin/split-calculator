@@ -22,11 +22,27 @@ const viewerData: SettlementSummaryData = {
 test("renders each viewer currency once with its own balance", () => {
   const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: viewerData }));
   expect(markup).toContain("CAD");
-  expect(markup).toContain("Receives ");
+  expect(markup).toContain("Gets ");
   expect(markup).toContain("USD");
   expect(markup).toContain("Owes ");
   expect(markup.match(/CA\$7\.34/g)).toHaveLength(1);
   expect(markup.match(/\$0\.50/g)).toHaveLength(1);
+});
+
+test("centers mixed settled and outstanding currency summaries", () => {
+  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
+    ...viewerData,
+    currencies: [
+      { currency: "CAD", members: [{ memberId: "alex", balance: 0 }] },
+      { currency: "USD", members: [{ memberId: "alex", balance: 0.5 }] },
+    ],
+  } }));
+
+  expect(markup).toContain('class="flex flex-wrap items-center gap-x-6 gap-y-2"');
+  expect(markup.match(/class="inline-flex items-center gap-2"/g)).toHaveLength(2);
+  expect(markup).toContain("Settled");
+  expect(markup).toContain("Gets ");
+  expect(markup).toContain("text-ink text-lg font-semibold");
 });
 
 test("shows incomplete, empty, viewer-free, and loading settlement states", () => {

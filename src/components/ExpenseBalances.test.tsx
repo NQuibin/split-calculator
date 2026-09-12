@@ -13,21 +13,21 @@ const render = (props: Partial<Parameters<typeof ExpenseBalances>[0]> = {}) => r
 
 test("the expense form distinguishes money paid from each share and net debt", () => {
   const html = render();
-  expect(html).toContain("Receives $80.00");
+  expect(html).toContain("Gets $80.00");
   expect(html.match(/Owes \$40.00/g)).toHaveLength(2);
   expect(html).toContain("Suggested transfers");
 });
 
 test("payer outside split receives the full expense back", () => {
   const html = render({ split: computeSplit(people, [{ ...item, splitWith: ["p2", "p3"] }]) });
-  expect(html).toContain("Receives $120.00");
+  expect(html).toContain("Gets $120.00");
   expect(html.match(/Owes \$60.00/g)).toHaveLength(2);
 });
 
 test("missing payer and unallocated items do not show invented debts", () => {
   const missing = render({ payerId: undefined });
   expect(missing).toContain("Choose a payer");
-  expect(missing).not.toContain("Receives");
+  expect(missing).not.toContain("Gets");
   const unallocated = render({ unallocated: true });
   expect(unallocated).toContain("Choose at least one person");
   expect(unallocated).not.toContain("Suggested transfers");
@@ -35,7 +35,12 @@ test("missing payer and unallocated items do not show invented debts", () => {
 
 test("upcoming expenses are clearly projected and a zero balance is settled", () => {
   expect(render({ projected: true })).toContain("Projected balance");
-  const html = render({ split: computeSplit(people, [{ ...item, splitWith: ["nikki"] }]) });
-  expect(html).toContain("Settled");
-  expect(html).not.toContain("Receives");
+  const settled = render({ split: computeSplit(people, [{ ...item, splitWith: ["nikki"] }]) });
+  expect(settled).toContain("Settled");
+  expect(settled).toContain('text-right text-ink"><span class="inline-flex');
+  expect(settled).not.toContain("Gets");
+
+  const upcoming = render({ projected: true, split: computeSplit(people, [{ ...item, splitWith: ["nikki"] }]) });
+  expect(upcoming).toContain("Not due");
+  expect(upcoming).not.toContain("Settled");
 });

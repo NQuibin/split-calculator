@@ -85,7 +85,7 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
         <DialogTrigger
           render={
             variant === "primary" ? (
-              <Button type="button" size="hero" />
+              <Button type="button" size="touch" />
             ) : (
               // The empty-state call to action: an outlined pill that fills on
               // hover, rather than a second filled button competing with the
