@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Camera, ChevronDown, FileText, ImagePlus, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { IMAGE_ACCEPT } from "../../convex/imageFormats";
 import { CameraCapture } from "@/components/CameraCapture";
+import { Button } from "@/components/ui/Button";
 import { assertUploadableImage } from "@/lib/expenseSync";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
@@ -144,12 +145,12 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
         />
       )}
 
-      <div className="mt-4 rounded-md border border-rule transition has-[button:hover]:border-forest">
+      <div className="mt-4 rounded-md border border-rule transition has-[>button:hover]:border-forest">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
         >
           <span className="flex items-center gap-1.5">
             <Paperclip className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -215,11 +216,13 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                     />
 
                     <div className="flex flex-wrap items-center gap-3">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="touch"
                         onClick={() => fileInput.current?.click()}
                         disabled={busy}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
+                        aria-busy={busy}
                       >
                         {busy ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />
@@ -227,29 +230,31 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                           <ImagePlus className="h-3.5 w-3.5" strokeWidth={2.5} />
                         )}
                         {receipt ? "Replace file" : "Upload a file"}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="touch"
                         onClick={handleTakePhoto}
                         disabled={busy}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-rule px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-forest hover:text-forest disabled:cursor-not-allowed disabled:opacity-70"
                       >
                         <Camera className="h-3.5 w-3.5" strokeWidth={2.5} />
                         Take a photo
-                      </button>
+                      </Button>
                       {receipt && !busy && (
-                        <button
+                        <Button
                           type="button"
+                          variant="destructive"
+                          size="touch"
                           onClick={handleRemove}
-                          className="flex items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                           Remove
-                        </button>
+                        </Button>
                       )}
                     </div>
 
-                    {error && <p className="text-xs text-margin-red">{error}</p>}
+                    {error && <p className="text-xs text-margin-red-ink">{error}</p>}
                   </>
                 ) : (
                   <p className="text-xs text-ink-soft">

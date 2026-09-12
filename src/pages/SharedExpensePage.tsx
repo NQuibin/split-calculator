@@ -3,6 +3,7 @@ import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { StageResults } from "@/components/StageResults";
 import { decodeSharePayload } from "@/lib/shareLink";
 import { useStoredExpense } from "@/lib/expenseSync";
+import { Page } from "@/components/ui/Page";
 
 function useHasHydrated(): boolean {
   return useSyncExternalStore(
@@ -42,7 +43,7 @@ function SharedExpenseContent() {
   if (!hasHydrated || !decoded || owned) return null;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12">
+    <Page>
       <StageResults
         people={decoded.people}
         items={decoded.items}
@@ -52,6 +53,6 @@ function SharedExpenseContent() {
         onReset={() => startNavigation(() => { void navigate({ to: "/" }); })}
         navigating={isNavigating}
       />
-    </main>
+    </Page>
   );
 }

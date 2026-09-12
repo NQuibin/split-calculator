@@ -1,34 +1,35 @@
 import { type FormEvent, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
 import { Check, Coins, Loader2, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
+import { Input } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { api } from "../../convex/_generated/api";
-
-const inputClass =
-  "w-full min-w-0 rounded-lg border border-rule bg-paper px-4 py-3 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-forest/20";
+import { EmptyState, Page, Panel } from "@/components/ui/Page";
 
 export function SettingsPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-10 md:py-12">
+    <Page>
       <header className="mb-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 text-sm text-ink-soft">Manage your profile and preferences.</p>
+        <PageTitle>Settings</PageTitle>
+        <PageDescription>Manage your profile and preferences.</PageDescription>
       </header>
 
       <AuthLoading>
-        <p role="status" className="rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft">Loading settings…</p>
+        <EmptyState>Loading settings…</EmptyState>
       </AuthLoading>
       <Unauthenticated>
-        <p className="rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft">Sign in to manage your settings.</p>
+        <EmptyState status={false}>Sign in to manage your settings.</EmptyState>
       </Unauthenticated>
       <Authenticated>
-        <div className="divide-y divide-rule/70 overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
+        <Panel className="divide-y divide-rule/70">
           <NameSettings />
           <DefaultCurrencySettings />
-        </div>
+        </Panel>
       </Authenticated>
-    </main>
+    </Page>
   );
 }
 
@@ -54,10 +55,10 @@ function DefaultCurrencySettings() {
 
   return (
     <div className="px-5 py-6 sm:px-6">
-      <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold">
+      <SectionTitle className="mb-2 flex items-center gap-2">
         <Coins className="h-4 w-4 text-brass" strokeWidth={2.25} />
         Default currency
-      </h2>
+      </SectionTitle>
       <p className="mb-5 text-sm text-ink-soft">
         New expenses you start outside of a tab begin in this currency.
       </p>
@@ -96,32 +97,33 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
 
   return (
     <div className="px-5 py-6 sm:px-6">
-      <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold">
+      <SectionTitle className="mb-2 flex items-center gap-2">
         <UserRound className="h-4 w-4 text-brass" strokeWidth={2.25} />
         Your name
-      </h2>
+      </SectionTitle>
       <p className="mb-5 text-sm text-ink-soft">This is the name shown to friends in your tabs.</p>
       <form onSubmit={handleSubmit} className="flex max-w-xl flex-wrap items-center gap-3 sm:flex-nowrap">
-        <input
+        <Input
           type="text"
           required
           placeholder="Your name"
           aria-label="Your name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={inputClass}
         />
-        <button
+        <Button
           type="submit"
+          size="hero"
           disabled={status === "saving"}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          aria-busy={status === "saving"}
+          className="shrink-0"
         >
           {status === "saving" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
           {status === "saved" && <Check className="h-4 w-4" strokeWidth={2.5} />}
           Save
-        </button>
+        </Button>
       </form>
-      {error && <p className="mt-2 text-xs text-margin-red">{error}</p>}
+      {error && <p className="mt-2 text-xs text-margin-red-ink">{error}</p>}
       {email && <p className="mt-4 text-sm text-ink-soft break-words">Signed in as {email}</p>}
     </div>
   );

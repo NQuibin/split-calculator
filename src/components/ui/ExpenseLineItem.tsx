@@ -1,4 +1,5 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { Button } from "@/components/ui/Button";
 import { Asterisk, Pencil, Trash2 } from "lucide-react";
 import { discountAmount } from "@/lib/calculations";
 import { currency } from "@/lib/format";
@@ -39,10 +40,10 @@ export function ExpenseLineItem({
 
   return (
     <li
-        className={`rounded-lg border bg-surface text-sm transition-colors hover:bg-paper ${isEditing ? "border-forest" : "border-rule"}`}
+        className={`rounded-lg border bg-surface text-sm transition-colors hover:bg-wash ${isEditing ? "border-forest" : "border-rule"}`}
       >
         <div className="flex flex-wrap items-center gap-1 px-4 py-2 sm:gap-2">
-        <button type="button" onClick={onEdit} aria-haspopup="dialog" className="min-h-11 min-w-24 flex-1 text-left">
+        <button type="button" onClick={onEdit} aria-haspopup="dialog" className="min-h-11 min-w-24 flex-1 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
           <p className="break-words text-ink">
             <span className="font-numeric text-ink-soft">{index + 1}.</span> {item.name}
             {hasOverrides && (
@@ -71,23 +72,27 @@ export function ExpenseLineItem({
               {currency(Math.max(0, item.cost - discountAmount(item)), currencyCode)}
             </span>
           </span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-touch"
             onClick={onEdit}
             aria-label={`Edit ${item.name}`}
             aria-haspopup="dialog"
-            className="inline-flex items-center justify-center rounded-md p-1.5 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="text-ink-soft hover:text-forest"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.25} />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-touch"
             onClick={onRemove}
             aria-label={`Remove ${item.name}`}
-            className="inline-flex items-center justify-center rounded-md p-1.5 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+            className="text-ink-soft hover:text-margin-red-ink"
           >
             <Trash2 className="h-4 w-4" strokeWidth={2.25} />
-          </button>
+          </Button>
         </div>
         </div>
     </li>

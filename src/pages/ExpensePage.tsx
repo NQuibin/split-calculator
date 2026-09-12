@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
-import { ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseTabField } from "@/components/ExpenseTabField";
 import { StageExpense } from "@/components/StageExpense";
@@ -13,6 +14,8 @@ import { expenseReducer, type Action } from "@/lib/reducer";
 import { draftFromParams, withTabPeople } from "@/lib/expenseDraft";
 import { useExpenseActions, useStoredExpense, useUploadExpenseImage, toExpenseStateArgs } from "@/lib/expenseSync";
 import type { ExpenseState } from "@/lib/types";
+import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
+import { Page } from "@/components/ui/Page";
 
 function useHasHydrated(): boolean {
   return useSyncExternalStore(
@@ -24,7 +27,6 @@ function useHasHydrated(): boolean {
 
 const route = getRouteApi("/e/$slug");
 
-const pageClass = "mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12";
 
 export function ExpensePage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -38,7 +40,7 @@ export function ExpensePage() {
     if (changedIdentity) void navigate({ to: "/expenses", replace: true });
   }, [identity, changedIdentity, navigate]);
   const { slug } = route.useParams();
-  if (identity === null || changedIdentity) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading expense…</p></main>;
+  if (identity === null || changedIdentity) return <Page><p role="status" className="text-sm text-ink-soft">Loading expense…</p></Page>;
   return <ExpenseEditor key={`${identity}:${slug}`} />;
 }
 
@@ -118,7 +120,7 @@ function ExpenseEditor() {
     }
   }, [stored, tabSlug, tab, viewer]);
 
-  if (!hasHydrated || loading || !state) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading expense…</p></main>;
+  if (!hasHydrated || loading || !state) return <Page><p role="status" className="text-sm text-ink-soft">Loading expense…</p></Page>;
 
   function dispatch(action: Action) {
     if (!state) return;
@@ -189,23 +191,21 @@ function ExpenseEditor() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 md:px-10 md:py-12">
+    <Page>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-ink-soft">
-          {/* A new expense only gets a trail once it has somewhere to sit - an
-              unsaved one outside a tab has nothing above it but "New Expense". */}
-          {!stored && !destinedTab ? <span aria-current="page">New Expense</span> : <>
-            <Link to={destinedTab ? "/tabs" : "/expenses"} className="hover:text-forest hover:underline">{destinedTab ? "Tabs" : "Expenses"}</Link>
-            <ChevronRight aria-hidden="true" className="h-4 w-4" />
-            {destinedTab && <><Link to="/t/$slug" params={{ slug: destinedTab.slug }} className="hover:text-forest hover:underline">{destinedTab.name}</Link><ChevronRight aria-hidden="true" className="h-4 w-4" /></>}
-            {/* On the split, the expense name steps back to the editor - it replaces the old "Edit the expense" link. */}
-            {!stored ? <span aria-current="page" className="font-medium text-ink">New Expense</span> : state.stage === "results" ? <>
-              <button type="button" onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })} className="break-words hover:text-forest hover:underline">{state.name}</button>
-              <ChevronRight aria-hidden="true" className="h-4 w-4" />
-              <span aria-current="page" className="font-medium text-ink">Split</span>
-            </> : <span aria-current="page" className="font-medium text-ink break-words">{state.name}</span>}
-          </>}
-        </nav>
+        {/* A new expense only gets a trail once it has somewhere to sit - an
+            unsaved one outside a tab has nothing above it but "New Expense". */}
+        <Breadcrumb className="mb-0">
+          {!stored && !destinedTab ? <BreadcrumbCurrent>New Expense</BreadcrumbCurrent> : [
+            <Link key="root" to={destinedTab ? "/tabs" : "/expenses"} className={crumbLinkClass}>{destinedTab ? "Tabs" : "Expenses"}</Link>,
+            destinedTab ? <Link key="tab" to="/t/$slug" params={{ slug: destinedTab.slug }} className={crumbLinkClass}>{destinedTab.name}</Link> : null,
+            // On the split, the expense name steps back to the editor.
+            !stored ? <BreadcrumbCurrent key="new">New Expense</BreadcrumbCurrent>
+              : state.stage === "results" ? <Button key="name" type="button" variant="link" size="xs" onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })} className="h-auto px-0 font-normal text-ink-soft break-words whitespace-normal no-underline hover:text-forest">{state.name}</Button>
+              : <BreadcrumbCurrent key="name">{state.name}</BreadcrumbCurrent>,
+            stored && state.stage === "results" ? <BreadcrumbCurrent key="split">Split</BreadcrumbCurrent> : null,
+          ].filter(Boolean)}
+        </Breadcrumb>
 
       </div>
 
@@ -225,7 +225,7 @@ function ExpenseEditor() {
           continueDisabled={isAuthenticated && !stored && !tabDraft}
           expenseName={state.name}
           description={stored ? "Edit the details of this expense. Nothing is saved until you're done." : isAuthenticated ? undefined : "Saved only in this browser. Guest expenses stay separate from your account."}
-          headerAction={stored ? <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-2 rounded-lg bg-margin-red px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-margin-red/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"><Trash2 className="h-4 w-4" />Delete</button> : undefined}
+          headerAction={stored ? <Button type="button" variant="destructive" size="touch" onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" />Delete</Button> : undefined}
           onCancel={() => (dirty ? setConfirmDiscard(true) : leave())}
           cancelLabel={stored ? "Close" : "Cancel"}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
@@ -281,16 +281,17 @@ function ExpenseEditor() {
             you&rsquo;ve changed.
           </DialogDescription>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <DialogClose className="rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-paper">
+            <DialogClose render={<Button variant="outline" size="touch" />}>
               Keep editing
             </DialogClose>
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="touch"
               onClick={() => { setConfirmDiscard(false); leave(); }}
-              className="rounded-lg border border-margin-red px-4 py-2.5 text-sm font-semibold text-margin-red transition hover:bg-margin-red hover:text-surface"
             >
               Discard changes
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -302,23 +303,24 @@ function ExpenseEditor() {
             This permanently deletes the expense and its itemized split. This can&rsquo;t be undone.
           </DialogDescription>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <DialogClose className="rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-paper">
+            <DialogClose render={<Button variant="outline" size="touch" />}>
               Cancel
             </DialogClose>
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="touch"
               onClick={() => {
                 remove(slug);
                 if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
                 else void navigate({ to: "/expenses" });
               }}
-              className="rounded-lg bg-margin-red px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-margin-red/90"
             >
               Delete expense
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </main>
+    </Page>
   );
 }

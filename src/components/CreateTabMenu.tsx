@@ -2,12 +2,11 @@ import { type FormEvent, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Authenticated } from "convex/react";
 import { Plus, Users2, X } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/Dialog";
 import { useTabActions } from "@/lib/tabSync";
 import { generateSlug } from "@/lib/slug";
-
-const inputClass =
-  "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
 interface CreateTabMenuProps {
   variant?: "button" | "icon" | "primary" | "none";
@@ -70,11 +69,13 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
       {variant === "none" ? null : variant === "icon" ? (
         <DialogTrigger
           render={
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               aria-label="New tab"
               title="New tab"
-              className="rounded-md p-1 text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              className="text-ink-soft hover:text-forest"
             />
           }
         >
@@ -83,12 +84,19 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
       ) : (
         <DialogTrigger
           render={
-            <button
-              type="button"
-              className={variant === "primary"
-                ? "flex items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-                : "mx-auto flex items-center gap-1.5 rounded-full border-2 border-forest px-5 py-2.5 font-display font-semibold text-forest transition hover:bg-forest hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"}
-            />
+            variant === "primary" ? (
+              <Button type="button" size="hero" />
+            ) : (
+              // The empty-state call to action: an outlined pill that fills on
+              // hover, rather than a second filled button competing with the
+              // page's own primary.
+              <Button
+                type="button"
+                variant="outline"
+                size="hero"
+                className="mx-auto rounded-full border-2 border-forest bg-transparent text-forest hover:bg-forest hover:text-surface"
+              />
+            )
           }
         >
           {variant === "primary" ? <Plus className="h-5 w-5" strokeWidth={2} /> : <Users2 className="h-4 w-4" strokeWidth={2.5} />}
@@ -98,58 +106,61 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
       <DialogContent>
         <div className="mb-2 flex items-center justify-between gap-3">
           <DialogTitle>New tab</DialogTitle>
-          <DialogClose aria-label="Close new tab" className="rounded-md p-1.5 text-ink-soft hover:text-ink"><X className="h-4 w-4" /></DialogClose>
+          <DialogClose
+            aria-label="Close new tab"
+            render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+          >
+            <X className="h-4 w-4" />
+          </DialogClose>
         </div>
         <DialogDescription className="mb-5">You’re added automatically. Add other people below, or invite them later.</DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <input
+          <Input
             type="text"
             required
             placeholder="Tab name"
             aria-label="Tab name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className={inputClass}
           />
           <div className="space-y-2">
             {memberNames.map((memberName, i) => (
               <div key={i} className="flex items-center gap-1.5">
-                <input
+                <Input
                   type="text"
                   placeholder="Other member (optional)"
                   value={memberName}
                   onChange={(e) =>
                     setMemberNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))
                   }
-                  className={inputClass}
-                />
-                <button
+                      />
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-touch"
                   onClick={() => setMemberNames((prev) => prev.filter((_, idx) => idx !== i))}
                   aria-label={`Remove member ${i + 1}`}
-                  className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+                  className="shrink-0 text-ink-soft hover:text-margin-red-ink"
                 >
                   <X className="h-4 w-4" strokeWidth={2.25} />
-                </button>
+                </Button>
               </div>
             ))}
           </div>
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="xs"
             onClick={() => setMemberNames((prev) => [...prev, ""])}
-            className="flex items-center gap-1 text-xs font-medium text-forest hover:text-ink"
+            className="h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             {memberNames.length === 0 ? "Add member" : "Add another member"}
-          </button>
-          {error && <p className="text-xs text-margin-red">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-          >
+          </Button>
+          {error && <p role="alert" className="text-xs text-margin-red-ink">{error}</p>}
+          <Button type="submit" size="lg" disabled={submitting} aria-busy={submitting} className="w-full">
             {submitting ? "Creating…" : "Create tab"}
-          </button>
+          </Button>
         </form>
       </DialogContent>
     </Dialog>

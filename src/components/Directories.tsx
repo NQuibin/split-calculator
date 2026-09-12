@@ -4,7 +4,7 @@ import { useConvexAuth } from "convex/react";
 import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import type { FunctionReturnType } from "convex/server";
-import { ChevronRight, HatGlasses, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, HatGlasses, Search, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
@@ -13,23 +13,32 @@ import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/Upcomin
 import { useExpenseList } from "@/lib/expenseSync";
 import { computeSplit } from "@/lib/calculations";
 import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
+import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
+import { EmptyState, Page } from "@/components/ui/Page";
+import { Button } from "@/components/ui/Button";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 
 function Directory({ title, description, action, children }: { title: string; description: string; action?: ReactNode; children: ReactNode }) {
-  return <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-10 md:py-12">
+  return <Page>
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-      <div><h1 className="font-display text-3xl font-semibold tracking-tight">{title}</h1><p className="mt-2 text-sm text-ink-soft">{description}</p></div>
+      <div><PageTitle>{title}</PageTitle><PageDescription>{description}</PageDescription></div>
       {action}
     </header>
     {children}
-  </main>;
+  </Page>;
 }
 
 function Notice({ children }: { children: ReactNode }) {
-  return <p role="status" className="rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft">{children}</p>;
+  return <EmptyState>{children}</EmptyState>;
 }
 
 const directoryListClass = "divide-y divide-rule/70 overflow-hidden rounded-xl border border-rule/70 bg-surface/80";
-const directoryRowClass = "group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 px-5 py-6 transition-colors hover:bg-[#f3ead8] focus-visible:bg-[#f3ead8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_auto] sm:px-6";
+// The whole row is one link, carrying no actions of its own - so it needs no
+// overlay and no actions track. If a row ever does gain actions, see
+// DESIGN.md § 5, "Interactive rows": a button cannot nest inside this link.
+const directoryRowClass = "group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 px-5 py-6 transition-colors hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_auto] sm:px-6";
+
+type TabRow = FunctionReturnType<typeof api.tabs.listWithSummary>[number];
 
 export function TabsDirectory() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -42,13 +51,14 @@ export function TabsDirectory() {
   </Directory>;
 }
 
+
 // Purely presentational - every field arrives with the tab from
 // `listWithSummary`, so a row never loads anything of its own.
-function TabDirectoryRow({ tab }: { tab: FunctionReturnType<typeof api.tabs.listWithSummary>[number] }) {
+function TabDirectoryRow({ tab }: { tab: TabRow }) {
   return <li>
     <Link to="/t/$slug" params={{ slug: tab.slug }} className={directoryRowClass}>
       <div className="min-w-0">
-        <h2 className="font-display text-lg font-semibold break-words">{tab.name}</h2>
+        <SectionTitle>{tab.name}</SectionTitle>
         <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label={`${tab.memberCount} ${tab.memberCount === 1 ? "member" : "members"}`}>
           {tab.members.map(member => <MemberAvatar key={member.id} id={member.id} name={member.name} />)}
           <span className="ml-2 text-xs text-ink-soft">{tab.memberCount} {tab.memberCount === 1 ? "member" : "members"}</span>
@@ -61,7 +71,7 @@ function TabDirectoryRow({ tab }: { tab: FunctionReturnType<typeof api.tabs.list
           {!tab.expenseCount && <span>{currency(0, tab.defaultCurrency)}</span>}
         </span>
       </div>
-      <ChevronRight aria-hidden="true" className="col-start-2 row-start-1 h-5 w-5 text-ink-soft transition group-hover:translate-x-0.5 sm:col-start-3" />
+      <ChevronRight aria-hidden="true" className="col-start-2 row-start-1 h-5 w-5 text-ink-soft chevron-x sm:col-start-3" />
     </Link>
   </li>;
 }
@@ -91,8 +101,8 @@ export function ExpensesDirectory() {
   const rows = isAuthenticated ? remoteRows ?? [] : localRows;
   const filtered = rows.filter(row => `${row.name} ${row.tabName}`.toLowerCase().includes(search.trim().toLowerCase()));
   return <Directory title="Expenses" description={isAuthenticated ? "All your expenses across all tabs, together in one place." : "Guest expenses saved in this browser. These stay separate from your account."} action={<NewExpenseButton variant="primary" />}>
-    <label className="mb-5 flex items-center gap-3 rounded-lg border border-rule bg-surface px-4 py-3 focus-within:border-forest focus-within:ring-2 focus-within:ring-forest/20">
-      <Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search expenses or tabs" placeholder="Search expenses or tabs…" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+    <label className="mb-5 flex items-center gap-3 rounded-lg border border-edge bg-field px-4 py-3 focus-within:border-forest focus-within:ring-2 focus-within:ring-forest/20">
+      <Search className="h-4 w-4 text-ink-soft" /><input aria-label="Search expenses or tabs" placeholder="Search expenses or tabs…" value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm" />
     </label>
     {loading ? <Notice>Loading expenses…</Notice> : !filtered.length ? <Notice>{rows.length ? "No expenses match your search." : "No expenses yet. Split an expense to get started."}</Notice> :
       <><ul className={directoryListClass}>{filtered.map(row => <li key={row.key}>
@@ -100,7 +110,7 @@ export function ExpensesDirectory() {
           ? ({ to: "/e/$slug", params: { slug: row.slug } } as const)
           : ({ to: "/t/$slug", params: { slug: row.tabSlug! } } as const))} className={directoryRowClass}>
           <div className="min-w-0">
-            <h2 className="font-display text-lg font-semibold break-words">{row.name}</h2>
+            <SectionTitle>{row.name}</SectionTitle>
             <p className="mt-1 text-sm text-ink-soft break-words">{row.tabName}</p>
             {/* This list has no date column, so the date rides along under the
                 tab name. The icon only joins it when the expense is still
@@ -118,10 +128,69 @@ export function ExpensesDirectory() {
             <span className="text-ink-soft">{row.itemCount} {row.itemCount === 1 ? "item" : "items"}</span>
             <span className="font-numeric font-semibold">{currency(row.total, row.currency)}</span>
           </div>
-          <ChevronRight aria-hidden="true" className="col-start-2 row-start-1 h-5 w-5 text-ink-soft transition group-hover:translate-x-0.5 sm:col-start-3" />
+          <ChevronRight aria-hidden="true" className="col-start-2 row-start-1 h-5 w-5 text-ink-soft chevron-x sm:col-start-3" />
         </Link>
       </li>)}</ul>{filtered.some(row => isUpcoming(row.date)) && <UpcomingExpenseLegend />}</>}
   </Directory>;
+}
+
+
+/**
+ * One friend. The shared tabs used to sit inline as chips, which disappeared
+ * against the card and wrapped badly once someone shared more than two or
+ * three. They live behind a dialog now: the row states the count, the dialog
+ * lists them — the same shape as the tab page's member roster.
+ */
+function FriendRow({ id, name, claimed, tabs }: { id: string; name: string; claimed: boolean; tabs: { slug: string; name: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const count = `${tabs.length} shared ${tabs.length === 1 ? "tab" : "tabs"}`;
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-5 sm:flex-nowrap sm:px-6">
+      <MemberAvatar id={id} name={name} className={claimed ? "" : "opacity-60"} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <SectionTitle>{name}</SectionTitle>
+          {!claimed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs font-medium text-ink-soft">
+            <HatGlasses aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />Anonymous
+          </span>}
+        </div>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger
+          render={<Button type="button" variant="outline" size="touch" aria-label={`View the ${count} with ${name}`} className="group w-full justify-between sm:w-auto sm:justify-center" />}
+        >
+          {count}
+          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 chevron-y" />
+        </DialogTrigger>
+        <DialogContent className="max-w-sm">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogTitle>{name}</DialogTitle>
+              <DialogDescription className="mt-1">Tabs you both belong to</DialogDescription>
+            </div>
+            <DialogClose aria-label="Close" render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}>
+              <X className="h-4 w-4" />
+            </DialogClose>
+          </div>
+          <ul className="mt-4 overflow-hidden rounded-lg border border-edge bg-field">
+            {tabs.map(tab => (
+              <li key={tab.slug} className="border-b border-rule/70 last:border-b-0">
+                <Link
+                  to="/t/$slug"
+                  params={{ slug: tab.slug }}
+                  onClick={() => setOpen(false)}
+                  className="group flex min-h-11 items-center justify-between gap-3 px-4 py-3 text-sm text-ink transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
+                >
+                  <span className="min-w-0 break-words font-medium">{tab.name}</span>
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft chevron-x" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+    </li>
+  );
 }
 
 export function FriendsDirectory() {
@@ -131,28 +200,7 @@ export function FriendsDirectory() {
   return <Directory title="Friends" description="The people you share tabs with. Anonymous friends haven’t claimed an invite yet.">
     {loading ? <Notice>Loading friends…</Notice> : !isAuthenticated ? <Notice>Sign in to see your friends across tabs.</Notice> : !people?.length ? <Notice>Friends will appear here when you create or join a tab.</Notice> :
       <ul className={directoryListClass}>
-        {people.map(({ id, ...person }) => (
-          <li key={id} className="flex flex-wrap items-center gap-4 px-5 py-6 sm:flex-nowrap sm:px-6">
-            <MemberAvatar id={id} name={person.name} className={person.claimed ? "" : "opacity-60"} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-display text-lg font-semibold break-words">{person.name}</h2>
-                {!person.claimed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs font-medium text-ink-soft">
-                  <HatGlasses aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />Anonymous
-                </span>}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {person.tabs.map(tab => (
-                  <Link key={tab.slug} to="/t/$slug" params={{ slug: tab.slug }} className="inline-flex max-w-full items-center gap-2 rounded-md bg-paper px-3 py-1.5 text-sm text-forest transition hover:bg-rule/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
-                    <span className="break-words min-w-0">{tab.name}</span>
-                    <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-            <span className="ml-12 w-full text-sm text-ink-soft sm:ml-0 sm:w-auto sm:shrink-0">{person.tabs.length} shared {person.tabs.length === 1 ? "tab" : "tabs"}</span>
-          </li>
-        ))}
+        {people.map(({ id, ...person }) => <FriendRow key={id} id={id} name={person.name} claimed={person.claimed} tabs={person.tabs} />)}
       </ul>}
   </Directory>;
 }

@@ -14,10 +14,12 @@ import {
   StickyNote,
 } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { Button } from "@/components/ui/Button";
 import { computeSplit } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
 import type { Person, ExpenseImage, ExpenseItem } from "@/lib/types";
+import { PageDescription, PageTitle } from "@/components/ui/Typography";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 
@@ -56,7 +58,7 @@ function DisclosureLine({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        className="flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         <span className="flex min-w-0 items-center gap-1">
           <motion.span
@@ -154,8 +156,8 @@ export function StageResults({
     <div className="w-full">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-3xl font-semibold text-ink">Here&rsquo;s who owes what</h1>
-          <p className="mt-2 text-sm text-ink-soft">Every person&rsquo;s share, line by line.</p>
+          <PageTitle>Here&rsquo;s who owes what</PageTitle>
+          <PageDescription>Every person&rsquo;s share, line by line.</PageDescription>
         </div>
         {!isOwner && (
           <span className="flex items-center gap-1.5 rounded-full bg-rule/30 px-3 py-1.5 text-xs font-medium text-ink-soft">
@@ -165,12 +167,12 @@ export function StageResults({
         )}
       </header>
 
-      <div className="mb-5 overflow-hidden rounded-xl border border-rule/70 bg-surface/80 transition has-[button:hover]:border-forest">
+      <div className="mb-5 overflow-hidden rounded-xl border border-rule/70 bg-surface/80 transition has-[>button:hover]:border-forest">
         <button
           type="button"
           onClick={() => setExpenseOpen((o) => !o)}
           aria-expanded={expenseOpen}
-          className="flex w-full items-center justify-between gap-2 px-5 py-4 text-sm font-medium text-ink"
+          className="flex w-full items-center justify-between gap-2 px-5 py-4 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
         >
           <span className="flex items-center gap-1.5">
             <ExpenseIcon className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -311,10 +313,12 @@ export function StageResults({
         </p>
         <div className="flex flex-wrap items-center gap-3">
           {isOwner && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="touch"
               onClick={handleShare}
-              className="inline-flex items-center gap-2 rounded-lg border border-rule bg-surface px-4 py-3 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              className="bg-surface"
             >
               {copied ? (
                 <>
@@ -327,14 +331,14 @@ export function StageResults({
                   Copy share link
                 </>
               )}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
+            size="touch"
             onClick={onReset}
             disabled={navigating}
             aria-busy={navigating}
-            className="inline-flex items-center gap-2 rounded-lg bg-forest px-5 py-3 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
           >
             {navigating ? (
               <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
@@ -342,7 +346,7 @@ export function StageResults({
               <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
             )}
             {isOwner ? "Start a new expense" : "Split your own expense"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

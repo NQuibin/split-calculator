@@ -1,39 +1,38 @@
 import { Tabs } from "@base-ui/react/tabs";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { ChevronRight, HatGlasses } from "lucide-react";
+import { HatGlasses } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency, parseISODate } from "@/lib/format";
 import { useTab, useTabBreakdown, type TabBreakdownMember, type TabCurrencyBreakdown } from "@/lib/tabSync";
+import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
+import { EmptyState, Page } from "@/components/ui/Page";
+import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 
 const route = getRouteApi("/t/$slug/breakdown");
-const pageClass = "mx-auto w-full max-w-5xl flex-1 px-5 py-8 md:px-10 md:py-12";
-
 export function TabBreakdownPage() {
   const { slug } = route.useParams();
   const tab = useTab(slug);
   const breakdown = useTabBreakdown(slug);
 
-  if (tab === undefined || breakdown === undefined) return <main className={pageClass}><p role="status" className="text-sm text-ink-soft">Loading breakdown…</p></main>;
+  if (tab === undefined || breakdown === undefined) return <Page><p role="status" className="text-sm text-ink-soft">Loading breakdown…</p></Page>;
   if (tab === null || breakdown === null) {
-    return <main className={pageClass}><p className="text-ink-soft">This tab doesn’t exist.</p></main>;
+    return <Page><p className="text-ink-soft">This tab doesn’t exist.</p></Page>;
   }
 
   return (
-    <main className={pageClass}>
-      <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-        <Link to="/tabs" className="hover:text-forest hover:underline">Tabs</Link>
-        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0" />
-        <Link to="/t/$slug" params={{ slug }} className="break-words hover:text-forest hover:underline">{tab.name}</Link>
-        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0" />
-        <span aria-current="page" className="font-medium text-ink">Full breakdown</span>
-      </nav>
+    <Page>
+      <Breadcrumb>
+        <Link to="/tabs" className={crumbLinkClass}>Tabs</Link>
+        <Link to="/t/$slug" params={{ slug }} className={crumbLinkClass}>{tab.name}</Link>
+        <BreadcrumbCurrent>Full breakdown</BreadcrumbCurrent>
+      </Breadcrumb>
       <header className="mb-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Full breakdown</h1>
-        <p className="mt-2 text-sm text-ink-soft">Each person’s share of every expense across the tab.</p>
+        <PageTitle>Full breakdown</PageTitle>
+        <PageDescription>Each person’s share of every expense across the tab.</PageDescription>
         {breakdown.currencies.some(c => c.convertedExpenseCount > 0) && <p className="mt-3 text-xs text-ink-soft">Includes expenses converted using saved exchange rates.</p>}
       </header>
       {breakdown.currencies.every(c => c.members.length === 0) ? (
-        <p className="rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft">No members yet.</p>
+        <EmptyState>No members yet.</EmptyState>
       ) : (
         breakdown.currencies.length > 1 ? (
           <Tabs.Root>
@@ -52,7 +51,7 @@ export function TabBreakdownPage() {
           </Tabs.Root>
         ) : <CurrencySection data={breakdown.currencies[0]} />
       )}
-    </main>
+    </Page>
   );
 }
 
@@ -74,7 +73,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
           <MemberAvatar id={member.memberId} name={member.name} size="lg" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="break-words font-display text-lg font-semibold text-ink">{member.name}</h2>
+              <SectionTitle>{member.name}</SectionTitle>
               {!member.claimed && <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs text-ink-soft"><HatGlasses aria-hidden="true" className="h-3.5 w-3.5" />Anonymous</span>}
             </div>
             <p className="mt-1 text-xs text-ink-soft">{member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"}</p>
@@ -86,9 +85,9 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
       </header>
 
       {member.expenses.length === 0 ? (
-        <p className="border-t border-rule/70 px-5 py-5 text-sm text-ink-soft sm:px-6">Not part of any expenses yet.</p>
+        <p className="border-t border-rule/70 bg-field px-5 py-5 text-sm text-ink-soft sm:px-6">Not part of any expenses yet.</p>
       ) : (
-        <ul className="divide-y divide-rule/70 border-t border-rule/70 text-sm">
+        <ul className="divide-y divide-rule/70 border-t border-rule/70 bg-field text-sm">
           {member.expenses.map(line => (
             <li key={line.expenseSlug} className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2 px-5 py-4 sm:px-6">
               <div className="min-w-0 flex-1">
@@ -103,7 +102,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
         </ul>
       )}
 
-      <dl className="flex flex-wrap justify-between gap-x-6 gap-y-3 border-t border-rule/70 bg-paper/50 px-5 py-4 text-sm sm:px-6">
+      <dl className="flex flex-wrap justify-between gap-x-6 gap-y-3 border-t border-rule/70 bg-band px-5 py-4 text-sm sm:px-6">
         <div className="flex items-baseline gap-2"><dt className="text-ink-soft">Total spent</dt><dd className="font-numeric font-medium text-ink">{currency(member.totalSpent, currencyCode)}</dd></div>
       </dl>
     </article>

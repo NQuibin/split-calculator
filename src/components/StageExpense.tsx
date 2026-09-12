@@ -22,6 +22,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { Button } from "@/components/ui/Button";
+import { Input, Textarea } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { RateInput } from "@/components/ui/RateInput";
@@ -31,6 +33,7 @@ import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImag
 import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import type { ExpenseAdjustments, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 
 const zeroAdjustments: ExpenseAdjustments = { discount: { mode: "amount", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
 
@@ -279,7 +282,7 @@ export function StageExpense({
         type="button"
         onClick={() => setPeopleOpen((o) => !o)}
         aria-expanded={peopleOpen}
-        className="flex min-h-11 w-full items-center justify-between gap-2 py-3 text-sm font-medium text-forest"
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md py-3 text-sm font-medium text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
       >
         Manage people
         <motion.span
@@ -318,14 +321,16 @@ export function StageExpense({
                   Your name comes from your account - update it in Settings.
                 </p>
               )}
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="touch"
                 onClick={onAddPerson}
-                className="mt-3 flex min-h-11 items-center gap-1 text-sm font-medium text-forest hover:text-ink"
+                className="mt-3 justify-start px-0 no-underline hover:text-ink hover:no-underline"
               >
                 <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
                 Add person
-              </button>
+              </Button>
             </div>
           </motion.div>
         )}
@@ -338,10 +343,10 @@ export function StageExpense({
       <div className="min-w-0">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
           <label className="min-w-0 text-sm text-ink">Item name
-            <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Nachos" className="mt-1 min-h-11 w-full min-w-0 rounded-md border border-rule bg-paper px-3 py-2" />
+            <Input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Nachos" className="mt-1" />
           </label>
           <label className="min-w-0 text-sm text-ink">Amount · {currencyCode}
-            <input type="number" inputMode="decimal" min={0} step={0.01} value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" className="font-numeric mt-1 min-h-11 w-full min-w-0 rounded-md border border-rule bg-paper px-3 py-2" />
+            <Input type="number" inputMode="decimal" min={0} step={0.01} value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" className="font-numeric mt-1" />
           </label>
         </div>
         <div className="mt-3">
@@ -361,7 +366,7 @@ export function StageExpense({
         </div>
       </div>
       <div className="min-w-0">
-        <h3 className="text-sm font-medium text-ink">Split this item</h3>
+        <GroupTitle>Split this item</GroupTitle>
         <p className="mt-1 text-xs text-ink-soft">Equally among selected people</p>
         {people.map(person => <label key={person.id} className="flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm text-ink">
           <input type="checkbox" checked={splitWith.includes(person.id)} onChange={() => togglePerson(person.id)} className="h-5 w-5 shrink-0 accent-forest" />
@@ -370,22 +375,22 @@ export function StageExpense({
           {anonymousPersonIds.includes(person.id) && <HatGlasses className="h-4 w-4 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
         </label>)}
       </div>
-      {error && <p role="alert" className="text-sm text-margin-red md:col-span-2">{error}</p>}
+      {error && <p role="alert" className="text-sm text-margin-red-ink md:col-span-2">{error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-        <button type="button" onClick={closeItemEditor} className="min-h-11 text-sm text-ink-soft">Cancel item changes</button>
-        <button type="button" onClick={handleSubmit} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-forest px-4 py-2 text-sm font-medium text-forest hover:bg-paper">
+        <Button type="button" variant="outline" size="touch" onClick={closeItemEditor}>Cancel item changes</Button>
+        <Button type="button" size="touch" onClick={handleSubmit}>
           {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{editingId ? "Done with item" : "Add to expense"}
-        </button>
+        </Button>
       </div>
     </div>
   );
 
   return (
-    <div className="w-full [&_input]:text-base [&_textarea]:text-base sm:[&_input]:text-sm sm:[&_textarea]:text-sm">
+    <div className="w-full">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1"><ExpenseTitle name={expenseName} onRename={onRenameExpense} />
           {tabField}
-          {description && <p className="mt-2 text-sm text-ink-soft">{description}</p>}
+          {description && <PageDescription>{description}</PageDescription>}
         </div>
         {headerAction}
       </header>
@@ -425,7 +430,7 @@ export function StageExpense({
         ) : (
           <>
             <section aria-label="Global adjustments" className="mb-4 border-b border-rule pb-4">
-              <h2 className="mb-3 text-sm font-medium text-ink">Global discount, tax &amp; tip</h2>
+              <GroupTitle as="h2" className="mb-3">Global discount, tax &amp; tip</GroupTitle>
               <div className="flex flex-wrap gap-4 [&>div]:flex-wrap">
                 <RateInput wide label="Discount" icon={TicketPercent} rate={globalAdjustments.discount} onChange={discount => onSetGlobalAdjustments({ ...globalAdjustments, discount })} />
                 <RateInput wide label="Tax" icon={Percent} rate={globalAdjustments.tax} onChange={tax => onSetGlobalAdjustments({ ...globalAdjustments, tax })} />
@@ -434,14 +439,14 @@ export function StageExpense({
               <p className="mt-3 text-xs text-ink-soft">Applies to items without individual adjustments. Fixed amounts are shared proportionally. Discount applies before tax and tip.</p>
             </section>
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-medium text-ink">Items <span className="text-ink-soft">({items.length})</span></h2>
-              <button type="button" onClick={() => { resetForm(); setAddingItem(true); }} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-forest"><Plus className="h-4 w-4" />Add item</button>
+              <GroupTitle as="h2">Items <span className="text-ink-soft">({items.length})</span></GroupTitle>
+              <Button type="button" variant="link" size="touch" onClick={() => { resetForm(); setAddingItem(true); }} className="justify-start px-0 no-underline hover:text-ink hover:no-underline"><Plus className="h-4 w-4" />Add item</Button>
             </div>
             <Dialog open={addingItem || editingId !== null} onOpenChange={open => { if (!open) closeItemEditor(); }}>
-              <DialogContent className="max-w-2xl [&_input]:text-base sm:[&_input]:text-sm">
+              <DialogContent className="max-w-2xl">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <DialogTitle>{editingId ? "Edit item" : "New item"}</DialogTitle>
-                  <DialogClose aria-label="Close item editor" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-ink-soft hover:text-ink">
+                  <DialogClose aria-label="Close item editor" render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}>
                     <X className="h-4 w-4" />
                   </DialogClose>
                 </div>
@@ -477,7 +482,7 @@ export function StageExpense({
             )}
             <div className="mt-5 grid gap-5 border-t border-rule pt-5 md:grid-cols-2 md:gap-6">
               <section className="min-w-0">
-                <h2 className="text-sm font-medium text-ink">Total amount <span className="text-ink-soft">({currencyCode})</span></h2>
+                <GroupTitle as="h2">Total amount <span className="text-ink-soft">({currencyCode})</span></GroupTitle>
                 <p className="font-numeric mt-2 break-words text-3xl text-ink">{currency(totals.grandTotal, currencyCode)}</p>
                 <p className="mt-1 text-xs text-ink-soft">Calculated from {items.length} {items.length === 1 ? "item" : "items"}</p>
                 {(totals.taxTotal > 0 || totals.tipTotal > 0) && <dl className="mt-4 space-y-2 border-t border-rule pt-3 text-sm text-ink-soft">
@@ -487,7 +492,7 @@ export function StageExpense({
                 </dl>}
               </section>
               <section className="min-w-0 border-t border-rule pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
-                <h2 className="text-sm font-medium text-ink">Split summary</h2>
+                <GroupTitle as="h2">Split summary</GroupTitle>
                 <p className="mt-1 text-xs text-ink-soft">Based on each item’s split</p>
                 <ul className="divide-y divide-rule">
                   {totals.people.map(person => <li key={person.personId} className="flex min-h-14 items-center gap-3 py-3 text-sm">
@@ -505,16 +510,17 @@ export function StageExpense({
 
         <NoteField note={note} onSetNote={onSetNote} />
         <ExpenseImageField receipt={receipt} onPick={onPickReceipt} canUpload={canUploadImage} />
-        {continueError && <p role="alert" className="mt-4 text-sm text-margin-red">{continueError}</p>}
+        {continueError && <p role="alert" className="mt-4 text-sm text-margin-red-ink">{continueError}</p>}
 
       <div className="mt-6 flex flex-col-reverse gap-2 border-t border-rule pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        {onCancel ? <button type="button" onClick={onCancel} className="min-h-11 rounded-lg px-1 py-3 text-sm font-medium text-ink-soft hover:text-forest">{cancelLabel}</button> : <span />}
-        <button
+        {onCancel ? <Button type="button" variant="outline" size="touch" onClick={onCancel}>{cancelLabel}</Button> : <span />}
+        <Button
           type="button"
+          size="hero"
           onClick={handleContinue}
           disabled={continueDisabled || items.length === 0 || !expenseName.trim() || continuing}
           aria-busy={continuing}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-forest sm:w-auto px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          className="w-full sm:w-auto"
         >
           {continueLabel}
           {continuing ? (
@@ -522,7 +528,7 @@ export function StageExpense({
           ) : (
             <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
           )}
-        </button>
+        </Button>
       </div>
       </div>
     </div>
@@ -554,12 +560,12 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
   }
 
   return (
-    <div className="mt-4 rounded-md border border-rule transition has-[button:hover]:border-forest">
+    <div className="mt-4 rounded-md border border-rule transition has-[>button:hover]:border-forest">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink"
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
       >
         <span className="flex items-center gap-1.5">
           <StickyNote className="h-4 w-4 text-brass" strokeWidth={2.25} />
@@ -586,24 +592,24 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
               <p className="text-xs text-ink-soft">
                 Optional — anything worth remembering about this expense.
               </p>
-              <textarea
+              <Textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onBlur={commit}
                 rows={3}
                 placeholder="e.g. Dan covered the cab home, settle that separately."
                 aria-label="Expense note"
-                className="w-full resize-y rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
               />
               {note && (
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="touch"
                   onClick={handleRemove}
-                  className="flex items-center gap-1 text-xs font-medium text-ink-soft transition hover:text-margin-red"
                 >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                   Delete note
-                </button>
+                </Button>
               )}
             </div>
           </motion.div>
@@ -629,7 +635,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition ${
+      className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
         active
           ? "border-forest bg-forest text-surface"
           : "border-rule text-ink-soft hover:border-forest hover:text-forest"
@@ -705,7 +711,7 @@ function SimpleTotalForm({
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
       <div className="min-w-0">
       <label htmlFor="expense-total" className="mb-2 block text-sm font-medium text-ink">Total amount <span className="text-ink-soft">({currencyCode})</span></label>
-      <input
+      <Input
         id="expense-total"
         type="number"
         inputMode="decimal"
@@ -715,12 +721,12 @@ function SimpleTotalForm({
         onChange={(e) => handleCostChange(e.target.value)}
         placeholder="0.00"
         aria-label="Expense total"
-        className="font-numeric min-h-16 w-full min-w-0 rounded-md border border-rule bg-paper px-3 py-3 text-3xl! text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+        className="font-numeric min-h-16 py-3 text-3xl!"
       />
       </div>
       <div className="min-w-0 border-t border-rule pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-ink">Split with</h2>
+          <GroupTitle as="h2">Split with</GroupTitle>
           <span className="text-sm text-ink-soft">Equally</span>
         </div>
         <p className="mb-2 text-xs text-ink-soft">{splitWith.length} {splitWith.length === 1 ? "person" : "people"} selected</p>
@@ -768,14 +774,18 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
           commit();
         }}
       >
-        <input
+        {/* An expense with no name yet never leaves edit mode, so without this
+            the page would render no <h1> at all and open on an orphan <h2>. */}
+        <PageTitle className="sr-only">{name || "New expense"}</PageTitle>
+        <Input
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={commit}
           placeholder="Name this expense"
+          aria-label="Expense name"
           required
-          className="font-display w-full max-w-md rounded-md border border-rule bg-paper px-3 py-2 text-2xl! font-semibold text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
+          className="font-display max-w-md text-2xl! font-semibold"
         />
       </form>
     );
@@ -783,18 +793,20 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
 
   return (
     <div className="flex items-center gap-2">
-      <h1 className="font-display min-w-0 break-words text-3xl font-semibold text-ink">{name}</h1>
-      <button
+      <PageTitle className="min-w-0">{name}</PageTitle>
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-touch"
         onClick={() => {
           setValue(name);
           setEditing(true);
         }}
         aria-label="Rename expense"
-        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+        className="shrink-0 text-ink-soft hover:text-forest"
       >
         <Pencil className="h-4 w-4" strokeWidth={2.25} />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -832,12 +844,12 @@ function PersonRow({
             commit();
           }}
         >
-          <input
+          <Input
             autoFocus
+            aria-label={`Rename ${person.name}`}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onBlur={commit}
-            className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40"
           />
         </form>
       </li>
@@ -857,27 +869,31 @@ function PersonRow({
         )}
       </span>
       {!locked && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-touch"
           onClick={() => {
             setValue(person.name);
             setEditing(true);
           }}
           aria-label={`Rename ${person.name}`}
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md p-1.5 text-ink-soft transition hover:text-forest"
+          className="shrink-0 text-ink-soft hover:text-forest"
         >
           <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
-        </button>
+        </Button>
       )}
       {removable && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-touch"
           onClick={onRemove}
           aria-label={`Remove ${person.name} from this expense`}
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+          className="shrink-0 text-ink-soft hover:text-margin-red-ink"
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </button>
+        </Button>
       )}
     </li>
   );

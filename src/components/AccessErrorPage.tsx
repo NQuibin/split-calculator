@@ -1,6 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Lock, LogIn, TriangleAlert } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { accessErrorCode } from "@/lib/accessError";
+import { PageTitle } from "@/components/ui/Typography";
+import { Page } from "@/components/ui/Page";
 
 /** What the caller was trying to open, so the copy can name it. */
 export type AccessResource = "tab" | "expense";
@@ -64,33 +67,27 @@ function Shell({
   tone: "forest" | "red";
 }) {
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-5 py-16 md:py-24">
+    <Page width="narrow" center>
       <div className="rounded-xl border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8">
         <span
           aria-hidden="true"
           className={`inline-flex h-12 w-12 items-center justify-center rounded-full ${
-            tone === "forest" ? "bg-forest/10 text-forest" : "bg-margin-red/10 text-margin-red"
+            tone === "forest" ? "bg-forest/10 text-forest" : "bg-margin-red/10 text-margin-red-ink"
           }`}
         >
           {icon}
         </span>
-        <h1 className="mt-5 font-display text-2xl font-semibold text-ink">{title}</h1>
+        <PageTitle className="mt-5 text-2xl">{title}</PageTitle>
         <p className="mx-auto mt-3 max-w-sm text-sm text-ink-soft">{body}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link
-            to="/tabs"
-            className="inline-flex items-center rounded-lg bg-forest px-4 py-2.5 text-sm font-semibold text-surface transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-          >
+          <Button size="touch" render={<Link to="/tabs" />}>
             Go to your tabs
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center rounded-lg border border-rule px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-          >
+          </Button>
+          <Button variant="outline" size="touch" render={<Link to="/" />}>
             Home
-          </Link>
+          </Button>
         </div>
       </div>
-    </main>
+    </Page>
   );
 }

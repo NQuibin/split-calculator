@@ -19,15 +19,15 @@ export function DatePicker({ value, onChange, ...props }: DatePickerProps) {
       <PopoverTrigger
         render={
           <Button
-            variant="outline"
+            variant="field"
             aria-label={props["aria-label"]}
-            className="h-auto gap-1.5 rounded-md border-rule bg-surface px-2 py-1.5 font-normal text-ink hover:border-forest hover:bg-surface aria-expanded:border-forest aria-expanded:bg-surface"
+            className="h-auto min-h-11 min-w-11 gap-1.5 rounded-md px-2 py-1.5"
           />
         }
       >
         <span className="font-numeric">{value || "Pick a date"}</span>
       </PopoverTrigger>
-      <PopoverContent className="w-auto rounded-lg border-rule bg-surface p-0">
+      <PopoverContent className="w-auto rounded-lg p-0">
         <Calendar
           mode="single"
           selected={selected}

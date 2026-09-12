@@ -4,6 +4,8 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { LogIn, LogOut, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 
 export function SidebarAccount() {
@@ -12,7 +14,7 @@ export function SidebarAccount() {
       <AuthLoading>
         {/* The 28px height matches SignedInMenu's actual row height (measured),
             so this block doesn't change height once auth resolves. */}
-        <p role="status" className="flex h-7 items-center text-xs text-ink-soft">Loading…</p>
+        <p role="status" className="flex min-h-11 items-center text-xs text-ink-soft">Loading…</p>
       </AuthLoading>
       <Unauthenticated>
         <SignInMenu />
@@ -23,9 +25,6 @@ export function SidebarAccount() {
     </div>
   );
 }
-
-const inputClass =
-  "w-full rounded-md border border-rule bg-paper px-3 py-2 text-sm text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-margin-red/40";
 
 function SignInMenu() {
   const { signIn } = useAuthActions();
@@ -93,12 +92,7 @@ function SignInMenu() {
       }}
     >
       <DialogTrigger
-        render={
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-1.5 rounded-md border border-rule bg-surface px-3 py-1.5 text-xs font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-          />
-        }
+        render={<Button type="button" variant="outline" size="touch" className="w-full" />}
       >
         <LogIn className="h-3.5 w-3.5" strokeWidth={2.25} />
         Sign in
@@ -106,7 +100,12 @@ function SignInMenu() {
       <DialogContent className="max-w-sm">
         <div className="mb-2 flex items-center justify-between gap-3">
           <DialogTitle>{step === "email" ? "Sign in" : "Check your email"}</DialogTitle>
-          <DialogClose aria-label="Close sign in" className="rounded-md p-1.5 text-ink-soft hover:text-ink"><X className="h-4 w-4" /></DialogClose>
+          <DialogClose
+            aria-label="Close sign in"
+            render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+          >
+            <X className="h-4 w-4" />
+          </DialogClose>
         </div>
         <DialogDescription className="mb-5">
           {step === "email" ? (
@@ -118,14 +117,16 @@ function SignInMenu() {
 
         {step === "email" ? (
           <>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="lg"
               onClick={() => void signIn("google")}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm font-medium text-ink transition hover:border-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+              className="w-full"
             >
               <GoogleIcon className="h-4 w-4" />
               Continue with Google
-            </button>
+            </Button>
 
             <div className="my-3 flex items-center gap-2 text-xs text-ink-soft">
               <span className="h-px flex-1 bg-rule" />
@@ -134,16 +135,15 @@ function SignInMenu() {
             </div>
 
             <form onSubmit={handleSendCode} className="space-y-2">
-              <input
+              <Input
                 type="email"
                 required
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
                 autoComplete="email"
               />
-              <input
+              <Input
                 type="password"
                 required
                 minLength={flow === "signUp" ? 8 : undefined}
@@ -151,68 +151,70 @@ function SignInMenu() {
                 placeholder={flow === "signUp" ? "Password (at least 8 characters)" : "Password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={inputClass}
                 autoComplete={flow === "signUp" ? "new-password" : "current-password"}
               />
-              <button type="button" disabled={submitting} className="text-xs text-forest underline"
+              <Button type="button" variant="link" size="xs" disabled={submitting}
+                className="h-auto justify-start px-0 text-xs font-normal underline"
                 onClick={() => { setFlow(flow === "signIn" ? "signUp" : "signIn"); setError(null); }}>
                 {flow === "signIn" ? "Create account / set your first password" : "Already have a password? Sign in"}
-              </button>
-              {error && <p role="alert" className="text-xs text-margin-red">{error}</p>}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
-              >
+              </Button>
+              {error && <p role="alert" className="text-xs text-margin-red-ink">{error}</p>}
+              <Button type="submit" size="lg" disabled={submitting} aria-busy={submitting} className="w-full">
                 {submitting ? "Continuing…" : flow === "signUp" ? "Create account" : "Continue"}
-              </button>
+              </Button>
             </form>
           </>
         ) : (
           <>
             <form onSubmit={handleVerifyCode} className="space-y-2">
-              <input
+              <Input
                 type="text"
                 required
                 autoFocus
                 placeholder="000000"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                className={`${inputClass} text-center font-mono text-lg tracking-[0.4em]`}
+                className="text-center font-mono text-lg tracking-[0.4em]"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 aria-label="6-digit code"
               />
-              {error && <p className="text-xs text-margin-red">{error}</p>}
-              <button
+              {error && <p className="text-xs text-margin-red-ink">{error}</p>}
+              <Button
                 type="submit"
+                size="lg"
                 disabled={submitting || code.length < 6}
-                className="w-full rounded-md bg-forest px-3 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+                aria-busy={submitting}
+                className="w-full"
               >
                 {submitting ? "Verifying…" : "Sign in"}
-              </button>
+              </Button>
             </form>
 
             <div className="mt-3 flex items-center gap-3 text-xs">
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 onClick={() => {
                   setStep("email");
                   setError(null);
                 }}
-                className="font-medium text-forest underline decoration-forest/40 underline-offset-4 hover:text-ink"
+                className="h-auto px-0 text-xs underline decoration-forest/40 underline-offset-4 hover:text-ink"
               >
                 Use a different email
-              </button>
+              </Button>
               <span className="text-rule">|</span>
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="xs"
                 disabled={submitting}
                 onClick={(e) => void handleSendCode(e)}
-                className="font-medium text-forest underline decoration-forest/40 underline-offset-4 hover:text-ink disabled:opacity-70"
+                className="h-auto px-0 text-xs underline decoration-forest/40 underline-offset-4 hover:text-ink"
               >
                 Send a new code
-              </button>
+              </Button>
             </div>
           </>
         )}
@@ -233,14 +235,16 @@ function SignedInMenu() {
       <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-soft">
         {viewer?.name ?? viewer?.email}
       </span>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-touch"
         onClick={() => void signOut()}
         aria-label="Sign out"
-        className="shrink-0 rounded-md p-1.5 text-ink-soft transition hover:text-margin-red focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red"
+        className="shrink-0 text-ink-soft hover:text-margin-red-ink"
       >
         <LogOut className="h-4 w-4" strokeWidth={2.25} />
-      </button>
+      </Button>
     </div>
   );
 }

@@ -15,6 +15,40 @@ and `/e/{slug}` 404 on a hard load.
 icons (`scripts/build-icons.tsx`, satori + resvg), then builds to `dist/`. The
 typecheck runs first and gates the build, so a type error fails the deploy.
 
+# Reusable components are preferred
+
+**Before writing UI, search for an existing component that already does it.**
+Check `src/components/ui/` first, then `src/components/`. Reach for a raw
+element with a bespoke class string only after confirming nothing covers it.
+
+Prefer extending an existing component (a new variant, an optional prop) over
+creating a near-duplicate beside it. Two components that differ only in padding
+or colour should be one component with a variant.
+
+Extract a new shared component when **either** trigger fires:
+
+- **Count** - the same markup-and-class pattern appears a **third** time.
+- **Shape** - you are building an interactive control (button, input, toggle,
+  menu item, chip) that `DESIGN.md` specifies a hover state, focus ring, or
+  touch target for. Extract on the **first** use: the spec is the second caller,
+  and a bespoke control is how those rules drift.
+
+Otherwise, don't pre-abstract. Static layout or page-specific markup used once
+belongs in the file that uses it - a local `function Row()` is the right answer
+until a second caller exists. "This could be reused someday" is not a trigger;
+duplication is cheaper to fix than a wrong abstraction, and a component built
+for one caller grows a prop per caller after that.
+
+When you do repeat a class string, that is a signal you skipped a component.
+
+# Design
+
+**Always read `DESIGN.md` before any UI/UX change.** It is the source of truth
+for colour tokens, the type scale, button variants and their hover states,
+spacing, mobile touch/viewport rules, and accessibility requirements. Its final
+section lists verified deviations in the current code - fix the ones in files
+you touch, and never add new instances.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

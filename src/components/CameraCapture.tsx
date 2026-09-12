@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Loader2, X } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 
 interface CameraCaptureProps {
@@ -98,18 +99,20 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             <Camera className="h-4 w-4 text-brass" strokeWidth={2.25} />
             Take a photo
           </DialogTitle>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-touch"
             onClick={onClose}
             aria-label="Close the camera"
-            className="rounded-md p-1.5 text-ink-soft transition hover:text-margin-red"
+            className="text-ink-soft"
           >
             <X className="h-4 w-4" strokeWidth={2.5} />
-          </button>
+          </Button>
         </div>
 
         {error ? (
-          <p className="py-6 text-center text-sm text-margin-red">{error}</p>
+          <p className="py-6 text-center text-sm text-margin-red-ink">{error}</p>
         ) : (
           <div className="relative overflow-hidden rounded-md border border-rule bg-ink/90">
             <video ref={videoRef} autoPlay playsInline muted className="max-h-[60vh] w-full object-contain" />
@@ -122,23 +125,14 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         )}
 
         <div className="mt-3 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm font-medium text-ink-soft transition hover:text-margin-red"
-          >
+          <Button type="button" variant="outline" size="touch" onClick={onClose}>
             Cancel
-          </button>
+          </Button>
           {!error && (
-            <button
-              type="button"
-              onClick={handleCapture}
-              disabled={!ready}
-              className="inline-flex items-center gap-1.5 rounded-md bg-forest px-4 py-2 text-sm font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70"
-            >
+            <Button type="button" size="touch" onClick={handleCapture} disabled={!ready}>
               <Camera className="h-4 w-4" strokeWidth={2.5} />
               Capture
-            </button>
+            </Button>
           )}
         </div>
       </DialogContent>

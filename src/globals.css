@@ -12,11 +12,12 @@
   --font-plex-mono: "IBM Plex Mono";
 }
 
-/* This app has no dark theme, but shadcn/ui components ship `dark:` utility
-   classes throughout. Without pinning the variant to a `.dark` ancestor
-   (which is never applied here), Tailwind falls back to matching it against
-   the OS/browser's prefers-color-scheme instead, activating those classes
-   unintentionally for anyone with dark mode on. */
+/* This app has no dark theme, and carries no `dark:` utilities of its own.
+   This pin stays anyway, as a guard: components added later via the shadcn
+   CLI ship `dark:` classes, and without a `.dark` ancestor to match (never
+   applied here) Tailwind would fall back to prefers-color-scheme and quietly
+   activate them for anyone with dark mode on. Pinned, a stray `dark:` is
+   inert rather than a half-themed component. */
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -33,8 +34,57 @@
      buttons stay --forest. */
   --ledger-green: #276b46;
   --margin-red: #c1432b;
+  /* --margin-red is 4.46:1 on --paper and 3.86:1 on --wash - both under AA,
+     so it can fill a shape but can't safely be red *text*. This is the same
+     hue darkened until it clears 4.5:1 on every ground a red label lands on:
+     --paper 5.13, --surface 5.39, --wash 4.44, --field 5.78. Same idea as
+     --brass-ink. Use it for destructive text; --margin-red stays for fills,
+     borders and icons. */
+  --margin-red-ink: #b23c26;
   --brass: #b8933a;
+  /* --brass is 2.6:1 on both grounds - fine as a decorative accent beside a
+     compliant signal, never for text or a meaningful icon. This is the same
+     hue darkened until it clears AA on --paper (5.2:1) and --surface (5.4:1).
+     Use it wherever brass has to be readable. */
+  --brass-ink: #7a611f;
   --rule: #ccd5bd;
+  /* The hover/active wash for rows, list items and quiet buttons.
+     Deliberately WARM - brass mixed into --surface - while every resting
+     ground in the app is sage. A same-hue wash only reads as "slightly darker
+     paper" and needs a big luminance step to register at all; shifting hue
+     instead lets the same modest step (1.16:1 off the page, 1.20:1 off a
+     --surface row) read immediately as a state rather than a shadow. It also
+     restores the warm-on-sage feel the app's original hardcoded hover was
+     reaching for. --ink is 11.2:1 on it, --ink-soft 5.5:1, --forest 7.3:1. */
+  --wash: #e9dfc5;
+  /* The boundary of a surface that floats *over* the page - popovers, menus,
+     dropdowns. --surface against --paper is 1.05:1, so a floating panel has
+     no visible fill difference at all and its edge is doing all the work;
+     --rule (1.32:1) wasn't enough to do it. This clears 3:1 against both the
+     page and the panel's own fill, so the edge reads from either side. Use
+     --rule for dividers *within* a surface, --edge only where one surface
+     floats above another. */
+  --edge: #788576;
+  /* A structural band inside a card: a table's header row, a card's totals
+     footer. --paper was standing in for this, but --paper *is* the page, so a
+     footer at the bottom edge of a card read as a hole punched through to the
+     page behind it. This is sage like the grounds it sits among - deliberately
+     NOT --wash, which is warm - so a static band can never be mistaken for a
+     hover state. Clears a step against all three grounds it can touch: the
+     page (1.22:1), a card (1.26:1) and a --field body (1.37:1). --ink 10.7:1,
+     --ink-soft 5.2:1. */
+  --band: #d6ddc9;
+  /* The inset ground: content nested inside a --surface card that has to lift
+     off it - an input well, a data table. Fields used to be --paper, the
+     page's own colour (1.00:1 on a page, 1.05:1 in a card), so the fill did
+     nothing anywhere; tables had no fill at all. Going *lighter* can't fix
+     that either - white is only 1.15:1 on --paper, since this palette already
+     sits near the top of the lightness range. So the fill is the affordance
+     (a neutral near-white reads as "inset" against sage-tinted grounds by hue)
+     and --edge is what actually separates the block. What makes an input an
+     input is its --edge border and focus ring, not this fill. --ink on it is
+     14.6:1. */
+  --field: #fffdf6;
 
   /* shadcn/ui semantic tokens, remapped to the app's own palette above
      instead of shadcn's default theme, so components added via the CLI
@@ -51,12 +101,19 @@
   --secondary-foreground: var(--ink);
   --muted: var(--paper);
   --muted-foreground: var(--ink-soft);
-  --accent: var(--paper);
+  /* shadcn's --accent is the hover/active surface, so it points at --wash.
+     --muted stays --paper: it's a resting fill (and --muted-foreground), not
+     a state. */
+  --accent: var(--wash);
   --accent-foreground: var(--ink);
   --destructive: var(--margin-red);
   --border: var(--rule);
   --input: var(--rule);
-  --ring: var(--margin-red);
+  /* Focus is --forest, not --margin-red: red is reserved for errors and
+     destructive actions, and using it for focus made a keyboard user's
+     position look like a validation failure. Every hand-rolled control in
+     the app already focuses forest; this aligns the shadcn-derived ones. */
+  --ring: var(--forest);
   --radius: 0.5rem;
 }
 
@@ -70,6 +127,12 @@
   --color-margin-red: var(--margin-red);
   --color-brass: var(--brass);
   --color-rule: var(--rule);
+  --color-wash: var(--wash);
+  --color-brass-ink: var(--brass-ink);
+  --color-edge: var(--edge);
+  --color-band: var(--band);
+  --color-field: var(--field);
+  --color-margin-red-ink: var(--margin-red-ink);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -158,6 +221,48 @@ body {
 .font-numeric {
   font-family: var(--font-plex-mono), ui-monospace, "SFMono-Regular", monospace;
   font-variant-numeric: tabular-nums;
+}
+
+/* Chevron motion.
+   These MUST use `transform`, not the modern `translate` / `rotate`
+   properties: those are a no-op on SVG elements, which is what every icon
+   here is. Tailwind v4's `translate-*` and `rotate-*` utilities compile to
+   the modern properties, so `group-hover:translate-x-0.5` on an icon set the
+   `--tw-translate-*` variables and then moved nothing - every chevron in this
+   app was silently static. Verified: `translate: 0 2px` inline on an <svg>
+   computes to `0px`, while `transform: translateY(2px)` computes to
+   `matrix(1,0,0,1,0,2)`.
+
+   Put `.chevron-x` / `.chevron-y` on the icon and `group` on the hoverable
+   ancestor; `.chevron-flip` turns with a disclosure's own open state. */
+.chevron-x,
+.chevron-y,
+.chevron-flip {
+  transition: transform 150ms ease;
+}
+
+.group:hover .chevron-x {
+  transform: translateX(2px);
+}
+
+.group:hover .chevron-y {
+  transform: translateY(2px);
+}
+
+.group[aria-expanded="true"] .chevron-flip,
+.group[data-open] .chevron-flip,
+details[open] .chevron-flip {
+  transform: rotate(180deg);
+}
+
+/* The global reduced-motion block below only flattens durations, which would
+   make these snap rather than not happen. A nudge is pure decoration, so it
+   is dropped entirely instead. */
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .chevron-x,
+  .group:hover .chevron-y {
+    transform: none;
+  }
 }
 
 /* Perforated rule between an item list and its total, like a receipt tear line. */

@@ -3,12 +3,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { ArrowRight, Loader2, Plus } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import { Button } from "@/components/ui/Button";
 import { encodeDraftParams } from "@/lib/expenseDraft";
 import { generateSlug } from "@/lib/slug";
 import type { Person } from "@/lib/types";
-
-const defaultClass =
-  "inline-flex items-center gap-2 rounded-full bg-forest px-6 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red";
 
 export function NewExpenseButton({ className, variant = "default" }: { className?: string; variant?: "default" | "primary" }) {
   const navigate = useNavigate();
@@ -36,12 +34,13 @@ export function NewExpenseButton({ className, variant = "default" }: { className
   }
 
   return (
-    <button
+    <Button
       type="button"
+      size="hero"
       onClick={handleStart}
       disabled={isPending}
       aria-busy={isPending}
-      className={className ?? (variant === "primary" ? "flex items-center gap-2 rounded-lg bg-forest px-5 py-3 font-display font-semibold text-surface transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-margin-red" : defaultClass)}
+      className={className ?? (variant === "primary" ? undefined : "rounded-full")}
     >
       {variant === "primary" ? (
         <>
@@ -54,6 +53,6 @@ export function NewExpenseButton({ className, variant = "default" }: { className
           {isPending ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} /> : <ArrowRight className="h-4 w-4" strokeWidth={2.5} />}
         </>
       )}
-    </button>
+    </Button>
   );
 }

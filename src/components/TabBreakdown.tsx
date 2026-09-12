@@ -8,6 +8,7 @@ import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency } from "@/lib/format";
 import type { TabCurrencyBreakdown, TabMemberSummary } from "@/lib/tabSync";
+import { SectionTitle } from "@/components/ui/Typography";
 
 interface TabBreakdownProps {
   expenseView: ExpenseView;
@@ -27,10 +28,10 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
   const summary = <>
       {currencies.some(item => item.convertedExpenseCount > 0) && <p className="mb-4 text-xs text-ink-soft">Includes expenses converted using saved exchange rates.</p>}
       {!members.length ? <p className="text-sm text-ink-soft">No members yet.</p> : !currencies.length ? <p className="text-sm text-ink-soft">No expenses yet.</p> : (
-        <div className="overflow-x-auto rounded-lg border border-rule/70">
+        <div className="overflow-x-auto rounded-lg border border-edge bg-field">
           <table className="w-full border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-rule/70">
+              <tr className="border-b border-rule/70 bg-band">
                 <th scope="col" className="min-w-40 px-4 py-3 text-xs font-medium uppercase text-ink-soft">Member</th>
                 {visibleCurrencies.map(item => (
                   <th scope="col" key={item.currency} className="min-w-44 border-l border-rule/70 px-5 py-3 font-medium">
@@ -71,14 +72,14 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
   return (
     <section aria-label="Spend summary" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
+        <SectionTitle className="flex items-center gap-2">
           <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
           Spend summary
-        </h2>
+        </SectionTitle>
         <div className="flex flex-wrap items-center gap-4">
           {currencies.some(item => item.expenseCount > 0) && (
-            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="group inline-flex items-center gap-1 text-xs font-medium text-forest hover:text-ink">
-              Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+            <Link to="/t/$slug/breakdown" params={{ slug: tabSlug }} className="group inline-flex min-h-11 items-center gap-1 rounded-md text-xs font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
+              Full breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 chevron-x" />
             </Link>
           )}
           {currencies.length > 1 && (
