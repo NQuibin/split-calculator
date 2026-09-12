@@ -38,8 +38,9 @@ test("centers mixed settled and outstanding currency summaries", () => {
     ],
   } }));
 
-  expect(markup).toContain('class="flex flex-wrap items-center gap-x-6 gap-y-2"');
-  expect(markup.match(/class="inline-flex items-center gap-2"/g)).toHaveLength(2);
+  expect(markup).toContain("<table");
+  expect(markup).toMatch(/scope="col"[^>]*>Member<\/th>/);
+  expect(markup.match(/scope="col"[^>]*>(?:CAD|USD)<\/th>/g)).toHaveLength(2);
   expect(markup).toContain("Settled");
   expect(markup).toContain("Gets ");
   expect(markup).toContain("text-ink text-lg font-semibold");
@@ -64,6 +65,21 @@ test("shows every member while putting the viewer first", () => {
   expect(markup).toContain("> (you)</span>");
   expect(markup).toContain("Gets ");
   expect(markup.match(/Owes /g)).toHaveLength(2);
+});
+
+test("renders all members in table rows and currency columns", () => {
+  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
+    viewerMemberId: "alex",
+    missingPayers: [],
+    currencies: [
+      { currency: "CAD", members: [{ memberId: "alex", name: "Alex", balance: 10 }, { memberId: "bea", name: "Bea", balance: -10 }] },
+      { currency: "USD", members: [{ memberId: "alex", name: "Alex", balance: 2 }, { memberId: "bea", name: "Bea", balance: -2 }] },
+    ],
+  } }));
+  expect(markup.match(/<tr/g)).toHaveLength(3);
+  expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
+  expect(markup).toMatch(/scope="col"[^>]*>CAD<\/th>/);
+  expect(markup).toMatch(/scope="col"[^>]*>USD<\/th>/);
 });
 
 test("shows incomplete, empty, viewer-free, and loading settlement states", () => {

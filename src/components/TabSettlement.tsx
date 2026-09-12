@@ -39,16 +39,13 @@ export function SettlementSummary({ data }: { data: SettlementSummaryData }) {
     {data.missingPayers.length > 0 && <p className="text-margin-red-ink">Balances incomplete: payer needed for {data.missingPayers.length} {data.missingPayers.length === 1 ? "expense" : "expenses"}.</p>}
     {!data.viewerMemberId ? <p className="text-ink-soft">View balances and payments</p>
       : data.currencies.length === 0 ? <p className="text-ink-soft">{data.missingPayers.length ? "Assign payers to calculate what everyone owes." : "No outstanding balances."}</p>
-        : <div className="space-y-3">{[...data.currencies[0].members].sort((a, b) => Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId)).map(member => {
+        : <div className="overflow-x-auto rounded-lg border border-edge bg-field"><table className="w-full border-collapse text-left text-sm"><thead><tr className="border-b border-rule/70 bg-band"><th scope="col" className="min-w-40 px-4 py-3 text-xs font-medium uppercase text-ink-soft">Member</th>{data.currencies.map(group => <th key={group.currency} scope="col" className="min-w-44 px-5 py-3 font-medium">{group.currency}</th>)}</tr></thead><tbody>{[...new Map(data.currencies.flatMap(group => group.members).map(member => [member.memberId, member])).values()].sort((a, b) => Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId)).map(member => {
           const isViewer = member.memberId === data.viewerMemberId;
-          return <div key={member.memberId} className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="flex min-w-0 items-center gap-2 text-sm font-medium"><MemberAvatar id={member.memberId} name={member.name} size="sm" /><span className="min-w-0 break-words">{member.name}{isViewer && <span className="text-ink-soft"> (you)</span>}</span></span>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">{data.currencies.map(group => {
-              const balance = group.members.find(candidate => candidate.memberId === member.memberId)?.balance;
-              return <span key={group.currency} className="inline-flex items-center gap-2"><span className="text-xs text-ink-soft">{group.currency}</span>{balance === undefined ? "No balance" : <BalanceValue balance={balance} code={group.currency} prominent={isViewer} />}</span>;
-            })}</div>
-          </div>;
-        })}</div>}
+          return <tr key={member.memberId} className="border-b border-rule/70 last:border-b-0"><th scope="row" className="px-4 py-3 font-medium"><span className="flex min-w-0 items-center gap-2"><MemberAvatar id={member.memberId} name={member.name} size="sm" /><span className="min-w-0 break-words">{member.name}{isViewer && <span className="text-ink-soft"> (you)</span>}</span></span></th>{data.currencies.map(group => {
+            const balance = group.members.find(candidate => candidate.memberId === member.memberId)?.balance;
+            return <td key={group.currency} className="px-5 py-3">{balance === undefined ? <span className="text-ink-soft">No balance</span> : <BalanceValue balance={balance} code={group.currency} prominent={isViewer} />}</td>;
+          })}</tr>;
+        })}</tbody></table></div>}
   </div>;
 }
 
