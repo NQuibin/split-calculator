@@ -41,14 +41,14 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`rate-input-row ${wide && !hideLabel ? "grid grid-cols-[5rem_minmax(0,1fr)] gap-4 sm:flex sm:items-center sm:gap-2" : "flex items-center gap-2"} ${wide ? "w-full sm:w-auto sm:flex-none" : ""}`}>
       {!hideLabel && (
-        <>
+        <div className={wide ? "rate-input-label flex min-w-0 items-center gap-2 sm:contents" : "contents"}>
           <Icon className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-          <span className="font-display text-sm font-medium text-ink-soft">{label}</span>
-        </>
+          <span className="min-w-0 font-display text-sm font-medium text-ink-soft">{label}</span>
+        </div>
       )}
-      <div className="flex items-stretch rounded-md border border-edge bg-field">
+      <div className={`rate-input-control flex min-w-0 items-stretch rounded-md border border-edge bg-field ${wide ? "min-h-11 w-full flex-1 sm:w-auto sm:flex-none" : ""}`}>
         <input
           type="text"
           inputMode="decimal"
@@ -61,7 +61,7 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }
               // which is exact here because .font-numeric is a monospace
               // face. The input's own px-2 is added on top since the box is
               // border-box.
-              ? "w-[calc(8ch+1rem)]"
+              ? "w-full sm:w-[calc(8ch+1rem)]"
               : "w-16"
           }`}
           aria-label={`${label} value`}
@@ -72,7 +72,7 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }
             onClick={() => onChange({ ...rate, mode: "percent" })}
             aria-pressed={rate.mode === "percent"}
             aria-label={`${label} as percent`}
-            className={`inline-flex items-center justify-center px-2 py-1.5 transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${
+            className={`inline-flex size-11 items-center justify-center transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${
               rate.mode === "percent" ? "bg-forest text-surface" : "text-ink-soft hover:text-forest"
             }`}
           >
@@ -83,7 +83,7 @@ export function RateInput({ label, icon: Icon, rate, onChange, hideLabel, wide }
             onClick={() => onChange({ ...rate, mode: "amount" })}
             aria-pressed={rate.mode === "amount"}
             aria-label={`${label} as dollar amount`}
-            className={`inline-flex items-center justify-center rounded-r-[calc(var(--radius-md)-1px)] px-2 py-1.5 transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${
+            className={`inline-flex size-11 items-center justify-center rounded-r-[calc(var(--radius-md)-1px)] transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${
               rate.mode === "amount" ? "bg-forest text-surface" : "text-ink-soft hover:text-forest"
             }`}
           >

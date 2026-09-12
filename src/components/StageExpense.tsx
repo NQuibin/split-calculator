@@ -21,7 +21,6 @@ import {
   X,
   Trash2,
 } from "lucide-react";
-import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/ui/Button";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -38,6 +37,7 @@ import { isUpcoming } from "@/lib/format";
 import type { ExpenseAdjustments, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
+import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
 
 const zeroAdjustments: ExpenseAdjustments = { discount: { mode: "amount", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
 
@@ -419,10 +419,11 @@ export function StageExpense({
           </label>
           <p className="mb-3 text-xs text-ink-soft">{adjustmentsOpen ? "Replaces all global adjustments for this item. Blank or zero means none." : "Uses the expense’s global discount, tax and tip."}</p>
           {adjustmentsOpen && <>
-          <div className="flex flex-wrap gap-4 [&>div]:flex-wrap">
+          <div className="rate-inputs-container"><div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
             <RateInput wide label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} />
             <RateInput wide label="Tax" icon={Percent} rate={tax} onChange={setTax} />
             <RateInput wide label="Tip" icon={Coins} rate={tip} onChange={setTip} />
+          </div>
           </div>
           <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
           </>}
@@ -431,12 +432,18 @@ export function StageExpense({
       <div className="min-w-0">
         <GroupTitle>Split this item</GroupTitle>
         <p className="mt-1 text-xs text-ink-soft">Equally among selected people</p>
-        {people.map(person => <label key={person.id} className="flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm text-ink">
-          <input type="checkbox" checked={splitWith.includes(person.id)} onChange={() => togglePerson(person.id)} className="h-5 w-5 shrink-0 accent-forest" />
-          <MemberAvatar id={person.id} name={person.name} />
-          <span className="min-w-0 break-words">{person.name}</span>
-          {anonymousPersonIds.includes(person.id) && <HatGlasses className="h-4 w-4 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
-        </label>)}
+        <div className="mt-3 space-y-2">
+        {people.map(person => (
+          <MemberSelectionRow
+            key={person.id}
+            id={person.id}
+            name={person.name}
+            selected={splitWith.includes(person.id)}
+            onToggle={() => togglePerson(person.id)}
+            anonymous={anonymousPersonIds.includes(person.id)}
+          />
+        ))}
+        </div>
       </div>
       {error && <p role="alert" className="text-sm text-margin-red-ink md:col-span-2">{error}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
@@ -495,10 +502,11 @@ export function StageExpense({
           <>
             <section aria-label="Global adjustments" className="mb-4 border-b border-rule pb-4">
               <GroupTitle as="h2" className="mb-3">Global discount, tax &amp; tip</GroupTitle>
-              <div className="flex flex-wrap gap-4 [&>div]:flex-wrap">
+              <div className="rate-inputs-container"><div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
                 <RateInput wide label="Discount" icon={TicketPercent} rate={globalAdjustments.discount} onChange={discount => onSetGlobalAdjustments({ ...globalAdjustments, discount })} />
                 <RateInput wide label="Tax" icon={Percent} rate={globalAdjustments.tax} onChange={tax => onSetGlobalAdjustments({ ...globalAdjustments, tax })} />
                 <RateInput wide label="Tip" icon={Coins} rate={globalAdjustments.tip} onChange={tip => onSetGlobalAdjustments({ ...globalAdjustments, tip })} />
+              </div>
               </div>
               <p className="mt-3 text-xs text-ink-soft">Applies to items without individual adjustments. Fixed amounts are shared proportionally. Discount applies before tax and tip.</p>
             </section>
@@ -570,7 +578,7 @@ export function StageExpense({
         {onCancel ? <Button type="button" variant="outline" size="touch" onClick={onCancel}>{cancelLabel}</Button> : <span />}
         <Button
           type="button"
-          size="hero"
+          size="touch"
           onClick={handleContinue}
           disabled={continueDisabled || items.length === 0 || !expenseName.trim() || continuing}
           aria-busy={continuing}
@@ -786,15 +794,17 @@ function SimpleTotalForm({
           <span className="text-sm text-ink-soft">Equally</span>
         </div>
         <p className="mb-2 text-xs text-ink-soft">{splitWith.length} {splitWith.length === 1 ? "person" : "people"} selected</p>
-        <div className="divide-y divide-rule">
+        <div className="space-y-2">
           {people.map((p) => (
-            <label key={p.id} className="flex min-h-14 cursor-pointer items-center gap-3 py-3 text-sm text-ink">
-              <input type="checkbox" checked={splitWith.includes(p.id)} onChange={() => toggleSplitWith(p.id)} className="h-5 w-5 shrink-0 accent-forest" />
-              <MemberAvatar id={p.id} name={p.name} />
-              <span className="min-w-0 flex-1 break-words">{p.name}</span>
-              {anonymousPersonIds.includes(p.id) && <HatGlasses className="h-4 w-4 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
-              <span className="font-numeric shrink-0">{splitWith.includes(p.id) ? currency(split.people.find((row) => row.personId === p.id)?.total ?? 0, currencyCode) : "—"}</span>
-            </label>
+            <MemberSelectionRow
+              key={p.id}
+              id={p.id}
+              name={p.name}
+              selected={splitWith.includes(p.id)}
+              onToggle={() => toggleSplitWith(p.id)}
+              anonymous={anonymousPersonIds.includes(p.id)}
+              endContent={<span className="font-numeric shrink-0">{splitWith.includes(p.id) ? currency(split.people.find((row) => row.personId === p.id)?.total ?? 0, currencyCode) : "—"}</span>}
+            />
           ))}
         </div>
         {peopleManagement}

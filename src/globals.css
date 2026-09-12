@@ -223,6 +223,47 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Keep rate controls together when a form column is too narrow for all three
+   compact groups. The container threshold is based on the available form
+   width, so this also handles tablet layouts with a sidebar instead of
+   relying on the viewport breakpoint. */
+.rate-inputs-container {
+  container-type: inline-size;
+}
+
+.rate-inputs {
+  flex-direction: column;
+}
+
+@container (min-width: 44rem) {
+  .rate-inputs {
+    flex-direction: row;
+  }
+}
+
+/* At tablet widths, keep each control on its own row while reserving the
+   same label column for all three controls. The value field stays compact;
+   only the mobile layout expands it to fill the row. */
+@media (min-width: 40rem) {
+  @container (max-width: 43.99rem) {
+    .rate-inputs > .rate-input-row {
+      display: grid;
+      grid-template-columns: 5rem max-content;
+      column-gap: 1rem;
+      width: max-content;
+    }
+
+    .rate-inputs > .rate-input-row .rate-input-label {
+      display: flex;
+    }
+
+    .rate-inputs > .rate-input-row .rate-input-control {
+      width: max-content;
+      flex: none;
+    }
+  }
+}
+
 /* Chevron motion.
    These MUST use `transform`, not the modern `translate` / `rotate`
    properties: those are a no-op on SVG elements, which is what every icon
