@@ -27,6 +27,18 @@ const buttonVariants = cva(
         // The tint is what distinguishes it, not the absence of an edge.
         destructive:
           "border-destructive/30 bg-destructive/10 text-margin-red-ink hover:border-destructive/50 hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
+        // Compact destructive icon action: keep the control visually quiet and
+        // signal the destructive state through the icon colour on hover.
+        "destructive-icon":
+          "bg-transparent text-ink-soft hover:bg-transparent hover:text-margin-red-ink focus-visible:ring-destructive/20",
+        // Compact non-destructive icon action: keep the control visually quiet
+        // and signal the action through the forest icon colour on hover.
+        "quiet-icon":
+          "bg-transparent text-ink-soft hover:bg-transparent hover:text-forest",
+        // Overflow/menu trigger: retain the 44px touch target while its
+        // hover, pressed, and open states reveal a faint circular wash.
+        "menu-icon":
+          "rounded-full bg-transparent text-ink-soft hover:bg-wash/70 hover:text-forest active:bg-wash/70 active:text-forest aria-expanded:bg-wash/70 aria-expanded:text-forest",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

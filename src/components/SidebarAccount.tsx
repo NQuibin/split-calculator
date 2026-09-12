@@ -5,6 +5,7 @@ import { LogIn, LogOut, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 
@@ -226,25 +227,38 @@ function SignInMenu() {
 function SignedInMenu() {
   const { signOut } = useAuthActions();
   const viewer = useQuery(api.users.viewer);
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false);
 
   return (
-    <div className="flex w-full items-center gap-2">
-      {viewer?.image ? (
-        <img src={viewer.image} alt="" className="h-7 w-7 shrink-0 rounded-full border border-rule" referrerPolicy="no-referrer" />
-      ) : null}
-      <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-soft">
-        {viewer?.name ?? viewer?.email}
-      </span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-touch"
-        onClick={() => void signOut()}
-        aria-label="Sign out"
-        className="shrink-0 text-ink-soft hover:text-margin-red-ink"
-      >
-        <LogOut className="h-4 w-4" strokeWidth={2.25} />
-      </Button>
-    </div>
+    <>
+      <div className="flex w-full items-center gap-2">
+        {viewer?.image ? (
+          <img src={viewer.image} alt="" className="h-7 w-7 shrink-0 rounded-full border border-rule" referrerPolicy="no-referrer" />
+        ) : null}
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-soft">
+          {viewer?.name ?? viewer?.email}
+        </span>
+        <Button
+          type="button"
+          variant="destructive-icon"
+          size="icon-touch"
+          onClick={() => setConfirmingSignOut(true)}
+          aria-label="Sign out"
+          title="Sign out"
+          className="shrink-0"
+        >
+          <LogOut className="h-4 w-4" strokeWidth={2.25} />
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={confirmingSignOut}
+        onOpenChange={setConfirmingSignOut}
+        title="Sign out?"
+        description="Are you sure you want to sign out?"
+        confirmLabel="Sign out"
+        pendingLabel="Signing out…"
+        onConfirm={async () => { await signOut(); }}
+      />
+    </>
   );
 }

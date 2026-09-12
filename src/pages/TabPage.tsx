@@ -448,9 +448,6 @@ function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expens
   const [currencyFilter, setCurrencyFilter] = useState("all");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const codes = [...new Set(expenses.map(e => e.settlementCurrency))].sort();
   const hasUpcoming = expenses.some(expense => isUpcoming(expense.date));
   const activeView = hasUpcoming ? expenseView : "all";
@@ -464,15 +461,6 @@ function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expens
     if (isUpcoming(expense.date)) return payer ? `Planned ${payer.name}` : "Not paid yet";
     return payer?.name ?? "Payer needed";
   };
-  async function deleteExpense() {
-    if (!selected) return;
-    setPending(true); setError(null);
-    try {
-      await remove(selected.slug);
-      setSelectedSlug(null); setConfirmDelete(false);
-    } catch (err) { setError(err instanceof Error ? err.message : "Couldn't update the expense."); }
-    finally { setPending(false); }
-  }
   const expenseRows = <>
     <div className="overflow-hidden rounded-lg border border-edge bg-field">
       <div className={`${expenseRowGrid} border-b border-rule/70 bg-band py-3 text-xs font-medium uppercase text-ink-soft`}>
@@ -487,7 +475,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expens
         <div className={`${expenseRowGrid} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}>
           {/* The trigger covers the row through its ::after overlay, so the
               whole row stays tappable while the actions menu sits above it. */}
-          <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); setConfirmDelete(false); setError(null); }} className="min-w-0 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest">
+          <button type="button" aria-haspopup="dialog" onClick={() => { setSelectedSlug(expense.slug); }} className="min-w-0 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest">
               <span className="block font-semibold break-words">{expense.name ?? "Untitled expense"}</span>
               <span className="block text-xs text-ink-soft">{expense.items.length} {expense.items.length === 1 ? "item" : "items"}</span>
           </button>
@@ -520,7 +508,11 @@ function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expens
       description={deletingSlug ? `“${expenses.find(e => e.slug === deletingSlug)?.name ?? "Untitled expense"}” and its itemized split will be deleted permanently. This can’t be undone.` : null}
       confirmLabel="Delete expense"
       pendingLabel="Deleting…"
-      onConfirm={async () => { if (deletingSlug) await remove(deletingSlug); }}
+      onConfirm={async () => {
+        if (!deletingSlug) return;
+        await remove(deletingSlug);
+        setSelectedSlug(current => current === deletingSlug ? null : current);
+      }}
     />
   </>;
   return <section aria-label="Expenses" className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
@@ -533,7 +525,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expens
       <CurrencyFilter value={currencyFilter} onChange={setCurrencyFilter} codes={codes} label="Filter by currency" />
     </div>
     {expenseRows}
-    <Dialog open={Boolean(selected)} onOpenChange={next => { if (!next) { setSelectedSlug(null); setConfirmDelete(false); setError(null); } }}>
+    <Dialog open={Boolean(selected)} onOpenChange={next => { if (!next) setSelectedSlug(null); }}>
       {selected && split && <DialogContent key={selected.slug} aria-label="Expense details" className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
         <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}><X className="h-5 w-5" /></DialogClose></div>
@@ -568,10 +560,8 @@ function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expens
         <footer className="shrink-0 border-t border-rule/70 bg-surface px-5 py-4 sm:px-6">
         {isOwner && <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="touch" render={<Link to="/e/$slug" params={{ slug: selected.slug }} />}><Pencil className="h-4 w-4" />Edit</Button>
-          <Button type="button" variant="destructive" size="touch" disabled={pending} onClick={() => setConfirmDelete(true)}><Trash2 className="h-4 w-4" />Delete</Button>
+          <Button type="button" variant="destructive" size="touch" onClick={() => setDeletingSlug(selected.slug)}><Trash2 className="h-4 w-4" />Delete</Button>
         </div>}
-        {confirmDelete && <div className="mt-3 text-sm"><p>Delete this expense permanently?</p><div className="mt-2 flex gap-3"><Button type="button" variant="link" size="xs" disabled={pending} onClick={() => void deleteExpense()} className="h-auto px-0 text-sm font-semibold text-margin-red-ink no-underline">Confirm delete</Button><Button type="button" variant="link" size="xs" disabled={pending} onClick={() => setConfirmDelete(false)} className="h-auto px-0 text-sm text-ink-soft no-underline">Cancel</Button></div></div>}
-        {error && <p role="alert" className="mt-3 text-sm text-margin-red-ink">{error}</p>}
         {!isOwner && <DialogClose render={<Button variant="outline" size="touch" />}>Done</DialogClose>}
         </footer>
       </DialogContent>}

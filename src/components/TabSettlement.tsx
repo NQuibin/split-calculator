@@ -146,10 +146,10 @@ export function TabSettlement({ slug, members, isOwner }: { slug: string; member
         <section className="mt-5 border-t border-rule pt-4">
           <GroupTitle as="h3">Payment history</GroupTitle>
           {!data.history.length && <p className="mt-2 text-sm text-ink-soft">No payments recorded yet.</p>}
-          <ul className="mt-2 space-y-3">{data.history.map(item => <li key={item.id} className="flex flex-wrap items-center gap-3 text-sm">
-            <div className="min-w-0 flex-1 break-words"><p>{memberName(item.fromMemberId)} → {memberName(item.toMemberId)}</p><p className="text-xs text-ink-soft">{formatExpenseDate(item.date)} · {item.currency}{item.reversed ? " · Reversed" : ""}</p>{item.note && <p className="mt-1 whitespace-pre-wrap text-xs text-ink-soft">{item.note}</p>}</div>
+          <ul className="mt-2 space-y-3">{data.history.map(item => <li key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm">
+            <div className="flex min-w-0 items-center gap-1"><div className="min-w-0 flex-1 break-words"><p>{memberName(item.fromMemberId)} → {memberName(item.toMemberId)}</p><p className="text-xs text-ink-soft">{formatExpenseDate(item.date)} · {item.currency}{item.reversed ? " · Reversed" : ""}</p>{item.note && <p className="mt-1 whitespace-pre-wrap text-xs text-ink-soft">{item.note}</p>}</div>
+            {isOwner && !item.reversed && <Button variant="destructive-icon" size="icon-lg" title="Reverse payment" aria-label={`Reverse ${currency(item.amount, item.currency)} payment from ${memberName(item.fromMemberId)} to ${memberName(item.toMemberId)}`} onClick={() => setReversingId(item.id)}><RotateCcw aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} /></Button>}</div>
             <span className="font-numeric whitespace-nowrap">{currency(item.amount, item.currency)}</span>
-            {isOwner && !item.reversed && <Button variant="destructive" size="touch" aria-label={`Reverse ${currency(item.amount, item.currency)} payment from ${memberName(item.fromMemberId)} to ${memberName(item.toMemberId)}`} onClick={() => setReversingId(item.id)}><RotateCcw aria-hidden="true" />Reverse</Button>}
           </li>)}</ul>
         </section>
         </div>

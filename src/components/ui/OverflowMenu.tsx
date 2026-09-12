@@ -32,22 +32,15 @@ export function OverflowMenu({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          // Icon-only, so `ghost` (DESIGN.md § 5) - it also keeps the row
-          // free of a bordered box competing with the content. The hover is a
-          // scale rather than a fill: a wash behind a row that is itself
-          // washing on hover reads as two overlapping states. `aria-expanded`
-          // still takes a background, because "this menu is open" is a
-          // persistent state, not a pointer hint.
+          // The menu trigger uses a circular, faint hover/open wash while
+          // preserving the full 44px touch target.
           <Button
             type="button"
-            variant="ghost"
+            variant="menu-icon"
             size="icon-touch"
             aria-label={label}
             title={label}
-            className={cn(
-              "shrink-0 text-ink-soft transition-transform duration-150 hover:bg-transparent hover:text-ink motion-safe:hover:scale-125 motion-safe:active:scale-95",
-              className
-            )}
+            className={cn("shrink-0", className)}
           />
         }
       >

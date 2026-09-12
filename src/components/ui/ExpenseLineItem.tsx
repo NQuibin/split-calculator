@@ -74,22 +74,20 @@ export function ExpenseLineItem({
           </span>
           <Button
             type="button"
-            variant="ghost"
-            size="icon-touch"
+            variant="quiet-icon"
+            size="icon"
             onClick={onEdit}
             aria-label={`Edit ${item.name}`}
             aria-haspopup="dialog"
-            className="text-ink-soft hover:text-forest"
           >
             <Pencil className="h-4 w-4" strokeWidth={2.25} />
           </Button>
           <Button
             type="button"
-            variant="ghost"
-            size="icon-touch"
+            variant="destructive-icon"
+            size="icon"
             onClick={onRemove}
             aria-label={`Remove ${item.name}`}
-            className="text-ink-soft hover:text-margin-red-ink"
           >
             <Trash2 className="h-4 w-4" strokeWidth={2.25} />
           </Button>

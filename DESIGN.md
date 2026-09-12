@@ -279,6 +279,9 @@ states:
 | `default`     | `bg-primary text-primary-foreground`       | `bg-primary/80`      | The one primary action in a region         |
 | `outline`     | bordered, `bg-background`                  | `bg-accent`          | Any other **labelled** action              |
 | `destructive` | bordered, `bg-destructive/10`, red text    | `bg-destructive/20`  | Delete, remove, discard — labelled         |
+| `destructive-icon` | transparent, muted icon/text              | transparent, red icon/text | Compact destructive icon-only actions       |
+| `quiet-icon` | transparent, muted icon/text              | transparent, forest icon/text | Compact non-destructive icon-only actions |
+| `menu-icon` | transparent, muted icon                  | faint circular `--wash`, forest icon | 44px vertical three-dot overflow trigger |
 | `ghost`       | transparent, no border                     | `bg-accent`          | **Icon-only** buttons and row actions      |
 | `link`        | `text-primary`                             | `underline`          | Inline text actions inside content flow    |
 | `field`       | `border-rule bg-paper`, normal weight      | border → `--forest`  | A trigger that stands in for a form control |
@@ -288,12 +291,15 @@ states:
 
 1. Does it delete, remove or discard? → `destructive`.
 2. Is it the single most important action in this screen or dialog? → `default`.
-3. Is it icon-only? → `ghost`.
-4. Does it sit inline inside a paragraph or a content block ("Add item",
+3. Is it a compact destructive icon-only action? → `destructive-icon`.
+4. Is it a vertical three-dot overflow trigger? → `menu-icon`.
+5. Is it a compact non-destructive icon-only action? → `quiet-icon`.
+6. Is it icon-only? → `ghost`.
+7. Does it sit inline inside a paragraph or a content block ("Add item",
    "Copy invite")? → `link`.
-5. Is it a popover trigger that *reads as a form control* — the currency,
+8. Is it a popover trigger that *reads as a form control* — the currency,
    date or tab picker? → `field`.
-6. Otherwise → `outline`.
+9. Otherwise → `outline`.
 
 Two rules that follow from this, and are the ones that actually get broken:
 
@@ -345,7 +351,11 @@ Binding rules:
   `secondary`, `outline`, or `ghost`.
 - A destructive action is `destructive` variant *and* lives behind a
   confirmation dialog.
-- Hover is **always** a background change from the table above. Never
+- Hover is **always** a background change from the table above, except
+  `destructive-icon` and `quiet-icon`, whose hover deliberately keeps the
+  background transparent and changes only the icon/text colour. `menu-icon`
+  is the exception for overflow triggers: it fades in a faint circular
+  `--wash` on hover, pressed, and open states. Never
   `hover:bg-ink` (a near-black flip on a sage palette), never an off-palette
   hex, never a bare colour change on a filled button.
 - An icon-only button needs `aria-label`.
