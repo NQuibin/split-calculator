@@ -114,11 +114,14 @@ export function TabSettlement({ slug, members, isOwner }: { slug: string; member
       </div>
       <SettlementSummary data={data} />
       <p className="mt-3 text-xs text-ink-soft">Paid expenses only · Upcoming expenses excluded · Currencies settled separately</p>
-      <DialogContent className="max-w-2xl">
-        <div className="flex items-start justify-between gap-3">
+      <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
+        <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
           <div className="min-w-0"><DialogTitle>Settle up</DialogTitle><DialogDescription className="mt-1">Paid expenses through {formatExpenseDate(day)}. Record transfers already made outside the app.</DialogDescription></div>
           <DialogClose aria-label="Close settlement" render={<Button variant="ghost" size="icon-touch" />}><X aria-hidden="true" /></DialogClose>
-        </div>
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
         {data.missingPayers.length > 0 && <div className="mt-4 rounded-md border border-rule bg-field p-3 text-sm">
           <p className="text-margin-red-ink">These expenses are excluded until a payer is assigned:</p>
           <ul className="mt-2 space-y-1">{data.missingPayers.map(expense => <li key={expense.slug} className="break-words">
@@ -126,7 +129,7 @@ export function TabSettlement({ slug, members, isOwner }: { slug: string; member
           </li>)}</ul>
         </div>}
         {data.currencies.length === 0 && <p className="mt-5 text-sm text-ink-soft">{data.missingPayers.length ? "Assign payers to see settlement suggestions." : "No outstanding balances."}</p>}
-        <div className="mt-5 space-y-5">{data.currencies.map(group => <section key={group.currency} aria-label={`${group.currency} balances`}>
+        <div className="space-y-5">{data.currencies.map(group => <section key={group.currency} aria-label={`${group.currency} balances`}>
           <GroupTitle as="h3">{group.currency}</GroupTitle>
           <ul className="mt-3 divide-y divide-rule rounded-lg border border-edge bg-field">{group.members.map(member => <li key={member.memberId} className="flex flex-wrap justify-between gap-3 px-3 py-3 text-sm">
             <span className="min-w-0 break-words">{member.name}</span><BalanceValue balance={member.balance} code={group.currency} />
@@ -149,6 +152,7 @@ export function TabSettlement({ slug, members, isOwner }: { slug: string; member
             {isOwner && !item.reversed && <Button variant="destructive" size="touch" aria-label={`Reverse ${currency(item.amount, item.currency)} payment from ${memberName(item.fromMemberId)} to ${memberName(item.toMemberId)}`} onClick={() => setReversingId(item.id)}><RotateCcw aria-hidden="true" />Reverse</Button>}
           </li>)}</ul>
         </section>
+        </div>
       </DialogContent>
     </Dialog>
     <ConfirmDialog
