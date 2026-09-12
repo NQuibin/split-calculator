@@ -107,7 +107,7 @@ export function StageExpense({
   inTab = false,
   mode,
   items,
-  globalAdjustments = zeroAdjustments,
+  globalAdjustments: globalAdjustmentsProp,
   onSetGlobalAdjustments,
   date,
   currency: currencyCode,
@@ -132,6 +132,15 @@ export function StageExpense({
 }: StageExpenseProps) {
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
+  // Canadian bills tip on the taxed subtotal, so a CAD expense starts with
+  // that order picked. Only a brand new expense takes it - one already
+  // carrying adjustments keeps whatever order it was saved with.
+  const tipAfterTaxDefault = currencyCode === "CAD";
+  const globalAdjustments = useMemo(
+    () => globalAdjustmentsProp ?? (tipAfterTaxDefault ? { ...zeroAdjustments, tipAfterTax: true } : zeroAdjustments),
+    [globalAdjustmentsProp, tipAfterTaxDefault],
+  );
+
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [payerOpen, setPayerOpen] = useState(false);
@@ -142,7 +151,7 @@ export function StageExpense({
   const [discount, setDiscount] = useState<RateSetting>({ mode: "amount", value: 0 });
   const [tax, setTax] = useState<RateSetting>(zeroRate);
   const [tip, setTip] = useState<RateSetting>(zeroRate);
-  const [tipAfterTax, setTipAfterTax] = useState(false);
+  const [tipAfterTax, setTipAfterTax] = useState(tipAfterTaxDefault);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
   const [error, setError] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
@@ -209,7 +218,7 @@ export function StageExpense({
     setDiscount({ mode: "amount", value: 0 });
     setTax(zeroRate);
     setTip(zeroRate);
-    setTipAfterTax(false);
+    setTipAfterTax(tipAfterTaxDefault);
     setSplitWith(allIds);
     setError(null);
   }
@@ -228,7 +237,7 @@ export function StageExpense({
     setDiscount(item.discount);
     setTax(item.tax);
     setTip(item.tip);
-    setTipAfterTax(item.tipAfterTax ?? false);
+    setTipAfterTax(item.tipAfterTax ?? tipAfterTaxDefault);
     setSplitWith(item.splitWith);
     setError(null);
   }
