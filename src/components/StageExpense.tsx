@@ -504,7 +504,7 @@ export function StageExpense({
             </section>
             <div className="flex items-center justify-between gap-3">
               <GroupTitle as="h2">Items <span className="text-ink-soft">({items.length})</span></GroupTitle>
-              <Button type="button" variant="link" size="touch" onClick={() => { resetForm(); setAddingItem(true); }} className="justify-start px-0 no-underline hover:text-ink hover:no-underline"><Plus className="h-4 w-4" />Add item</Button>
+              <Button type="button" variant="outline" size="touch" onClick={() => { resetForm(); setAddingItem(true); }}><Plus className="h-4 w-4" />Add item</Button>
             </div>
             <Dialog open={addingItem || editingId !== null} onOpenChange={open => { if (!open) closeItemEditor(); }}>
               <DialogContent className="max-w-2xl">
