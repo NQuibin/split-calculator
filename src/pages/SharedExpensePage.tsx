@@ -46,6 +46,8 @@ function SharedExpenseContent() {
     <Page>
       <StageResults
         people={decoded.people}
+        payerId={decoded.payerId}
+        date={decoded.date}
         items={decoded.items}
         globalAdjustments={decoded.globalAdjustments}
         currency={decoded.currency ?? "USD"}

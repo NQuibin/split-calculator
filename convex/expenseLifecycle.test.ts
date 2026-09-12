@@ -9,6 +9,7 @@ const modules = import.meta.glob("./**/*.ts");
 const state = {
   name: "Dinner", mode: "simple" as const,
   date: "2026-09-07", currency: "USD", people: [{ id: "person-1", name: "Alex" }],
+  payerId: "person-1",
   items: [{ id: "total", name: "Dinner", cost: 30, splitWith: ["person-1"],
     discount: { mode: "amount" as const, value: 0 }, tax: { mode: "amount" as const, value: 0 }, tip: { mode: "amount" as const, value: 0 } }],
 };
@@ -40,7 +41,7 @@ test("creating in a tab and editing preserves membership even with no items", as
   });
   const saved = await user.query(api.expenses.get, { slug: "dinner" });
   expect(saved?.tab?.slug).toBe("trip");
-  await user.mutation(api.expenses.save, { slug: "dinner", state: { ...state, items: [] } });
+  await user.mutation(api.expenses.save, { slug: "dinner", state: { ...state, payerId: saved!.payerId, items: [] } });
   const empty = await user.query(api.expenses.get, { slug: "dinner" });
   expect(empty?.items).toEqual([]);
   expect(empty?.tab?.slug).toBe("trip");
@@ -50,12 +51,13 @@ test("creating in a tab and editing preserves membership even with no items", as
 
 test("an existing expense cannot be added to a tab", async () => {
   const { t, user, userId } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
   // `people` is deliberately dropped: it lives on the client's state but not
   // on the stored doc, so spreading the whole state in would not validate.
-  const stored = { ...state, people: undefined };
+  const stored = { ...state, payerId: tab.members[0].id, people: undefined };
   delete stored.people;
   await t.run(ctx => ctx.db.insert("expenses", { ...stored, slug: "old", userId, updatedAt: 0 }));
-  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
   await expect(user.mutation(api.tabs.createExpense, { tabSlug: "trip", expenseSlug: "old", state, memberMapping: [] })).rejects.toThrow("existing expense");
 });
 

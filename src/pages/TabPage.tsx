@@ -44,6 +44,8 @@ import { Page } from "@/components/ui/Page";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { TabSettlement } from "@/components/TabSettlement";
+import { ExpenseBalances } from "@/components/ExpenseBalances";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -163,6 +165,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         </div>
         {tab.isOwner && <TabOwnerActions slug={slug} members={tab.members} expenseCount={expenses.length} />}
       </header>
+      <TabSettlement slug={slug} members={tab.members} isOwner={tab.isOwner} />
       {hasUpcoming ? <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Tab expense date">{tabContent}</ExpenseViewTabs> : tabContent}
     </Page>
   );
@@ -432,7 +435,7 @@ function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpense
   </span>;
 }
 
-function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: {
+function ExpenseList({ slug, defaultCurrency, isOwner, members, expenses, expenseView }: {
   expenseView: ExpenseView;
   defaultCurrency: string;
   slug: string;
@@ -455,6 +458,12 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
   const filtered = visibleExpenses.filter(e => (currencyFilter === "all" || e.settlementCurrency === currencyFilter) && (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()));
   const selected = expenses.find(e => e.slug === selectedSlug);
   const split = selected ? computeSplit(selected.people, selected.items, selected.globalAdjustments) : null;
+  const payerFor = (payerId: string | undefined) => members.find(member => member.id === payerId || member.resolvedId === payerId);
+  const payerLabel = (expense: typeof expenses[number]) => {
+    const payer = payerFor(expense.payerId);
+    if (isUpcoming(expense.date)) return payer ? `Planned ${payer.name}` : "Not paid yet";
+    return payer?.name ?? "Payer needed";
+  };
   async function deleteExpense() {
     if (!selected) return;
     setPending(true); setError(null);
@@ -469,7 +478,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
       <div className={`${expenseRowGrid} border-b border-rule/70 bg-band py-3 text-xs font-medium uppercase text-ink-soft`}>
         <span>Expense</span>
         <span className="hidden md:block">Date</span>
-        <span className="hidden text-center md:block">Created by</span>
+        <span className="hidden text-center md:block">Paid by</span>
         <span className="hidden text-center md:block">Split with</span>
         <span className="text-right">Amount</span>
         <span className="sr-only">Actions</span>
@@ -487,8 +496,8 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
             {expense.date ? <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time> : "Not set"}
           </span>
           <span className="hidden min-w-0 items-center justify-center gap-2 text-sm md:flex">
-            {expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}
-            <span className="truncate">{expense.createdBy?.name ?? "Unknown creator"}</span>
+            {payerFor(expense.payerId) && <MemberAvatar id={payerFor(expense.payerId)!.id} name={payerFor(expense.payerId)!.name} size="sm" />}
+            <span className="truncate">{payerLabel(expense)}</span>
           </span>
           <span className="hidden justify-center md:flex"><AvatarStack people={expense.people} /></span>
           <span className="text-right"><span className="block font-numeric text-sm font-semibold">{currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal * (expense.exchangeRate?.rate ?? 1), expense.settlementCurrency)}</span><span className="block text-xs text-ink-soft">{expense.exchangeRate ? `${currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal, expense.currency)} · converted` : expense.currency}</span></span>
@@ -497,7 +506,7 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
           </div>
           <span className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
             {expense.date && <span className="inline-flex items-center gap-1.5"><UpcomingExpenseIcon date={expense.date} /><time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time></span>}
-            <span className="inline-flex items-center gap-1.5">{expense.createdBy && <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} size="sm" />}{expense.createdBy?.name ?? "Unknown creator"}</span>
+            <span className="inline-flex items-center gap-1.5">{payerFor(expense.payerId) && <MemberAvatar id={payerFor(expense.payerId)!.id} name={payerFor(expense.payerId)!.name} size="sm" />}{payerLabel(expense)}</span>
             <AvatarStack people={expense.people} />
           </span>
         </div>
@@ -530,6 +539,8 @@ function ExpenseList({ slug, defaultCurrency, isOwner, expenses, expenseView }: 
         <div className="flex items-start justify-between gap-3"><DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle><DialogClose aria-label="Close expense details" render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}><X className="h-5 w-5" /></DialogClose></div>
         <p className="mt-5 font-numeric text-2xl font-semibold">{currency(split.grandTotal, selected.currency)}</p><p className="mt-1 text-sm text-ink-soft">{selected.currency}{selected.mode === "itemized" && <> · {selected.items.length} {selected.items.length === 1 ? "item" : "items"}</>}</p>
         <ExpenseMetadata expense={selected} />
+        <p className="mt-3 text-sm text-ink-soft">{isUpcoming(selected.date) ? "Planned payer" : "Paid by"}: <span className="text-ink">{payerFor(selected.payerId)?.name ?? (isUpcoming(selected.date) ? "Not set" : "Payer needed")}</span></p>
+        <ExpenseBalances people={selected.people} split={split} payerId={selected.payerId} currency={selected.currency} projected={isUpcoming(selected.date)} unallocated={selected.items.some(item => item.splitWith.length === 0)} headingLevel="h3" />
         {selected.note && <section className="mt-5 border-t border-rule/70 pt-5">
           <GroupTitle as="h4">Note</GroupTitle>
           <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-soft">{selected.note}</p>

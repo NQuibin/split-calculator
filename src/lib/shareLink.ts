@@ -3,6 +3,8 @@ import type { ExpenseItem, Person } from "./types";
 export interface SharePayload {
   slug: string;
   people: Person[];
+  payerId?: string;
+  date?: string;
   items: ExpenseItem[];
   globalAdjustments?: import("./types").ExpenseAdjustments;
   /** Absent on links generated before currency support existed - callers should default to "USD". */

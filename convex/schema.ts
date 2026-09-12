@@ -44,6 +44,8 @@ export const expenseState = v.object({
   date: v.string(),
   /** ISO 4217 code, e.g. "USD". Optional on the stored doc so expenses saved before this field existed keep validating - default to "USD" when reading. */
   currency: v.optional(v.string()),
+  /** Draft payer; save mutations require a valid tab seat before persistence. */
+  payerId: v.optional(v.string()),
   /** Free-form note about the expense. Absent when there's no note - an empty/whitespace-only note is stored as no note at all. */
   note: v.optional(v.string()),
   /** Receipt image/PDF attached to the expense, if any. Absent once removed. */
@@ -80,6 +82,7 @@ export default defineSchema({
     globalAdjustments: v.optional(expenseAdjustments),
     date: v.string(),
     currency: v.optional(v.string()),
+    payerId: v.id("tabMembers"),
     exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })),
     note: v.optional(v.string()),
     image: v.optional(expenseImage),
@@ -110,4 +113,21 @@ export default defineSchema({
   })
     .index("by_tab", ["tabId"])
     .index("by_user", ["userId"]),
+  settlements: defineTable({
+    tabId: v.id("tabs"),
+    fromMemberId: v.id("tabMembers"),
+    toMemberId: v.id("tabMembers"),
+    amountCents: v.number(),
+    currency: v.string(),
+    date: v.string(),
+    note: v.optional(v.string()),
+    recordedBy: v.id("users"),
+    requestId: v.string(),
+    reversedAt: v.optional(v.number()),
+    reversedBy: v.optional(v.id("users")),
+  })
+    .index("by_tabId_and_requestId", ["tabId", "requestId"])
+    .index("by_tabId", ["tabId"])
+    .index("by_tabId_and_fromMemberId", ["tabId", "fromMemberId"])
+    .index("by_tabId_and_toMemberId", ["tabId", "toMemberId"]),
 });

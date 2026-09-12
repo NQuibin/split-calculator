@@ -92,6 +92,7 @@ export function useTabBreakdown(slug: string): TabBreakdown | null | undefined {
 }
 
 export interface TabExpenseSummary {
+  payerId?: string;
   mode: "simple" | "itemized";
   note?: string;
   image?: { name: string; type: string; url: string | null };

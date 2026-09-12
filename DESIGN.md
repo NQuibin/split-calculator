@@ -354,8 +354,11 @@ Binding rules:
 
 ### Inputs
 
-Use `Input`, `Textarea`, `Label` and `FieldError` from `ui/Input.tsx`. They
+Use `Input`, `Textarea`, `Select`, `Label` and `FieldError` from `ui/Input.tsx`. They
 carry the canonical `fieldClass`; don't hand-roll a bordered field.
+
+`Select` is the native single-choice field for short lists such as an expense's
+payer. It shares the input ground, border, focus ring, and mobile type size.
 
 - Ground is `bg-field` with a `border-edge`, on any page or card — a field
   looks the same everywhere rather than depending on what's behind it.

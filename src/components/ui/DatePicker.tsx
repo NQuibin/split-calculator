@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover
 import { parseISODate, toISODate } from "@/lib/format";
 
 interface DatePickerProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   "aria-label"?: string;
@@ -21,6 +22,7 @@ export function DatePicker({ value, onChange, ...props }: DatePickerProps) {
           <Button
             variant="field"
             aria-label={props["aria-label"]}
+            id={props.id}
             className="h-auto min-h-11 min-w-11 gap-1.5 rounded-md px-2 py-1.5"
           />
         }

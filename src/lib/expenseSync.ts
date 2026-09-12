@@ -30,6 +30,7 @@ import type {
 interface ExpenseStateArgs {
   name: string;
   people: Person[];
+  payerId?: string;
   mode: ExpenseMode;
   items: ExpenseItem[];
   globalAdjustments?: ExpenseAdjustments;
@@ -52,6 +53,7 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
     mode: state.mode ?? "itemized",
     date: state.date,
     people: state.people.map(({ id, name }) => ({ id, name })),
+    ...(state.payerId ? { payerId: state.payerId } : {}),
     items: state.items.map(({ id, name, cost, discount, tax, tip, splitWith, overrideAdjustments }) => ({
       id,
       name,

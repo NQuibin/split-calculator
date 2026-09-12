@@ -47,6 +47,8 @@ export interface ExpenseState {
   /** The expense's name - always set, initialized from the people's names joined together when first created. */
   name: string;
   people: Person[];
+  /** The person who covered the expense, independent of its split. Tab expenses use a stable seat ID. */
+  payerId?: string;
   mode: ExpenseMode;
   items: ExpenseItem[];
   globalAdjustments?: ExpenseAdjustments;

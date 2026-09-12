@@ -59,6 +59,7 @@ export function withTabPeople(state: ExpenseState, people: Person[]): ExpenseSta
   return {
     ...state,
     people,
+    payerId: state.payerId && currentIds.has(state.payerId) ? state.payerId : undefined,
     items: state.items.map(item => ({
       ...item,
       splitWith: state.people.every(person => item.splitWith.includes(person.id))

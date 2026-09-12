@@ -65,3 +65,9 @@ test("editor stage is never included in a saved expense", () => {
   expect(toExpenseStateArgs(state)).not.toHaveProperty("stage");
   expect(toExpenseStateArgs({ ...state, stage: "results" })).toEqual(toExpenseStateArgs(state));
 });
+
+test("payer is preserved in remote writes and can be cleared without leaking read metadata", () => {
+  expect(toExpenseStateArgs({ ...state, payerId: "seat-alex", tabId: "tab-1" })).toMatchObject({ payerId: "seat-alex" });
+  expect(toExpenseStateArgs({ ...state, payerId: undefined })).not.toHaveProperty("payerId");
+  expect(toExpenseStateArgs({ ...state, payerId: "seat-alex", tabId: "tab-1" })).not.toHaveProperty("tabId");
+});

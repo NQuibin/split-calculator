@@ -23,17 +23,21 @@ import {
 } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/ui/Button";
-import { Input, Textarea } from "@/components/ui/Input";
+import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { RateInput } from "@/components/ui/RateInput";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
+import { MenuOption } from "@/components/ui/MenuOption";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
 import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
 import { currency } from "@/lib/format";
+import { isUpcoming } from "@/lib/format";
 import type { ExpenseAdjustments, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
+import { ExpenseBalances } from "@/components/ExpenseBalances";
 
 const zeroAdjustments: ExpenseAdjustments = { discount: { mode: "amount", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
 
@@ -73,6 +77,8 @@ interface StageExpenseProps {
   onSetMode: (mode: ExpenseMode) => void;
   onSetDate: (date: string) => void;
   onSetCurrency: (currency: string) => void;
+  payerId?: string;
+  onSetPayer: (payerId: string | undefined) => void;
   onAddItem: (item: ExpenseItem) => void;
   onUpdateItem: (item: ExpenseItem) => void;
   onRemoveItem: (id: string) => void;
@@ -113,6 +119,8 @@ export function StageExpense({
   onSetMode,
   onSetDate,
   onSetCurrency,
+  payerId,
+  onSetPayer,
   onAddItem,
   onUpdateItem,
   onRemoveItem,
@@ -126,6 +134,7 @@ export function StageExpense({
 
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
+  const [payerOpen, setPayerOpen] = useState(false);
   const [addingItem, setAddingItem] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -137,6 +146,7 @@ export function StageExpense({
   const [error, setError] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
   const [continueError, setContinueError] = useState<string | null>(null);
+  const [payerError, setPayerError] = useState<string | null>(null);
 
   const resolvedItems = useMemo(() => resolveItemAdjustments(items, globalAdjustments), [items, globalAdjustments]);
   const totals = useMemo(() => computeSplit(people, items, globalAdjustments), [people, items, globalAdjustments]);
@@ -146,6 +156,13 @@ export function StageExpense({
   // whatever fails instead of looking like nothing happened.
   async function handleContinue() {
     setContinueError(null);
+    if (!payerId || !people.some((person) => person.id === payerId)) {
+      const message = "Choose who paid for this expense before saving.";
+      setPayerError(message);
+      setContinueError(message);
+      return;
+    }
+    setPayerError(null);
     if (mode === "itemized" && (editingId || (addingItem && (name.trim() || cost)))) {
       setContinueError("Finish or cancel the open item before saving the expense.");
       return;
@@ -273,6 +290,52 @@ export function StageExpense({
             <Banknote className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
             <span className="font-display text-sm font-medium text-ink-soft">Currency</span>
             <CurrencyPicker value={currencyCode} onChange={onSetCurrency} aria-label="Expense currency" />
+          </div>
+          <div className="basis-full border-t border-rule pt-3">
+            <Label id="expense-payer-label" htmlFor="expense-payer">{isUpcoming(date) ? "Will be paid by" : "Paid by"} <span aria-hidden="true">*</span></Label>
+            <Popover open={payerOpen} onOpenChange={setPayerOpen}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    id="expense-payer"
+                    variant="field"
+                    aria-labelledby="expense-payer-label expense-payer-value"
+                    aria-required="true"
+                    aria-invalid={payerError ? "true" : undefined}
+                    aria-describedby={payerError ? "expense-payer-help expense-payer-error" : "expense-payer-help"}
+                    className="group mt-1 min-h-11 w-full max-w-md justify-between rounded-md px-3 py-2"
+                  />
+                }
+              >
+                <span id="expense-payer-value" className="truncate">
+                  {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
+                </span>
+                <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft chevron-flip" />
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80 max-w-[calc(100vw-3rem)] rounded-lg p-2">
+                <ul className="max-h-64 space-y-0.5 overflow-y-auto">
+                  {people.map((person) => (
+                    <li key={person.id}>
+                      <MenuOption
+                        selected={person.id === payerId}
+                        onClick={() => {
+                          setPayerError(null);
+                          setContinueError(null);
+                          onSetPayer(person.id);
+                          setPayerOpen(false);
+                        }}
+                      >
+                        <span className="truncate">{person.name}</span>
+                      </MenuOption>
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+            <p id="expense-payer-help" className="mt-2 text-xs text-ink-soft">{people.find((person) => person.id === payerId)
+              ? `${people.find((person) => person.id === payerId)!.name} ${isUpcoming(date) ? "will pay" : "paid"} the full expense. They can pay without being in the split.`
+              : "Required before saving. Choose who covers the full expense. They can pay without being in the split."}</p>
+            {payerError && <FieldError id="expense-payer-error">{payerError}</FieldError>}
           </div>
         </div>
   );
@@ -424,6 +487,7 @@ export function StageExpense({
             people={people}
             anonymousPersonIds={anonymousPersonIds}
             item={items[0]}
+            split={totals}
             onSave={(item) => (items[0] ? onUpdateItem(item) : onAddItem(item))}
             onRemove={onRemoveItem}
           />
@@ -480,9 +544,9 @@ export function StageExpense({
                 <span>Uses individual discount, tax and tip instead of global adjustments. Blank or zero means none.</span>
               </p>
             )}
-            <div className="mt-5 grid gap-5 border-t border-rule pt-5 md:grid-cols-2 md:gap-6">
+            <div className="mt-5 border-t border-rule pt-5">
               <section className="min-w-0">
-                <GroupTitle as="h2">Total amount <span className="text-ink-soft">({currencyCode})</span></GroupTitle>
+                <GroupTitle as="h2">Total, including adjustments <span className="text-ink-soft">({currencyCode})</span></GroupTitle>
                 <p className="font-numeric mt-2 break-words text-3xl text-ink">{currency(totals.grandTotal, currencyCode)}</p>
                 <p className="mt-1 text-xs text-ink-soft">Calculated from {items.length} {items.length === 1 ? "item" : "items"}</p>
                 {(totals.taxTotal > 0 || totals.tipTotal > 0) && <dl className="mt-4 space-y-2 border-t border-rule pt-3 text-sm text-ink-soft">
@@ -491,22 +555,12 @@ export function StageExpense({
                   {totals.tipTotal > 0 && <div className="flex justify-between gap-3"><dt>Tip</dt><dd className="font-numeric">{currency(totals.tipTotal, currencyCode)}</dd></div>}
                 </dl>}
               </section>
-              <section className="min-w-0 border-t border-rule pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
-                <GroupTitle as="h2">Split summary</GroupTitle>
-                <p className="mt-1 text-xs text-ink-soft">Based on each item’s split</p>
-                <ul className="divide-y divide-rule">
-                  {totals.people.map(person => <li key={person.personId} className="flex min-h-14 items-center gap-3 py-3 text-sm">
-                    <MemberAvatar id={person.personId} name={person.name} />
-                    <span className="min-w-0 flex-1 break-words text-ink">{person.name}</span>
-                    {anonymousPersonIds.includes(person.personId) && <HatGlasses className="h-4 w-4 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
-                    <span className="font-numeric text-ink">{currency(person.total, currencyCode)}</span>
-                  </li>)}
-                </ul>
-                {peopleManagement}
-              </section>
+              {peopleManagement}
             </div>
           </>
         )}
+
+        <ExpenseBalances people={people} split={totals} payerId={payerId} currency={currencyCode} projected={isUpcoming(date)} unallocated={items.some((item) => item.splitWith.length === 0)} />
 
         <NoteField note={note} onSetNote={onSetNote} />
         <ExpenseImageField receipt={receipt} onPick={onPickReceipt} canUpload={canUploadImage} />
@@ -654,6 +708,7 @@ function SimpleTotalForm({
   people,
   anonymousPersonIds,
   item,
+  split,
   onSave,
   onRemove,
 }: {
@@ -670,6 +725,7 @@ function SimpleTotalForm({
   people: Person[];
   anonymousPersonIds: string[];
   item?: ExpenseItem;
+  split: ReturnType<typeof computeSplit>;
   onSave: (item: ExpenseItem) => void;
   onRemove: (id: string) => void;
 }) {
@@ -721,7 +777,7 @@ function SimpleTotalForm({
         onChange={(e) => handleCostChange(e.target.value)}
         placeholder="0.00"
         aria-label="Expense total"
-        className="font-numeric min-h-16 py-3 text-3xl!"
+        className="font-numeric min-h-16 py-3 text-3xl sm:text-3xl"
       />
       </div>
       <div className="min-w-0 border-t border-rule pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
@@ -737,7 +793,7 @@ function SimpleTotalForm({
               <MemberAvatar id={p.id} name={p.name} />
               <span className="min-w-0 flex-1 break-words">{p.name}</span>
               {anonymousPersonIds.includes(p.id) && <HatGlasses className="h-4 w-4 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
-              <span className="font-numeric shrink-0">{splitWith.includes(p.id) ? currency((Number(cost) || 0) / Math.max(1, splitWith.length), currencyCode) : "—"}</span>
+              <span className="font-numeric shrink-0">{splitWith.includes(p.id) ? currency(split.people.find((row) => row.personId === p.id)?.total ?? 0, currencyCode) : "—"}</span>
             </label>
           ))}
         </div>

@@ -211,7 +211,7 @@ export const get = query({
   handler: async (ctx, { slug }) => {
     const doc = await ownExpenseOrDeny(ctx, slug);
     if (!doc) return null;
-    const { name, people, mode, items, globalAdjustments, date, currency, note, image, tabId } =
+    const { name, people, mode, items, payerId, globalAdjustments, date, currency, note, image, tabId } =
       await resolveExpenseMembers(ctx, doc);
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
@@ -224,6 +224,7 @@ export const get = query({
       people,
       mode,
       items,
+      payerId,
       globalAdjustments,
       date,
       currency: currency ?? "USD",
@@ -252,13 +253,13 @@ export const save = mutation({
     const resolved = await resolveExpenseMembers(ctx, existing);
     const roundingOrder = resolved.people.map(person => person.id) as Id<"tabMembers">[];
     const normalized = withNormalizedNote(state);
-    await assertExpenseMembers(ctx, { ...normalized, tabId: existing.tabId });
+    await assertExpenseMembers(ctx, { ...normalized, tabId: existing.tabId, payerId: state.payerId });
     if (existing) {
       await deleteImageIfUnused(ctx, existing.image?.storageId, state.image?.storageId);
       // `image` is spelled out so the key is always present: the client omits
       // it when there's no image, and only a present-but-undefined field
       // removes an image already on the doc.
-      await ctx.db.patch(existing._id, { ...normalized, memberReferencesVersion: 1, roundingOrder, image: state.image, globalAdjustments: state.globalAdjustments, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { ...normalized, payerId: state.payerId as Id<"tabMembers">, memberReferencesVersion: 1, roundingOrder, image: state.image, globalAdjustments: state.globalAdjustments, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
     }
     return null;
   },

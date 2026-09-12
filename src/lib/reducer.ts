@@ -6,6 +6,7 @@ export type Action =
   | { type: "SET_MODE"; mode: ExpenseMode }
   | { type: "SET_DATE"; date: string }
   | { type: "SET_CURRENCY"; currency: string }
+  | { type: "SET_PAYER"; payerId: string | undefined }
   | { type: "SET_NOTE"; note: string }
   | { type: "SET_IMAGE"; image: ExpenseImage | null }
   | { type: "ADD_ITEM"; item: ExpenseItem }
@@ -59,6 +60,8 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       return { ...state, date: action.date };
     case "SET_CURRENCY":
       return { ...state, currency: action.currency };
+    case "SET_PAYER":
+      return { ...state, payerId: state.people.some(person => person.id === action.payerId) ? action.payerId : undefined };
     case "SET_NOTE": {
       // A blank note is no note at all - drop the field entirely so adding,
       // updating and deleting a note are all this one action.
@@ -89,6 +92,7 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       return {
         ...state,
         people,
+        payerId: state.payerId === action.id ? undefined : state.payerId,
         items: state.items.map((item) => {
           const splitWith = item.splitWith.filter((id) => id !== action.id);
           return { ...item, splitWith: splitWith.length > 0 ? splitWith : remainingIds };

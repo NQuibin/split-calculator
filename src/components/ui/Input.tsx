@@ -19,6 +19,10 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return <textarea data-slot="textarea" className={cn(fieldClass, "resize-y", className)} {...props} />;
 }
 
+export function Select({ className, ...props }: ComponentProps<"select">) {
+  return <select data-slot="select" className={cn(fieldClass, className)} {...props} />;
+}
+
 /** A field label. Pair with the control's id, or wrap the control. */
 export function Label({ className, ...props }: ComponentProps<"label">) {
   return (

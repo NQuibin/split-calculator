@@ -230,6 +230,8 @@ function ExpenseEditor() {
           cancelLabel={stored ? "Close" : "Cancel"}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
           people={state.people}
+          payerId={state.payerId}
+          onSetPayer={payerId => dispatch({ type: "SET_PAYER", payerId })}
           viewerId={viewer?._id}
           anonymousPersonIds={anonymousPersonIds}
           inTab={!!destinedTab}
@@ -261,6 +263,8 @@ function ExpenseEditor() {
       {state.stage === "results" && (
         <StageResults
           people={state.people}
+          payerId={state.payerId}
+          date={state.date}
           items={state.items}
           globalAdjustments={state.globalAdjustments}
           currency={state.currency}

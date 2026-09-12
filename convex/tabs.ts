@@ -201,6 +201,9 @@ export const deleteTab = mutation({
         const expense = await resolveExpenseMembers(ctx, raw);
       await deleteExpenseDoc(ctx, expense);
     }
+    const settlements = await ctx.db.query("settlements").withIndex("by_tabId", q => q.eq("tabId", tab._id)).take(501);
+    if (settlements.length > 500) throw new Error("This tab needs a batched payment deletion before it can be removed");
+    for (const settlement of settlements) await ctx.db.delete(settlement._id);
 
     for (const seat of await tabSeats(ctx, tab._id)) {
       await ctx.db.delete(seat._id);
@@ -260,7 +263,13 @@ export const removeMember = mutation({
       if (expense.items.some(item => item.splitWith.includes(memberId))) {
         throw new Error("This person is used by an expense and cannot be removed");
       }
+      if (expense.payerId === removed._id) throw new Error("This person is a payer and cannot be removed");
     }
+    const [sent, received] = await Promise.all([
+      ctx.db.query("settlements").withIndex("by_tabId_and_fromMemberId", q => q.eq("tabId", tab._id).eq("fromMemberId", removed._id)).first(),
+      ctx.db.query("settlements").withIndex("by_tabId_and_toMemberId", q => q.eq("tabId", tab._id).eq("toMemberId", removed._id)).first(),
+    ]);
+    if (sent || received) throw new Error("This person is referenced by a settlement and cannot be removed");
     await ctx.db.delete(removed._id);
     await ctx.db.patch(tab._id, { updatedAt: Date.now() });
   },
@@ -521,7 +530,8 @@ export const createExpense = mutation({
     const remapId = (id: string) => idRemap.get(id) ?? id;
 
     const items = expense.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
-    await assertExpenseMembers(ctx, { tabId: tab._id, items });
+    const payerId = state.payerId ? remapId(state.payerId) : undefined;
+    await assertExpenseMembers(ctx, { tabId: tab._id, items, payerId });
     const roundingOrder = expense.people.map(person => remapId(person.id))
       .filter(id => seatsById.has(id)) as Id<"tabMembers">[];
 
@@ -530,7 +540,7 @@ export const createExpense = mutation({
     // in `tabMembers` are the source of truth, and `roundingOrder` above is
     // the only thing the doc keeps from it.
     delete (data as { people?: unknown }).people;
-    await ctx.db.insert("expenses", { ...data, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, items, updatedAt: Date.now() });
+    await ctx.db.insert("expenses", { ...data, payerId: payerId as Id<"tabMembers">, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, items, updatedAt: Date.now() });
     return null;
   },
 });
@@ -554,7 +564,7 @@ export const setExpenseExchangeRate = mutation({
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), globalAdjustments: v.optional(expenseAdjustments), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), createdAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), payerId: v.optional(v.id("tabMembers")), globalAdjustments: v.optional(expenseAdjustments), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), createdAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
   handler: async (ctx, { slug }) => {
     const viewable = await viewableTab(ctx, slug);
     if (!viewable) return [];
@@ -577,7 +587,7 @@ export const expensesForTab = query({
       .flatMap(seat => seat.userId ? [[seat.userId as string, seat._id as string] as const] : []));
     const resolvedExpenses = await Promise.all(expenses.map(doc => resolveExpenseMembers(ctx, doc)));
     return (await Promise.all(resolvedExpenses
-  .map(async ({ slug, name, mode, note, image, people, items, globalAdjustments, currency, exchangeRate, _creationTime, date, userId }) => ({
+  .map(async ({ slug, name, mode, note, image, people, items, payerId, globalAdjustments, currency, exchangeRate, _creationTime, date, userId }) => ({
         slug,
         name,
     mode,
@@ -585,6 +595,7 @@ export const expensesForTab = query({
         image: image ? { name: image.name, type: image.type, url: await ctx.storage.getUrl(image.storageId) } : undefined,
         people,
         items,
+        payerId,
         globalAdjustments,
         currency: currency ?? "USD",
         exchangeRate: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD"),

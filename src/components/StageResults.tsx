@@ -14,9 +14,10 @@ import {
   StickyNote,
 } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { Button } from "@/components/ui/Button";
 import { computeSplit } from "@/lib/calculations";
-import { currency } from "@/lib/format";
+import { currency, isUpcoming } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
 import type { Person, ExpenseImage, ExpenseItem } from "@/lib/types";
 import { PageDescription, PageTitle } from "@/components/ui/Typography";
@@ -114,6 +115,8 @@ function DisclosureLine({
 
 interface StageResultsProps {
   people: Person[];
+  payerId?: string;
+  date?: string;
   items: ExpenseItem[];
   globalAdjustments?: import("@/lib/types").ExpenseAdjustments;
   currency: string;
@@ -129,6 +132,8 @@ interface StageResultsProps {
 
 export function StageResults({
   people,
+  payerId,
+  date,
   items,
   globalAdjustments,
   currency: currencyCode,
@@ -145,7 +150,7 @@ export function StageResults({
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, items, globalAdjustments, currency: currencyCode });
+    const payload = encodeSharePayload({ slug: shareSlug, people, payerId, date, items, globalAdjustments, currency: currencyCode });
     const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
@@ -156,7 +161,7 @@ export function StageResults({
     <div className="w-full">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <PageTitle>Here&rsquo;s who owes what</PageTitle>
+          <PageTitle>Here&rsquo;s the split</PageTitle>
           <PageDescription>Every person&rsquo;s share, line by line.</PageDescription>
         </div>
         {!isOwner && (
@@ -233,12 +238,14 @@ export function StageResults({
         </AnimatePresence>
       </div>
 
+      {payerId && <div className="mb-5"><ExpenseBalances people={people} split={result} payerId={payerId} currency={currencyCode} projected={isUpcoming(date)} unallocated={items.some(item => item.splitWith.length === 0)} /></div>}
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {result.people.map((person) => (
           <div key={person.personId} className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
             <p className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold tracking-wide text-ink-soft uppercase">
               <MemberAvatar id={person.personId} name={person.name} size="sm" />
-              <span className="truncate">{person.name} owes</span>
+              <span className="truncate">{person.name}&rsquo;s share</span>
             </p>
             <p className="font-numeric mt-2 text-3xl font-medium text-ink">
               {currency(person.total, currencyCode)}
