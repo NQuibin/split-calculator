@@ -9,7 +9,6 @@ import {
   Calendar,
   Check,
   ChevronDown,
-  HatGlasses,
   ListChecks,
   Loader2,
   Pencil,
@@ -58,7 +57,6 @@ interface StageExpenseProps {
   people: Person[];
   /** The signed-in user's own id, if any - their person row is tied to their real account name, so it's locked from renaming here just like a claimed tab member. */
   viewerId?: string;
-  anonymousPersonIds?: string[];
   inTab?: boolean;
   mode: ExpenseMode;
   items: ExpenseItem[];
@@ -103,7 +101,6 @@ export function StageExpense({
   onRenameExpense,
   people,
   viewerId,
-  anonymousPersonIds = [],
   inTab = false,
   mode,
   items,
@@ -384,7 +381,6 @@ export function StageExpense({
                   <PersonRow
                     key={person.id}
                     person={person}
-                    anonymous={anonymousPersonIds.includes(person.id)}
                     locked={person.id === viewerId}
                     removable={people.length > 1}
                     onRemove={() => handleRemovePerson(person.id)}
@@ -453,7 +449,6 @@ export function StageExpense({
             name={person.name}
             selected={splitWith.includes(person.id)}
             onToggle={() => togglePerson(person.id)}
-            anonymous={anonymousPersonIds.includes(person.id)}
           />
         ))}
         </div>
@@ -505,7 +500,6 @@ export function StageExpense({
             peopleManagement={peopleManagement}
             currencyCode={currencyCode}
             people={people}
-            anonymousPersonIds={anonymousPersonIds}
             item={items[0]}
             split={totals}
             onSave={(item) => (items[0] ? onUpdateItem(item) : onAddItem(item))}
@@ -732,7 +726,6 @@ function SimpleTotalForm({
   peopleManagement,
   currencyCode,
   people,
-  anonymousPersonIds,
   item,
   split,
   onSave,
@@ -749,7 +742,6 @@ function SimpleTotalForm({
   onCancel?: () => void;
   cancelLabel?: string;
   people: Person[];
-  anonymousPersonIds: string[];
   item?: ExpenseItem;
   split: ReturnType<typeof computeSplit>;
   onSave: (item: ExpenseItem) => void;
@@ -820,7 +812,6 @@ function SimpleTotalForm({
               name={p.name}
               selected={splitWith.includes(p.id)}
               onToggle={() => toggleSplitWith(p.id)}
-              anonymous={anonymousPersonIds.includes(p.id)}
               endContent={<span className="font-numeric shrink-0">{splitWith.includes(p.id) ? currency(split.people.find((row) => row.personId === p.id)?.total ?? 0, currencyCode) : "—"}</span>}
             />
           ))}
@@ -897,14 +888,12 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
 
 function PersonRow({
   person,
-  anonymous,
   locked = false,
   removable = false,
   onRemove,
   onRename,
 }: {
   person: Person;
-  anonymous: boolean;
   locked?: boolean;
   removable?: boolean;
   onRemove: () => void;
@@ -942,16 +931,7 @@ function PersonRow({
 
   return (
     <li className="flex max-w-full items-center justify-between gap-2 rounded-full border border-rule bg-paper px-4 py-2">
-      <span className="flex items-center gap-1.5 truncate text-ink">
-        {person.name}
-        {anonymous && (
-          <HatGlasses
-            className="h-3.5 w-3.5 shrink-0 text-ink-soft"
-            strokeWidth={2.25}
-            aria-label="Anonymous member"
-          />
-        )}
-      </span>
+      <span className="truncate text-ink">{person.name}</span>
       {!locked && (
         <Button
           type="button"

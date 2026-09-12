@@ -69,6 +69,4 @@ export interface ExpenseState {
   tabId?: string;
   /** Resolved tab name/slug, present (when set) on a single `expenses.get` result - for rendering a "part of {tab}" link. */
   tab?: { slug: string; name: string } | null;
-  /** Ids of people linked to a still-anonymous tab member, present on a single `expenses.get` result. */
-  anonymousPersonIds?: string[];
 }

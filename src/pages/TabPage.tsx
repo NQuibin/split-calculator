@@ -13,7 +13,6 @@ import {
   Search,
   X,
   Coins,
-  HatGlasses,
   Link2,
   Pencil,
   Plus,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 import { TabBreakdown } from "@/components/TabBreakdown";
 import { Button } from "@/components/ui/Button";
+import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Input } from "@/components/ui/Input";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -356,16 +356,22 @@ function Roster({ slug, isOwner, members }: {
         {members.map(member => {
           const invite = inviteLinks.find(link => link.memberId === member.id);
           return <li key={member.id} className="rounded-lg border border-rule/70 p-3">
+            {/* Name, badge and invite link share one column so the action
+                group centres against the whole block, not just the name row. */}
             <div className="flex items-center gap-3">
               <MemberAvatar id={member.id} name={member.name} size="lg" />
-              <span className="min-w-0 flex-1 break-words text-sm font-medium">{member.name}</span>
-              {!member.claimed && <HatGlasses className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
+              <div className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 break-words text-sm font-medium">{member.name}</span>
+                  {!member.claimed && <AnonymousBadge />}
+                </span>
+                {isOwner && !member.claimed && invite && <Button type="button" variant="link" size="xs" onClick={() => void copyInvite(member.id, invite.token)} className="mt-2 h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline">{copiedId === member.id ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}{copiedId === member.id ? "Copied" : "Copy invite"}</Button>}
+              </div>
               {isOwner && <div className="flex shrink-0 items-center">
-                <Button type="button" variant="ghost" size="icon-touch" disabled={pending} aria-label={`Edit ${member.name}`} onClick={() => { resetForm(); setEditingId(member.id); setName(member.name); }} className="text-ink-soft hover:text-forest"><Pencil className="h-4 w-4" /></Button>
-                <Button type="button" variant="ghost" size="icon-touch" disabled={pending} aria-label={`Remove ${member.name}`} onClick={() => { resetForm(); setRemovingId(member.id); }} className="text-ink-soft hover:text-margin-red-ink"><Trash2 className="h-4 w-4" /></Button>
+                <Button type="button" variant="quiet-icon" size="icon-touch" disabled={pending} aria-label={`Edit ${member.name}`} onClick={() => { resetForm(); setEditingId(member.id); setName(member.name); }}><Pencil className="h-4 w-4" /></Button>
+                <Button type="button" variant="destructive-icon" size="icon-touch" disabled={pending} aria-label={`Remove ${member.name}`} onClick={() => { resetForm(); setRemovingId(member.id); }}><Trash2 className="h-4 w-4" /></Button>
               </div>}
             </div>
-            {isOwner && !member.claimed && invite && <Button type="button" variant="link" size="xs" onClick={() => void copyInvite(member.id, invite.token)} className="mt-2 h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline">{copiedId === member.id ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}{copiedId === member.id ? "Copied" : "Copy invite"}</Button>}
             {isOwner && editingId === member.id && memberForm}
             {isOwner && removingId === member.id && <div className="mt-3 text-sm"><p>Remove {member.name} from this tab?</p><div className="mt-2 flex gap-3"><Button type="button" variant="link" size="xs" disabled={pending} onClick={() => void handleRemove(member.id)} className="h-auto px-0 text-sm font-semibold text-margin-red-ink no-underline">{pending ? "Removing…" : "Remove member"}</Button><Button type="button" variant="link" size="xs" disabled={pending} onClick={resetForm} className="h-auto px-0 text-sm text-ink-soft no-underline">Cancel</Button></div></div>}
           </li>;

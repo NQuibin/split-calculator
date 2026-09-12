@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check, HatGlasses } from "lucide-react";
+import { Check } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 
 interface MemberSelectionRowProps {
@@ -7,7 +7,6 @@ interface MemberSelectionRowProps {
   name: string;
   selected: boolean;
   onToggle: () => void;
-  anonymous?: boolean;
   endContent?: ReactNode;
 }
 
@@ -17,7 +16,6 @@ export function MemberSelectionRow({
   name,
   selected,
   onToggle,
-  anonymous = false,
   endContent,
 }: MemberSelectionRowProps) {
   return (
@@ -26,10 +24,7 @@ export function MemberSelectionRow({
     >
       <input type="checkbox" checked={selected} onChange={onToggle} className="sr-only" />
       <MemberAvatar id={id} name={name} />
-      <span className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="min-w-0 break-words">{name}</span>
-        {anonymous && <HatGlasses className="h-4 w-4 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
-      </span>
+      <span className="min-w-0 flex-1 break-words">{name}</span>
       {endContent}
       <span
         aria-hidden="true"

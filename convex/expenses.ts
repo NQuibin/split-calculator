@@ -1,7 +1,7 @@
 import { resolveExpenseMembers, assertExpenseMembers } from "./expenseMembers";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { listTabsForUser, tabSeats } from "./tabs";
+import { listTabsForUser } from "./tabs";
 import { computeSplit, round2 } from "../src/lib/calculations";
 import { mutation, query } from "./_generated/server";
 import { expenseState, person } from "./schema";
@@ -215,9 +215,6 @@ export const get = query({
       await resolveExpenseMembers(ctx, doc);
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
-    const seats = tab ? await tabSeats(ctx, tab._id) : [];
-    const anonymousPersonIds = seats.filter(s => !s.userId).map(s => s._id);
-
     return {
       stage: "receipt" as const,
       name,
@@ -232,7 +229,6 @@ export const get = query({
       // The stored file is only reachable through a signed URL, minted per read.
       image: image ? { ...image, url: await ctx.storage.getUrl(image.storageId) } : undefined,
       tab: tab ? { slug: tab.slug, name: tab.name } : null,
-      anonymousPersonIds,
 
     };
   },

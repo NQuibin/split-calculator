@@ -1,13 +1,12 @@
-import { Check, HatGlasses } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface PersonChipProps {
   name: string;
   selected: boolean;
   onToggle: () => void;
-  anonymous?: boolean;
 }
 
-export function PersonChip({ name, selected, onToggle, anonymous = false }: PersonChipProps) {
+export function PersonChip({ name, selected, onToggle }: PersonChipProps) {
   return (
     <button
       type="button"
@@ -21,9 +20,6 @@ export function PersonChip({ name, selected, onToggle, anonymous = false }: Pers
     >
       {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
       {name}
-      {anonymous && (
-        <HatGlasses className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-label="Anonymous member" />
-      )}
     </button>
   );
 }

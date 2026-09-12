@@ -4,7 +4,7 @@ import { useConvexAuth } from "convex/react";
 import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import type { FunctionReturnType } from "convex/server";
-import { ChevronDown, ChevronRight, HatGlasses, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
@@ -16,6 +16,7 @@ import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { EmptyState, Page } from "@/components/ui/Page";
 import { Button } from "@/components/ui/Button";
+import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 
 function Directory({ title, description, action, children }: { title: string; description: string; action?: ReactNode; children: ReactNode }) {
@@ -150,9 +151,7 @@ function FriendRow({ id, name, claimed, tabs }: { id: string; name: string; clai
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <SectionTitle>{name}</SectionTitle>
-          {!claimed && <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs font-medium text-ink-soft">
-            <HatGlasses aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />Anonymous
-          </span>}
+          {!claimed && <AnonymousBadge />}
         </div>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>

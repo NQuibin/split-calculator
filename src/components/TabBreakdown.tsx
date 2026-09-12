@@ -3,7 +3,7 @@ import { filterSpendSummary } from "@/lib/filterSpendSummary";
 import type { TabExpenseSummary } from "@/lib/tabSync";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, HatGlasses, Scale } from "lucide-react";
+import { ChevronRight, Scale } from "lucide-react";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency } from "@/lib/format";
@@ -53,7 +53,6 @@ export function TabBreakdown({ tabSlug, currencies: allCurrencies, members, expe
                     <span className="flex items-center gap-3">
                       <MemberAvatar id={member.id} name={member.name} />
                       <span className="break-words">{member.name}{member.id === viewerMemberId && <span className="text-ink-soft"> (you)</span>}</span>
-                      {!member.claimed && <HatGlasses className="h-3.5 w-3.5 shrink-0 text-ink-soft" aria-label="Anonymous member" />}
                     </span>
                   </th>
                   {visibleCurrencies.map(item => {

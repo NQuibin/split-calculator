@@ -1,6 +1,5 @@
 import { Tabs } from "@base-ui/react/tabs";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { HatGlasses } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency, parseISODate } from "@/lib/format";
 import { useTab, useTabBreakdown, type TabBreakdownMember, type TabCurrencyBreakdown } from "@/lib/tabSync";
@@ -72,10 +71,7 @@ function MemberBreakdown({ member, currencyCode }: { member: TabBreakdownMember;
         <div className="flex min-w-0 items-center gap-3">
           <MemberAvatar id={member.memberId} name={member.name} size="lg" />
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <SectionTitle>{member.name}</SectionTitle>
-              {!member.claimed && <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs text-ink-soft"><HatGlasses aria-hidden="true" className="h-3.5 w-3.5" />Anonymous</span>}
-            </div>
+            <SectionTitle>{member.name}</SectionTitle>
             <p className="mt-1 text-xs text-ink-soft">{member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"}</p>
           </div>
         </div>

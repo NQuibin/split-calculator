@@ -78,7 +78,7 @@ function ExpenseEditor() {
   // The live roster can change while this expense has unsaved edits. Refresh
   // available people without selecting new members or replacing those edits.
   const baseState = workingState && stored?.tab
-    ? { ...workingState, people: stored.people, anonymousPersonIds: stored.anonymousPersonIds }
+    ? { ...workingState, people: stored.people }
     : workingState;
 
   const uploadImage = useUploadExpenseImage();
@@ -129,10 +129,6 @@ function ExpenseEditor() {
 
 
   const destinedTab = state.tab ?? tabDraft;
-  const anonymousPersonIds = state.anonymousPersonIds
-    ?? tabDraft?.members.filter((member) => !member.claimed).map((member) => member.id)
-    ?? [];
-
   // Compare only persisted data; switching editor/results is local UI state.
   const savedShape = (value: ExpenseState) => JSON.stringify(toExpenseStateArgs(value));
   const dirty = pendingReceipt !== null || (stored !== null && savedShape(state) !== savedShape(stored));
@@ -233,7 +229,6 @@ function ExpenseEditor() {
           payerId={state.payerId}
           onSetPayer={payerId => dispatch({ type: "SET_PAYER", payerId })}
           viewerId={viewer?._id}
-          anonymousPersonIds={anonymousPersonIds}
           inTab={!!destinedTab}
           mode={state.mode}
           items={state.items}
