@@ -1103,10 +1103,11 @@ function ExpenseList({
             </div>
             <footer className="shrink-0 border-t border-rule/70 bg-surface px-5 py-4 sm:px-6">
               {isOwner && (
-                <div className="flex flex-wrap gap-2">
+                <div className="grid w-full gap-3 sm:flex sm:justify-end">
                   <Button
                     variant="outline"
                     size="touch"
+                    className="w-full sm:w-auto"
                     render={<Link to="/e/$slug" params={{ slug: selected.slug }} />}
                   >
                     <Pencil className="h-4 w-4" />
@@ -1116,6 +1117,7 @@ function ExpenseList({
                     type="button"
                     variant="destructive"
                     size="touch"
+                    className="w-full sm:w-auto"
                     onClick={() => setDeletingSlug(selected.slug)}
                   >
                     <Trash2 className="h-4 w-4" />
