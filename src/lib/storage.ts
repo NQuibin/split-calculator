@@ -2,7 +2,7 @@ import { DEFAULT_CURRENCY } from "./currencies";
 import { todayISODate } from "./format";
 import type { ExpenseState } from "./types";
 
-const PREFIX = "sumshare:expense:";
+const PREFIX = "ventura:expense:";
 
 type Listener = () => void;
 
@@ -15,7 +15,6 @@ const listeners = new Map<string, Set<Listener>>();
 const listListeners = new Set<Listener>();
 const cache = new Map<string, { raw: string | null; parsed: ExpenseState | null }>();
 let listCache: { raw: string; result: StoredExpense[] } | null = null;
-const EMPTY_LIST: StoredExpense[] = [];
 
 function parse(raw: string | null): ExpenseState | null {
   if (!raw) return null;
@@ -44,10 +43,6 @@ export function getExpenseSnapshot(slug: string): ExpenseState | null {
   const parsed = parse(raw);
   cache.set(slug, { raw, parsed });
   return parsed;
-}
-
-export function getExpenseServerSnapshot(): null {
-  return null;
 }
 
 export function subscribeExpense(slug: string, callback: Listener): () => void {
@@ -84,10 +79,6 @@ export function getExpenseListSnapshot(): StoredExpense[] {
 
   listCache = { raw, result };
   return result;
-}
-
-export function getExpenseListServerSnapshot(): StoredExpense[] {
-  return EMPTY_LIST;
 }
 
 export function subscribeExpenseList(callback: Listener): () => void {

@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as FriendsRouteImport } from './routes/friends'
-import { Route as PeopleRouteImport } from './routes/people'
 import { Route as SRouteImport } from './routes/s'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TabsRouteImport } from './routes/tabs'
@@ -33,11 +32,6 @@ const ExpensesRoute = ExpensesRouteImport.update({
 const FriendsRoute = FriendsRouteImport.update({
   id: '/friends',
   path: '/friends',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PeopleRoute = PeopleRouteImport.update({
-  id: '/people',
-  path: '/people',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SRoute = SRouteImport.update({
@@ -75,7 +69,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/expenses': typeof ExpensesRoute
   '/friends': typeof FriendsRoute
-  '/people': typeof PeopleRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
@@ -87,7 +80,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/expenses': typeof ExpensesRoute
   '/friends': typeof FriendsRoute
-  '/people': typeof PeopleRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
@@ -100,7 +92,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/expenses': typeof ExpensesRoute
   '/friends': typeof FriendsRoute
-  '/people': typeof PeopleRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
@@ -114,7 +105,6 @@ export interface FileRouteTypes {
     | '/'
     | '/expenses'
     | '/friends'
-    | '/people'
     | '/s'
     | '/settings'
     | '/tabs'
@@ -126,7 +116,6 @@ export interface FileRouteTypes {
     | '/'
     | '/expenses'
     | '/friends'
-    | '/people'
     | '/s'
     | '/settings'
     | '/tabs'
@@ -138,7 +127,6 @@ export interface FileRouteTypes {
     | '/'
     | '/expenses'
     | '/friends'
-    | '/people'
     | '/s'
     | '/settings'
     | '/tabs'
@@ -151,7 +139,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExpensesRoute: typeof ExpensesRoute
   FriendsRoute: typeof FriendsRoute
-  PeopleRoute: typeof PeopleRoute
   SRoute: typeof SRoute
   SettingsRoute: typeof SettingsRoute
   TabsRoute: typeof TabsRoute
@@ -181,13 +168,6 @@ declare module '@tanstack/react-router' {
       path: '/friends'
       fullPath: '/friends'
       preLoaderRoute: typeof FriendsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/people': {
-      id: '/people'
-      path: '/people'
-      fullPath: '/people'
-      preLoaderRoute: typeof PeopleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s': {
@@ -239,7 +219,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExpensesRoute: ExpensesRoute,
   FriendsRoute: FriendsRoute,
-  PeopleRoute: PeopleRoute,
   SRoute: SRoute,
   SettingsRoute: SettingsRoute,
   TabsRoute: TabsRoute,

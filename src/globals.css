@@ -2,10 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* next/font used to declare these on <html>; the faces themselves are now
-   self-hosted from @fontsource (imported in main.tsx), so the variables have
-   to be defined here instead. Names and fallbacks are unchanged, so every
-   `font-display` / `font-numeric` / body rule below still resolves. */
+/* The faces are self-hosted from @fontsource (imported in main.tsx), so the
+   variables every `font-display` / `font-numeric` / body rule below resolves
+   through are declared here. */
 :root {
   --font-space-grotesk: "Space Grotesk Variable";
   --font-plex-sans: "IBM Plex Sans";

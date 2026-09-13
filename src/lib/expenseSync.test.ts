@@ -1,7 +1,6 @@
-// @vitest-environment node
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// @vitest-environment happy-dom
 import { afterEach, expect, test, vi } from "vitest";
+import { renderHook } from "@/test/render";
 import { toExpenseStateArgs, useExpenseActions, useExpenseList } from "./expenseSync";
 
 const mocks = vi.hoisted(() => ({
@@ -18,17 +17,10 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("./storage", () => ({
   saveExpense: mocks.save, deleteExpense: mocks.remove,
-  getExpenseListServerSnapshot: () => mocks.local,
   getExpenseListSnapshot: () => mocks.local,
   subscribeExpenseList: () => () => {},
 }));
 afterEach(() => { vi.clearAllMocks(); mocks.auth = { isAuthenticated: false, isLoading: false }; mocks.remote = undefined; });
-function renderHook<T>(hook: () => T): T {
-  let result: T;
-  function Probe() { result = hook(); return null; }
-  renderToStaticMarkup(createElement(Probe));
-  return result!;
-}
 const state = { stage: "receipt" as const, name: "Dinner", people: [], mode: "simple" as const, items: [], date: "2026-09-07", currency: "USD" };
 
 test("guest writes and deletes stay local", async () => {

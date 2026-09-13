@@ -1,7 +1,7 @@
-// @vitest-environment node
+// @vitest-environment happy-dom
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, test, vi } from "vitest";
+import { renderMarkup } from "@/test/render";
 
 const mocks = vi.hoisted(() => ({ remote: undefined as unknown, mutation: vi.fn() }));
 vi.mock("convex/react", () => ({ useQuery: () => mocks.remote, useMutation: () => mocks.mutation }));
@@ -20,7 +20,7 @@ const viewerData: SettlementSummaryData = {
 };
 
 test("renders each viewer currency once with its own balance", () => {
-  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: viewerData }));
+  const markup = renderMarkup(createElement(SettlementSummary, { data: viewerData }));
   expect(markup).toContain("CAD");
   expect(markup).toContain("Gets ");
   expect(markup).toContain("USD");
@@ -30,7 +30,7 @@ test("renders each viewer currency once with its own balance", () => {
 });
 
 test("centers mixed settled and outstanding currency summaries", () => {
-  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
+  const markup = renderMarkup(createElement(SettlementSummary, { data: {
     ...viewerData,
     currencies: [
       { currency: "CAD", members: [{ memberId: "alex", name: "Alex", balance: 0 }] },
@@ -47,7 +47,7 @@ test("centers mixed settled and outstanding currency summaries", () => {
 });
 
 test("shows every member while putting the viewer first", () => {
-  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
+  const markup = renderMarkup(createElement(SettlementSummary, { data: {
     viewerMemberId: "alex",
     missingPayers: [],
     currencies: [{
@@ -68,7 +68,7 @@ test("shows every member while putting the viewer first", () => {
 });
 
 test("renders all members in table rows and currency columns", () => {
-  const markup = renderToStaticMarkup(createElement(SettlementSummary, { data: {
+  const markup = renderMarkup(createElement(SettlementSummary, { data: {
     viewerMemberId: "alex",
     missingPayers: [],
     currencies: [
@@ -83,8 +83,8 @@ test("renders all members in table rows and currency columns", () => {
 });
 
 test("shows incomplete, empty, viewer-free, and loading settlement states", () => {
-  expect(renderToStaticMarkup(createElement(SettlementSummary, { data: { ...viewerData, missingPayers: [{ slug: "dinner", name: "Dinner" }] } }))).toContain("Balances incomplete: payer needed");
-  expect(renderToStaticMarkup(createElement(SettlementSummary, { data: { ...viewerData, viewerMemberId: null } }))).toContain("View balances and payments");
-  expect(renderToStaticMarkup(createElement(SettlementSummary, { data: { ...viewerData, currencies: [] } }))).toContain("No outstanding balances.");
-  expect(renderToStaticMarkup(createElement(TabSettlement, { slug: "trip", members: [], isOwner: false }))).toContain("Loading settlement balances…");
+  expect(renderMarkup(createElement(SettlementSummary, { data: { ...viewerData, missingPayers: [{ slug: "dinner", name: "Dinner" }] } }))).toContain("Balances incomplete: payer needed");
+  expect(renderMarkup(createElement(SettlementSummary, { data: { ...viewerData, viewerMemberId: null } }))).toContain("View balances and payments");
+  expect(renderMarkup(createElement(SettlementSummary, { data: { ...viewerData, currencies: [] } }))).toContain("No outstanding balances.");
+  expect(renderMarkup(createElement(TabSettlement, { slug: "trip", members: [], isOwner: false }))).toContain("Loading settlement balances…");
 });

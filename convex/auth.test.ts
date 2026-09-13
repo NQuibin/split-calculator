@@ -69,7 +69,7 @@ test("OTP bypass requires explicit server opt-in and a loopback site URL", () =>
     vi.stubEnv("SITE_URL", url);
     expect(skipOtpForLocalDevelopment()).toBe(true);
   }
-  for (const url of ["https://sumshare.app", "https://localhost.evil.com", "", "invalid"]) {
+  for (const url of ["https://ventura.app", "https://localhost.evil.com", "", "invalid"]) {
     vi.stubEnv("SITE_URL", url);
     expect(skipOtpForLocalDevelopment()).toBe(false);
   }

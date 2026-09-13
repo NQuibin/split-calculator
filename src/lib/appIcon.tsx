@@ -1,5 +1,5 @@
-// Renders the same calculator glyph as public/icon.svg, for use with
-// next/og's ImageResponse (satori) in the PWA icon routes and apple-icon.
+// Renders the same calculator glyph as public/icon.svg, for the PWA and
+// Apple icons that scripts/build-icons.tsx bakes out through satori.
 // Satori lays out with flexbox only, so every box needs display:"flex".
 
 const INK = "#1e2a22";

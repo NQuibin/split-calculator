@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
 import { Trash2 } from "lucide-react";
@@ -16,14 +16,6 @@ import { useExpenseActions, useStoredExpense, useUploadExpenseImage, toExpenseSt
 import type { ExpenseState } from "@/lib/types";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { Page } from "@/components/ui/Page";
-
-function useHasHydrated(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-}
 
 const route = getRouteApi("/e/$slug");
 
@@ -54,7 +46,6 @@ function ExpenseEditor() {
   const { save, remove } = useExpenseActions();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const hasHydrated = useHasHydrated();
   const [isNavigating, startNavigation] = useTransition();
 
   // Nothing is persisted until the expense is explicitly finalized - "Save
@@ -95,8 +86,8 @@ function ExpenseEditor() {
     : baseState && isAuthenticated && !stored ? withTabPeople(baseState, []) : baseState;
 
   useEffect(() => {
-    if (hasHydrated && !loading && state === null) void navigate({ to: "/expenses", replace: true });
-  }, [hasHydrated, loading, state, navigate]);
+    if (!loading && state === null) void navigate({ to: "/expenses", replace: true });
+  }, [loading, state, navigate]);
 
   // A brand-new expense's starting currency defaults to its destination
   // tab's default currency, falling back to the user's preference, then USD.
@@ -120,7 +111,7 @@ function ExpenseEditor() {
     }
   }, [stored, tabSlug, tab, viewer]);
 
-  if (!hasHydrated || loading || !state) return <Page><p role="status" className="text-sm text-ink-soft">Loading expense…</p></Page>;
+  if (loading || !state) return <Page><p role="status" className="text-sm text-ink-soft">Loading expense…</p></Page>;
 
   function dispatch(action: Action) {
     if (!state) return;

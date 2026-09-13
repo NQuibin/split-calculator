@@ -1,6 +1,6 @@
 {
-  "name": "SumShare",
-  "short_name": "SumShare",
+  "name": "Ventura",
+  "short_name": "Ventura",
   "description": "Itemize any expense — restaurant, grocery, or service — and split it fairly.",
   "start_url": "/projects/split-calculator",
   "scope": "/projects/split-calculator/",

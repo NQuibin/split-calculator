@@ -6,9 +6,7 @@ import { isAcceptedImageType, MAX_IMAGE_BYTES } from "../../convex/imageFormats"
 import { DEFAULT_CURRENCY } from "./currencies";
 import {
   deleteExpense,
-  getExpenseListServerSnapshot,
   getExpenseListSnapshot,
-  getExpenseServerSnapshot,
   getExpenseSnapshot,
   saveExpense,
   subscribeExpense,
@@ -133,11 +131,7 @@ function imageArg(image: ExpenseImage | undefined): { image?: ExpenseStateArgs["
 
 export function useExpenseList(): StoredExpense[] {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const localList = useSyncExternalStore(
-    subscribeExpenseList,
-    getExpenseListSnapshot,
-    getExpenseListServerSnapshot,
-  );
+  const localList = useSyncExternalStore(subscribeExpenseList, getExpenseListSnapshot);
   const remoteList = useQuery(api.expenses.list, isAuthenticated ? {} : "skip");
   return isLoading ? [] : isAuthenticated ? remoteList ?? [] : localList;
 }
@@ -145,7 +139,7 @@ export function useExpenseList(): StoredExpense[] {
 export function useStoredExpense(slug: string): { state: ExpenseState | null; loading: boolean } {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const subscribe = useCallback((callback: () => void) => subscribeExpense(slug, callback), [slug]);
-  const localState = useSyncExternalStore(subscribe, () => getExpenseSnapshot(slug), getExpenseServerSnapshot);
+  const localState = useSyncExternalStore(subscribe, () => getExpenseSnapshot(slug));
   // A guest with no local copy of this slug may be following someone else's
   // link, so the backend is still asked - it answers null for a genuinely
   // new expense and throws an access error for one that already has an owner.

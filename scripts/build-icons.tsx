@@ -1,9 +1,7 @@
 // Renders the PWA/Apple icons to static PNGs in public/.
 //
-// Next generated these per-request from `next/og` route handlers
-// (app/apple-icon.tsx, app/pwa-icon-*/route.tsx). Nothing about them varies
-// per request, so a static SPA just bakes them once at build time - satori
-// (which is what next/og wraps) plus resvg do the same job here.
+// Nothing about them varies per request, so they're baked once at build time:
+// satori renders the JSX to SVG and resvg rasterizes it.
 //
 // Run via `pnpm icons`; `pnpm build` runs it first.
 import { writeFileSync } from "node:fs";

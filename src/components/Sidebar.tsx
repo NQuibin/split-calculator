@@ -97,7 +97,7 @@ export function Sidebar() {
           {[
             { label: "Tabs", href: "/tabs", icon: Wallet, active: pathname === "/" || isActive(pathname, "/tabs") || isActive(pathname, "/t") },
             { label: "Expenses", href: "/expenses", icon: ReceiptText, active: isActive(pathname, "/expenses") || isActive(pathname, "/e") },
-            { label: "Friends", href: "/friends", icon: Users, active: isActive(pathname, "/friends") || isActive(pathname, "/people") },
+            { label: "Friends", href: "/friends", icon: Users, active: isActive(pathname, "/friends") },
             { label: "Settings", href: "/settings", icon: Settings, active: isActive(pathname, "/settings") },
           ].map(({ label, href, icon: Icon, active }) => (
             <Link key={href} to={href} aria-current={active ? "page" : undefined}
@@ -123,7 +123,7 @@ function BrandLink() {
       to="/tabs"
       className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 font-display text-lg font-semibold tracking-tight text-brass-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
     >
-      SumShare
+      Ventura
     </Link>
   );
 }

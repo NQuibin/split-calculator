@@ -1,4 +1,4 @@
-# SumShare Design System
+# Ventura Design System
 
 The single source of truth for UI/UX in this app. Read this before writing or
 changing any component, page, or Tailwind class string.
@@ -497,8 +497,7 @@ row look permanently hovered.
 - Card: `rounded-lg border border-rule bg-surface p-4` (or `p-5` for a page-level
   panel).
 - Divided list: `divide-y divide-rule` on the container, not per-row borders.
-- Person chip: `rounded-full border border-rule bg-paper px-4 py-2` — see
-  `src/components/ui/PersonChip.tsx`.
+- Person chip: `rounded-full border border-rule bg-paper px-4 py-2`.
 - Avatars: `MemberAvatar`. Avatar colours are a deliberate placeholder; custom
   avatars are planned, so colour churn on claim is expected and fine.
 
@@ -735,7 +734,7 @@ A design-system primitive owns its own element; wrapping these in `Button`
 would be the wrong abstraction. Keep them, but keep them spec-compliant
 (tokens, focus ring, touch target).
 
-- `ui/Button.tsx`, `ui/MenuOption.tsx`, `ui/PersonChip.tsx`, `ui/RateInput.tsx`
+- `ui/Button.tsx`, `ui/MenuOption.tsx`, `ui/RateInput.tsx`
   (×2, a segmented control) — primitives.
 - Disclosure triggers in `StageExpense.tsx` (×2), `StageResults.tsx` (×2),
   `ExpenseImageField.tsx` — full-width block layout that `Button`'s

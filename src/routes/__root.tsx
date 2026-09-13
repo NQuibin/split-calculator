@@ -3,10 +3,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Footer } from "@/components/Footer";
 import { Sidebar } from "@/components/Sidebar";
 
-// Replaces Next's root layout. The page's <title>, meta, icons and manifest
-// now live in index.html - they never varied per route, so there's nothing
-// left for a router-level head to manage (and nothing to blank out mid
-// navigation, which is what TitleStabilizer used to repair).
+// The page's <title>, meta, icons and manifest live in index.html: none of
+// them vary per route, so there's nothing for a router-level head to manage.
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootLayout,
 });

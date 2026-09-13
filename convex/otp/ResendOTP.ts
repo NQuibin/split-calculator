@@ -35,13 +35,13 @@ function generateCode(): string {
  * verified-domain sender before this reaches real users.
  */
 function senderAddress(): string {
-  return process.env.AUTH_EMAIL ?? "SumShare <onboarding@resend.dev>";
+  return process.env.AUTH_EMAIL ?? "Ventura <onboarding@resend.dev>";
 }
 
 function renderEmail(code: string) {
   // Inline styles and a table shell: email clients strip <style> blocks and
   // have patchy flexbox support. Colours mirror src/globals.css.
-  const text = `Your SumShare sign-in code is ${code}\n\nIt expires in 15 minutes. If you didn't ask for it, you can ignore this email.`;
+  const text = `Your Ventura sign-in code is ${code}\n\nIt expires in 15 minutes. If you didn't ask for it, you can ignore this email.`;
 
   const html = `<!doctype html>
 <html>
@@ -52,7 +52,7 @@ function renderEmail(code: string) {
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:420px;background-color:#f7f5ec;border:1px solid #ccd5bd;border-radius:12px;padding:32px;">
             <tr>
               <td style="font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e2a22;">
-                <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#2f4a3c;">SumShare</p>
+                <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#2f4a3c;">Ventura</p>
                 <p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:#4b5a4f;">Enter this code to finish signing in.</p>
                 <p style="margin:0 0 24px;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:600;letter-spacing:0.32em;color:#1e2a22;background-color:#edf1e4;border:1px solid #ccd5bd;border-radius:8px;padding:16px;text-align:center;">${code}</p>
                 <p style="margin:0;font-size:13px;line-height:1.5;color:#4b5a4f;">It expires in 15 minutes. If you didn't ask for it, you can safely ignore this email.</p>
@@ -88,7 +88,7 @@ export const ResendOTP = Email({
       body: JSON.stringify({
         from: senderAddress(),
         to: [email],
-        subject: `${token} is your SumShare code`,
+        subject: `${token} is your Ventura code`,
         html,
         text,
       }),

@@ -1,4 +1,4 @@
-# SumShare
+# Ventura
 
 Itemize any expense — restaurant, grocery, or service — and split it fairly.
 
