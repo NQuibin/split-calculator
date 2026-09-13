@@ -219,24 +219,24 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
           {claimError}
         </p>
       )}
-      <header className="mb-7 flex flex-wrap items-start justify-between gap-5">
+      <header className="mb-7 grid gap-x-5 gap-y-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div className="min-w-0">
           <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-            <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
-            {tab.isOwner ? (
-              <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} />
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <Coins aria-hidden="true" className="h-3.5 w-3.5 text-brass" strokeWidth={2.25} />
-                Tab currency · {tab.defaultCurrency}
-              </span>
-            )}
-          </div>
         </div>
         {tab.isOwner && (
           <TabOwnerActions slug={slug} members={tab.members} expenseCount={expenses.length} />
         )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft md:col-start-1 md:row-start-2">
+          <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
+          {tab.isOwner ? (
+            <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} />
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <Coins aria-hidden="true" className="h-3.5 w-3.5 text-brass" strokeWidth={2.25} />
+              Tab currency · {tab.defaultCurrency}
+            </span>
+          )}
+        </div>
       </header>
       <TabSettlement slug={slug} members={tab.members} isOwner={tab.isOwner} />
       {hasUpcoming ? (
@@ -309,13 +309,14 @@ function TabDefaultCurrency({ slug, currency: currencyCode }: { slug: string; cu
   const { setDefaultCurrency } = useTabActions();
 
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+    <div className="flex w-full min-w-0 items-center gap-2 text-sm text-ink-soft sm:w-auto">
       <Coins className="h-3.5 w-3.5 shrink-0 text-brass" strokeWidth={2.25} />
       <span>Tab currency</span>
       <CurrencyPicker
         value={currencyCode}
         onChange={(code) => setDefaultCurrency({ slug, currency: code })}
         aria-label="Tab currency"
+        className="min-w-0 flex-1 justify-between sm:flex-none sm:justify-center"
       />
     </div>
   );
@@ -339,7 +340,7 @@ function TabOwnerActions({
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full items-center gap-2 md:w-auto">
       <ExpenseActions slug={slug} members={members} />
       <OverflowMenu label="More tab actions">
         <OverflowAction destructive onClick={() => setConfirming(true)}>
@@ -677,7 +678,12 @@ function ExpenseActions({
     });
   }
   return (
-    <Button type="button" size="touch" onClick={handleNewExpense}>
+    <Button
+      type="button"
+      size="touch"
+      onClick={handleNewExpense}
+      className="min-w-0 flex-1 md:flex-none"
+    >
       <Plus className="h-4 w-4" />
       Add expense
     </Button>

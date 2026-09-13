@@ -4,11 +4,13 @@ import { MenuOption } from "@/components/ui/MenuOption";
 import { SearchField } from "@/components/ui/SearchField";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { CURRENCIES } from "@/lib/currencies";
+import { cn } from "@/lib/utils";
 
 interface CurrencyPickerProps {
   value: string;
   onChange: (code: string) => void;
   "aria-label"?: string;
+  className?: string;
 }
 
 // Strips diacritics so "colon" matches "Colón" and "cordoba" matches "Córdoba".
@@ -22,6 +24,7 @@ function normalize(s: string): string {
 export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const selectedCurrency = CURRENCIES.find((currency) => currency.code === value);
 
   const filtered = useMemo(() => {
     const q = normalize(query.trim());
@@ -42,11 +45,19 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
           <Button
             variant="field"
             aria-label={props["aria-label"]}
-            className="h-auto min-h-11 min-w-11 gap-1.5 rounded-md px-2 py-1.5"
+            className={cn(
+              "h-auto min-h-11 min-w-11 gap-1.5 rounded-md px-2 py-1.5",
+              props.className,
+            )}
           />
         }
       >
-        <span className="font-numeric">{value}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="font-numeric font-semibold">{value}</span>
+          {selectedCurrency && (
+            <span className="truncate text-ink-soft">{selectedCurrency.name}</span>
+          )}
+        </span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 rounded-lg p-2">
         <SearchField
