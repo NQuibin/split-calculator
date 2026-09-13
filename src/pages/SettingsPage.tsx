@@ -102,7 +102,10 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
         Your name
       </SectionTitle>
       <p className="mb-5 text-sm text-ink-soft">This is the name shown to friends in your tabs.</p>
-      <form onSubmit={handleSubmit} className="flex max-w-xl flex-wrap items-center gap-3 sm:flex-nowrap">
+      <form
+        onSubmit={handleSubmit}
+        className="flex max-w-xl flex-wrap items-center gap-3 sm:flex-nowrap"
+      >
         <Input
           type="text"
           required

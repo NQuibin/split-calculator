@@ -24,7 +24,13 @@ import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { RateInput } from "@/components/ui/RateInput";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/Dialog";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { MenuOption } from "@/components/ui/MenuOption";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -32,13 +38,23 @@ import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImag
 import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
 import { currency } from "@/lib/format";
 import { isUpcoming } from "@/lib/format";
-import type { ExpenseAdjustments, Person, RateSetting, ExpenseItem, ExpenseMode } from "@/lib/types";
+import type {
+  ExpenseAdjustments,
+  Person,
+  RateSetting,
+  ExpenseItem,
+  ExpenseMode,
+} from "@/lib/types";
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
 import { TipRateInput } from "@/components/ui/TipRateInput";
 
-const zeroAdjustments: ExpenseAdjustments = { discount: { mode: "amount", value: 0 }, tax: { mode: "percent", value: 0 }, tip: { mode: "percent", value: 0 } };
+const zeroAdjustments: ExpenseAdjustments = {
+  discount: { mode: "amount", value: 0 },
+  tax: { mode: "percent", value: 0 },
+  tip: { mode: "percent", value: 0 },
+};
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
@@ -134,7 +150,9 @@ export function StageExpense({
   // carrying adjustments keeps whatever order it was saved with.
   const tipAfterTaxDefault = currencyCode === "CAD";
   const globalAdjustments = useMemo(
-    () => globalAdjustmentsProp ?? (tipAfterTaxDefault ? { ...zeroAdjustments, tipAfterTax: true } : zeroAdjustments),
+    () =>
+      globalAdjustmentsProp ??
+      (tipAfterTaxDefault ? { ...zeroAdjustments, tipAfterTax: true } : zeroAdjustments),
     [globalAdjustmentsProp, tipAfterTaxDefault],
   );
 
@@ -155,8 +173,14 @@ export function StageExpense({
   const [continueError, setContinueError] = useState<string | null>(null);
   const [payerError, setPayerError] = useState<string | null>(null);
 
-  const resolvedItems = useMemo(() => resolveItemAdjustments(items, globalAdjustments), [items, globalAdjustments]);
-  const totals = useMemo(() => computeSplit(people, items, globalAdjustments), [people, items, globalAdjustments]);
+  const resolvedItems = useMemo(
+    () => resolveItemAdjustments(items, globalAdjustments),
+    [items, globalAdjustments],
+  );
+  const totals = useMemo(
+    () => computeSplit(people, items, globalAdjustments),
+    [people, items, globalAdjustments],
+  );
 
   // Finalizing can do real work before it lands - uploading a receipt the
   // draft has been holding onto - so the button waits on it and surfaces
@@ -183,7 +207,6 @@ export function StageExpense({
       setContinuing(false);
     }
   }
-
 
   function togglePerson(id: string) {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
@@ -291,173 +314,230 @@ export function StageExpense({
 
   const expenseMetadata = (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-3 [&_button]:min-h-11">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-            <span className="font-display text-sm font-medium text-ink-soft">Date</span>
-            <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Banknote className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-            <span className="font-display text-sm font-medium text-ink-soft">Currency</span>
-            <CurrencyPicker value={currencyCode} onChange={onSetCurrency} aria-label="Expense currency" />
-          </div>
-          <div className="basis-full border-t border-rule pt-3">
-            <Label id="expense-payer-label" htmlFor="expense-payer">{isUpcoming(date) ? "Will be paid by" : "Paid by"} <span aria-hidden="true">*</span></Label>
-            <Popover open={payerOpen} onOpenChange={setPayerOpen}>
-              <PopoverTrigger
-                render={
-                  <Button
-                    id="expense-payer"
-                    variant="field"
-                    aria-labelledby="expense-payer-label expense-payer-value"
-                    aria-required="true"
-                    aria-invalid={payerError ? "true" : undefined}
-                    aria-describedby={payerError ? "expense-payer-help expense-payer-error" : "expense-payer-help"}
-                    className="group mt-1 min-h-11 w-full max-w-md justify-between rounded-md px-3 py-2"
-                  />
+      <div className="flex items-center gap-2">
+        <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+        <span className="font-display text-sm font-medium text-ink-soft">Date</span>
+        <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Banknote className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+        <span className="font-display text-sm font-medium text-ink-soft">Currency</span>
+        <CurrencyPicker
+          value={currencyCode}
+          onChange={onSetCurrency}
+          aria-label="Expense currency"
+        />
+      </div>
+      <div className="basis-full border-t border-rule pt-3">
+        <Label id="expense-payer-label" htmlFor="expense-payer">
+          {isUpcoming(date) ? "Will be paid by" : "Paid by"} <span aria-hidden="true">*</span>
+        </Label>
+        <Popover open={payerOpen} onOpenChange={setPayerOpen}>
+          <PopoverTrigger
+            render={
+              <Button
+                id="expense-payer"
+                variant="field"
+                aria-labelledby="expense-payer-label expense-payer-value"
+                aria-required="true"
+                aria-invalid={payerError ? "true" : undefined}
+                aria-describedby={
+                  payerError ? "expense-payer-help expense-payer-error" : "expense-payer-help"
                 }
-              >
-                <span id="expense-payer-value" className="truncate">
-                  {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
-                </span>
-                <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft chevron-flip" />
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-80 max-w-[calc(100vw-3rem)] rounded-lg p-2">
-                <ul className="max-h-64 space-y-0.5 overflow-y-auto">
+                className="group mt-1 min-h-11 w-full max-w-md justify-between rounded-md px-3 py-2"
+              />
+            }
+          >
+            <span id="expense-payer-value" className="truncate">
+              {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className="h-4 w-4 shrink-0 text-ink-soft chevron-flip"
+            />
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-80 max-w-[calc(100vw-3rem)] rounded-lg p-2">
+            <ul className="max-h-64 space-y-0.5 overflow-y-auto">
+              {people.map((person) => (
+                <li key={person.id}>
+                  <MenuOption
+                    selected={person.id === payerId}
+                    onClick={() => {
+                      setPayerError(null);
+                      setContinueError(null);
+                      onSetPayer(person.id);
+                      setPayerOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{person.name}</span>
+                  </MenuOption>
+                </li>
+              ))}
+            </ul>
+          </PopoverContent>
+        </Popover>
+        <p id="expense-payer-help" className="mt-2 text-xs text-ink-soft">
+          {people.find((person) => person.id === payerId)
+            ? `${people.find((person) => person.id === payerId)!.name} ${isUpcoming(date) ? "will pay" : "paid"} the full expense. They can pay without being in the split.`
+            : "Required before saving. Choose who covers the full expense. They can pay without being in the split."}
+        </p>
+        {payerError && <FieldError id="expense-payer-error">{payerError}</FieldError>}
+      </div>
+    </div>
+  );
+  const peopleManagement =
+    showPeople && !inTab ? (
+      <div className="mt-3 border-t border-rule pt-2">
+        <button
+          type="button"
+          onClick={() => setPeopleOpen((o) => !o)}
+          aria-expanded={peopleOpen}
+          className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md py-3 text-sm font-medium text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        >
+          Manage people
+          <motion.span
+            animate={{ rotate: peopleOpen ? 180 : 0 }}
+            transition={collapseTransition}
+            className="shrink-0"
+          >
+            <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
+          </motion.span>
+        </button>
+        <AnimatePresence initial={false}>
+          {peopleOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={collapseTransition}
+              className="overflow-hidden"
+            >
+              <div className="pb-1">
+                <ul className="flex flex-wrap gap-2 text-sm">
                   {people.map((person) => (
-                    <li key={person.id}>
-                      <MenuOption
-                        selected={person.id === payerId}
-                        onClick={() => {
-                          setPayerError(null);
-                          setContinueError(null);
-                          onSetPayer(person.id);
-                          setPayerOpen(false);
-                        }}
-                      >
-                        <span className="truncate">{person.name}</span>
-                      </MenuOption>
-                    </li>
+                    <PersonRow
+                      key={person.id}
+                      person={person}
+                      locked={person.id === viewerId}
+                      removable={people.length > 1}
+                      onRemove={() => handleRemovePerson(person.id)}
+                      onRename={(name) => onRenamePerson(person.id, name)}
+                    />
                   ))}
                 </ul>
-              </PopoverContent>
-            </Popover>
-            <p id="expense-payer-help" className="mt-2 text-xs text-ink-soft">{people.find((person) => person.id === payerId)
-              ? `${people.find((person) => person.id === payerId)!.name} ${isUpcoming(date) ? "will pay" : "paid"} the full expense. They can pay without being in the split.`
-              : "Required before saving. Choose who covers the full expense. They can pay without being in the split."}</p>
-            {payerError && <FieldError id="expense-payer-error">{payerError}</FieldError>}
-          </div>
-        </div>
-  );
-  const peopleManagement = showPeople && !inTab ? (
-    <div className="mt-3 border-t border-rule pt-2">
-      <button
-        type="button"
-        onClick={() => setPeopleOpen((o) => !o)}
-        aria-expanded={peopleOpen}
-        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md py-3 text-sm font-medium text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-      >
-        Manage people
-        <motion.span
-          animate={{ rotate: peopleOpen ? 180 : 0 }}
-          transition={collapseTransition}
-          className="shrink-0"
-        >
-          <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
-        </motion.span>
-      </button>
-      <AnimatePresence initial={false}>
-        {peopleOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={collapseTransition}
-            className="overflow-hidden"
-          >
-            <div className="pb-1">
-              <ul className="flex flex-wrap gap-2 text-sm">
-                {people.map((person) => (
-                  <PersonRow
-                    key={person.id}
-                    person={person}
-                    locked={person.id === viewerId}
-                    removable={people.length > 1}
-                    onRemove={() => handleRemovePerson(person.id)}
-                    onRename={(name) => onRenamePerson(person.id, name)}
-                  />
-                ))}
-              </ul>
-              {people.some((p) => p.id === viewerId) && (
-                <p className="mt-3 text-xs text-ink-soft">
-                  Your name comes from your account - update it in Settings.
-                </p>
-              )}
-              <Button
-                type="button"
-                variant="link"
-                size="touch"
-                onClick={onAddPerson}
-                className="mt-3 justify-start px-0 no-underline hover:text-ink hover:no-underline"
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-                Add person
-              </Button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  ) : null;
+                {people.some((p) => p.id === viewerId) && (
+                  <p className="mt-3 text-xs text-ink-soft">
+                    Your name comes from your account - update it in Settings.
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="link"
+                  size="touch"
+                  onClick={onAddPerson}
+                  className="mt-3 justify-start px-0 no-underline hover:text-ink hover:no-underline"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  Add person
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    ) : null;
 
   const itemEditor = (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
       <div className="min-w-0">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
-          <label className="min-w-0 text-sm text-ink">Item name
-            <Input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Nachos" className="mt-1" />
+          <label className="min-w-0 text-sm text-ink">
+            Item name
+            <Input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Nachos"
+              className="mt-1"
+            />
           </label>
-          <label className="min-w-0 text-sm text-ink">Amount · {currencyCode}
-            <Input type="number" inputMode="decimal" min={0} step={0.01} value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" className="font-numeric mt-1" />
+          <label className="min-w-0 text-sm text-ink">
+            Amount · {currencyCode}
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={0.01}
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              placeholder="0.00"
+              className="font-numeric mt-1"
+            />
           </label>
         </div>
         <div className="mt-3">
           <label className="flex min-h-11 cursor-pointer items-center gap-3 py-3 text-sm text-ink">
-            <input type="checkbox" checked={adjustmentsOpen} onChange={event => setAdjustmentsOpen(event.target.checked)} className="h-5 w-5 shrink-0 accent-forest" />
+            <input
+              type="checkbox"
+              checked={adjustmentsOpen}
+              onChange={(event) => setAdjustmentsOpen(event.target.checked)}
+              className="h-5 w-5 shrink-0 accent-forest"
+            />
             Use individual discount, tax &amp; tip
           </label>
           <p className="mb-3 text-xs text-ink-soft">Override global adjustments for this item.</p>
-          {adjustmentsOpen && <>
-          <div className="rate-inputs-container"><div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
-            <RateInput wide label="Discount" icon={TicketPercent} rate={discount} onChange={setDiscount} />
-            <RateInput wide label="Tax" icon={Percent} rate={tax} onChange={setTax} />
-            <TipRateInput rate={tip} onChange={setTip} afterTax={tipAfterTax} onAfterTaxChange={setTipAfterTax} />
-          </div>
-          </div>
-          <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
-          </>}
+          {adjustmentsOpen && (
+            <>
+              <div className="rate-inputs-container">
+                <div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
+                  <RateInput
+                    label="Discount"
+                    icon={TicketPercent}
+                    rate={discount}
+                    onChange={setDiscount}
+                  />
+                  <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} />
+                  <TipRateInput
+                    rate={tip}
+                    onChange={setTip}
+                    afterTax={tipAfterTax}
+                    onAfterTaxChange={setTipAfterTax}
+                  />
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
+            </>
+          )}
         </div>
       </div>
       <div className="min-w-0">
         <GroupTitle>Split this item</GroupTitle>
         <p className="mt-1 text-xs text-ink-soft">Equally among selected people</p>
         <div className="mt-3 space-y-2">
-        {people.map(person => (
-          <MemberSelectionRow
-            key={person.id}
-            id={person.id}
-            name={person.name}
-            selected={splitWith.includes(person.id)}
-            onToggle={() => togglePerson(person.id)}
-          />
-        ))}
+          {people.map((person) => (
+            <MemberSelectionRow
+              key={person.id}
+              id={person.id}
+              name={person.name}
+              selected={splitWith.includes(person.id)}
+              onToggle={() => togglePerson(person.id)}
+            />
+          ))}
         </div>
       </div>
-      {error && <p role="alert" className="text-sm text-margin-red-ink md:col-span-2">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-margin-red-ink md:col-span-2">
+          {error}
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-        <Button type="button" variant="outline" size="touch" onClick={closeItemEditor}>Cancel item changes</Button>
+        <Button type="button" variant="outline" size="touch" onClick={closeItemEditor}>
+          Cancel item changes
+        </Button>
         <Button type="button" size="touch" onClick={handleSubmit}>
-          {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{editingId ? "Done with item" : "Add to expense"}
+          {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          {editingId ? "Done with item" : "Add to expense"}
         </Button>
       </div>
     </div>
@@ -466,7 +546,8 @@ export function StageExpense({
   return (
     <div className="w-full">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1"><ExpenseTitle name={expenseName} onRename={onRenameExpense} />
+        <div className="min-w-0 flex-1">
+          <ExpenseTitle name={expenseName} onRename={onRenameExpense} />
           {tabField}
           {description && <PageDescription>{description}</PageDescription>}
         </div>
@@ -495,7 +576,7 @@ export function StageExpense({
 
         {mode === "simple" ? (
           <SimpleTotalForm
-            key={people.map(person => person.id).join(",")}
+            key={people.map((person) => person.id).join(",")}
             expenseName={expenseName}
             peopleManagement={peopleManagement}
             currencyCode={currencyCode}
@@ -508,41 +589,82 @@ export function StageExpense({
         ) : (
           <>
             <section aria-label="Global adjustments" className="mb-4 border-b border-rule pb-4">
-              <GroupTitle as="h2" className="mb-3">Global discount, tax &amp; tip</GroupTitle>
-              <div className="rate-inputs-container"><div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
-                <RateInput wide label="Discount" icon={TicketPercent} rate={globalAdjustments.discount} onChange={discount => onSetGlobalAdjustments({ ...globalAdjustments, discount })} />
-                <RateInput wide label="Tax" icon={Percent} rate={globalAdjustments.tax} onChange={tax => onSetGlobalAdjustments({ ...globalAdjustments, tax })} />
-                <TipRateInput
-                  rate={globalAdjustments.tip}
-                  onChange={tip => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
-                  afterTax={globalAdjustments.tipAfterTax ?? false}
-                  onAfterTaxChange={tipAfterTax => onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })}
-                />
+              <GroupTitle as="h2" className="mb-3">
+                Global discount, tax &amp; tip
+              </GroupTitle>
+              <div className="rate-inputs-container">
+                <div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
+                  <RateInput
+                    label="Discount"
+                    icon={TicketPercent}
+                    rate={globalAdjustments.discount}
+                    onChange={(discount) =>
+                      onSetGlobalAdjustments({ ...globalAdjustments, discount })
+                    }
+                  />
+                  <RateInput
+                    label="Tax"
+                    icon={Percent}
+                    rate={globalAdjustments.tax}
+                    onChange={(tax) => onSetGlobalAdjustments({ ...globalAdjustments, tax })}
+                  />
+                  <TipRateInput
+                    rate={globalAdjustments.tip}
+                    onChange={(tip) => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
+                    afterTax={globalAdjustments.tipAfterTax ?? false}
+                    onAfterTaxChange={(tipAfterTax) =>
+                      onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })
+                    }
+                  />
+                </div>
               </div>
-              </div>
-              <p className="mt-3 text-xs text-ink-soft">Applies to items without individual adjustments. Fixed amounts are shared proportionally. Discount applies before tax and tip.</p>
+              <p className="mt-3 text-xs text-ink-soft">
+                Applies to items without individual adjustments. Fixed amounts are shared
+                proportionally. Discount applies before tax and tip.
+              </p>
             </section>
             <div className="flex items-center justify-between gap-3">
-              <GroupTitle as="h2">Items <span className="text-ink-soft">({items.length})</span></GroupTitle>
-              <Button type="button" variant="outline" size="touch" onClick={() => { resetForm(); setAddingItem(true); }}><Plus className="h-4 w-4" />Add item</Button>
+              <GroupTitle as="h2">
+                Items <span className="text-ink-soft">({items.length})</span>
+              </GroupTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                onClick={() => {
+                  resetForm();
+                  setAddingItem(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Add item
+              </Button>
             </div>
-            <Dialog open={addingItem || editingId !== null} onOpenChange={open => { if (!open) closeItemEditor(); }}>
+            <Dialog
+              open={addingItem || editingId !== null}
+              onOpenChange={(open) => {
+                if (!open) closeItemEditor();
+              }}
+            >
               <DialogContent className="max-w-2xl">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <DialogTitle>{editingId ? "Edit item" : "New item"}</DialogTitle>
-                  <DialogClose aria-label="Close item editor" render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}>
+                  <DialogClose
+                    aria-label="Close item editor"
+                    render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+                  >
                     <X className="h-4 w-4" />
                   </DialogClose>
                 </div>
-                <DialogDescription className="mb-5">Enter the item details and choose who shares it.</DialogDescription>
+                <DialogDescription className="mb-5">
+                  Enter the item details and choose who shares it.
+                </DialogDescription>
                 {itemEditor}
               </DialogContent>
             </Dialog>
 
             {items.length > 0 && (
-              <ul
-                className="mt-2 space-y-3"
-              >
+              <ul className="mt-2 space-y-3">
                 {items.map((item, i) => (
                   <ExpenseLineItem
                     key={item.id}
@@ -561,49 +683,95 @@ export function StageExpense({
             {items.some(hasIndividualAdjustments) && (
               <p className="mt-3 flex items-start gap-1.5 text-xs text-ink-soft">
                 <Asterisk aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0 text-brass" />
-                <span>Uses individual discount, tax and tip instead of global adjustments. Blank or zero means none.</span>
+                <span>
+                  Uses individual discount, tax and tip instead of global adjustments. Blank or zero
+                  means none.
+                </span>
               </p>
             )}
             <div className="mt-5 border-t border-rule pt-5">
               <section className="min-w-0">
-                <GroupTitle as="h2">Total, including adjustments <span className="text-ink-soft">({currencyCode})</span></GroupTitle>
-                <p className="font-numeric mt-2 break-words text-3xl text-ink">{currency(totals.grandTotal, currencyCode)}</p>
-                <p className="mt-1 text-xs text-ink-soft">Calculated from {items.length} {items.length === 1 ? "item" : "items"}</p>
-                {(totals.taxTotal > 0 || totals.tipTotal > 0) && <dl className="mt-4 space-y-2 border-t border-rule pt-3 text-sm text-ink-soft">
-                  <div className="flex justify-between gap-3"><dt>{resolvedItems.some(item => item.discount.value > 0) ? "Subtotal after discounts" : "Subtotal"}</dt><dd className="font-numeric">{currency(totals.subtotal, currencyCode)}</dd></div>
-                  {totals.taxTotal > 0 && <div className="flex justify-between gap-3"><dt>Tax</dt><dd className="font-numeric">{currency(totals.taxTotal, currencyCode)}</dd></div>}
-                  {totals.tipTotal > 0 && <div className="flex justify-between gap-3"><dt>Tip</dt><dd className="font-numeric">{currency(totals.tipTotal, currencyCode)}</dd></div>}
-                </dl>}
+                <GroupTitle as="h2">
+                  Total, including adjustments{" "}
+                  <span className="text-ink-soft">({currencyCode})</span>
+                </GroupTitle>
+                <p className="font-numeric mt-2 break-words text-3xl text-ink">
+                  {currency(totals.grandTotal, currencyCode)}
+                </p>
+                <p className="mt-1 text-xs text-ink-soft">
+                  Calculated from {items.length} {items.length === 1 ? "item" : "items"}
+                </p>
+                {(totals.taxTotal > 0 || totals.tipTotal > 0) && (
+                  <dl className="mt-4 space-y-2 border-t border-rule pt-3 text-sm text-ink-soft">
+                    <div className="flex justify-between gap-3">
+                      <dt>
+                        {resolvedItems.some((item) => item.discount.value > 0)
+                          ? "Subtotal after discounts"
+                          : "Subtotal"}
+                      </dt>
+                      <dd className="font-numeric">{currency(totals.subtotal, currencyCode)}</dd>
+                    </div>
+                    {totals.taxTotal > 0 && (
+                      <div className="flex justify-between gap-3">
+                        <dt>Tax</dt>
+                        <dd className="font-numeric">{currency(totals.taxTotal, currencyCode)}</dd>
+                      </div>
+                    )}
+                    {totals.tipTotal > 0 && (
+                      <div className="flex justify-between gap-3">
+                        <dt>Tip</dt>
+                        <dd className="font-numeric">{currency(totals.tipTotal, currencyCode)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
               </section>
               {peopleManagement}
             </div>
           </>
         )}
 
-        <ExpenseBalances people={people} split={totals} payerId={payerId} currency={currencyCode} projected={isUpcoming(date)} unallocated={items.some((item) => item.splitWith.length === 0)} />
+        <ExpenseBalances
+          people={people}
+          split={totals}
+          payerId={payerId}
+          currency={currencyCode}
+          projected={isUpcoming(date)}
+          unallocated={items.some((item) => item.splitWith.length === 0)}
+        />
 
         <NoteField note={note} onSetNote={onSetNote} />
         <ExpenseImageField receipt={receipt} onPick={onPickReceipt} canUpload={canUploadImage} />
-        {continueError && <p role="alert" className="mt-4 text-sm text-margin-red-ink">{continueError}</p>}
+        {continueError && (
+          <p role="alert" className="mt-4 text-sm text-margin-red-ink">
+            {continueError}
+          </p>
+        )}
 
-      <div className="mt-6 flex flex-col-reverse gap-2 border-t border-rule pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        {onCancel ? <Button type="button" variant="outline" size="touch" onClick={onCancel}>{cancelLabel}</Button> : <span />}
-        <Button
-          type="button"
-          size="touch"
-          onClick={handleContinue}
-          disabled={continueDisabled || items.length === 0 || !expenseName.trim() || continuing}
-          aria-busy={continuing}
-          className="w-full sm:w-auto"
-        >
-          {continueLabel}
-          {continuing ? (
-            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-rule pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          {onCancel ? (
+            <Button type="button" variant="outline" size="touch" onClick={onCancel}>
+              {cancelLabel}
+            </Button>
           ) : (
-            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            <span />
           )}
-        </Button>
-      </div>
+          <Button
+            type="button"
+            size="touch"
+            onClick={handleContinue}
+            disabled={continueDisabled || items.length === 0 || !expenseName.trim() || continuing}
+            aria-busy={continuing}
+            className="w-full sm:w-auto"
+          >
+            {continueLabel}
+            {continuing ? (
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />
+            ) : (
+              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -675,12 +843,7 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
                 aria-label="Expense note"
               />
               {note && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="touch"
-                  onClick={handleRemove}
-                >
+                <Button type="button" variant="destructive" size="touch" onClick={handleRemove}>
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                   Delete note
                 </Button>
@@ -784,26 +947,30 @@ function SimpleTotalForm({
   return (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
       <div className="min-w-0">
-      <label htmlFor="expense-total" className="mb-2 block text-sm font-medium text-ink">Total amount <span className="text-ink-soft">({currencyCode})</span></label>
-      <Input
-        id="expense-total"
-        type="number"
-        inputMode="decimal"
-        min={0}
-        step={0.01}
-        value={cost}
-        onChange={(e) => handleCostChange(e.target.value)}
-        placeholder="0.00"
-        aria-label="Expense total"
-        className="font-numeric min-h-16 py-3 text-3xl sm:text-3xl"
-      />
+        <label htmlFor="expense-total" className="mb-2 block text-sm font-medium text-ink">
+          Total amount <span className="text-ink-soft">({currencyCode})</span>
+        </label>
+        <Input
+          id="expense-total"
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step={0.01}
+          value={cost}
+          onChange={(e) => handleCostChange(e.target.value)}
+          placeholder="0.00"
+          aria-label="Expense total"
+          className="font-numeric min-h-16 py-3 text-3xl sm:text-3xl"
+        />
       </div>
       <div className="min-w-0 border-t border-rule pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
         <div className="mb-1 flex items-center justify-between gap-2">
           <GroupTitle as="h2">Split with</GroupTitle>
           <span className="text-sm text-ink-soft">Equally</span>
         </div>
-        <p className="mb-2 text-xs text-ink-soft">{splitWith.length} {splitWith.length === 1 ? "person" : "people"} selected</p>
+        <p className="mb-2 text-xs text-ink-soft">
+          {splitWith.length} {splitWith.length === 1 ? "person" : "people"} selected
+        </p>
         <div className="space-y-2">
           {people.map((p) => (
             <MemberSelectionRow
@@ -812,7 +979,16 @@ function SimpleTotalForm({
               name={p.name}
               selected={splitWith.includes(p.id)}
               onToggle={() => toggleSplitWith(p.id)}
-              endContent={<span className="font-numeric shrink-0">{splitWith.includes(p.id) ? currency(split.people.find((row) => row.personId === p.id)?.total ?? 0, currencyCode) : "—"}</span>}
+              endContent={
+                <span className="font-numeric shrink-0">
+                  {splitWith.includes(p.id)
+                    ? currency(
+                        split.people.find((row) => row.personId === p.id)?.total ?? 0,
+                        currencyCode,
+                      )
+                    : "—"}
+                </span>
+              }
             />
           ))}
         </div>

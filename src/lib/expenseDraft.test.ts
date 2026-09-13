@@ -38,7 +38,10 @@ test("a link shared without names still resolves, positionally", () => {
 });
 
 test("names with commas and unicode survive the round trip", () => {
-  const people = [{ id: "person-1", name: "Ann, Jr." }, { id: "person-2", name: "José 🎉" }];
+  const people = [
+    { id: "person-1", name: "Ann, Jr." },
+    { id: "person-2", name: "José 🎉" },
+  ];
   expect(draftFromParams(encodeDraftParams(people))!.people).toEqual(people);
 });
 

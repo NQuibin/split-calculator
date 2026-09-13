@@ -95,15 +95,43 @@ export function Sidebar() {
 
         <nav aria-label="Main navigation" className="flex-1 space-y-1 overflow-y-auto px-4 py-2">
           {[
-            { label: "Tabs", href: "/tabs", icon: Wallet, active: pathname === "/" || isActive(pathname, "/tabs") || isActive(pathname, "/t") },
-            { label: "Expenses", href: "/expenses", icon: ReceiptText, active: isActive(pathname, "/expenses") || isActive(pathname, "/e") },
-            { label: "Friends", href: "/friends", icon: Users, active: isActive(pathname, "/friends") },
-            { label: "Settings", href: "/settings", icon: Settings, active: isActive(pathname, "/settings") },
+            {
+              label: "Tabs",
+              href: "/tabs",
+              icon: Wallet,
+              active: pathname === "/" || isActive(pathname, "/tabs") || isActive(pathname, "/t"),
+            },
+            {
+              label: "Expenses",
+              href: "/expenses",
+              icon: ReceiptText,
+              active: isActive(pathname, "/expenses") || isActive(pathname, "/e"),
+            },
+            {
+              label: "Friends",
+              href: "/friends",
+              icon: Users,
+              active: isActive(pathname, "/friends"),
+            },
+            {
+              label: "Settings",
+              href: "/settings",
+              icon: Settings,
+              active: isActive(pathname, "/settings"),
+            },
           ].map(({ label, href, icon: Icon, active }) => (
-            <Link key={href} to={href} aria-current={active ? "page" : undefined}
+            <Link
+              key={href}
+              to={href}
+              aria-current={active ? "page" : undefined}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${active ? "bg-rule/30 font-semibold text-forest" : "text-ink-soft hover:bg-wash"}`}>
-              <Icon aria-hidden="true" className={`h-5 w-5 shrink-0 ${active ? "text-forest" : "text-ink-soft"}`} strokeWidth={2} />
+              className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${active ? "bg-rule/30 font-semibold text-forest" : "text-ink-soft hover:bg-wash"}`}
+            >
+              <Icon
+                aria-hidden="true"
+                className={`h-5 w-5 shrink-0 ${active ? "text-forest" : "text-ink-soft"}`}
+                strokeWidth={2}
+              />
               {label}
             </Link>
           ))}

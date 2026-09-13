@@ -38,7 +38,9 @@ Set `AUTH_SKIP_OTP=false` to test the full password-plus-OTP flow locally.
 | `pnpm typecheck` | `tsc --noEmit` — also runs first in `build`, so a type error fails the deploy |
 | `pnpm preview` | Serves the production build locally |
 | `pnpm icons` | Regenerates the PWA/Apple icons into `public/` |
-| `pnpm lint` | ESLint |
+| `pnpm lint` | Biome (format + lint) then ESLint (`react-hooks` only) |
+| `pnpm lint:fix` | The same, applying safe fixes |
+| `pnpm format` | `biome format --write .` |
 
 ## Deploying
 

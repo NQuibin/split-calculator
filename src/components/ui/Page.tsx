@@ -33,7 +33,7 @@ export function Page({
         "mx-auto flex w-full flex-1 flex-col px-5 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-8 md:px-10 md:pb-12 md:pt-12",
         widths[width],
         center && "justify-center py-16 md:py-24",
-        className
+        className,
       )}
       {...props}
     />
@@ -67,7 +67,7 @@ export function EmptyState({
       role={status ? "status" : undefined}
       className={cn(
         "rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft",
-        className
+        className,
       )}
       {...props}
     >

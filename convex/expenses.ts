@@ -100,7 +100,12 @@ export const list = query({
       .query("expenses")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    return (await Promise.all(docs.map(doc => resolveExpenseMembers(ctx, doc)))).map(({ slug, currency, ...state }) => ({ slug, state: { ...state, stage: "receipt" as const, currency: currency ?? "USD" } }));
+    return (await Promise.all(docs.map((doc) => resolveExpenseMembers(ctx, doc)))).map(
+      ({ slug, currency, ...state }) => ({
+        slug,
+        state: { ...state, stage: "receipt" as const, currency: currency ?? "USD" },
+      }),
+    );
   },
 });
 
@@ -141,7 +146,7 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
 
-  const own = await Promise.all(ownDocs.map(doc => resolveExpenseMembers(ctx, doc)));
+  const own = await Promise.all(ownDocs.map((doc) => resolveExpenseMembers(ctx, doc)));
   const rows: {
     key: string;
     kind: "own" | "tab";
@@ -211,8 +216,19 @@ export const get = query({
   handler: async (ctx, { slug }) => {
     const doc = await ownExpenseOrDeny(ctx, slug);
     if (!doc) return null;
-    const { name, people, mode, items, payerId, globalAdjustments, date, currency, note, image, tabId } =
-      await resolveExpenseMembers(ctx, doc);
+    const {
+      name,
+      people,
+      mode,
+      items,
+      payerId,
+      globalAdjustments,
+      date,
+      currency,
+      note,
+      image,
+      tabId,
+    } = await resolveExpenseMembers(ctx, doc);
     const tab = tabId ? await ctx.db.get(tabId) : null;
 
     return {
@@ -229,7 +245,6 @@ export const get = query({
       // The stored file is only reachable through a signed URL, minted per read.
       image: image ? { ...image, url: await ctx.storage.getUrl(image.storageId) } : undefined,
       tab: tab ? { slug: tab.slug, name: tab.name } : null,
-
     };
   },
 });
@@ -247,15 +262,30 @@ export const save = mutation({
     }
 
     const resolved = await resolveExpenseMembers(ctx, existing);
-    const roundingOrder = resolved.people.map(person => person.id) as Id<"tabMembers">[];
+    const roundingOrder = resolved.people.map((person) => person.id) as Id<"tabMembers">[];
     const normalized = withNormalizedNote(state);
-    await assertExpenseMembers(ctx, { ...normalized, tabId: existing.tabId, payerId: state.payerId });
+    await assertExpenseMembers(ctx, {
+      ...normalized,
+      tabId: existing.tabId,
+      payerId: state.payerId,
+    });
     if (existing) {
       await deleteImageIfUnused(ctx, existing.image?.storageId, state.image?.storageId);
       // `image` is spelled out so the key is always present: the client omits
       // it when there's no image, and only a present-but-undefined field
       // removes an image already on the doc.
-      await ctx.db.patch(existing._id, { ...normalized, payerId: state.payerId as Id<"tabMembers">, memberReferencesVersion: 1, roundingOrder, image: state.image, globalAdjustments: state.globalAdjustments, ...((state.currency ?? "USD") !== (existing.currency ?? "USD") ? { exchangeRate: undefined } : {}), updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, {
+        ...normalized,
+        payerId: state.payerId as Id<"tabMembers">,
+        memberReferencesVersion: 1,
+        roundingOrder,
+        image: state.image,
+        globalAdjustments: state.globalAdjustments,
+        ...((state.currency ?? "USD") !== (existing.currency ?? "USD")
+          ? { exchangeRate: undefined }
+          : {}),
+        updatedAt: Date.now(),
+      });
     }
     return null;
   },

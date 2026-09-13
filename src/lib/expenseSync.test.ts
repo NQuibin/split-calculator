@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   auth: { isAuthenticated: false, isLoading: false },
   remote: undefined as unknown,
   mutation: vi.fn(),
-  save: vi.fn(), remove: vi.fn(),
+  save: vi.fn(),
+  remove: vi.fn(),
   local: [{ slug: "guest", state: { name: "Guest dinner" } }],
 }));
 vi.mock("convex/react", () => ({
@@ -16,12 +17,25 @@ vi.mock("convex/react", () => ({
   useMutation: () => mocks.mutation,
 }));
 vi.mock("./storage", () => ({
-  saveExpense: mocks.save, deleteExpense: mocks.remove,
+  saveExpense: mocks.save,
+  deleteExpense: mocks.remove,
   getExpenseListSnapshot: () => mocks.local,
   subscribeExpenseList: () => () => {},
 }));
-afterEach(() => { vi.clearAllMocks(); mocks.auth = { isAuthenticated: false, isLoading: false }; mocks.remote = undefined; });
-const state = { stage: "receipt" as const, name: "Dinner", people: [], mode: "simple" as const, items: [], date: "2026-09-07", currency: "USD" };
+afterEach(() => {
+  vi.clearAllMocks();
+  mocks.auth = { isAuthenticated: false, isLoading: false };
+  mocks.remote = undefined;
+});
+const state = {
+  stage: "receipt" as const,
+  name: "Dinner",
+  people: [],
+  mode: "simple" as const,
+  items: [],
+  date: "2026-09-07",
+  currency: "USD",
+};
 
 test("guest writes and deletes stay local", async () => {
   const actions = renderHook(useExpenseActions);
@@ -52,14 +66,17 @@ test("local expenses are hidden during login and while account data loads", () =
   expect(renderHook(useExpenseList)).toEqual(mocks.local);
 });
 
-
 test("editor stage is never included in a saved expense", () => {
   expect(toExpenseStateArgs(state)).not.toHaveProperty("stage");
   expect(toExpenseStateArgs({ ...state, stage: "results" })).toEqual(toExpenseStateArgs(state));
 });
 
 test("payer is preserved in remote writes and can be cleared without leaking read metadata", () => {
-  expect(toExpenseStateArgs({ ...state, payerId: "seat-alex", tabId: "tab-1" })).toMatchObject({ payerId: "seat-alex" });
+  expect(toExpenseStateArgs({ ...state, payerId: "seat-alex", tabId: "tab-1" })).toMatchObject({
+    payerId: "seat-alex",
+  });
   expect(toExpenseStateArgs({ ...state, payerId: undefined })).not.toHaveProperty("payerId");
-  expect(toExpenseStateArgs({ ...state, payerId: "seat-alex", tabId: "tab-1" })).not.toHaveProperty("tabId");
+  expect(toExpenseStateArgs({ ...state, payerId: "seat-alex", tabId: "tab-1" })).not.toHaveProperty(
+    "tabId",
+  );
 });

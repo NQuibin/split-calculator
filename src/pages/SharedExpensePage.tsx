@@ -42,7 +42,11 @@ function SharedExpenseContent() {
         globalAdjustments={decoded.globalAdjustments}
         currency={decoded.currency ?? "USD"}
         isOwner={false}
-        onReset={() => startNavigation(() => { void navigate({ to: "/" }); })}
+        onReset={() =>
+          startNavigation(() => {
+            void navigate({ to: "/" });
+          })
+        }
         navigating={isNavigating}
       />
     </Page>

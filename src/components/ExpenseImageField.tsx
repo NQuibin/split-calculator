@@ -33,7 +33,12 @@ function ReceiptFileRow({ name, href }: { name: string; href?: string | null }) 
 
   if (!href) return <div className={className}>{content}</div>;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={`${className} hover:border-forest hover:text-forest`}>
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className={`${className} hover:border-forest hover:text-forest`}
+    >
       {content}
     </a>
   );

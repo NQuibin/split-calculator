@@ -7,7 +7,14 @@ import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/Dialog";
 
 export function SidebarAccount() {
   return (
@@ -15,7 +22,9 @@ export function SidebarAccount() {
       <AuthLoading>
         {/* The 28px height matches SignedInMenu's actual row height (measured),
             so this block doesn't change height once auth resolves. */}
-        <p role="status" className="flex min-h-11 items-center text-xs text-ink-soft">Loading…</p>
+        <p role="status" className="flex min-h-11 items-center text-xs text-ink-soft">
+          Loading…
+        </p>
       </AuthLoading>
       <Unauthenticated>
         <SignInMenu />
@@ -53,7 +62,11 @@ function SignInMenu() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await signIn("password", { email, password, flow: step === "code" ? "signIn" : flow });
+      const result = await signIn("password", {
+        email,
+        password,
+        flow: step === "code" ? "signIn" : flow,
+      });
       if (result.signingIn) {
         setOpen(false);
         resetForm();
@@ -62,7 +75,9 @@ function SignInMenu() {
       setCode("");
       setStep("code");
     } catch {
-      setError("Couldn't continue. Check your email and password. If you previously signed in with a code only, choose Create account to set a password.");
+      setError(
+        "Couldn't continue. Check your email and password. If you previously signed in with a code only, choose Create account to set a password.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +127,10 @@ function SignInMenu() {
           {step === "email" ? (
             "Enter your email and password. If verification is required, we’ll email you a code. Sessions last up to 30 days."
           ) : (
-            <>We sent a 6-digit code to <span className="font-medium text-ink">{email}</span>. It expires in 15 minutes.</>
+            <>
+              We sent a 6-digit code to <span className="font-medium text-ink">{email}</span>. It
+              expires in 15 minutes.
+            </>
           )}
         </DialogDescription>
 
@@ -154,13 +172,33 @@ function SignInMenu() {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={flow === "signUp" ? "new-password" : "current-password"}
               />
-              <Button type="button" variant="link" size="xs" disabled={submitting}
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                disabled={submitting}
                 className="h-auto justify-start px-0 text-xs font-normal underline"
-                onClick={() => { setFlow(flow === "signIn" ? "signUp" : "signIn"); setError(null); }}>
-                {flow === "signIn" ? "Create account / set your first password" : "Already have a password? Sign in"}
+                onClick={() => {
+                  setFlow(flow === "signIn" ? "signUp" : "signIn");
+                  setError(null);
+                }}
+              >
+                {flow === "signIn"
+                  ? "Create account / set your first password"
+                  : "Already have a password? Sign in"}
               </Button>
-              {error && <p role="alert" className="text-xs text-margin-red-ink">{error}</p>}
-              <Button type="submit" size="lg" disabled={submitting} aria-busy={submitting} className="w-full">
+              {error && (
+                <p role="alert" className="text-xs text-margin-red-ink">
+                  {error}
+                </p>
+              )}
+              <Button
+                type="submit"
+                size="lg"
+                disabled={submitting}
+                aria-busy={submitting}
+                className="w-full"
+              >
                 {submitting ? "Continuing…" : flow === "signUp" ? "Create account" : "Continue"}
               </Button>
             </form>
@@ -233,7 +271,12 @@ function SignedInMenu() {
     <>
       <div className="flex w-full items-center gap-2">
         {viewer?.image ? (
-          <img src={viewer.image} alt="" className="h-7 w-7 shrink-0 rounded-full border border-rule" referrerPolicy="no-referrer" />
+          <img
+            src={viewer.image}
+            alt=""
+            className="h-7 w-7 shrink-0 rounded-full border border-rule"
+            referrerPolicy="no-referrer"
+          />
         ) : null}
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-soft">
           {viewer?.name ?? viewer?.email}
@@ -257,7 +300,9 @@ function SignedInMenu() {
         description="Are you sure you want to sign out?"
         confirmLabel="Sign out"
         pendingLabel="Signing out…"
-        onConfirm={async () => { await signOut(); }}
+        onConfirm={async () => {
+          await signOut();
+        }}
       />
     </>
   );

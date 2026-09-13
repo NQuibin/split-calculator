@@ -17,22 +17,23 @@ interface TipRateInputProps {
 export function TipRateInput({ rate, onChange, afterTax, onAfterTaxChange }: TipRateInputProps) {
   return (
     <RateInput
-      wide
       label="Tip"
       icon={Coins}
       rate={rate}
       onChange={onChange}
-      footer={rate.mode === "percent" ? (
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-ink-soft">
-          <input
-            type="checkbox"
-            checked={afterTax}
-            onChange={event => onAfterTaxChange(event.target.checked)}
-            className="h-5 w-5 shrink-0 accent-forest"
-          />
-          Apply tip after tax
-        </label>
-      ) : undefined}
+      footer={
+        rate.mode === "percent" ? (
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-ink-soft">
+            <input
+              type="checkbox"
+              checked={afterTax}
+              onChange={(event) => onAfterTaxChange(event.target.checked)}
+              className="h-5 w-5 shrink-0 accent-forest"
+            />
+            Apply tip after tax
+          </label>
+        ) : undefined
+      }
     />
   );
 }

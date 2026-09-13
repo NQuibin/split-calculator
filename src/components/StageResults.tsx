@@ -85,7 +85,9 @@ function DisclosureLine({
             <div className="mt-1 space-y-0.5 py-1 pl-4 text-xs">
               <div className="flex justify-between gap-3">
                 <span>Item</span>
-                <span className="font-numeric">{currency(amount + discountAmount, currencyCode)}</span>
+                <span className="font-numeric">
+                  {currency(amount + discountAmount, currencyCode)}
+                </span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between gap-3">
@@ -146,11 +148,22 @@ export function StageResults({
 }: StageResultsProps) {
   const [copied, setCopied] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
-  const result = useMemo(() => computeSplit(people, items, globalAdjustments), [people, items, globalAdjustments]);
+  const result = useMemo(
+    () => computeSplit(people, items, globalAdjustments),
+    [people, items, globalAdjustments],
+  );
 
   function handleShare() {
     if (!shareSlug) return;
-    const payload = encodeSharePayload({ slug: shareSlug, people, payerId, date, items, globalAdjustments, currency: currencyCode });
+    const payload = encodeSharePayload({
+      slug: shareSlug,
+      people,
+      payerId,
+      date,
+      items,
+      globalAdjustments,
+      currency: currencyCode,
+    });
     const basePath = window.location.pathname.replace(/\/e\/[^/]+$/, "");
     navigator.clipboard.writeText(`${window.location.origin}${basePath}/s?d=${payload}`);
     setCopied(true);
@@ -229,7 +242,9 @@ export function StageResults({
                   </div>
                   <div className="flex justify-between pt-1 font-display text-base font-semibold text-ink">
                     <span>Total</span>
-                    <span className="font-numeric">{currency(result.grandTotal, currencyCode)}</span>
+                    <span className="font-numeric">
+                      {currency(result.grandTotal, currencyCode)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -238,11 +253,25 @@ export function StageResults({
         </AnimatePresence>
       </div>
 
-      {payerId && <div className="mb-5"><ExpenseBalances people={people} split={result} payerId={payerId} currency={currencyCode} projected={isUpcoming(date)} unallocated={items.some(item => item.splitWith.length === 0)} /></div>}
+      {payerId && (
+        <div className="mb-5">
+          <ExpenseBalances
+            people={people}
+            split={result}
+            payerId={payerId}
+            currency={currencyCode}
+            projected={isUpcoming(date)}
+            unallocated={items.some((item) => item.splitWith.length === 0)}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {result.people.map((person) => (
-          <div key={person.personId} className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+          <div
+            key={person.personId}
+            className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6"
+          >
             <p className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold tracking-wide text-ink-soft uppercase">
               <MemberAvatar id={person.personId} name={person.name} size="sm" />
               <span className="truncate">{person.name}&rsquo;s share</span>
@@ -315,7 +344,9 @@ export function StageResults({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-rule/70 pt-5">
         <p className="text-sm text-ink-soft">
           Expense total{" "}
-          <span className="font-numeric font-semibold text-ink">{currency(result.grandTotal, currencyCode)}</span>{" "}
+          <span className="font-numeric font-semibold text-ink">
+            {currency(result.grandTotal, currencyCode)}
+          </span>{" "}
           — split across {people.length} {people.length === 1 ? "person" : "people"}.
         </p>
         <div className="flex flex-wrap items-center gap-3">

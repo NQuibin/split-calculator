@@ -16,7 +16,9 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
-  return <textarea data-slot="textarea" className={cn(fieldClass, "resize-y", className)} {...props} />;
+  return (
+    <textarea data-slot="textarea" className={cn(fieldClass, "resize-y", className)} {...props} />
+  );
 }
 
 export function Select({ className, ...props }: ComponentProps<"select">) {
@@ -26,6 +28,7 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
 /** A field label. Pair with the control's id, or wrap the control. */
 export function Label({ className, ...props }: ComponentProps<"label">) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: generic label primitive - htmlFor and children come from the caller, so the association is only checkable at the call site
     <label
       data-slot="label"
       className={cn("mb-2 block text-sm font-medium text-ink", className)}
@@ -39,5 +42,7 @@ export function Label({ className, ...props }: ComponentProps<"label">) {
  * the control with aria-describedby by the caller.
  */
 export function FieldError({ className, ...props }: ComponentProps<"p">) {
-  return <p role="alert" className={cn("mt-1.5 text-xs text-margin-red-ink", className)} {...props} />;
+  return (
+    <p role="alert" className={cn("mt-1.5 text-xs text-margin-red-ink", className)} {...props} />
+  );
 }

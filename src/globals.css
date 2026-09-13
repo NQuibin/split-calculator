@@ -289,9 +289,11 @@ body {
   transform: translateY(2px);
 }
 
+/* Ordered least- to most-specific. All three set the same declaration, so the
+   order is cosmetic, but it keeps noDescendingSpecificity quiet honestly. */
+details[open] .chevron-flip,
 .group[aria-expanded="true"] .chevron-flip,
-.group[data-open] .chevron-flip,
-details[open] .chevron-flip {
+.group[data-open] .chevron-flip {
   transform: rotate(180deg);
 }
 
@@ -310,12 +312,16 @@ details[open] .chevron-flip {
   border-top: 2px dashed color-mix(in srgb, var(--ink) 25%, transparent);
 }
 
+/* The reduced-motion escape hatch has to outrank every Tailwind duration
+   utility it is cancelling, so !important is load-bearing here. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    /* biome-ignore-start lint/complexity/noImportantStyles: see above */
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* biome-ignore-end lint/complexity/noImportantStyles: see above */
   }
 }

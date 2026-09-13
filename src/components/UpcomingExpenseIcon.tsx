@@ -10,7 +10,14 @@ const iconClass = "h-4 w-4 shrink-0 text-brass";
  */
 export function UpcomingExpenseIcon({ date }: { date: string | undefined }) {
   if (!isUpcoming(date)) return null;
-  return <ClockArrowUp role="img" aria-label="Upcoming expense" className={iconClass} strokeWidth={2.25} />;
+  return (
+    <ClockArrowUp
+      role="img"
+      aria-label="Upcoming expense"
+      className={iconClass}
+      strokeWidth={2.25}
+    />
+  );
 }
 
 /**

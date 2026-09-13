@@ -25,9 +25,7 @@ function parse(raw: string | null): ExpenseState | null {
     const withDate = state.date ? state : { ...state, date: todayISODate() };
     // Same for mode, added after some expenses were already saved as plain
     // item breakdowns.
-    const withMode = withDate.mode
-      ? withDate
-      : { ...withDate, mode: "itemized" as const };
+    const withMode = withDate.mode ? withDate : { ...withDate, mode: "itemized" as const };
     // Same for currency, added after some expenses were already saved in
     // what was implicitly always USD.
     return withMode.currency ? withMode : { ...withMode, currency: DEFAULT_CURRENCY };
@@ -59,7 +57,7 @@ export function getExpenseListSnapshot(): StoredExpense[] {
   const entries: { key: string; raw: string | null }[] = [];
   for (let i = 0; i < window.localStorage.length; i++) {
     const key = window.localStorage.key(i);
-    if (key && key.startsWith(PREFIX)) {
+    if (key?.startsWith(PREFIX)) {
       entries.push({ key, raw: window.localStorage.getItem(key) });
     }
   }
@@ -89,12 +87,20 @@ export function subscribeExpenseList(callback: Listener): () => void {
 export function saveExpense(slug: string, state: ExpenseState): void {
   const stamped: ExpenseState = { ...state, updatedAt: Date.now() };
   window.localStorage.setItem(PREFIX + slug, JSON.stringify(stamped));
-  listeners.get(slug)?.forEach((callback) => callback());
-  listListeners.forEach((callback) => callback());
+  listeners.get(slug)?.forEach((callback) => {
+    callback();
+  });
+  listListeners.forEach((callback) => {
+    callback();
+  });
 }
 
 export function deleteExpense(slug: string): void {
   window.localStorage.removeItem(PREFIX + slug);
-  listeners.get(slug)?.forEach((callback) => callback());
-  listListeners.forEach((callback) => callback());
+  listeners.get(slug)?.forEach((callback) => {
+    callback();
+  });
+  listListeners.forEach((callback) => {
+    callback();
+  });
 }

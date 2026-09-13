@@ -1,5 +1,13 @@
 import { computeSplit } from "./calculations";
-import type { ExpenseAdjustments, ExpenseImage, ExpenseState, ExpenseItem, ExpenseMode, Person, RateSetting } from "./types";
+import type {
+  ExpenseAdjustments,
+  ExpenseImage,
+  ExpenseState,
+  ExpenseItem,
+  ExpenseMode,
+  Person,
+  RateSetting,
+} from "./types";
 
 export type Action =
   | { type: "SET_GLOBAL_ADJUSTMENTS"; adjustments: ExpenseAdjustments }
@@ -26,7 +34,12 @@ const zeroRate: RateSetting = { mode: "percent", value: 0 };
 // name of its own - it's always named after the expense - so switching into
 // it from an itemized breakdown folds everything (cost, discount, tax, tip,
 // across every item) into that single item's cost.
-function collapseToSingleItem(name: string, people: Person[], items: ExpenseItem[], global?: ExpenseAdjustments): ExpenseItem[] {
+function collapseToSingleItem(
+  name: string,
+  people: Person[],
+  items: ExpenseItem[],
+  global?: ExpenseAdjustments,
+): ExpenseItem[] {
   if (items.length === 0) return items;
   const total = computeSplit(people, items, global).grandTotal;
   const splitWith = Array.from(new Set(items.flatMap((i) => i.splitWith)));
@@ -54,14 +67,24 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       // total doesn't (it just takes the expense's), so there's nothing
       // meaningful to transfer between the two shapes.
       if (action.mode === "itemized") return { ...state, mode: "itemized", items: [] };
-      return { ...state, mode: "simple", globalAdjustments: undefined, items: collapseToSingleItem(state.name, state.people, state.items, state.globalAdjustments) };
+      return {
+        ...state,
+        mode: "simple",
+        globalAdjustments: undefined,
+        items: collapseToSingleItem(state.name, state.people, state.items, state.globalAdjustments),
+      };
     }
     case "SET_DATE":
       return { ...state, date: action.date };
     case "SET_CURRENCY":
       return { ...state, currency: action.currency };
     case "SET_PAYER":
-      return { ...state, payerId: state.people.some(person => person.id === action.payerId) ? action.payerId : undefined };
+      return {
+        ...state,
+        payerId: state.people.some((person) => person.id === action.payerId)
+          ? action.payerId
+          : undefined,
+      };
     case "SET_NOTE": {
       // A blank note is no note at all - drop the field entirely so adding,
       // updating and deleting a note are all this one action.
@@ -75,7 +98,10 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
     case "ADD_ITEM":
       return { ...state, items: [...state.items, action.item] };
     case "UPDATE_ITEM":
-      return { ...state, items: state.items.map((i) => (i.id === action.item.id ? action.item : i)) };
+      return {
+        ...state,
+        items: state.items.map((i) => (i.id === action.item.id ? action.item : i)),
+      };
     case "REMOVE_ITEM":
       return { ...state, items: state.items.filter((i) => i.id !== action.id) };
     case "REORDER_ITEMS":
@@ -86,7 +112,8 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
       return { ...state, people: [...state.people, { id: `person-${n}`, name: `Person ${n}` }] };
     }
     case "REMOVE_PERSON": {
-      if (state.people.length <= 1 || !state.people.some((person) => person.id === action.id)) return state;
+      if (state.people.length <= 1 || !state.people.some((person) => person.id === action.id))
+        return state;
       const people = state.people.filter((person) => person.id !== action.id);
       const remainingIds = people.map((person) => person.id);
       return {

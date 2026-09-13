@@ -1,4 +1,4 @@
-import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
+import { Children, Fragment, isValidElement, type ComponentProps, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -11,10 +11,16 @@ import { cn } from "@/lib/utils";
 export function Breadcrumb({ className, children, ...props }: ComponentProps<"nav">) {
   const crumbs = Children.toArray(children).filter(Boolean);
   return (
-    <nav aria-label="Breadcrumb" className={cn("mb-6 min-w-0 text-sm text-ink-soft", className)} {...props}>
+    <nav
+      aria-label="Breadcrumb"
+      className={cn("mb-6 min-w-0 text-sm text-ink-soft", className)}
+      {...props}
+    >
       <ol className="flex min-w-0 flex-wrap items-center gap-2">
         {crumbs.map((crumb, i) => (
-          <Fragment key={i}>
+          // Children.toArray stamps a stable key on every element it returns,
+          // so the crumb's own key beats its position in the list.
+          <Fragment key={isValidElement(crumb) ? crumb.key : i}>
             {i > 0 && (
               <li aria-hidden="true" className="flex shrink-0 items-center text-ink-soft/70">
                 <ChevronRight className="h-4 w-4" />

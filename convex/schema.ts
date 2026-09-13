@@ -7,7 +7,12 @@ export const rateSetting = v.object({
   value: v.number(),
 });
 
-export const expenseAdjustments = v.object({ discount: rateSetting, tax: rateSetting, tip: rateSetting, tipAfterTax: v.optional(v.boolean()) });
+export const expenseAdjustments = v.object({
+  discount: rateSetting,
+  tax: rateSetting,
+  tip: rateSetting,
+  tipAfterTax: v.optional(v.boolean()),
+});
 
 export const person = v.object({
   id: v.string(),

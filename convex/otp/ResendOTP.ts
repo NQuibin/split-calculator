@@ -75,7 +75,9 @@ export const ResendOTP = Email({
   async sendVerificationRequest({ identifier: email, token }) {
     const apiKey = process.env.RESEND_API_KEY;
     if (apiKey === undefined) {
-      throw new Error("RESEND_API_KEY is not set on this deployment - run `npx convex env set RESEND_API_KEY <key>`");
+      throw new Error(
+        "RESEND_API_KEY is not set on this deployment - run `npx convex env set RESEND_API_KEY <key>`",
+      );
     }
 
     const { html, text } = renderEmail(token);

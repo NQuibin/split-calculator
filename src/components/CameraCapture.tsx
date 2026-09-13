@@ -23,7 +23,9 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const [error, setError] = useState<string | null>(null);
 
   const stop = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((track) => {
+      track.stop();
+    });
     streamRef.current = null;
   }, []);
 
@@ -43,7 +45,9 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           audio: false,
         });
         if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
+          stream.getTracks().forEach((track) => {
+            track.stop();
+          });
           return;
         }
         streamRef.current = stream;
@@ -72,7 +76,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
 
   function handleCapture() {
     const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
+    if (!video?.videoWidth) return;
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -84,7 +88,11 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           return;
         }
         stop();
-        onCapture(new File([blob], `receipt-${new Date().toISOString().slice(0, 10)}.jpg`, { type: "image/jpeg" }));
+        onCapture(
+          new File([blob], `receipt-${new Date().toISOString().slice(0, 10)}.jpg`, {
+            type: "image/jpeg",
+          }),
+        );
       },
       "image/jpeg",
       0.92,
@@ -92,7 +100,12 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent aria-describedby={undefined}>
         <div className="mb-3 flex items-center justify-between">
           <DialogTitle className="flex items-center gap-1.5 text-sm tracking-wide uppercase">
@@ -115,7 +128,13 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           <p className="py-6 text-center text-sm text-margin-red-ink">{error}</p>
         ) : (
           <div className="relative overflow-hidden rounded-md border border-rule bg-ink/90">
-            <video ref={videoRef} autoPlay playsInline muted className="max-h-[60vh] w-full object-contain" />
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="max-h-[60vh] w-full object-contain"
+            />
             {!ready && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-surface" strokeWidth={2.5} />

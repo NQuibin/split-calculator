@@ -9,11 +9,13 @@ function convexLikeId(seed: number): string {
   // uncorrelated - an LCG's low bits are too structured to stand in for random
   // ids, and would test the generator rather than the hash.
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let state = (Math.imul(seed + 1, 0x9e3779b1) >>> 0) || 1;
+  let state = Math.imul(seed + 1, 0x9e3779b1) >>> 0 || 1;
   const next = () => {
-    state ^= state << 13; state >>>= 0;
+    state ^= state << 13;
+    state >>>= 0;
     state ^= state >>> 17;
-    state ^= state << 5; state >>>= 0;
+    state ^= state << 5;
+    state >>>= 0;
     return state;
   };
   for (let i = 0; i < 8; i++) next();

@@ -2,9 +2,13 @@ import { avatarColorIndex, avatarColors } from "@/lib/avatarColors";
 
 function memberInitials(name: string) {
   const words = name.trim().split(/\s+/u).filter(Boolean);
-  return (words.length > 1
-    ? `${Array.from(words[0])[0]}${Array.from(words[words.length - 1])[0]}`
-    : Array.from(words[0] ?? "?")[0]).toLocaleUpperCase().slice(0, 2);
+  return (
+    words.length > 1
+      ? `${Array.from(words[0])[0]}${Array.from(words[words.length - 1])[0]}`
+      : Array.from(words[0] ?? "?")[0]
+  )
+    .toLocaleUpperCase()
+    .slice(0, 2);
 }
 
 const avatarSizes = {
@@ -43,6 +47,16 @@ export function MemberAvatar({
   className?: string;
 }) {
   const colorIndex = avatarColorIndex(id);
-  return <span title={name} aria-label={name} className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${avatarSizes[size]} ${avatarColors[colorIndex]} ${className}`}>{memberInitials(name)}</span>;
+  return (
+    <span
+      // `role="img"` is what makes the label reach assistive tech: on a bare
+      // span aria-label is dropped, and the initials alone don't name anyone.
+      role="img"
+      title={name}
+      aria-label={name}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${avatarSizes[size]} ${avatarColors[colorIndex]} ${className}`}
+    >
+      {memberInitials(name)}
+    </span>
+  );
 }
-

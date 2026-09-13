@@ -17,7 +17,7 @@ export function PageTitle({ className, ...props }: ComponentProps<"h1">) {
     <h1
       className={cn(
         "font-display text-3xl font-semibold tracking-tight text-ink break-words",
-        className
+        className,
       )}
       {...props}
     />

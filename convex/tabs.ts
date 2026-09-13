@@ -7,7 +7,13 @@ import { computeShares, computeSplit, round2 } from "../src/lib/calculations";
 import { expenseAdjustments, person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { forbidden, isInviteToken, requireTabOwner, requireTabViewer, requireUserId } from "./authz";
+import {
+  forbidden,
+  isInviteToken,
+  requireTabOwner,
+  requireTabViewer,
+  requireUserId,
+} from "./authz";
 import type { Doc, Id } from "./_generated/dataModel";
 
 async function getTabBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
@@ -51,7 +57,12 @@ async function createSeat(
   name: string,
   userId?: Id<"users">,
 ): Promise<Seat> {
-  const id = await ctx.db.insert("tabMembers", { tabId, name, inviteToken: crypto.randomUUID(), userId });
+  const id = await ctx.db.insert("tabMembers", {
+    tabId,
+    name,
+    inviteToken: crypto.randomUUID(),
+    userId,
+  });
   return (await ctx.db.get(id))!;
 }
 
@@ -71,7 +82,9 @@ export async function tabSeats(ctx: QueryCtx | MutationCtx, tabId: Id<"tabs">): 
 
 function requireUniqueName(seats: Seat[], name: string, excludeId?: string) {
   const normalized = normalizeMemberName(name);
-  const collision = seats.some((s) => s._id !== excludeId && normalizeMemberName(s.name) === normalized);
+  const collision = seats.some(
+    (s) => s._id !== excludeId && normalizeMemberName(s.name) === normalized,
+  );
   if (collision) throw new Error(`"${name.trim()}" is already in this tab`);
 }
 
@@ -198,11 +211,15 @@ export const deleteTab = mutation({
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
     for (const raw of expenses) {
-        const expense = await resolveExpenseMembers(ctx, raw);
+      const expense = await resolveExpenseMembers(ctx, raw);
       await deleteExpenseDoc(ctx, expense);
     }
-    const settlements = await ctx.db.query("settlements").withIndex("by_tabId", q => q.eq("tabId", tab._id)).take(501);
-    if (settlements.length > 500) throw new Error("This tab needs a batched payment deletion before it can be removed");
+    const settlements = await ctx.db
+      .query("settlements")
+      .withIndex("by_tabId", (q) => q.eq("tabId", tab._id))
+      .take(501);
+    if (settlements.length > 500)
+      throw new Error("This tab needs a batched payment deletion before it can be removed");
     for (const settlement of settlements) await ctx.db.delete(settlement._id);
 
     for (const seat of await tabSeats(ctx, tab._id)) {
@@ -257,19 +274,31 @@ export const removeMember = mutation({
       throw new Error("The tab creator can't be removed");
     }
 
-    const expenses = ctx.db.query("expenses").withIndex("by_tab", q => q.eq("tabId", tab._id));
+    const expenses = ctx.db.query("expenses").withIndex("by_tab", (q) => q.eq("tabId", tab._id));
     for await (const raw of expenses) {
       const expense = await resolveExpenseMembers(ctx, raw);
-      if (expense.items.some(item => item.splitWith.includes(memberId))) {
+      if (expense.items.some((item) => item.splitWith.includes(memberId))) {
         throw new Error("This person is used by an expense and cannot be removed");
       }
-      if (expense.payerId === removed._id) throw new Error("This person is a payer and cannot be removed");
+      if (expense.payerId === removed._id)
+        throw new Error("This person is a payer and cannot be removed");
     }
     const [sent, received] = await Promise.all([
-      ctx.db.query("settlements").withIndex("by_tabId_and_fromMemberId", q => q.eq("tabId", tab._id).eq("fromMemberId", removed._id)).first(),
-      ctx.db.query("settlements").withIndex("by_tabId_and_toMemberId", q => q.eq("tabId", tab._id).eq("toMemberId", removed._id)).first(),
+      ctx.db
+        .query("settlements")
+        .withIndex("by_tabId_and_fromMemberId", (q) =>
+          q.eq("tabId", tab._id).eq("fromMemberId", removed._id),
+        )
+        .first(),
+      ctx.db
+        .query("settlements")
+        .withIndex("by_tabId_and_toMemberId", (q) =>
+          q.eq("tabId", tab._id).eq("toMemberId", removed._id),
+        )
+        .first(),
     ]);
-    if (sent || received) throw new Error("This person is referenced by a settlement and cannot be removed");
+    if (sent || received)
+      throw new Error("This person is referenced by a settlement and cannot be removed");
     await ctx.db.delete(removed._id);
     await ctx.db.patch(tab._id, { updatedAt: Date.now() });
   },
@@ -296,7 +325,6 @@ export const claimMember = mutation({
 
     await ctx.db.patch(seat._id, { userId });
     await ctx.db.patch(tab._id, { updatedAt: Date.now() });
-
   },
 });
 
@@ -367,7 +395,11 @@ export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
       for (const raw of expenses) {
         const expense = await resolveExpenseMembers(ctx, raw);
         const code = expense.currency ?? "USD";
-        const { grandTotal } = computeSplit(expense.people, expense.items, expense.globalAdjustments);
+        const { grandTotal } = computeSplit(
+          expense.people,
+          expense.items,
+          expense.globalAdjustments,
+        );
         totals.set(code, (totals.get(code) ?? 0) + grandTotal);
       }
 
@@ -412,7 +444,10 @@ export async function friendsForUser(ctx: QueryCtx, userId: Id<"users">) {
   // by user id. Anonymous ones are per-tab placeholder slots keyed by their
   // own member id, so a same-named placeholder in two tabs stays two entries
   // - there's nothing tying them together until someone claims the invite.
-  const people = new Map<string, { name: string; claimed: boolean; tabs: { slug: string; name: string }[] }>();
+  const people = new Map<
+    string,
+    { name: string; claimed: boolean; tabs: { slug: string; name: string }[] }
+  >();
   for (const tab of await listTabsForUser(ctx, userId)) {
     for (const member of await resolveMembers(ctx, tab)) {
       // You aren't your own friend - skip every slot you've claimed yourself.
@@ -501,7 +536,8 @@ export const createExpense = mutation({
     for (const entry of memberMapping) {
       if (entry.memberId) {
         if (!seats.some((s) => s._id === entry.memberId)) throw new Error("Member not found");
-        if (usedMemberIds.has(entry.memberId)) throw new Error("Two people can't map to the same tab member");
+        if (usedMemberIds.has(entry.memberId))
+          throw new Error("Two people can't map to the same tab member");
         usedMemberIds.add(entry.memberId);
         links.push({ personId: entry.personId, memberId: entry.memberId });
         continue;
@@ -529,42 +565,95 @@ export const createExpense = mutation({
     }
     const remapId = (id: string) => idRemap.get(id) ?? id;
 
-    const items = expense.items.map((item) => ({ ...item, splitWith: item.splitWith.map(remapId) }));
+    const items = expense.items.map((item) => ({
+      ...item,
+      splitWith: item.splitWith.map(remapId),
+    }));
     const payerId = state.payerId ? remapId(state.payerId) : undefined;
     await assertExpenseMembers(ctx, { tabId: tab._id, items, payerId });
-    const roundingOrder = expense.people.map(person => remapId(person.id))
-      .filter(id => seatsById.has(id)) as Id<"tabMembers">[];
+    const roundingOrder = expense.people
+      .map((person) => remapId(person.id))
+      .filter((id) => seatsById.has(id)) as Id<"tabMembers">[];
 
     const data = { ...state };
     // The roster travels with the client's state but is never stored - seats
     // in `tabMembers` are the source of truth, and `roundingOrder` above is
     // the only thing the doc keeps from it.
     delete (data as { people?: unknown }).people;
-    await ctx.db.insert("expenses", { ...data, payerId: payerId as Id<"tabMembers">, slug: expenseSlug, userId, note: state.note?.trim() || undefined, tabId: tab._id, memberReferencesVersion: 1, roundingOrder, items, updatedAt: Date.now() });
+    await ctx.db.insert("expenses", {
+      ...data,
+      payerId: payerId as Id<"tabMembers">,
+      slug: expenseSlug,
+      userId,
+      note: state.note?.trim() || undefined,
+      tabId: tab._id,
+      memberReferencesVersion: 1,
+      roundingOrder,
+      items,
+      updatedAt: Date.now(),
+    });
     return null;
   },
 });
 
 export const setExpenseExchangeRate = mutation({
-  args: { slug: v.string(), expenseSlug: v.string(), from: v.string(), to: v.string(), rate: v.union(v.number(), v.null()) },
+  args: {
+    slug: v.string(),
+    expenseSlug: v.string(),
+    from: v.string(),
+    to: v.string(),
+    rate: v.union(v.number(), v.null()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const tab = await getTabBySlug(ctx, args.slug);
     if (!tab) throw new Error("Tab not found");
     if (tab.ownerUserId !== userId) forbidden("Only the tab owner can set exchange rates");
-    const expense = await ctx.db.query("expenses").withIndex("by_user_slug", q => q.eq("userId", userId).eq("slug", args.expenseSlug)).unique();
+    const expense = await ctx.db
+      .query("expenses")
+      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", args.expenseSlug))
+      .unique();
     if (!expense || expense.tabId !== tab._id) throw new Error("Expense not found in this tab");
-    if (args.from !== (expense.currency ?? "USD") || args.to !== (tab.defaultCurrency ?? "USD")) throw new Error("Currency changed. Reopen the expense and try again.");
-    if (args.rate !== null && (!Number.isFinite(args.rate) || args.rate <= 0 || args.from === args.to)) throw new Error("Enter a positive exchange rate for different currencies");
-    await ctx.db.patch(expense._id, { exchangeRate: args.rate === null ? undefined : { from: args.from, to: args.to, rate: args.rate }, updatedAt: Date.now() });
+    if (args.from !== (expense.currency ?? "USD") || args.to !== (tab.defaultCurrency ?? "USD"))
+      throw new Error("Currency changed. Reopen the expense and try again.");
+    if (
+      args.rate !== null &&
+      (!Number.isFinite(args.rate) || args.rate <= 0 || args.from === args.to)
+    )
+      throw new Error("Enter a positive exchange rate for different currencies");
+    await ctx.db.patch(expense._id, {
+      exchangeRate:
+        args.rate === null ? undefined : { from: args.from, to: args.to, rate: args.rate },
+      updatedAt: Date.now(),
+    });
     return null;
   },
 });
 
 export const expensesForTab = query({
   args: { slug: v.string() },
-  returns: v.array(v.object({ slug: v.string(), name: v.string(), mode: expenseMode, note: v.optional(v.string()), image: v.optional(v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) })), people: v.array(person), items: v.array(expenseItem), payerId: v.optional(v.id("tabMembers")), globalAdjustments: v.optional(expenseAdjustments), currency: v.string(), exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })), settlementCurrency: v.string(), createdAt: v.number(), date: v.string(), createdBy: v.object({ id: v.string(), name: v.string() }) })),
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      name: v.string(),
+      mode: expenseMode,
+      note: v.optional(v.string()),
+      image: v.optional(
+        v.object({ name: v.string(), type: v.string(), url: v.union(v.string(), v.null()) }),
+      ),
+      people: v.array(person),
+      items: v.array(expenseItem),
+      payerId: v.optional(v.id("tabMembers")),
+      globalAdjustments: v.optional(expenseAdjustments),
+      currency: v.string(),
+      exchangeRate: v.optional(v.object({ from: v.string(), to: v.string(), rate: v.number() })),
+      settlementCurrency: v.string(),
+      createdAt: v.number(),
+      date: v.string(),
+      createdBy: v.object({ id: v.string(), name: v.string() }),
+    }),
+  ),
   handler: async (ctx, { slug }) => {
     const viewable = await viewableTab(ctx, slug);
     if (!viewable) return [];
@@ -573,39 +662,85 @@ export const expensesForTab = query({
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
-    const creators = new Map(await Promise.all([...new Set(expenses.map(e => e.userId))].map(async id => {
-      const user = await ctx.db.get(id);
-      return [id, user?.name?.trim() || "Unknown creator"] as const;
-    })));
+    const creators = new Map(
+      await Promise.all(
+        [...new Set(expenses.map((e) => e.userId))].map(async (id) => {
+          const user = await ctx.db.get(id);
+          return [id, user?.name?.trim() || "Unknown creator"] as const;
+        }),
+      ),
+    );
     // A creator renders with the same avatar colour as their seat in this tab,
     // which means handing the client the seat id rather than the account id -
     // `people` below is already seat-keyed (see resolveExpenseMembers), and the
     // two id spaces gave one person two colours in the same row. A creator with
     // no seat here (they left the tab, say) has nothing to stay consistent
     // with, so they keep falling back to the account id.
-    const seatByUser = new Map((await tabSeats(ctx, tab._id))
-      .flatMap(seat => seat.userId ? [[seat.userId as string, seat._id as string] as const] : []));
-    const resolvedExpenses = await Promise.all(expenses.map(doc => resolveExpenseMembers(ctx, doc)));
-    return (await Promise.all(resolvedExpenses
-  .map(async ({ slug, name, mode, note, image, people, items, payerId, globalAdjustments, currency, exchangeRate, _creationTime, date, userId }) => ({
-        slug,
-        name,
-    mode,
-        note,
-        image: image ? { name: image.name, type: image.type, url: await ctx.storage.getUrl(image.storageId) } : undefined,
-        people,
-        items,
-        payerId,
-        globalAdjustments,
-        currency: currency ?? "USD",
-        exchangeRate: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD"),
-        settlementCurrency: activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD")?.to ?? currency ?? "USD",
-        createdAt: _creationTime,
-        date,
-        createdBy: { id: seatByUser.get(userId) ?? userId, name: creators.get(userId) ?? "Unknown creator" },
-      }))))
-      // Latest expense date first; most recently created first on the same date.
-      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+    const seatByUser = new Map(
+      (await tabSeats(ctx, tab._id)).flatMap((seat) =>
+        seat.userId ? [[seat.userId as string, seat._id as string] as const] : [],
+      ),
+    );
+    const resolvedExpenses = await Promise.all(
+      expenses.map((doc) => resolveExpenseMembers(ctx, doc)),
+    );
+    return (
+      (
+        await Promise.all(
+          resolvedExpenses.map(
+            async ({
+              slug,
+              name,
+              mode,
+              note,
+              image,
+              people,
+              items,
+              payerId,
+              globalAdjustments,
+              currency,
+              exchangeRate,
+              _creationTime,
+              date,
+              userId,
+            }) => ({
+              slug,
+              name,
+              mode,
+              note,
+              image: image
+                ? {
+                    name: image.name,
+                    type: image.type,
+                    url: await ctx.storage.getUrl(image.storageId),
+                  }
+                : undefined,
+              people,
+              items,
+              payerId,
+              globalAdjustments,
+              currency: currency ?? "USD",
+              exchangeRate: activeExchangeRate(
+                { currency, exchangeRate },
+                tab.defaultCurrency ?? "USD",
+              ),
+              settlementCurrency:
+                activeExchangeRate({ currency, exchangeRate }, tab.defaultCurrency ?? "USD")?.to ??
+                currency ??
+                "USD",
+              createdAt: _creationTime,
+              date,
+              createdBy: {
+                id: seatByUser.get(userId) ?? userId,
+                name: creators.get(userId) ?? "Unknown creator",
+              },
+            }),
+          ),
+        )
+      )
+        // Latest expense date first; most recently created first on the same date.
+        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
+    );
   },
 });
 
@@ -640,7 +775,7 @@ async function computeCurrencyBreakdown(
     const original = computeShares(split);
     const shares = rate ? convertShares(original, split.grandTotal, rate.rate) : original;
     for (const row of shares) {
-      if (!expense.items.some(item => item.splitWith.includes(row.personId))) continue;
+      if (!expense.items.some((item) => item.splitWith.includes(row.personId))) continue;
       const entry = totals.get(row.personId);
       if (!entry) continue;
       entry.totalSpent += row.fairShare;
@@ -656,7 +791,9 @@ async function computeCurrencyBreakdown(
 
   return {
     expenseCount: currencyExpenses.length,
-    convertedExpenseCount: currencyExpenses.filter(expense => activeExchangeRate(expense, defaultCurrency)).length,
+    convertedExpenseCount: currencyExpenses.filter((expense) =>
+      activeExchangeRate(expense, defaultCurrency),
+    ).length,
     members: await Promise.all(
       seats.map(async (seat) => {
         const entry = totals.get(seat._id)!;
@@ -696,7 +833,8 @@ export const breakdown = query({
     // roster still renders.
     const byCurrency = new Map<string, Doc<"expenses">[]>();
     for (const expense of expenses) {
-      const code = activeExchangeRate(expense, tab.defaultCurrency ?? "USD")?.to ?? expense.currency ?? "USD";
+      const code =
+        activeExchangeRate(expense, tab.defaultCurrency ?? "USD")?.to ?? expense.currency ?? "USD";
       const list = byCurrency.get(code);
       if (list) list.push(expense);
       else byCurrency.set(code, [expense]);
@@ -709,10 +847,17 @@ export const breakdown = query({
     const currencies = await Promise.all(
       Array.from(byCurrency.entries()).map(async ([currency, currencyExpenses]) => ({
         currency,
-        ...(await computeCurrencyBreakdown(ctx, seats, currencyExpenses, tab.defaultCurrency ?? "USD")),
+        ...(await computeCurrencyBreakdown(
+          ctx,
+          seats,
+          currencyExpenses,
+          tab.defaultCurrency ?? "USD",
+        )),
       })),
     );
-    currencies.sort((a, b) => b.expenseCount - a.expenseCount || a.currency.localeCompare(b.currency));
+    currencies.sort(
+      (a, b) => b.expenseCount - a.expenseCount || a.currency.localeCompare(b.currency),
+    );
 
     return {
       tab: { name: tab.name, slug: tab.slug },

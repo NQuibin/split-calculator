@@ -367,6 +367,11 @@ Binding rules:
 Use `Input`, `Textarea`, `Select`, `Label` and `FieldError` from `ui/Input.tsx`. They
 carry the canonical `fieldClass`; don't hand-roll a bordered field.
 
+A filter box with a leading magnifier is `SearchField` from `ui/SearchField.tsx`
+— not an `Input` with an icon beside it. The `<label>` carries the ground there,
+so the icon lights up with the field on focus; `aria-label` is required, since
+the box has no visible label.
+
 `Select` is the native single-choice field for short lists such as an expense's
 payer. It shares the input ground, border, focus ring, and mobile type size.
 
@@ -641,6 +646,21 @@ reintroduce them.
   `ui/Input.tsx` (`Input`, `Textarea`, `Label`, `FieldError`).
 - ~~Inputs at 14px, zooming on iOS focus.~~ `fieldClass` is `text-base
   sm:text-sm`; the `[&_input]:text-base` wrappers are gone.
+- ~~Three hand-rolled search fields, no two alike.~~ → `ui/SearchField.tsx`.
+  The expenses directory, the tab expense list and the currency picker each
+  built their own: `gap-2` vs `gap-3`, `px-3` vs `px-4 py-3` vs `px-2.5 py-1.5`,
+  `rounded-lg` where an input is `rounded-md`, one missing
+  `focus-within:border-forest`, one missing `min-h-11`, and one at `sm:text-xs`
+  — off the type scale. `SearchField` owns the ground, the icon, the focus ring
+  and the touch target; callers pass layout (`mb-5`, `flex-1 sm:max-w-sm`) and
+  a required `aria-label`, nothing else.
+- ~~`RateInput`'s numeric box zoomed on iOS and showed no focus at all.~~ It was
+  `text-sm` at every width (§ 6 wants 16px below `sm`) and `outline-none` with
+  no replacement ring. Now `text-base sm:text-sm`, and the box lights up via
+  `has-[input:focus-visible]` — scoped to the input, so the mode buttons keep
+  their own inset outline instead of firing the box ring twice. Both widths are
+  in `ch`, so they track the type size; desktop rendering is unchanged (83px at
+  14px), and below `sm` the field is `w-full` anyway.
 - ~~26 hand-written heading class strings across 6 shapes.~~ →
   `ui/Typography.tsx` (`PageTitle`, `PageDescription`, `SectionTitle`,
   `GroupTitle`). The `text-sm font-medium` / `text-sm font-semibold` heading

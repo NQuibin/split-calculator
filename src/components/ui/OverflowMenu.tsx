@@ -1,4 +1,10 @@
-import { cloneElement, useState, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  useState,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { MoreVertical } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -46,11 +52,7 @@ export function OverflowMenu({
       >
         <MoreVertical className="h-5 w-5" strokeWidth={2.25} />
       </PopoverTrigger>
-      <PopoverContent
-        align={align}
-        className="w-56 gap-0.5 p-1.5"
-        onClick={() => setOpen(false)}
-      >
+      <PopoverContent align={align} className="w-56 gap-0.5 p-1.5" onClick={() => setOpen(false)}>
         {children}
       </PopoverContent>
     </Popover>
@@ -68,11 +70,14 @@ export function OverflowAction({
   render,
   children,
   ...props
-}: ComponentProps<"button"> & { destructive?: boolean; render?: ReactElement<{ className?: string; children?: ReactNode }> }) {
+}: ComponentProps<"button"> & {
+  destructive?: boolean;
+  render?: ReactElement<{ className?: string; children?: ReactNode }>;
+}) {
   const classes = cn(
     "flex min-h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0",
     destructive ? "text-margin-red-ink" : "text-ink",
-    className
+    className,
   );
 
   if (render) {

@@ -2,7 +2,13 @@ import { useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/Dialog";
 
 /**
  * The confirmation in front of a destructive action.
@@ -57,7 +63,11 @@ export function ConfirmDialog({
       <DialogContent aria-label={title}>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription className="mt-2">{description}</DialogDescription>
-        {error && <p role="alert" className="mt-3 text-sm text-margin-red-ink">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-margin-red-ink">
+            {error}
+          </p>
+        )}
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <DialogClose disabled={pending} render={<Button variant="outline" size="touch" />}>
             Cancel

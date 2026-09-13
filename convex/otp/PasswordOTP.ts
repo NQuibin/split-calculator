@@ -9,8 +9,10 @@ export function skipOtpForLocalDevelopment() {
   if (process.env.AUTH_SKIP_OTP !== "true") return false;
   try {
     const url = new URL(process.env.SITE_URL ?? "");
-    return (url.protocol === "http:" || url.protocol === "https:") &&
-      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+    );
   } catch {
     return false;
   }
@@ -28,8 +30,7 @@ export const PasswordOTP = ConvexCredentials({
   extraProviders: [ResendOTP],
   async authorize(params, ctx) {
     const { email, password, flow } = params;
-    if (typeof email !== "string" || !email.trim() ||
-        typeof password !== "string" || !password) {
+    if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
       throw new Error("Email and password are required");
     }
     if (flow !== "signUp" && flow !== "signIn" && flow !== "verify") {
@@ -37,16 +38,17 @@ export const PasswordOTP = ConvexCredentials({
     }
     const address = email.trim().toLowerCase();
     const credentials = { provider: "password", account: { id: address, secret: password } };
-    const result = flow === "signUp"
-      ? await (async () => {
-          if (password.length < 8) throw new Error("Use at least 8 characters");
-          return createAccount(ctx, {
-            ...credentials,
-            profile: { email: address },
-            shouldLinkViaEmail: true,
-          });
-        })()
-      : await retrieveAccount(ctx, credentials);
+    const result =
+      flow === "signUp"
+        ? await (async () => {
+            if (password.length < 8) throw new Error("Use at least 8 characters");
+            return createAccount(ctx, {
+              ...credentials,
+              profile: { email: address },
+              shouldLinkViaEmail: true,
+            });
+          })()
+        : await retrieveAccount(ctx, credentials);
     if (!result) throw new Error("Invalid credentials");
     if (skipOtpForLocalDevelopment()) return { userId: result.user._id };
     if (flow === "verify" && (typeof params.code !== "string" || !/^\d{6}$/.test(params.code))) {

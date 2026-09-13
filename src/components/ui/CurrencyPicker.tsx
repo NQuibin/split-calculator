@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MenuOption } from "@/components/ui/MenuOption";
+import { SearchField } from "@/components/ui/SearchField";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { CURRENCIES } from "@/lib/currencies";
 
@@ -48,13 +49,15 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
         <span className="font-numeric">{value}</span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 rounded-lg p-2">
-        <input
+        <SearchField
+          // Focus management for a popover the user just opened, not focus
+          // stolen on load - the filter box is the only reason to open it.
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search currency…"
           aria-label="Search currency"
-          className="mb-2 w-full rounded-md border border-edge bg-field px-2.5 py-1.5 text-base text-ink outline-none focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-forest/20 sm:text-sm"
+          className="mb-2"
         />
         <ul className="max-h-56 space-y-0.5 overflow-y-auto">
           {filtered.length === 0 ? (

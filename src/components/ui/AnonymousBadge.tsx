@@ -7,7 +7,8 @@ import { HatGlasses } from "lucide-react";
 export function AnonymousBadge() {
   return (
     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed border-rule px-2 py-0.5 text-xs font-medium text-ink-soft">
-      <HatGlasses aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />Anonymous
+      <HatGlasses aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.25} />
+      Anonymous
     </span>
   );
 }

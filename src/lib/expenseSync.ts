@@ -52,23 +52,31 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
     date: state.date,
     people: state.people.map(({ id, name }) => ({ id, name })),
     ...(state.payerId ? { payerId: state.payerId } : {}),
-    items: state.items.map(({ id, name, cost, discount, tax, tip, tipAfterTax, splitWith, overrideAdjustments }) => ({
-      id,
-      name,
-      cost,
-      discount: rate(discount),
-      tax: rate(tax),
-      tip: rate(tip),
-      ...(tipAfterTax === undefined ? {} : { tipAfterTax }),
-      splitWith,
-      ...(overrideAdjustments === undefined ? {} : { overrideAdjustments }),
-    })),
-    ...(state.globalAdjustments ? { globalAdjustments: {
-      discount: rate(state.globalAdjustments.discount),
-      tax: rate(state.globalAdjustments.tax),
-      tip: rate(state.globalAdjustments.tip),
-      ...(state.globalAdjustments.tipAfterTax === undefined ? {} : { tipAfterTax: state.globalAdjustments.tipAfterTax }),
-    } } : {}),
+    items: state.items.map(
+      ({ id, name, cost, discount, tax, tip, tipAfterTax, splitWith, overrideAdjustments }) => ({
+        id,
+        name,
+        cost,
+        discount: rate(discount),
+        tax: rate(tax),
+        tip: rate(tip),
+        ...(tipAfterTax === undefined ? {} : { tipAfterTax }),
+        splitWith,
+        ...(overrideAdjustments === undefined ? {} : { overrideAdjustments }),
+      }),
+    ),
+    ...(state.globalAdjustments
+      ? {
+          globalAdjustments: {
+            discount: rate(state.globalAdjustments.discount),
+            tax: rate(state.globalAdjustments.tax),
+            tip: rate(state.globalAdjustments.tip),
+            ...(state.globalAdjustments.tipAfterTax === undefined
+              ? {}
+              : { tipAfterTax: state.globalAdjustments.tipAfterTax }),
+          },
+        }
+      : {}),
     currency: state.currency ?? DEFAULT_CURRENCY,
     ...noteArg(state.note),
     ...imageArg(state.image),
@@ -126,14 +134,16 @@ function noteArg(note: string | undefined): { note?: string } {
 // mutation. An absent `image` is how the mutation is told to clear one.
 function imageArg(image: ExpenseImage | undefined): { image?: ExpenseStateArgs["image"] } {
   if (!image) return {};
-  return { image: { storageId: image.storageId as Id<"_storage">, name: image.name, type: image.type } };
+  return {
+    image: { storageId: image.storageId as Id<"_storage">, name: image.name, type: image.type },
+  };
 }
 
 export function useExpenseList(): StoredExpense[] {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const localList = useSyncExternalStore(subscribeExpenseList, getExpenseListSnapshot);
   const remoteList = useQuery(api.expenses.list, isAuthenticated ? {} : "skip");
-  return isLoading ? [] : isAuthenticated ? remoteList ?? [] : localList;
+  return isLoading ? [] : isAuthenticated ? (remoteList ?? []) : localList;
 }
 
 export function useStoredExpense(slug: string): { state: ExpenseState | null; loading: boolean } {

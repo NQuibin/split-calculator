@@ -15,6 +15,23 @@ and `/e/{slug}` 404 on a hard load.
 icons (`scripts/build-icons.tsx`, satori + resvg), then builds to `dist/`. The
 typecheck runs first and gates the build, so a type error fails the deploy.
 
+# Lint and format
+
+**Biome owns formatting and linting** (`biome.jsonc`): JS, TS, JSX, JSON and
+CSS, at a 100-column line width. Run `pnpm lint` before you hand work back, and
+`pnpm lint:fix` to apply the safe fixes. Never hand-format - if a diff fights
+you on wrapping, the formatter is right.
+
+ESLint survives for exactly one thing: **`eslint-plugin-react-hooks`**. Its
+React Compiler rules (`set-state-in-effect`, `purity`, `immutability`,
+`preserve-manual-memoization`, ...) have no Biome equivalent, so
+`eslint.config.mjs` loads that plugin and nothing else - no ESLint rules for
+style, TypeScript, or a11y. Don't add rules there; add them to `biome.jsonc`.
+
+Suppress a rule only with a `biome-ignore` comment carrying a real reason, and
+keep it to a **single line directly above the flagged line** - Biome anchors on
+the reported span, which for an attribute is the attribute, not the element.
+
 # Reusable components are preferred
 
 **Before writing UI, search for an existing component that already does it.**

@@ -4,7 +4,14 @@ import { Authenticated } from "convex/react";
 import { Plus, Users2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/Dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/Dialog";
 import { useTabActions } from "@/lib/tabSync";
 import { generateSlug } from "@/lib/slug";
 
@@ -16,10 +23,19 @@ interface CreateTabMenuProps {
 }
 
 export function CreateTabMenu(props: CreateTabMenuProps) {
-  return <Authenticated><CreateTabModal {...props} /></Authenticated>;
+  return (
+    <Authenticated>
+      <CreateTabModal {...props} />
+    </Authenticated>
+  );
 }
 
-function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, onOpenChange }: CreateTabMenuProps) {
+function CreateTabModal({
+  variant = "button",
+  onCreated,
+  open: controlledOpen,
+  onOpenChange,
+}: CreateTabMenuProps) {
   const navigate = useNavigate();
   const { create } = useTabActions();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -29,13 +45,15 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
     onOpenChange?.(next);
   }
   const [name, setName] = useState("");
-  const [memberNames, setMemberNames] = useState<string[]>([]);
+  // Each draft row carries its own id so removing a row keeps the remaining
+  // inputs (and their focus) attached to the same React element.
+  const [memberDrafts, setMemberDrafts] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function resetForm() {
     setName("");
-    setMemberNames([]);
+    setMemberDrafts([]);
     setError(null);
     setSubmitting(false);
   }
@@ -46,7 +64,7 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
     setSubmitting(true);
     try {
       const slug = generateSlug();
-      await create({ slug, name, memberNames });
+      await create({ slug, name, memberNames: memberDrafts.map((draft) => draft.name) });
       setOpen(false);
       resetForm();
       if (onCreated) onCreated(slug);
@@ -99,7 +117,11 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
             )
           }
         >
-          {variant === "primary" ? <Plus className="h-5 w-5" strokeWidth={2} /> : <Users2 className="h-4 w-4" strokeWidth={2.5} />}
+          {variant === "primary" ? (
+            <Plus className="h-5 w-5" strokeWidth={2} />
+          ) : (
+            <Users2 className="h-4 w-4" strokeWidth={2.5} />
+          )}
           New tab
         </DialogTrigger>
       )}
@@ -113,7 +135,9 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
             <X className="h-4 w-4" />
           </DialogClose>
         </div>
-        <DialogDescription className="mb-5">You’re added automatically. Add other people below, or invite them later.</DialogDescription>
+        <DialogDescription className="mb-5">
+          You’re added automatically. Add other people below, or invite them later.
+        </DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-3">
           <Input
             type="text"
@@ -124,21 +148,27 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
             onChange={(e) => setName(e.target.value)}
           />
           <div className="space-y-2">
-            {memberNames.map((memberName, i) => (
-              <div key={i} className="flex items-center gap-1.5">
+            {memberDrafts.map((draft, i) => (
+              <div key={draft.id} className="flex items-center gap-1.5">
                 <Input
                   type="text"
                   placeholder="Other member (optional)"
-                  value={memberName}
+                  value={draft.name}
                   onChange={(e) =>
-                    setMemberNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))
+                    setMemberDrafts((prev) =>
+                      prev.map((entry) =>
+                        entry.id === draft.id ? { ...entry, name: e.target.value } : entry,
+                      ),
+                    )
                   }
-                      />
+                />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-touch"
-                  onClick={() => setMemberNames((prev) => prev.filter((_, idx) => idx !== i))}
+                  onClick={() =>
+                    setMemberDrafts((prev) => prev.filter((entry) => entry.id !== draft.id))
+                  }
                   aria-label={`Remove member ${i + 1}`}
                   className="shrink-0 text-ink-soft hover:text-margin-red-ink"
                 >
@@ -151,14 +181,26 @@ function CreateTabModal({ variant = "button", onCreated, open: controlledOpen, o
             type="button"
             variant="link"
             size="xs"
-            onClick={() => setMemberNames((prev) => [...prev, ""])}
+            onClick={() =>
+              setMemberDrafts((prev) => [...prev, { id: crypto.randomUUID(), name: "" }])
+            }
             className="h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-            {memberNames.length === 0 ? "Add member" : "Add another member"}
+            {memberDrafts.length === 0 ? "Add member" : "Add another member"}
           </Button>
-          {error && <p role="alert" className="text-xs text-margin-red-ink">{error}</p>}
-          <Button type="submit" size="lg" disabled={submitting} aria-busy={submitting} className="w-full">
+          {error && (
+            <p role="alert" className="text-xs text-margin-red-ink">
+              {error}
+            </p>
+          )}
+          <Button
+            type="submit"
+            size="lg"
+            disabled={submitting}
+            aria-busy={submitting}
+            className="w-full"
+          >
             {submitting ? "Creating…" : "Create tab"}
           </Button>
         </form>

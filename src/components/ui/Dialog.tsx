@@ -1,18 +1,17 @@
-import * as React from "react"
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
 function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
 // Backdrop + a scrollable viewport wrap the popup, so a tall dialog scrolls the
@@ -29,7 +28,7 @@ function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.
           data-slot="dialog-content"
           className={cn(
             "relative m-auto w-full max-w-lg rounded-xl border border-rule/70 bg-surface p-5 text-ink shadow-xl outline-hidden duration-150 sm:p-6 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-            className
+            className,
           )}
           {...props}
         >
@@ -37,7 +36,7 @@ function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.
         </DialogPrimitive.Popup>
       </DialogPrimitive.Viewport>
     </DialogPrimitive.Portal>
-  )
+  );
 }
 
 function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
@@ -47,7 +46,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
       className={cn("font-display text-lg font-semibold break-words", className)}
       {...props}
     />
-  )
+  );
 }
 
 function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {
@@ -57,14 +56,7 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
       className={cn("text-sm text-ink-soft", className)}
       {...props}
     />
-  )
+  );
 }
 
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-}
+export { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger };

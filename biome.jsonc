@@ -1,0 +1,73 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "src/**",
+      "convex/**",
+      "scripts/**",
+      "*.ts",
+      "*.mjs",
+      "*.json",
+      "*.jsonc",
+      "!convex/_generated",
+      "!src/routeTree.gen.ts",
+      "!skills-lock.json",
+      "!tsconfig.tsbuildinfo"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "double", "semicolons": "always" }
+  },
+  "css": {
+    // globals.css is Tailwind v4: @theme, @custom-variant, @apply, @layer.
+    "parser": { "tailwindDirectives": true }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        // A <label> wrapping our own <Input> primitive is correctly associated;
+        // the rule only recognises bare DOM controls unless told otherwise.
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": { "inputComponents": ["Input", "RateInput", "TipRateInput"] }
+        }
+      },
+      "style": {
+        // Fast Refresh boundary check - replaces eslint-plugin-react-refresh.
+        "useComponentExportOnlyModules": "warn",
+        // The codebase leans on `!` where a Convex query or an earlier guard
+        // has already narrowed the value; asserting there is intentional.
+        "noNonNullAssertion": "off"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": { "organizeImports": "off" }
+    }
+  },
+  "overrides": [
+    {
+      // Route modules must export `Route` alongside their component, and these
+      // primitives export the class strings / cva variants their siblings
+      // reuse - all the intended shape, and none of it a Fast Refresh hazard
+      // in practice.
+      "includes": [
+        "src/routes/**/*.tsx",
+        "src/components/ui/Button.tsx",
+        "src/components/ui/Input.tsx",
+        "src/components/ui/Breadcrumb.tsx"
+      ],
+      "linter": { "rules": { "style": { "useComponentExportOnlyModules": "off" } } }
+    }
+  ]
+}

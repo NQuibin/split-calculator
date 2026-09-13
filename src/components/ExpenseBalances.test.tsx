@@ -5,11 +5,26 @@ import { renderMarkup } from "@/test/render";
 import { ExpenseBalances } from "./ExpenseBalances";
 import { computeSplit } from "../lib/calculations";
 
-const people = [{ id: "nikki", name: "Nikki Q" }, { id: "p2", name: "P2" }, { id: "p3", name: "P3" }];
+const people = [
+  { id: "nikki", name: "Nikki Q" },
+  { id: "p2", name: "P2" },
+  { id: "p3", name: "P3" },
+];
 const zero = { mode: "percent" as const, value: 0 };
-const item = { id: "dinner", name: "Dinner", cost: 120, splitWith: people.map(person => person.id), discount: zero, tax: zero, tip: zero };
+const item = {
+  id: "dinner",
+  name: "Dinner",
+  cost: 120,
+  splitWith: people.map((person) => person.id),
+  discount: zero,
+  tax: zero,
+  tip: zero,
+};
 const split = computeSplit(people, [item]);
-const render = (props: Partial<Parameters<typeof ExpenseBalances>[0]> = {}) => renderMarkup(createElement(ExpenseBalances, { people, split, payerId: "nikki", currency: "USD", ...props }));
+const render = (props: Partial<Parameters<typeof ExpenseBalances>[0]> = {}) =>
+  renderMarkup(
+    createElement(ExpenseBalances, { people, split, payerId: "nikki", currency: "USD", ...props }),
+  );
 
 test("the expense form distinguishes money paid from each share and net debt", () => {
   const html = render();
@@ -40,7 +55,10 @@ test("upcoming expenses are clearly projected and a zero balance is settled", ()
   expect(settled).toContain('text-right text-ink"><span class="inline-flex');
   expect(settled).not.toContain("Gets");
 
-  const upcoming = render({ projected: true, split: computeSplit(people, [{ ...item, splitWith: ["nikki"] }]) });
+  const upcoming = render({
+    projected: true,
+    split: computeSplit(people, [{ ...item, splitWith: ["nikki"] }]),
+  });
   expect(upcoming).toContain("Not due");
   expect(upcoming).not.toContain("Settled");
 });
