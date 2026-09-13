@@ -1,12 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect x="3" y="2" width="26" height="28" rx="5" fill="#1e2a22"/>
-  <rect x="7" y="6" width="18" height="8" rx="1.5" fill="#edf1e4"/>
-  <g fill="#b8933a">
-    <rect x="7" y="17" width="5" height="4.25" rx="1"/>
-    <rect x="13.5" y="17" width="5" height="4.25" rx="1"/>
-    <rect x="20" y="17" width="5" height="4.25" rx="1"/>
-    <rect x="7" y="22.75" width="5" height="4.25" rx="1"/>
-    <rect x="13.5" y="22.75" width="5" height="4.25" rx="1"/>
-    <rect x="20" y="22.75" width="5" height="4.25" rx="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Ventura pin logo</title>
+  <desc id="desc">Minimal location pin with mountain peaks, a winding path, and a brass sun.</desc>
+
+  <g id="ventura-mark" shape-rendering="geometricPrecision">
+    <!-- Outer pin -->
+    <path fill="#2f4a3c"
+      d="M256 28
+         C158 28 78 105 78 201
+         C78 322 194 427 256 492
+         C318 427 434 322 434 201
+         C434 105 354 28 256 28Z"/>
+
+    <!-- Paper sky / negative space -->
+    <circle cx="256" cy="193" r="124" fill="#edf1e4"/>
+
+    <!-- Mountain foreground -->
+    <path fill="#2f4a3c"
+      d="M120 247
+         L191 185
+         Q199 178 207 185
+         L256 226
+         L305 185
+         Q313 178 321 185
+         L392 247
+         C375 296 326 318 256 318
+         C186 318 137 296 120 247Z"/>
+
+    <!-- Winding itinerary path -->
+    <path fill="#edf1e4"
+      d="M254 221
+         C238 236 220 251 214 266
+         C206 286 221 299 248 311
+         C275 323 289 335 287 350
+         C285 369 263 383 244 399
+         C225 416 220 438 226 456
+         C231 472 242 485 256 492
+         C248 476 246 462 250 448
+         C255 431 269 420 284 409
+         C306 393 322 375 323 354
+         C324 330 306 310 273 296
+         C250 286 241 278 245 268
+         C248 260 260 250 272 240Z"/>
+
+    <!-- Brass sun -->
+    <circle cx="256" cy="151" r="41" fill="#b8933a"/>
   </g>
 </svg>

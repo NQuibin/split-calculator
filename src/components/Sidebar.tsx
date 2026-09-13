@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Menu, ReceiptText, Settings, Users, Wallet, X } from "lucide-react";
+import wordmark from "@/assets/wordmark.svg";
 import { Button } from "@/components/ui/Button";
 import { SidebarAccount } from "@/components/SidebarAccount";
 
@@ -149,9 +150,12 @@ function BrandLink() {
   return (
     <Link
       to="/tabs"
-      className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 font-display text-lg font-semibold tracking-tight text-brass-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+      aria-label="Ventura"
+      className="-mx-2 inline-flex min-h-11 items-center rounded-md px-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
     >
-      Ventura
+      {/* The wordmark carries its own type, so it is an <img> rather than text
+          - the alt keeps the link's accessible name if the file fails to load. */}
+      <img src={wordmark} alt="Ventura" className="h-8 w-auto" />
     </Link>
   );
 }
