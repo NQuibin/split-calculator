@@ -53,7 +53,8 @@ test("centers mixed settled and outstanding currency summaries", () => {
   expect(markup.match(/scope="col"[^>]*>(?:CAD|USD)<\/th>/g)).toHaveLength(2);
   expect(markup).toContain("Settled");
   expect(markup).toContain("Gets ");
-  expect(markup).toContain("text-ink text-lg font-semibold");
+  expect(markup).toContain("text-ink font-semibold");
+  expect(markup).not.toContain("text-lg font-semibold");
 });
 
 test("shows every member while putting the viewer first", () => {

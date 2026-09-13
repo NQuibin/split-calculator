@@ -2,7 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { ArrowRight, ChevronDown, HandCoins, MoveDown, MoveUp, RotateCcw, X } from "lucide-react";
+import {
+  ArrowRight,
+  Banknote,
+  ChevronDown,
+  HandCoins,
+  MoveDown,
+  MoveUp,
+  RotateCcw,
+  X,
+} from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -55,7 +64,7 @@ function BalanceValue({
   const DirectionIcon = balance > 0 ? MoveUp : MoveDown;
   return (
     <span
-      className={`inline-flex flex-wrap items-center gap-1 ${color} ${prominent ? "text-lg font-semibold" : ""}`}
+      className={`inline-flex flex-wrap items-center gap-1 ${color} ${prominent ? "font-semibold" : ""}`}
     >
       {balance === 0 ? (
         "Settled"
@@ -465,6 +474,7 @@ export function TabSettlement({
                   <Label htmlFor="settlement-amount">Amount ({payment.currency})</Label>
                   <Input
                     id="settlement-amount"
+                    icon={Banknote}
                     type="number"
                     inputMode="decimal"
                     step="0.01"
@@ -484,6 +494,7 @@ export function TabSettlement({
                   <Label htmlFor="settlement-date">Payment date</Label>
                   <DatePicker
                     id="settlement-date"
+                    className="w-full"
                     value={payment.date}
                     onChange={(date) => setPayment({ ...payment, date })}
                     aria-label="Payment date"

@@ -5,8 +5,10 @@ import { SearchField } from "@/components/ui/SearchField";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { CURRENCIES } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
+import { Banknote, ChevronDown } from "lucide-react";
 
 interface CurrencyPickerProps {
+  id?: string;
   value: string;
   onChange: (code: string) => void;
   "aria-label"?: string;
@@ -45,18 +47,23 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
           <Button
             variant="field"
             aria-label={props["aria-label"]}
+            id={props.id}
             className={cn(
-              "h-auto min-h-11 min-w-11 gap-1.5 rounded-md px-2 py-1.5",
+              "h-auto min-h-11 min-w-11 max-w-full gap-2 rounded-md px-3 py-1.5",
               props.className,
             )}
           />
         }
       >
-        <span className="flex min-w-0 items-center gap-2">
+        <span className="flex w-full min-w-0 items-center gap-2 text-base sm:text-sm">
+          <Banknote aria-hidden="true" className="h-4 w-4 shrink-0 text-brass" />
           <span className="font-numeric font-semibold">{value}</span>
           {selectedCurrency && (
-            <span className="truncate text-ink-soft">{selectedCurrency.name}</span>
+            <span className="min-w-0 flex-1 truncate text-left text-ink-soft">
+              {selectedCurrency.name}
+            </span>
           )}
+          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft" />
         </span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 rounded-lg p-2">

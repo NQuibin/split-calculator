@@ -11,7 +11,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootLayout() {
   return (
-    <div className="flex min-h-full flex-col md:flex-row">
+    <div className="flex min-h-full flex-col lg:flex-row">
       {/* First thing in the tab order, visible only once focused: lets a
           keyboard user skip the nav on every route. */}
       <a

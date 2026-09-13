@@ -3,7 +3,7 @@ import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } fr
 import { Check, Coins, Loader2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
-import { Input } from "@/components/ui/Input";
+import { Field, Input } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { api } from "../../convex/_generated/api";
@@ -62,8 +62,15 @@ function DefaultCurrencySettings() {
       <p className="mb-5 text-sm text-ink-soft">
         New expenses you start outside of a tab begin in this currency.
       </p>
-      <div className="flex items-center gap-2">
-        <CurrencyPicker value={currency} onChange={handleChange} aria-label="Default currency" />
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Default currency" htmlFor="settings-currency" showLabel={false}>
+          <CurrencyPicker
+            id="settings-currency"
+            value={currency}
+            onChange={handleChange}
+            aria-label="Default currency"
+          />
+        </Field>
         {saved && <Check className="h-4 w-4 text-forest" strokeWidth={2.5} />}
       </div>
     </div>
@@ -104,19 +111,28 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
       <p className="mb-5 text-sm text-ink-soft">This is the name shown to friends in your tabs.</p>
       <form
         onSubmit={handleSubmit}
-        className="flex max-w-xl flex-wrap items-center gap-3 sm:flex-nowrap"
+        className="flex max-w-xl flex-wrap items-end gap-3 sm:flex-nowrap"
       >
-        <Input
-          type="text"
-          required
-          placeholder="Your name"
-          aria-label="Your name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <Field
+          label="Your name"
+          htmlFor="settings-name"
+          showLabel={false}
+          className="min-w-0 flex-1"
+        >
+          <Input
+            id="settings-name"
+            type="text"
+            required
+            aria-label="Your name"
+            placeholder="Your name"
+            icon={UserRound}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
         <Button
           type="submit"
-          size="hero"
+          size="touch"
           disabled={status === "saving"}
           aria-busy={status === "saving"}
           className="shrink-0"

@@ -7,6 +7,7 @@ interface TipRateInputProps {
   onChange: (rate: RateSetting) => void;
   afterTax: boolean;
   onAfterTaxChange: (afterTax: boolean) => void;
+  fullWidth?: boolean;
 }
 
 /**
@@ -14,13 +15,20 @@ interface TipRateInputProps {
  * toggle only shows for a percent tip - a fixed amount is the same figure
  * either way, so the choice would be meaningless.
  */
-export function TipRateInput({ rate, onChange, afterTax, onAfterTaxChange }: TipRateInputProps) {
+export function TipRateInput({
+  rate,
+  onChange,
+  afterTax,
+  onAfterTaxChange,
+  fullWidth,
+}: TipRateInputProps) {
   return (
     <RateInput
       label="Tip"
       icon={Coins}
       rate={rate}
       onChange={onChange}
+      fullWidth={fullWidth}
       footer={
         rate.mode === "percent" ? (
           <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-ink-soft">

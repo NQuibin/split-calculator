@@ -41,7 +41,7 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-rule bg-surface px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] md:hidden">
+      <div className="flex items-center justify-between border-b border-rule bg-surface px-4 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:hidden">
         <BrandLink />
         <Button
           type="button"
@@ -60,7 +60,7 @@ export function Sidebar() {
 
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-ink/30 md:hidden"
+          className="fixed inset-0 z-40 bg-ink/30 lg:hidden"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
@@ -68,7 +68,7 @@ export function Sidebar() {
 
       {/* `invisible` (not just translated off-screen) is what takes the closed
           drawer's links out of the tab order; it's part of the transition so
-          the panel still slides out rather than vanishing, and `md:visible`
+          the panel still slides out rather than vanishing, and `lg:visible`
           puts it back for the permanent desktop sidebar. */}
       <aside
         id="app-nav"
@@ -76,7 +76,7 @@ export function Sidebar() {
         onKeyDown={(event) => {
           if (event.key === "Escape") setMobileOpen(false);
         }}
-        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r border-rule/60 bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-[transform,visibility] duration-200 ease-in-out md:sticky md:top-0 md:z-auto md:h-screen md:visible md:translate-x-0 md:pt-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r border-rule/60 bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-[transform,visibility] duration-200 ease-in-out lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:visible lg:translate-x-0 lg:pt-0 ${
           mobileOpen ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
@@ -88,7 +88,7 @@ export function Sidebar() {
             size="icon-touch"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="-mr-2 text-ink-soft md:hidden"
+            className="-mr-2 text-ink-soft lg:hidden"
           >
             <X className="h-4 w-4" strokeWidth={2.25} />
           </Button>

@@ -1,9 +1,9 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Authenticated } from "convex/react";
-import { Plus, Users2, X } from "lucide-react";
+import { Plus, UserRound, Users2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input, Label } from "@/components/ui/Input";
 import {
   Dialog,
   DialogContent,
@@ -139,29 +139,38 @@ function CreateTabModal({
           You’re added automatically. Add other people below, or invite them later.
         </DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Input
-            type="text"
-            required
-            placeholder="Tab name"
-            aria-label="Tab name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+          <div>
+            <Label htmlFor="create-tab-name">Tab name</Label>
+            <Input
+              id="create-tab-name"
+              type="text"
+              required
+              placeholder="e.g. Weekend trip"
+              icon={Users2}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
           <div className="space-y-2">
             {memberDrafts.map((draft, i) => (
-              <div key={draft.id} className="flex items-center gap-1.5">
-                <Input
-                  type="text"
-                  placeholder="Other member (optional)"
-                  value={draft.name}
-                  onChange={(e) =>
-                    setMemberDrafts((prev) =>
-                      prev.map((entry) =>
-                        entry.id === draft.id ? { ...entry, name: e.target.value } : entry,
-                      ),
-                    )
-                  }
-                />
+              <div key={draft.id} className="flex items-end gap-1.5">
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor={`member-draft-${draft.id}`}>Member {i + 1} (optional)</Label>
+                  <Input
+                    id={`member-draft-${draft.id}`}
+                    type="text"
+                    placeholder="Other member (optional)"
+                    icon={UserRound}
+                    value={draft.name}
+                    onChange={(e) =>
+                      setMemberDrafts((prev) =>
+                        prev.map((entry) =>
+                          entry.id === draft.id ? { ...entry, name: e.target.value } : entry,
+                        ),
+                      )
+                    }
+                  />
+                </div>
                 <Button
                   type="button"
                   variant="ghost"

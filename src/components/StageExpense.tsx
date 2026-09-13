@@ -6,7 +6,6 @@ import {
   Asterisk,
   Banknote,
   Calculator,
-  Calendar,
   Check,
   ChevronDown,
   ListChecks,
@@ -18,6 +17,7 @@ import {
   TicketPercent,
   X,
   Trash2,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
@@ -313,22 +313,28 @@ export function StageExpense({
   }
 
   const expenseMetadata = (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-3 [&_button]:min-h-11">
-      <div className="flex items-center gap-2">
-        <Calendar className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-        <span className="font-display text-sm font-medium text-ink-soft">Date</span>
-        <DatePicker value={date ?? ""} onChange={onSetDate} aria-label="Expense date" />
+    <div className="grid min-w-0 gap-4 md:grid-cols-2">
+      <div className="min-w-0">
+        <Label htmlFor="expense-date">Date</Label>
+        <DatePicker
+          id="expense-date"
+          value={date ?? ""}
+          onChange={onSetDate}
+          aria-label="Expense date"
+          className="w-full"
+        />
       </div>
-      <div className="flex items-center gap-2">
-        <Banknote className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-        <span className="font-display text-sm font-medium text-ink-soft">Currency</span>
+      <div className="min-w-0">
+        <Label htmlFor="expense-currency">Currency</Label>
         <CurrencyPicker
+          id="expense-currency"
           value={currencyCode}
           onChange={onSetCurrency}
           aria-label="Expense currency"
+          className="w-full"
         />
       </div>
-      <div className="basis-full border-t border-rule pt-3">
+      <div className="min-w-0 md:col-span-2">
         <Label id="expense-payer-label" htmlFor="expense-payer">
           {isUpcoming(date) ? "Will be paid by" : "Paid by"} <span aria-hidden="true">*</span>
         </Label>
@@ -344,11 +350,12 @@ export function StageExpense({
                 aria-describedby={
                   payerError ? "expense-payer-help expense-payer-error" : "expense-payer-help"
                 }
-                className="group mt-1 min-h-11 w-full max-w-md justify-between rounded-md px-3 py-2"
+                className="group min-h-11 w-full justify-between rounded-md px-3 py-2 text-base sm:text-sm"
               />
             }
           >
-            <span id="expense-payer-value" className="truncate">
+            <User aria-hidden="true" className="h-4 w-4 shrink-0 text-brass" />
+            <span id="expense-payer-value" className="min-w-0 flex-1 truncate text-left">
               {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
             </span>
             <ChevronDown
@@ -450,8 +457,8 @@ export function StageExpense({
   const itemEditor = (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
       <div className="min-w-0">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
-          <label className="min-w-0 text-sm text-ink">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.6fr)]">
+          <Label className="mb-0 min-w-0">
             Item name
             <Input
               autoFocus
@@ -459,12 +466,13 @@ export function StageExpense({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Nachos"
-              className="mt-1"
+              className="mt-2"
             />
-          </label>
-          <label className="min-w-0 text-sm text-ink">
+          </Label>
+          <Label className="mb-0 min-w-0">
             Amount · {currencyCode}
             <Input
+              icon={Banknote}
               type="number"
               inputMode="decimal"
               min={0}
@@ -472,9 +480,10 @@ export function StageExpense({
               value={cost}
               onChange={(e) => setCost(e.target.value)}
               placeholder="0.00"
-              className="font-numeric mt-1"
+              className="font-numeric"
+              wrapperClassName="mt-2"
             />
-          </label>
+          </Label>
         </div>
         <div className="mt-3">
           <label className="flex min-h-11 cursor-pointer items-center gap-3 py-3 text-sm text-ink">
@@ -496,13 +505,15 @@ export function StageExpense({
                     icon={TicketPercent}
                     rate={discount}
                     onChange={setDiscount}
+                    fullWidth
                   />
-                  <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} />
+                  <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} fullWidth />
                   <TipRateInput
                     rate={tip}
                     onChange={setTip}
                     afterTax={tipAfterTax}
                     onAfterTaxChange={setTipAfterTax}
+                    fullWidth
                   />
                 </div>
               </div>
@@ -834,7 +845,9 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
               <p className="text-xs text-ink-soft">
                 Optional — anything worth remembering about this expense.
               </p>
+              <Label htmlFor="expense-note">Note (optional)</Label>
               <Textarea
+                id="expense-note"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onBlur={commit}
@@ -952,6 +965,7 @@ function SimpleTotalForm({
         </label>
         <Input
           id="expense-total"
+          icon={Banknote}
           type="number"
           inputMode="decimal"
           min={0}
@@ -1028,7 +1042,9 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
         {/* An expense with no name yet never leaves edit mode, so without this
             the page would render no <h1> at all and open on an orphan <h2>. */}
         <PageTitle className="sr-only">{name || "New expense"}</PageTitle>
+        <Label htmlFor="expense-name">Expense name</Label>
         <Input
+          id="expense-name"
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -1036,7 +1052,7 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
           placeholder="Name this expense"
           aria-label="Expense name"
           required
-          className="font-display max-w-md text-2xl! font-semibold"
+          className="font-display max-w-md font-medium"
         />
       </form>
     );
@@ -1093,13 +1109,18 @@ function PersonRow({
             commit();
           }}
         >
-          <Input
-            autoFocus
-            aria-label={`Rename ${person.name}`}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onBlur={commit}
-          />
+          <Label>
+            Person name
+            <Input
+              icon={User}
+              wrapperClassName="mt-2"
+              autoFocus
+              aria-label={`Rename ${person.name}`}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onBlur={commit}
+            />
+          </Label>
         </form>
       </li>
     );

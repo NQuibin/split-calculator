@@ -244,25 +244,6 @@ body {
   }
 }
 
-/* At tablet widths, keep each control on its own row while reserving the
-   same label column for all three controls. The value field stays compact;
-   only the mobile layout expands it to fill the row. */
-@media (min-width: 40rem) {
-  @container (max-width: 43.99rem) {
-    .rate-inputs > .rate-input-row {
-      display: grid;
-      grid-template-columns: 5rem max-content;
-      column-gap: 1rem;
-      width: max-content;
-    }
-
-    .rate-inputs > .rate-input-row .rate-input-control {
-      width: max-content;
-      flex: none;
-    }
-  }
-}
-
 /* Chevron motion.
    These MUST use `transform`, not the modern `translate` / `rotate`
    properties: those are a no-op on SVG elements, which is what every icon

@@ -256,13 +256,14 @@ inserts its own separators — pages pass only the crumbs.
 
 ### App chrome
 
-`src/routes/__root.tsx` is a `flex min-h-full flex-col md:flex-row`: sidebar,
+`src/routes/__root.tsx` is a `flex min-h-full flex-col lg:flex-row`: sidebar,
 then a column holding the route outlet and `Footer`. The sidebar hides itself on
 `/s` routes (public share links get no owner chrome).
 
-Breakpoints: the app uses **`md` (768px) as the desktop boundary** for layout
-(sidebar, two-column forms), and `sm` (640px) for content reflow within a
-column. Don't introduce `lg`/`xl` layout switches.
+Breakpoints: the app uses **`lg` (1024px) as the app-chrome boundary** so tablet
+widths use the hamburger drawer, while **`md` (768px)** remains the desktop
+boundary for content layout such as two-column forms. `sm` (640px) handles
+content reflow within a column.
 
 ---
 
@@ -367,10 +368,32 @@ Binding rules:
 Use `Input`, `Textarea`, `Select`, `Label` and `FieldError` from `ui/Input.tsx`. They
 carry the canonical `fieldClass`; don't hand-roll a bordered field.
 
-A filter box with a leading magnifier is `SearchField` from `ui/SearchField.tsx`
-— not an `Input` with an icon beside it. The `<label>` carries the ground there,
-so the icon lights up with the field on focus; `aria-label` is required, since
-the box has no visible label.
+A filter box with a leading magnifier is `SearchField` from `ui/SearchField.tsx`.
+Its required accessible name is displayed above by default. In a compact,
+visibly labelled region such as the tab expenses card, pass `showLabel={false}`;
+the component still requires the `aria-label`, and its icon and placeholder
+communicate the search action visually.
+
+Form labels sit **above** their controls with an 8px gap, including date,
+currency, payer and adjustment fields. Keep labels visible when values are
+entered; placeholders are examples, never labels. Stack field groups on small
+screens and use `min-w-0` so long values cannot widen the page.
+
+`Field` (`ui/Input.tsx`) pairs a visible label with its control. Its default
+layout is label-above; `labelPosition="start"` makes a concise metadata field
+inline from `sm` upward and preserves the stacked layout below it. In a compact,
+clearly described settings region, `showLabel={false}` may hide the visible
+label only when the control also has its own `aria-label`.
+
+`Input` accepts an optional decorative leading `icon`. Date and currency
+pickers include a leading icon and trailing disclosure chevron; their whole
+field is the trigger. Icons supplement the label and are `aria-hidden`.
+Use icons where they help recognition, without forcing them into notes or
+every text field. Fields keep the flat `bg-field`, `border-edge`, `rounded-md`
+treatment, with no shadow. Composite adjustment fields retain their 44px
+mode buttons and associate the visible label with the numeric input. Use their
+compact desktop width for the page-level adjustment row; inside a dialog column,
+they fill that column so the input and its mode controls form one balanced row.
 
 `Select` is the native single-choice field for short lists such as an expense's
 payer. It shares the input ground, border, focus ring, and mobile type size.
@@ -387,7 +410,7 @@ payer. It shares the input ground, border, focus ring, and mobile type size.
   or, where the layout can't carry one, an `aria-label`. Placeholder is never
   the only label.
 - Error state: `aria-invalid` on the control, message in `text-xs
-  text-margin-red` wired with `aria-describedby`, and `role="alert"`.
+  text-margin-red-ink` wired with `aria-describedby`, and `role="alert"`.
 
 ### Dialogs
 

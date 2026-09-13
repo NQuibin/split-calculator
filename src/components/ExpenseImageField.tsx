@@ -220,7 +220,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                       }}
                     />
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                       <Button
                         type="button"
                         variant="outline"
@@ -228,6 +228,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                         onClick={() => fileInput.current?.click()}
                         disabled={busy}
                         aria-busy={busy}
+                        className="w-full sm:w-auto"
                       >
                         {busy ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={2.5} />
@@ -242,6 +243,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                         size="touch"
                         onClick={handleTakePhoto}
                         disabled={busy}
+                        className="w-full sm:w-auto"
                       >
                         <Camera className="h-3.5 w-3.5" strokeWidth={2.5} />
                         Take a photo
@@ -252,6 +254,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                           variant="destructive"
                           size="touch"
                           onClick={handleRemove}
+                          className="w-full sm:w-auto"
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
                           Remove

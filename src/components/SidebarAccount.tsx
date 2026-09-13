@@ -1,12 +1,12 @@
 import { type FormEvent, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { LogIn, LogOut, X } from "lucide-react";
+import { KeyRound, Mail, LogIn, LogOut, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { GoogleIcon } from "@/components/ui/GoogleIcon";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Input } from "@/components/ui/Input";
+import { Input, Label } from "@/components/ui/Input";
 import {
   Dialog,
   DialogClose,
@@ -153,25 +153,35 @@ function SignInMenu() {
               <span className="h-px flex-1 bg-rule" />
             </div>
 
-            <form onSubmit={handleSendCode} className="space-y-2">
-              <Input
-                type="email"
-                required
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-              <Input
-                type="password"
-                required
-                minLength={flow === "signUp" ? 8 : undefined}
-                aria-label="Password"
-                placeholder={flow === "signUp" ? "Password (at least 8 characters)" : "Password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={flow === "signUp" ? "new-password" : "current-password"}
-              />
+            <form onSubmit={handleSendCode} className="space-y-3">
+              <div>
+                <Label htmlFor="signin-email">Email</Label>
+                <Input
+                  id="signin-email"
+                  type="email"
+                  required
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  icon={Mail}
+                />
+              </div>
+              <div>
+                <Label htmlFor="signin-password">Password</Label>
+                <Input
+                  id="signin-password"
+                  type="password"
+                  required
+                  minLength={flow === "signUp" ? 8 : undefined}
+                  aria-label="Password"
+                  placeholder={flow === "signUp" ? "Password (at least 8 characters)" : "Password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={flow === "signUp" ? "new-password" : "current-password"}
+                  icon={KeyRound}
+                />
+              </div>
               <Button
                 type="button"
                 variant="link"
@@ -206,7 +216,9 @@ function SignInMenu() {
         ) : (
           <>
             <form onSubmit={handleVerifyCode} className="space-y-2">
+              <Label htmlFor="signin-code">Verification code</Label>
               <Input
+                id="signin-code"
                 type="text"
                 required
                 autoFocus
@@ -216,8 +228,11 @@ function SignInMenu() {
                 className="text-center font-mono text-lg tracking-[0.4em]"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                aria-label="6-digit code"
+                aria-describedby="signin-code-help"
               />
+              <p id="signin-code-help" className="text-xs text-ink-soft">
+                Enter the 6-digit code from your email.
+              </p>
               {error && <p className="text-xs text-margin-red-ink">{error}</p>}
               <Button
                 type="submit"

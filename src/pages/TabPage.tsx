@@ -21,7 +21,7 @@ import {
 import { TabBreakdown } from "@/components/TabBreakdown";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
-import { Input } from "@/components/ui/Input";
+import { Field, Input, Label } from "@/components/ui/Input";
 import { SearchField } from "@/components/ui/SearchField";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -268,14 +268,19 @@ function TabTitle({ slug, name, isOwner }: { slug: string; name: string; isOwner
 
   if (editing) {
     return (
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      <form onSubmit={handleSubmit} className="flex max-w-sm flex-col items-stretch gap-2">
+        <PageTitle className="sr-only">{name}</PageTitle>
+        <Label htmlFor="tab-name-edit" className="mb-0">
+          Tab name
+        </Label>
         <Input
+          id="tab-name-edit"
           autoFocus
           aria-label="Tab name"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={handleSubmit}
-          className="font-display max-w-sm text-2xl! font-semibold"
+          className="font-display max-w-sm font-medium"
         />
       </form>
     );
@@ -309,16 +314,19 @@ function TabDefaultCurrency({ slug, currency: currencyCode }: { slug: string; cu
   const { setDefaultCurrency } = useTabActions();
 
   return (
-    <div className="flex w-full min-w-0 items-center gap-2 text-sm text-ink-soft sm:w-auto">
-      <Coins className="h-3.5 w-3.5 shrink-0 text-brass" strokeWidth={2.25} />
-      <span>Tab currency</span>
+    <Field
+      label="Currency"
+      htmlFor="tab-default-currency"
+      labelPosition="start"
+      className="w-full sm:w-auto"
+    >
       <CurrencyPicker
+        id="tab-default-currency"
         value={currencyCode}
         onChange={(code) => setDefaultCurrency({ slug, currency: code })}
-        aria-label="Tab currency"
-        className="min-w-0 flex-1 justify-between sm:flex-none sm:justify-center"
+        className="min-w-0 flex-1 justify-between sm:w-70 sm:flex-none"
       />
-    </div>
+    </Field>
   );
 }
 
@@ -461,16 +469,20 @@ function Roster({
   }
 
   const memberForm = (
-    <form onSubmit={saveMember} className="mt-3 flex flex-wrap items-center gap-2">
-      <Input
-        autoFocus
-        aria-label="Member name"
-        placeholder="Name"
-        value={name}
-        disabled={pending}
-        onChange={(event) => setName(event.target.value)}
-        className="flex-1 basis-40"
-      />
+    <form onSubmit={saveMember} className="mt-3 flex flex-wrap items-end gap-2">
+      <div className="min-w-0 flex-1 basis-40">
+        <Label htmlFor="member-name">Member name</Label>
+        <Input
+          id="member-name"
+          autoFocus
+          aria-label="Member name"
+          placeholder="Name"
+          value={name}
+          disabled={pending}
+          onChange={(event) => setName(event.target.value)}
+          className="w-full"
+        />
+      </div>
       <Button type="submit" size="lg" disabled={pending || !name.trim()} aria-busy={pending}>
         {pending ? "Saving…" : adding ? "Add" : "Save"}
       </Button>
@@ -955,6 +967,7 @@ function ExpenseList({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 sm:max-w-sm"
+          showLabel={false}
         />
         <CurrencyFilter
           value={currencyFilter}
@@ -1225,8 +1238,10 @@ function ExchangeRateForm({
               Add a rate to include this expense in the tab’s {target} totals.
             </p>
           )}
-          <label htmlFor="expense-exchange-rate" className="mt-3 flex items-center gap-2 text-sm">
-            <span className="shrink-0">1 {expense.currency} =</span>
+          <div className="mt-3">
+            <Label htmlFor="expense-exchange-rate">
+              Exchange rate (1 {expense.currency} = {target})
+            </Label>
             <Input
               id="expense-exchange-rate"
               type="number"
@@ -1239,10 +1254,9 @@ function ExchangeRateForm({
               onChange={(event) => setValue(event.target.value)}
               placeholder="e.g. 1.38"
               aria-describedby="exchange-preview"
-              className="bg-surface font-numeric"
+              className="font-numeric"
             />
-            <span>{target}</span>
-          </label>
+          </div>
           <p id="exchange-preview" aria-live="polite" className="mt-2 text-xs text-ink-soft">
             {valid
               ? `Converted total: ${currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal * rate, target)}`

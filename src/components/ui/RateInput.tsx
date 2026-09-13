@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { DollarSign, Percent } from "lucide-react";
+import { Label } from "@/components/ui/Input";
 import type { RateSetting } from "@/lib/types";
 
 interface RateInputProps {
@@ -10,9 +11,19 @@ interface RateInputProps {
   onChange: (rate: RateSetting) => void;
   /** Rendered under the field, in the field's own column so it lines up with the input box. */
   footer?: ReactNode;
+  /** Fill the available column instead of using the compact desktop width. */
+  fullWidth?: boolean;
 }
 
-export function RateInput({ label, icon: Icon, rate, onChange, footer }: RateInputProps) {
+export function RateInput({
+  label,
+  icon: Icon,
+  rate,
+  onChange,
+  footer,
+  fullWidth = false,
+}: RateInputProps) {
+  const inputId = useId();
   // The field holds what was typed, not a re-rendered number. `type="number"`
   // reports an in-progress value like "12." as "", which would parse to 0 and
   // wipe the field halfway through entering a decimal - so this is a text
@@ -40,13 +51,14 @@ export function RateInput({ label, icon: Icon, rate, onChange, footer }: RateInp
   }
 
   return (
-    <div className="rate-input-row grid w-full grid-cols-[5rem_minmax(0,1fr)] gap-4 sm:flex sm:w-auto sm:flex-none sm:items-start sm:gap-2">
-      {/* The label matches the field's height so the two line up however the
-          row is laid out - side by side, or stacked into a label column. */}
-      <div className="rate-input-label flex min-h-11 min-w-0 items-center gap-2">
-        <Icon className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-        <span className="min-w-0 font-display text-sm font-medium text-ink-soft">{label}</span>
-      </div>
+    <div
+      className={`rate-input-row flex w-full min-w-0 flex-col gap-2 ${
+        fullWidth ? "sm:flex-1" : "sm:w-auto sm:flex-none"
+      }`}
+    >
+      <Label htmlFor={inputId} className="mb-0 min-w-0 truncate">
+        {label}
+      </Label>
       {/* Anything under the field shares its column, so it starts at the input
           box's left edge rather than the row's. */}
       <div className={footer ? "flex min-w-0 flex-col" : "contents"}>
@@ -55,9 +67,15 @@ export function RateInput({ label, icon: Icon, rate, onChange, footer }: RateInp
           // inside is `outline-none` and would otherwise show no focus at all.
           // Scoped to the input: the mode buttons carry their own ring, and
           // a bare `focus-within` here would fire twice for them.
-          className="rate-input-control flex min-h-11 w-full min-w-0 flex-1 items-stretch rounded-md border border-edge bg-field transition has-[input:focus-visible]:border-forest has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-forest/20 sm:w-auto sm:flex-none"
+          className={`rate-input-control flex min-h-11 w-full min-w-0 flex-1 items-stretch rounded-md border border-edge bg-field transition has-[input:focus-visible]:border-forest has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-forest/20 ${
+            fullWidth ? "" : "sm:w-auto sm:flex-none"
+          }`}
         >
+          <span className="pointer-events-none flex items-center pl-3">
+            <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
+          </span>
           <input
+            id={inputId}
             type="text"
             inputMode="decimal"
             value={text}
@@ -70,7 +88,9 @@ export function RateInput({ label, icon: Icon, rate, onChange, footer }: RateInp
             // .font-numeric is a monospace face, and which tracks the type size
             // rather than clipping. The input's own px-2 is added on top since
             // the box is border-box.
-            className="font-numeric w-full bg-transparent px-2 py-1.5 text-base text-ink outline-none placeholder:text-ink-soft/70 sm:w-[calc(8ch+1rem)] sm:text-sm"
+            className={`font-numeric min-w-0 w-full bg-transparent px-2 py-1.5 text-base text-ink outline-none placeholder:text-ink-soft/70 sm:text-sm ${
+              fullWidth ? "" : "sm:w-[calc(8ch+1rem)]"
+            }`}
             aria-label={`${label} value`}
           />
           <div className="flex border-l border-rule">
