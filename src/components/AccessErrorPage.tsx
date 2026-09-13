@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { accessErrorCode } from "@/lib/accessError";
 import { PageTitle } from "@/components/ui/Typography";
 import { Page } from "@/components/ui/Page";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 
 /** What the caller was trying to open, so the copy can name it. */
 export type AccessResource = "tab" | "expense";
@@ -68,7 +69,9 @@ function Shell({
 }) {
   return (
     <Page width="narrow" center>
-      <div className="rounded-xl border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8">
+      <div
+        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8`}
+      >
         <span
           aria-hidden="true"
           className={`inline-flex h-12 w-12 items-center justify-center rounded-full ${

@@ -254,6 +254,20 @@ group), and `<EmptyState>` is the dashed placeholder for loading / signed-out /
 nothing-here-yet. `<Breadcrumb>` (`ui/Breadcrumb.tsx`) renders the trail and
 inserts its own separators — pages pass only the crumbs.
 
+### Mobile raised surfaces
+
+Below `sm`, every page-level raised surface (a `Panel`, card, or list container)
+cancels the `Page` horizontal gutter with `-mx-5`, uses square outer corners,
+and retains its own internal padding. At `sm` and above, it returns to its
+normal gutter and `rounded-xl` corners. Use `Panel` when possible; for a
+semantic `section`, `article`, or `ul`, use `mobileRaisedSurfaceClass` from
+`ui/mobileRaisedSurface.ts`.
+
+This applies only to outer page surfaces — never dialogs, popovers, form
+fields, data-table wells, list rows, nested item cards, tabs, or `EmptyState`
+placeholders. Set `bleedOnMobile={false}` on `Panel` only when an outer surface
+is intentionally inset.
+
 ### App chrome
 
 `src/routes/__root.tsx` is a `flex min-h-full flex-col lg:flex-row`: sidebar,

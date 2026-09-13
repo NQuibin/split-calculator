@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { MenuOption } from "@/components/ui/MenuOption";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 
@@ -28,7 +28,7 @@ export function CurrencyFilter({
         }
       >
         {value === "all" ? "All currencies" : value}
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-ink-soft chevron-flip" />
+        <DropdownChevron className="h-3.5 w-3.5" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-44 rounded-lg p-2">
         <ul className="max-h-56 space-y-0.5 overflow-y-auto">

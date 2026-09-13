@@ -2,16 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import {
-  ArrowRight,
-  Banknote,
-  ChevronDown,
-  HandCoins,
-  MoveDown,
-  MoveUp,
-  RotateCcw,
-  X,
-} from "lucide-react";
+import { ArrowRight, Banknote, HandCoins, MoveDown, MoveUp, RotateCcw, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -256,7 +247,7 @@ export function TabSettlement({
 
   if (data === undefined)
     return (
-      <Panel className="mb-6 p-5" role="region" aria-label="Settle up">
+      <Panel bleedOnMobile className="mb-6 p-5" role="region" aria-label="Settle up">
         <SectionTitle>Settle up</SectionTitle>
         <p role="status" className="mt-2 text-sm text-ink-soft">
           Loading settlement balances…
@@ -269,15 +260,15 @@ export function TabSettlement({
     members.find((member) => member.id === id)?.name ?? "Unknown member";
   const reverseHistory = data.history.find((item) => item.id === reversingId);
   return (
-    <Panel className="mb-6 p-5" role="region" aria-label="Settle up">
+    <Panel bleedOnMobile className="mb-6 p-5" role="region" aria-label="Settle up">
       <Dialog open={open} onOpenChange={setOpen}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="flex items-center gap-2">
             <HandCoins aria-hidden="true" className="h-5 w-5 text-brass" />
             Settle up
           </SectionTitle>
-          <DialogTrigger render={<Button variant="outline" size="touch" className="group" />}>
-            View payments <ChevronDown aria-hidden="true" className="h-4 w-4 chevron-y" />
+          <DialogTrigger render={<Button variant="outline" size="touch" />}>
+            View payments
           </DialogTrigger>
         </div>
         <SettlementSummary data={data} />

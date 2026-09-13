@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { MenuOption } from "@/components/ui/MenuOption";
 import { SearchField } from "@/components/ui/SearchField";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { CURRENCIES } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
-import { Banknote, ChevronDown } from "lucide-react";
+import { Banknote } from "lucide-react";
 
 interface CurrencyPickerProps {
   id?: string;
@@ -49,7 +50,7 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
             aria-label={props["aria-label"]}
             id={props.id}
             className={cn(
-              "h-auto min-h-11 min-w-11 max-w-full gap-2 rounded-md px-3 py-1.5",
+              "group h-auto min-h-11 min-w-11 max-w-full gap-2 rounded-md px-3 py-1.5",
               props.className,
             )}
           />
@@ -63,7 +64,7 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
               {selectedCurrency.name}
             </span>
           )}
-          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-ink-soft" />
+          <DropdownChevron />
         </span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 rounded-lg p-2">

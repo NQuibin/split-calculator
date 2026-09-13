@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { RateInput } from "@/components/ui/RateInput";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/Dialog";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { MenuOption } from "@/components/ui/MenuOption";
+import { Panel } from "@/components/ui/Page";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
 import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
@@ -358,10 +360,7 @@ export function StageExpense({
             <span id="expense-payer-value" className="min-w-0 flex-1 truncate text-left">
               {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
             </span>
-            <ChevronDown
-              aria-hidden="true"
-              className="h-4 w-4 shrink-0 text-ink-soft chevron-flip"
-            />
+            <DropdownChevron />
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80 max-w-[calc(100vw-3rem)] rounded-lg p-2">
             <ul className="max-h-64 space-y-0.5 overflow-y-auto">
@@ -565,7 +564,7 @@ export function StageExpense({
         {headerAction}
       </header>
 
-      <div className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+      <Panel bleedOnMobile className="p-5 sm:p-6">
         <div className="mb-4 flex gap-2 border-b border-rule pb-4">
           <ModeButton
             icon={Calculator}
@@ -783,7 +782,7 @@ export function StageExpense({
             )}
           </Button>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

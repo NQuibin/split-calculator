@@ -16,6 +16,7 @@ import {
   Pencil,
   Plus,
   Receipt,
+  Settings,
   Trash2,
 } from "lucide-react";
 import { TabBreakdown } from "@/components/TabBreakdown";
@@ -48,6 +49,7 @@ import { useExpenseActions } from "@/lib/expenseSync";
 import { generateSlug } from "@/lib/slug";
 import { GroupTitle, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { Page } from "@/components/ui/Page";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -135,7 +137,9 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
 
   return (
     <Page width="narrow" center>
-      <div className="rounded-xl border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8">
+      <div
+        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8`}
+      >
         <span
           aria-hidden="true"
           className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-forest/10 text-forest"
@@ -503,8 +507,9 @@ function Roster({
       }}
     >
       <DialogTrigger
-        aria-label={`View ${members.length} ${members.length === 1 ? "member" : "members"}`}
-        className="group inline-flex min-h-11 items-center gap-2.5 rounded-lg px-1 text-sm text-ink-soft transition hover:text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+        render={
+          <Button variant="link" size="touch" className="group gap-2.5 pl-0 hover:no-underline" />
+        }
       >
         {members.length > 0 && (
           <span aria-hidden="true" className="flex -space-x-2">
@@ -523,12 +528,12 @@ function Roster({
             )}
           </span>
         )}
-        <span>
-          {members.length} {members.length === 1 ? "member" : "members"}
+        <span className="flex items-center gap-1.5">
+          <span className="group-hover:underline">
+            Manage {members.length} {members.length === 1 ? "member" : "members"}
+          </span>
+          <Settings aria-hidden="true" className="h-4 w-4" />
         </span>
-        {/* Chevron, not an arrow: this opens the members dialog in place rather
-          than navigating away. */}
-        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 chevron-y" />
       </DialogTrigger>
       <DialogContent>
         <div className="flex items-start justify-between gap-3">
@@ -954,7 +959,7 @@ function ExpenseList({
   return (
     <section
       aria-label="Expenses"
-      className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6"
+      className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 p-5 sm:p-6`}
     >
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SectionTitle className="mr-auto flex items-center gap-2">

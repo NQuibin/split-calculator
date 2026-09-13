@@ -117,7 +117,7 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
           label="Your name"
           htmlFor="settings-name"
           showLabel={false}
-          className="min-w-0 flex-1"
+          className="min-w-0 flex-1 sm:max-w-sm"
         >
           <Input
             id="settings-name"

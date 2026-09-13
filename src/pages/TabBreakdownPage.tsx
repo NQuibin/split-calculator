@@ -10,6 +10,7 @@ import {
 } from "@/lib/tabSync";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { EmptyState, Page } from "@/components/ui/Page";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 
 const route = getRouteApi("/t/$slug/breakdown");
@@ -109,7 +110,9 @@ function MemberBreakdown({
   currencyCode: string;
 }) {
   return (
-    <article className="overflow-hidden rounded-xl border border-rule/70 bg-surface/80">
+    <article
+      className={`${mobileRaisedSurfaceClass} overflow-hidden border border-rule/70 bg-surface/80`}
+    >
       <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <MemberAvatar id={member.memberId} name={member.name} size="lg" />

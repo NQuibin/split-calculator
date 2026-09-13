@@ -270,8 +270,9 @@ body {
   transform: translateY(2px);
 }
 
-/* Ordered least- to most-specific. All three set the same declaration, so the
+/* Ordered least- to most-specific. All four set the same declaration, so the
    order is cosmetic, but it keeps noDescendingSpecificity quiet honestly. */
+[aria-expanded="true"] .chevron-flip,
 details[open] .chevron-flip,
 .group[aria-expanded="true"] .chevron-flip,
 .group[data-open] .chevron-flip {

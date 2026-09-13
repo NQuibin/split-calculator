@@ -16,6 +16,7 @@ import {
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { Button } from "@/components/ui/Button";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { computeSplit } from "@/lib/calculations";
 import { currency, isUpcoming } from "@/lib/format";
 import { encodeSharePayload } from "@/lib/shareLink";
@@ -185,7 +186,9 @@ export function StageResults({
         )}
       </header>
 
-      <div className="mb-5 overflow-hidden rounded-xl border border-rule/70 bg-surface/80 transition has-[>button:hover]:border-forest">
+      <div
+        className={`${mobileRaisedSurfaceClass} mb-5 overflow-hidden border border-rule/70 bg-surface/80 transition has-[>button:hover]:border-forest`}
+      >
         <button
           type="button"
           onClick={() => setExpenseOpen((o) => !o)}
@@ -270,7 +273,7 @@ export function StageResults({
         {result.people.map((person) => (
           <div
             key={person.personId}
-            className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6"
+            className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 p-5 sm:p-6`}
           >
             <p className="flex min-w-0 items-center gap-2 font-display text-sm font-semibold tracking-wide text-ink-soft uppercase">
               <MemberAvatar id={person.personId} name={person.name} size="sm" />
@@ -304,7 +307,9 @@ export function StageResults({
       </div>
 
       {note && isOwner && (
-        <div className="mt-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+        <div
+          className={`${mobileRaisedSurfaceClass} mt-5 border border-rule/70 bg-surface/80 p-5 sm:p-6`}
+        >
           <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
             <StickyNote className="h-4 w-4 text-brass" strokeWidth={2.25} />
             Note
@@ -314,7 +319,9 @@ export function StageResults({
       )}
 
       {image?.url && isOwner && (
-        <div className="mt-5 rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6">
+        <div
+          className={`${mobileRaisedSurfaceClass} mt-5 border border-rule/70 bg-surface/80 p-5 sm:p-6`}
+        >
           <p className="mb-3 flex items-center gap-1.5 font-display text-sm font-semibold tracking-wide text-ink uppercase">
             <Paperclip className="h-4 w-4 text-brass" strokeWidth={2.25} />
             Receipt

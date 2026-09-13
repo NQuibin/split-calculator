@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/Button";
+import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { MenuOption } from "@/components/ui/MenuOption";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
@@ -101,10 +102,7 @@ export function ExpenseTabField({
                   {label ??
                     (value ? (loading ? "Loading tab…" : "Tab unavailable") : "Choose a tab")}
                 </span>
-                <ChevronDown
-                  aria-hidden="true"
-                  className="h-4 w-4 shrink-0 text-ink-soft chevron-flip"
-                />
+                <DropdownChevron />
               </PopoverTrigger>
               <PopoverContent
                 align="start"

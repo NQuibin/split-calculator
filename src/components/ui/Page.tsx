@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { mobileRaisedSurfaceClass } from "./mobileRaisedSurface";
 
 /**
  * The page shell. Every route renders exactly one of these, so horizontal
@@ -40,11 +41,19 @@ export function Page({
   );
 }
 
-/** A raised surface: a card, a list container, a settings group. */
-export function Panel({ className, ...props }: ComponentProps<"div">) {
+/** A raised surface: a card, a list container, a settings group. Full-bleed below `sm` by default. */
+export function Panel({
+  className,
+  bleedOnMobile = true,
+  ...props
+}: ComponentProps<"div"> & { bleedOnMobile?: boolean }) {
   return (
     <div
-      className={cn("overflow-hidden rounded-xl border border-rule/70 bg-surface/80", className)}
+      className={cn(
+        "overflow-hidden rounded-xl border border-rule/70 bg-surface/80",
+        bleedOnMobile && mobileRaisedSurfaceClass,
+        className,
+      )}
       {...props}
     />
   );

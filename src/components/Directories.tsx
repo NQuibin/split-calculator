@@ -4,7 +4,7 @@ import { useConvexAuth } from "convex/react";
 import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import type { FunctionReturnType } from "convex/server";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
@@ -15,6 +15,7 @@ import { computeSplit } from "@/lib/calculations";
 import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { EmptyState, Page } from "@/components/ui/Page";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { SearchField } from "@/components/ui/SearchField";
@@ -56,8 +57,7 @@ function Notice({ children }: { children: ReactNode }) {
   return <EmptyState>{children}</EmptyState>;
 }
 
-const directoryListClass =
-  "divide-y divide-rule/70 overflow-hidden rounded-xl border border-rule/70 bg-surface/80";
+const directoryListClass = `${mobileRaisedSurfaceClass} divide-y divide-rule/70 overflow-hidden border border-rule/70 bg-surface/80`;
 // The whole row is one link, carrying no actions of its own - so it needs no
 // overlay and no actions track. If a row ever does gain actions, see
 // DESIGN.md § 5, "Interactive rows": a button cannot nest inside this link.
@@ -288,12 +288,11 @@ function FriendRow({
               variant="outline"
               size="touch"
               aria-label={`View the ${count} with ${name}`}
-              className="group w-full justify-between sm:w-auto sm:justify-center"
+              className="w-full justify-between sm:w-auto sm:justify-center"
             />
           }
         >
           {count}
-          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 chevron-y" />
         </DialogTrigger>
         <DialogContent className="max-w-sm">
           <div className="mb-2 flex items-start justify-between gap-3">

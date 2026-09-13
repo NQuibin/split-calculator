@@ -9,6 +9,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { currency } from "@/lib/format";
 import type { TabCurrencyBreakdown, TabMemberSummary } from "@/lib/tabSync";
 import { SectionTitle } from "@/components/ui/Typography";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -84,7 +85,7 @@ export function TabBreakdown({
                 <tr key={member.id} className="border-b border-rule/70 last:border-b-0">
                   <th scope="row" className="px-4 py-3 font-medium">
                     <span className="flex items-center gap-3">
-                      <MemberAvatar id={member.id} name={member.name} />
+                      <MemberAvatar id={member.id} name={member.name} size="sm" />
                       <span className="break-words">
                         {member.name}
                         {member.id === viewerMemberId && (
@@ -119,7 +120,7 @@ export function TabBreakdown({
   return (
     <section
       aria-label="Spend summary"
-      className="rounded-xl border border-rule/70 bg-surface/80 p-5 sm:p-6"
+      className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 p-5 sm:p-6`}
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <SectionTitle className="flex items-center gap-2">
