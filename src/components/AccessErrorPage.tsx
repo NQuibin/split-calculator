@@ -83,10 +83,10 @@ function Shell({
         <PageTitle className="mt-5 text-2xl">{title}</PageTitle>
         <p className="mx-auto mt-3 max-w-sm text-sm text-ink-soft">{body}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Button size="touch" render={<Link to="/tabs" />}>
+          <Button size="touch" nativeButton={false} render={<Link to="/tabs" />}>
             Go to your tabs
           </Button>
-          <Button variant="outline" size="touch" render={<Link to="/" />}>
+          <Button variant="outline" size="touch" nativeButton={false} render={<Link to="/" />}>
             Home
           </Button>
         </div>

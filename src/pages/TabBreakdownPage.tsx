@@ -44,10 +44,10 @@ export function TabBreakdownPage() {
         <Link to="/t/$slug" params={{ slug }} className={crumbLinkClass}>
           {tab.name}
         </Link>
-        <BreadcrumbCurrent>Full breakdown</BreadcrumbCurrent>
+        <BreadcrumbCurrent>Breakdown</BreadcrumbCurrent>
       </Breadcrumb>
       <header className="mb-8">
-        <PageTitle>Full breakdown</PageTitle>
+        <PageTitle>Breakdown</PageTitle>
         <PageDescription>Each person’s share of every expense across the tab.</PageDescription>
         {breakdown.currencies.some((c) => c.convertedExpenseCount > 0) && (
           <p className="mt-3 text-xs text-ink-soft">

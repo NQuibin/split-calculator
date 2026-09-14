@@ -107,22 +107,22 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
     owner.mutation(api.settlements.record, { ...args, requestId: "too-much", amount: 40.01 }),
   ).rejects.toThrow("exceeds");
   const first = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: "2026-09-12" }))!;
-  expect(first.history).toHaveLength(1);
-  expect(first.currencies[0].members.map((m) => m.balance)).toEqual([40, 0, -40]);
+  expect(first.paid.history).toHaveLength(1);
+  expect(first.paid.currencies[0].members.map((m) => m.balance)).toEqual([40, 0, -40]);
   await owner.mutation(api.settlements.reverse, {
     slug: "trip",
-    settlementId: first.history[0].id,
+    settlementId: first.paid.history[0].id,
   });
   await owner.mutation(api.settlements.reverse, {
     slug: "trip",
-    settlementId: first.history[0].id,
+    settlementId: first.paid.history[0].id,
   });
   const reversed = (await owner.query(api.settlements.get, {
     slug: "trip",
     asOfDate: "2026-09-12",
   }))!;
-  expect(reversed.history[0].reversed).toBe(true);
-  expect(reversed.currencies[0].members.map((m) => m.balance)).toEqual([80, -40, -40]);
+  expect(reversed.paid.history[0].reversed).toBe(true);
+  expect(reversed.paid.currencies[0].members.map((m) => m.balance)).toEqual([80, -40, -40]);
 });
 
 test("rejects cross-tab members and retains a payment-only currency after expense deletion", async () => {
@@ -157,8 +157,8 @@ test("rejects cross-tab members and retains a payment-only currency after expens
     slug: "trip",
     asOfDate: "2026-09-12",
   }))!;
-  expect(result.currencies.map((c) => c.currency)).toEqual(["EUR"]);
-  expect(result.currencies[0].members.map((m) => m.balance)).toEqual([-40, 40, 0]);
+  expect(result.paid.currencies.map((c) => c.currency)).toEqual(["EUR"]);
+  expect(result.paid.currencies[0].members.map((m) => m.balance)).toEqual([-40, 40, 0]);
 });
 
 test("payer is remapped on create, survives reload, and protects its seat", async () => {
@@ -204,7 +204,7 @@ test("partial payment keeps expense paid separate and edits recompute the debt",
     asOfDate: TODAY,
   });
   let result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(result.currencies[0].members.map((m) => [m.paid, m.balance])).toEqual([
+  expect(result.paid.currencies[0].members.map((m) => [m.paid, m.balance])).toEqual([
     [120, 65],
     [0, -25],
     [0, -40],
@@ -215,7 +215,7 @@ test("partial payment keeps expense paid separate and edits recompute the debt",
     state: { ...toExpenseStateArgs(loaded), items: [{ ...loaded.items[0], cost: 90 }] },
   });
   result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(result.currencies[0].members.map((m) => m.balance)).toEqual([45, -15, -30]);
+  expect(result.paid.currencies[0].members.map((m) => m.balance)).toEqual([45, -15, -30]);
 });
 
 test("invalid dates, currency and precision are refused before creating a settlement", async () => {
@@ -248,7 +248,7 @@ test("invalid dates, currency and precision are refused before creating a settle
   ).rejects.toThrow("after today");
 });
 
-test("future expenses are excluded and converted shares conserve their total", async () => {
+test("expense views separate expected future balances from paid balances", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "EUR", undefined, 120);
   await owner.mutation(api.tabs.setExpenseExchangeRate, {
@@ -265,22 +265,78 @@ test("future expenses are excluded and converted shares conserve their total", a
     state: { ...toExpenseStateArgs(future), date: "2026-09-13" },
   });
   const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(result.currencies.map((c) => c.currency)).toEqual(["USD"]);
-  expect(result.currencies[0].members.reduce((sum, m) => sum + m.share, 0)).toBe(159.96);
-  expect(result.currencies[0].members.reduce((sum, m) => sum + m.balance, 0)).toBe(0);
+  expect(result.paid.currencies.map((c) => c.currency)).toEqual(["USD"]);
+  expect(result.paid.currencies[0].members.reduce((sum, m) => sum + m.share, 0)).toBe(159.96);
+  expect(result.paid.currencies[0].members.reduce((sum, m) => sum + m.balance, 0)).toBe(0);
+  const upcoming = result.upcoming;
+  expect(upcoming.currencies[0].members.map((member) => member.balance)).toEqual([60, -30, -30]);
+  expect(upcoming.history).toEqual([]);
+  const all = result.all;
+  expect(all.currencies[0].members.reduce((sum, member) => sum + member.balance, 0)).toBe(0);
+  expect(all.currencies[0].members.map((member) => member.balance)).toEqual([
+    166.64, -83.32, -83.32,
+  ]);
+});
+
+test("view-scoped payments affect the selected future balances and remain in every history", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", undefined, 120);
+  await expense(owner, members, members[0].id, "USD", undefined, 90, "future");
+  const future = (await owner.query(api.expenses.get, { slug: "future" }))!;
+  await owner.mutation(api.expenses.save, {
+    slug: "future",
+    state: { ...toExpenseStateArgs(future), date: "2026-09-13" },
+  });
+
+  await owner.mutation(api.settlements.record, {
+    slug: "trip",
+    fromMemberId: members[1].id,
+    toMemberId: members[0].id,
+    amount: 10,
+    currency: "USD",
+    date: TODAY,
+    requestId: "paid-payment",
+    asOfDate: TODAY,
+  });
+  await owner.mutation(api.settlements.record, {
+    slug: "trip",
+    fromMemberId: members[1].id,
+    toMemberId: members[0].id,
+    amount: 20,
+    currency: "USD",
+    date: TODAY,
+    requestId: "upcoming-payment",
+    asOfDate: TODAY,
+    view: "upcoming",
+  });
+
+  const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  expect(result.paid.currencies[0].members.map((member) => member.balance)).toEqual([70, -30, -40]);
+  expect(result.upcoming.currencies[0].members.map((member) => member.balance)).toEqual([
+    40, -10, -30,
+  ]);
+  expect(result.all.currencies[0].members.map((member) => member.balance)).toEqual([110, -40, -70]);
+  expect(result.paid.history).toHaveLength(2);
+  expect(result.upcoming.history).toHaveLength(2);
+  expect(result.all.history).toHaveLength(2);
+  expect(result.upcoming.history.map((payment) => payment.view)).toEqual(["upcoming", "paid"]);
 });
 
 test("claiming a payer preserves balances and gives the claimant read-only access", async () => {
   const { t, owner, outsider, members } = await setup();
   await expense(owner, members, "c", "USD", ["a", "b"]);
   const before = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(before.currencies[0].members.map((member) => member.balance)).toEqual([-60, -60, 120]);
+  expect(before.paid.currencies[0].members.map((member) => member.balance)).toEqual([
+    -60, -60, 120,
+  ]);
   const invites = await owner.query(api.tabs.getInviteLinks, { slug: "trip" });
   const invite = invites.find((link) => link.memberId === members[2].id)!;
   await outsider.mutation(api.tabs.claimMember, { slug: "trip", token: invite.token });
   const claimed = (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(claimed.viewerMemberId).toBe(members[2].id);
-  expect(claimed.currencies[0].members.map((member) => member.balance)).toEqual([-60, -60, 120]);
+  expect(claimed.paid.viewerMemberId).toBe(members[2].id);
+  expect(claimed.paid.currencies[0].members.map((member) => member.balance)).toEqual([
+    -60, -60, 120,
+  ]);
   await owner.mutation(api.settlements.record, {
     slug: "trip",
     fromMemberId: members[0].id,
@@ -291,7 +347,8 @@ test("claiming a payer preserves balances and gives the claimant read-only acces
     requestId: "claimed",
     asOfDate: TODAY,
   });
-  const paid = (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  const paid = (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!
+    .paid!;
   await expect(
     outsider.mutation(api.settlements.reverse, { slug: "trip", settlementId: paid.history[0].id }),
   ).rejects.toThrow("Not authorized");
@@ -314,7 +371,7 @@ test("saved rates apply once and a changed tab currency preserves original repay
     rate: 1.333,
   });
   const converted = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  const convertedRows = converted.currencies[0].members;
+  const convertedRows = converted.paid.currencies[0].members;
   expect(convertedRows.reduce((sum, member) => sum + Math.round(member.balance * 100), 0)).toBe(0);
   expect(convertedRows.reduce((sum, member) => sum + Math.round(member.share * 100), 0)).toBe(1466);
   await owner.mutation(api.settlements.record, {
@@ -329,11 +386,14 @@ test("saved rates apply once and a changed tab currency preserves original repay
   });
   await owner.mutation(api.tabs.setDefaultCurrency, { slug: "trip", currency: "CAD" });
   const changed = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(changed.currencies.map((group) => group.currency)).toEqual(["EUR", "USD"]);
-  expect(changed.currencies[1].members.map((member) => member.balance)).toEqual([-1, 1, 0]);
+  expect(changed.paid.currencies.map((group) => group.currency)).toEqual(["EUR", "USD"]);
+  expect(changed.paid.currencies[1].members.map((member) => member.balance)).toEqual([-1, 1, 0]);
   await owner.mutation(api.tabs.create, { slug: "other", name: "Other", memberNames: [] });
   await expect(
-    owner.mutation(api.settlements.reverse, { slug: "other", settlementId: changed.history[0].id }),
+    owner.mutation(api.settlements.reverse, {
+      slug: "other",
+      settlementId: changed.paid.history[0].id,
+    }),
   ).rejects.toThrow("Settlement not found");
 });
 

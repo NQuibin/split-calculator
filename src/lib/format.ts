@@ -28,6 +28,16 @@ export function formatExpenseDate(iso: string | undefined): string | undefined {
   });
 }
 
+// The compact form for a dense list column, e.g. "Mar 3". The year is dropped
+// so the column stays narrow, which means the full date has to survive
+// somewhere - always pair this with a `<time dateTime>` carrying the ISO value.
+export function formatExpenseDateShort(iso: string | undefined): string | undefined {
+  return (iso ? parseISODate(iso) : undefined)?.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 // An expense dated after today hasn't been charged yet. Both sides are
 // YYYY-MM-DD, so comparing the strings is the same as comparing the dates -
 // and it avoids the timezone drift that parsing to Date invites.

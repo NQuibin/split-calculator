@@ -20,14 +20,19 @@ import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { Panel } from "@/components/ui/Page";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
+import { CURRENCIES } from "@/lib/currencies";
 import { currency, formatExpenseDate, todayISODate } from "@/lib/format";
+import type { ExpenseView } from "@/components/ExpenseViewTabs";
 
 type Member = { id: string; name: string };
-type SettlementData = NonNullable<FunctionReturnType<typeof api.settlements.get>>;
+type SettlementResponse = NonNullable<FunctionReturnType<typeof api.settlements.get>>;
+type SettlementData = SettlementResponse["paid"];
+type SettlementQueryResponse = SettlementResponse | SettlementData;
 type CurrencySettlement = SettlementData["currencies"][number];
 type Suggestion = CurrencySettlement["suggestions"][number];
 type PaymentDraft = Suggestion & {
   currency: string;
+  expenseView: ExpenseView;
   amountText: string;
   date: string;
   note: string;
@@ -41,6 +46,41 @@ export type SettlementSummaryData = {
   }[];
 };
 
+function balanceColor(balance: number) {
+  return balance > 0 ? "text-ledger-green" : balance < 0 ? "text-margin-red-ink" : "text-ink";
+}
+
+function BalanceLabel({
+  balance,
+  code,
+  prominent = false,
+}: {
+  balance: number;
+  code: string;
+  prominent?: boolean;
+}) {
+  return (
+    <span
+      className={`${balanceColor(balance)} ${prominent ? "font-semibold" : ""} whitespace-nowrap`}
+    >
+      {balance === 0 ? "Settled" : balance > 0 ? "Gets " : "Owes "}
+      {balance !== 0 && <span className="font-numeric">{currency(Math.abs(balance), code)}</span>}
+    </span>
+  );
+}
+
+function BalanceDirection({ balance }: { balance: number }) {
+  if (balance === 0) return null;
+  const DirectionIcon = balance > 0 ? MoveUp : MoveDown;
+  return (
+    <DirectionIcon
+      aria-hidden="true"
+      className={`h-5 w-5 shrink-0 ${balanceColor(balance)}`}
+      strokeWidth={2.5}
+    />
+  );
+}
+
 function BalanceValue({
   balance,
   code,
@@ -50,25 +90,58 @@ function BalanceValue({
   code: string;
   prominent?: boolean;
 }) {
-  const color =
-    balance > 0 ? "text-ledger-green" : balance < 0 ? "text-margin-red-ink" : "text-ink";
-  const DirectionIcon = balance > 0 ? MoveUp : MoveDown;
   return (
-    <span
-      className={`inline-flex flex-wrap items-center gap-1 ${color} ${prominent ? "font-semibold" : ""}`}
-    >
-      {balance === 0 ? (
-        "Settled"
-      ) : (
-        <>
-          {balance > 0 ? "Gets " : "Owes "}
-          <span className="inline-flex items-center gap-1 whitespace-nowrap">
-            <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
-            <DirectionIcon aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={2.5} />
-          </span>
-        </>
-      )}
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <BalanceLabel balance={balance} code={code} prominent={prominent} />
+      <BalanceDirection balance={balance} />
     </span>
+  );
+}
+
+function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
+  return (
+    <div className="space-y-5">
+      {data.currencies.map((group) => {
+        const currencyName = CURRENCIES.find((option) => option.code === group.currency)?.name;
+        const members = [...group.members].sort(
+          (a, b) =>
+            Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
+        );
+
+        return (
+          <section key={group.currency} aria-label={`${group.currency} balances`}>
+            <GroupTitle as="h3" className="bg-band px-3 py-2">
+              <span className="font-numeric">{group.currency}</span>
+              {currencyName && <span className="font-normal text-ink-soft"> · {currencyName}</span>}
+            </GroupTitle>
+            <ul className="divide-y divide-rule">
+              {members.map((member) => {
+                const isViewer = member.memberId === data.viewerMemberId;
+                return (
+                  <li
+                    key={member.memberId}
+                    className="flex min-w-0 items-center justify-between gap-3 py-3"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <MemberAvatar id={member.memberId} name={member.name} size="sm" />
+                      <span className="min-w-0 break-words font-medium">
+                        {member.name}
+                        {isViewer && <span className="text-ink-soft"> (you)</span>}
+                      </span>
+                    </span>
+                    <BalanceValue
+                      balance={member.balance}
+                      code={group.currency}
+                      prominent={isViewer}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -90,73 +163,7 @@ export function SettlementSummary({ data }: { data: SettlementSummaryData }) {
             : "No outstanding balances."}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-edge bg-field">
-          <table className="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-rule/70 bg-band">
-                <th
-                  scope="col"
-                  className="min-w-40 px-4 py-3 text-xs font-medium uppercase text-ink-soft"
-                >
-                  Member
-                </th>
-                {data.currencies.map((group) => (
-                  <th key={group.currency} scope="col" className="min-w-44 px-5 py-3 font-medium">
-                    {group.currency}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ...new Map(
-                  data.currencies
-                    .flatMap((group) => group.members)
-                    .map((member) => [member.memberId, member]),
-                ).values(),
-              ]
-                .sort(
-                  (a, b) =>
-                    Number(b.memberId === data.viewerMemberId) -
-                    Number(a.memberId === data.viewerMemberId),
-                )
-                .map((member) => {
-                  const isViewer = member.memberId === data.viewerMemberId;
-                  return (
-                    <tr key={member.memberId} className="border-b border-rule/70 last:border-b-0">
-                      <th scope="row" className="px-4 py-3 font-medium">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <MemberAvatar id={member.memberId} name={member.name} size="sm" />
-                          <span className="min-w-0 break-words">
-                            {member.name}
-                            {isViewer && <span className="text-ink-soft"> (you)</span>}
-                          </span>
-                        </span>
-                      </th>
-                      {data.currencies.map((group) => {
-                        const balance = group.members.find(
-                          (candidate) => candidate.memberId === member.memberId,
-                        )?.balance;
-                        return (
-                          <td key={group.currency} className="px-5 py-3">
-                            {balance === undefined ? (
-                              <span className="text-ink-soft">No balance</span>
-                            ) : (
-                              <BalanceValue
-                                balance={balance}
-                                code={group.currency}
-                                prominent={isViewer}
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
+        <SettlementSummaryList data={data} />
       )}
     </div>
   );
@@ -166,10 +173,12 @@ export function TabSettlement({
   slug,
   members,
   isOwner,
+  expenseView = "paid",
 }: {
   slug: string;
   members: Member[];
   isOwner: boolean;
+  expenseView?: ExpenseView;
 }) {
   const [day, setDay] = useState(todayISODate);
   const [open, setOpen] = useState(false);
@@ -182,7 +191,12 @@ export function TabSettlement({
   const [status, setStatus] = useState("");
   const requestId = useRef("");
   const submitting = useRef(false);
-  const data = useQuery(api.settlements.get, { slug, asOfDate: day });
+  // An already-open client can briefly receive the pre-consolidation response
+  // while Convex deploys the updated query. Keep that rollout transition safe.
+  const response = useQuery(api.settlements.get, { slug, asOfDate: day }) as
+    | SettlementQueryResponse
+    | null
+    | undefined;
   const record = useMutation(api.settlements.record);
   const reverse = useMutation(api.settlements.reverse);
 
@@ -196,12 +210,13 @@ export function TabSettlement({
     };
   }, []);
 
-  function beginPayment(suggestion: Suggestion, code: string) {
+  function beginPayment(suggestion: Suggestion, code: string, paymentExpenseView: ExpenseView) {
     requestId.current = crypto.randomUUID();
     setPaymentError(null);
     setPayment({
       ...suggestion,
       currency: code,
+      expenseView: paymentExpenseView,
       amountText: String(suggestion.amount),
       date: day,
       note: "",
@@ -234,6 +249,7 @@ export function TabSettlement({
         note: payment.note.trim() || undefined,
         requestId: requestId.current,
         asOfDate: day,
+        view: payment.expenseView,
       });
       setPayment(null);
       setStatus("Payment recorded. Balances updated.");
@@ -245,45 +261,59 @@ export function TabSettlement({
     }
   }
 
-  if (data === undefined)
+  if (response === undefined)
     return (
-      <Panel bleedOnMobile className="mb-6 p-5" role="region" aria-label="Settle up">
+      <Panel bleedOnMobile className="p-5 sm:p-6" role="region" aria-label="Settle up">
         <SectionTitle>Settle up</SectionTitle>
         <p role="status" className="mt-2 text-sm text-ink-soft">
           Loading settlement balances…
         </p>
       </Panel>
     );
-  if (data === null) return null;
+  if (response === null) return null;
+
+  const data = "paid" in response ? response[expenseView] : response;
+  const allData = "paid" in response ? response.all : data;
+  const settlementViews = [{ title: null, data, paymentExpenseView: expenseView }];
+  const viewLabel = expenseView[0].toUpperCase() + expenseView.slice(1);
+  const modalDescription =
+    expenseView === "paid"
+      ? `Paid expenses through ${formatExpenseDate(day)}. Record transfers already made outside the app.`
+      : expenseView === "upcoming"
+        ? "Projected balances for upcoming expenses. Record transfers already made toward them."
+        : "Paid and upcoming balances. Upcoming amounts are projected. Record transfers already made.";
 
   const memberName = (id: string) =>
     members.find((member) => member.id === id)?.name ?? "Unknown member";
-  const reverseHistory = data.history.find((item) => item.id === reversingId);
+  const reverseHistory = allData.history.find((item) => item.id === reversingId);
   return (
-    <Panel bleedOnMobile className="mb-6 p-5" role="region" aria-label="Settle up">
+    <Panel bleedOnMobile className="p-5 sm:p-6" role="region" aria-label="Settle up">
       <Dialog open={open} onOpenChange={setOpen}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <SectionTitle className="flex items-center gap-2">
             <HandCoins aria-hidden="true" className="h-5 w-5 text-brass" />
             Settle up
           </SectionTitle>
-          <DialogTrigger render={<Button variant="outline" size="touch" />}>
+          <DialogTrigger
+            render={<Button variant="outline" size="touch" className="w-full sm:w-auto" />}
+          >
             View payments
           </DialogTrigger>
         </div>
         <SettlementSummary data={data} />
         <p className="mt-3 text-xs text-ink-soft">
-          Paid expenses only · Upcoming expenses excluded · Currencies settled separately
+          {expenseView === "paid"
+            ? "Paid expenses only · Upcoming expenses excluded · Currencies settled separately"
+            : expenseView === "upcoming"
+              ? "Expected balances from upcoming expenses · For planning only · Currencies settled separately"
+              : "Paid and upcoming expenses · Upcoming balances are expected · Currencies settled separately"}
         </p>
         <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
-          <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+          <header className="sticky top-0 z-10 shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <DialogTitle>Settle up</DialogTitle>
-                <DialogDescription className="mt-1">
-                  Paid expenses through {formatExpenseDate(day)}. Record transfers already made
-                  outside the app.
-                </DialogDescription>
+                <DialogTitle>Settle up ({viewLabel})</DialogTitle>
+                <DialogDescription className="mt-1">{modalDescription}</DialogDescription>
               </div>
               <DialogClose
                 aria-label="Close settlement"
@@ -294,82 +324,100 @@ export function TabSettlement({
             </div>
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
-            {data.missingPayers.length > 0 && (
-              <div className="mt-4 rounded-md border border-rule bg-field p-3 text-sm">
-                <p className="text-margin-red-ink">
-                  These expenses are excluded until a payer is assigned:
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {data.missingPayers.map((expense) => (
-                    <li key={expense.slug} className="break-words">
-                      {isOwner ? (
-                        <Button
-                          variant="link"
-                          size="touch"
-                          className="h-auto whitespace-normal px-0 text-left"
-                          render={<Link to="/e/$slug" params={{ slug: expense.slug }} />}
-                        >
-                          {expense.name || "Untitled expense"}
-                        </Button>
-                      ) : (
-                        expense.name || "Untitled expense"
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.currencies.length === 0 && (
-              <p className="mt-5 text-sm text-ink-soft">
-                {data.missingPayers.length
-                  ? "Assign payers to see settlement suggestions."
-                  : "No outstanding balances."}
-              </p>
-            )}
-            <div className="space-y-5">
-              {data.currencies.map((group) => (
-                <section key={group.currency} aria-label={`${group.currency} balances`}>
-                  <GroupTitle as="h3">{group.currency}</GroupTitle>
-                  <ul className="mt-3 divide-y divide-rule rounded-lg border border-edge bg-field">
-                    {group.members.map((member) => (
-                      <li
-                        key={member.memberId}
-                        className="flex flex-wrap justify-between gap-3 px-3 py-3 text-sm"
-                      >
-                        <span className="min-w-0 break-words">{member.name}</span>
-                        <BalanceValue balance={member.balance} code={group.currency} />
-                      </li>
-                    ))}
-                  </ul>
-                  {group.suggestions.length > 0 && (
-                    <div className="mt-4">
-                      <GroupTitle as="h4">Suggested transfers</GroupTitle>
-                      <ul className="mt-2 space-y-3">
-                        {group.suggestions.map((suggestion) => (
-                          <li
-                            key={`${suggestion.fromMemberId}-${suggestion.toMemberId}`}
-                            className="flex flex-wrap items-center gap-3 text-sm"
-                          >
-                            <span className="min-w-0 flex-1 break-words">
-                              {memberName(suggestion.fromMemberId)}{" "}
-                              <ArrowRight aria-hidden="true" className="mx-1 inline h-3.5 w-3.5" />{" "}
-                              {memberName(suggestion.toMemberId)}
-                            </span>
-                            <span className="font-numeric whitespace-nowrap">
-                              {currency(suggestion.amount, group.currency)}
-                            </span>
-                            {isOwner && (
+            <div className="space-y-6">
+              {settlementViews.map(({ title, data: viewData, paymentExpenseView }) => (
+                <section key={paymentExpenseView} aria-label={title ?? "Settlement balances"}>
+                  {title && <GroupTitle as="h3">{title}</GroupTitle>}
+                  {viewData.missingPayers.length > 0 && (
+                    <div className="mt-3 rounded-md border border-rule bg-field p-3 text-sm">
+                      <p className="text-margin-red-ink">
+                        These expenses are excluded until a payer is assigned:
+                      </p>
+                      <ul className="mt-2 space-y-1">
+                        {viewData.missingPayers.map((expense) => (
+                          <li key={expense.slug} className="break-words">
+                            {isOwner ? (
                               <Button
-                                variant="outline"
+                                variant="link"
                                 size="touch"
-                                onClick={() => beginPayment(suggestion, group.currency)}
+                                nativeButton={false}
+                                className="h-auto whitespace-normal px-0 text-left"
+                                render={<Link to="/e/$slug" params={{ slug: expense.slug }} />}
                               >
-                                Record payment
+                                {expense.name || "Untitled expense"}
                               </Button>
+                            ) : (
+                              expense.name || "Untitled expense"
                             )}
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+                  {viewData.currencies.length === 0 ? (
+                    <p className="mt-3 text-sm text-ink-soft">
+                      {viewData.missingPayers.length
+                        ? "Assign payers to see settlement suggestions."
+                        : "No outstanding balances."}
+                    </p>
+                  ) : (
+                    <div className="mt-3 space-y-5">
+                      {viewData.currencies.map((group) => (
+                        <section key={group.currency} aria-label={`${group.currency} balances`}>
+                          <GroupTitle as="h3">{group.currency}</GroupTitle>
+                          <ul className="mt-3 divide-y divide-rule rounded-lg border border-edge bg-field">
+                            {group.members.map((member) => (
+                              <li
+                                key={member.memberId}
+                                className="flex flex-wrap justify-between gap-3 px-3 py-3 text-sm"
+                              >
+                                <span className="min-w-0 break-words">{member.name}</span>
+                                <BalanceValue balance={member.balance} code={group.currency} />
+                              </li>
+                            ))}
+                          </ul>
+                          {group.suggestions.length > 0 && (
+                            <div className="mt-4">
+                              <GroupTitle as="h3">Suggested transfers</GroupTitle>
+                              <ul className="mt-2 space-y-3">
+                                {group.suggestions.map((suggestion) => (
+                                  <li
+                                    key={`${suggestion.fromMemberId}-${suggestion.toMemberId}`}
+                                    className="flex flex-wrap items-center gap-3 text-sm"
+                                  >
+                                    <span className="min-w-0 flex-1 break-words">
+                                      {memberName(suggestion.fromMemberId)}{" "}
+                                      <ArrowRight
+                                        aria-hidden="true"
+                                        className="mx-1 inline h-3.5 w-3.5"
+                                      />{" "}
+                                      {memberName(suggestion.toMemberId)}
+                                    </span>
+                                    <span className="font-numeric whitespace-nowrap">
+                                      {currency(suggestion.amount, group.currency)}
+                                    </span>
+                                    {isOwner && (
+                                      <Button
+                                        variant="outline"
+                                        size="touch"
+                                        onClick={() =>
+                                          beginPayment(
+                                            suggestion,
+                                            group.currency,
+                                            paymentExpenseView,
+                                          )
+                                        }
+                                      >
+                                        Record payment
+                                      </Button>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </section>
+                      ))}
                     </div>
                   )}
                 </section>
@@ -377,11 +425,11 @@ export function TabSettlement({
             </div>
             <section className="mt-5 border-t border-rule pt-4">
               <GroupTitle as="h3">Payment history</GroupTitle>
-              {!data.history.length && (
+              {!allData.history.length && (
                 <p className="mt-2 text-sm text-ink-soft">No payments recorded yet.</p>
               )}
               <ul className="mt-2 space-y-3">
-                {data.history.map((item) => (
+                {allData.history.map((item) => (
                   <li
                     key={item.id}
                     className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm"

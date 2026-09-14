@@ -263,10 +263,11 @@ normal gutter and `rounded-xl` corners. Use `Panel` when possible; for a
 semantic `section`, `article`, or `ul`, use `mobileRaisedSurfaceClass` from
 `ui/mobileRaisedSurface.ts`.
 
-This applies only to outer page surfaces — never dialogs, popovers, form
-fields, data-table wells, list rows, nested item cards, tabs, or `EmptyState`
-placeholders. Set `bleedOnMobile={false}` on `Panel` only when an outer surface
-is intentionally inset.
+This also applies to `DialogContent`: dialogs cancel the viewport gutter and
+use square outer corners below `sm`. Popovers, form fields, data-table wells,
+list rows, nested item cards, tabs, and `EmptyState` placeholders remain inset.
+Set `bleedOnMobile={false}` on `Panel` only when an outer page surface is
+intentionally inset.
 
 ### App chrome
 
@@ -500,9 +501,9 @@ row.
 ### Data tables and banded cards
 
 Anything with a **header / body / footer** structure — the spend-summary table,
-the tab's expense list, a breakdown member card — uses one banding scheme. Left
-alone, every band inherits the card and the whole thing reads as one flat
-rectangle (the body was literally 1.00:1 against the card).
+a breakdown member card — uses one banding scheme. Left alone, every band
+inherits the card and the whole thing reads as one flat rectangle (the body was
+literally 1.00:1 against the card).
 
 | Band                          | Ground                  | Step vs. its neighbour |
 | ----------------------------- | ----------------------- | ---------------------- |
@@ -530,6 +531,11 @@ row look permanently hovered.
   outer boundary, never its internal lines.
 - Rows hover to `--wash`, which lands harder on `--field` than on a
   transparent row.
+- **A row list with no header band is still a block**, and keeps the body
+  treatment on its own: `border-edge` + `bg-field`, rows divided by
+  `border-rule`. The tab's expense list is this shape — its rows carry their
+  own labels ("You owe", a payer's avatar), so a band of column names would be
+  naming what the rows already say.
 - Don't reach for `/50` opacities to make a band (`bg-paper/50` was what made
   the breakdown footer vanish). Bands are flat tokens; a half-transparent one
   just averages toward whatever it sits on.
@@ -548,9 +554,13 @@ row look permanently hovered.
 - Always `.font-numeric`.
 - Always formatted through `src/lib/format.ts` with an explicit currency —
   never a bare `toFixed(2)` in a component.
-- Positive to you: `text-ledger-green`. Negative: `text-margin-red` (on
-  `--surface`). Zero/settled: `text-ink`.
+- Positive to you: `text-ledger-green`. Negative: `text-margin-red-ink` — it is
+  text, so § 1's rule applies. Zero/settled: `text-ink`.
 - Never convey a balance's sign by colour alone — keep the `−`/`+` or the word.
+- An amount that belongs to someone carries **who** in a caption directly
+  beneath it, phrased as a fact — `Nikki Q paid`, `You owe`. A bare name in a
+  column of its own makes the reader join two things that are one thing, and it
+  stops working the moment the column has no header to name it.
 
 ---
 
@@ -593,10 +603,37 @@ A dialog that a menu item opens must be a **sibling** of the `OverflowMenu`,
 never a child — a menu item unmounts when the menu closes and would take its
 dialog with it.
 
-**Progressive disclosure.** Columns that don't fit collapse into a metadata
-line under the primary cell rather than shrinking (see the tab expense grid):
-below `md` the date, creator and participants move under the expense name,
-leaving name + amount.
+**A section toolbar wraps; it does not squeeze.** A heading plus a search box
+plus a filter is three controls on one line, and below `sm` the search is the
+one that loses — it ends up too narrow to read what you typed. Give the search
+`order-last w-full` and let the heading and the filter keep the first row. Keep
+the search *before* the filter in the DOM so the wide layout, where a keyboard
+user is far likelier to be, reads in the order it shows.
+
+**Progressive disclosure.** Columns that don't fit drop to a second line rather
+than shrinking (see the tab expense grid): below `md` the date and the viewer's
+share move to a row beneath the name and the amount.
+
+Pick the breakpoint from the **width budget**, not from the name of the
+breakpoint. The content column is the viewport minus the 240px sidebar (from
+`lg`), the page gutter, the panel padding and the row's own — which is ~600px
+at `md` and still only ~615px at `lg`, so a layout that doesn't fit at `md`
+usually doesn't fit at `lg` either. Dropping a column is what buys room; moving
+the same columns one breakpoint up buys about 15px.
+
+A column of **right-aligned money** sizes to its content, never to a fixed
+width. A fixed track makes an unusually large amount overflow into the cell
+beside it; a content-sized one lets that row widen its own track, and the values
+still line up because the tracks to their right are fixed.
+
+To cap such a column, use **`fit-content(11rem)`, not `minmax(_,11rem)`** — they
+are not the same thing. A track whose growth limit is a fixed length is
+*maximized to that limit* before a `1fr` track receives any space at all, so the
+cap silently becomes the width and the flexible column collapses (this took the
+expense name down to 80px). `fit-content()` clamps the growth limit to the
+content instead. Pair it with `min-w-0` on the grid item: the track's floor is
+the item's min-content, and one `truncate`d — therefore `nowrap` — string inside
+will otherwise blow straight past the cap.
 
 **Text wrapping.** User-supplied names wrap (`break-words`); chrome
 (`whitespace-nowrap`) does not.
@@ -774,7 +811,7 @@ reintroduce them.
   owns pending/error state and stays open when the work fails.
 - ~~Sub-44px targets~~: the wordmark, the sidebar sign-in and sign-out
   controls, the currency/date pickers, the currency filters, the Friends tab
-  chips, and the "Full breakdown" link. Verified **signed in, with data**, at
+  chips, and the "Breakdown" link. Verified **signed in, with data**, at
   393×852 across `/tabs`, `/expenses`, `/friends`, `/settings` and a tab
   detail page: no interactive box under 44px. The one exception is a
   breadcrumb crumb (29×36) — inline text links are exempt under WCAG 2.5.8,
@@ -798,7 +835,7 @@ would be the wrong abstraction. Keep them, but keep them spec-compliant
   `inline-flex`/`whitespace-nowrap` would fight. Their shared surface is four
   utility classes, which is too thin to extract without inventing a wrapper
   that earns nothing.
-- Large content-region buttons: the expense row in `TabPage.tsx:481` (a grid
+- Large content-region buttons: the expense row in `TabPage.tsx` (a grid
   template) and the item row in `ui/ExpenseLineItem.tsx:46`.
 
 ### Open — accessibility

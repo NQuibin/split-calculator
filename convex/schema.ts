@@ -129,6 +129,8 @@ export default defineSchema({
     note: v.optional(v.string()),
     recordedBy: v.id("users"),
     requestId: v.string(),
+    /** Which balance view this payment was recorded against. Legacy rows are paid-only. */
+    view: v.optional(v.union(v.literal("paid"), v.literal("upcoming"), v.literal("all"))),
     reversedAt: v.optional(v.number()),
     reversedBy: v.optional(v.id("users")),
   })

@@ -35,7 +35,7 @@ test("renders each viewer currency once with its own balance", () => {
   expect(markup.match(/\$0\.50/g)).toHaveLength(1);
 });
 
-test("centers mixed settled and outstanding currency summaries", () => {
+test("uses currency bands for mixed settled and outstanding balances", () => {
   const markup = renderMarkup(
     createElement(SettlementSummary, {
       data: {
@@ -48,9 +48,9 @@ test("centers mixed settled and outstanding currency summaries", () => {
     }),
   );
 
-  expect(markup).toContain("<table");
-  expect(markup).toMatch(/scope="col"[^>]*>Member<\/th>/);
-  expect(markup.match(/scope="col"[^>]*>(?:CAD|USD)<\/th>/g)).toHaveLength(2);
+  expect(markup).not.toContain("<table");
+  expect(markup).toContain('aria-label="CAD balances"');
+  expect(markup).toContain('aria-label="USD balances"');
   expect(markup).toContain("Settled");
   expect(markup).toContain("Gets ");
   expect(markup).toContain("text-ink font-semibold");
@@ -84,7 +84,7 @@ test("shows every member while putting the viewer first", () => {
   expect(markup.match(/Owes /g)).toHaveLength(2);
 });
 
-test("renders all members in table rows and currency columns", () => {
+test("renders all members in each currency band", () => {
   const markup = renderMarkup(
     createElement(SettlementSummary, {
       data: {
@@ -109,10 +109,13 @@ test("renders all members in table rows and currency columns", () => {
       },
     }),
   );
-  expect(markup.match(/<tr/g)).toHaveLength(3);
+  expect(markup).not.toContain("<table");
+  expect(markup).toContain('class="space-y-5"');
+  expect(markup).toContain("CAD");
+  expect(markup).toContain("Canadian Dollar");
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
-  expect(markup).toMatch(/scope="col"[^>]*>CAD<\/th>/);
-  expect(markup).toMatch(/scope="col"[^>]*>USD<\/th>/);
+  expect(markup).toContain('aria-label="CAD balances"');
+  expect(markup).toContain('aria-label="USD balances"');
 });
 
 test("shows incomplete, empty, viewer-free, and loading settlement states", () => {
@@ -134,4 +137,39 @@ test("shows incomplete, empty, viewer-free, and loading settlement states", () =
   expect(
     renderMarkup(createElement(TabSettlement, { slug: "trip", members: [], isOwner: false })),
   ).toContain("Loading settlement balances…");
+});
+
+test("labels upcoming balances as expected while retaining payment history", () => {
+  const upcoming = {
+    ...viewerData,
+    history: [],
+    currencies: viewerData.currencies.map((group) => ({ ...group, suggestions: [] })),
+  };
+  mocks.remote = { paid: upcoming, upcoming, all: upcoming };
+
+  const markup = renderMarkup(
+    createElement(TabSettlement, {
+      slug: "trip",
+      members: [],
+      isOwner: false,
+      expenseView: "upcoming",
+    }),
+  );
+
+  expect(markup).toContain("Expected balances from upcoming expenses");
+  expect(markup).toContain("View payments");
+});
+
+test("renders a legacy settlement response while the consolidated query deploys", () => {
+  mocks.remote = {
+    ...viewerData,
+    history: [],
+    currencies: viewerData.currencies.map((group) => ({ ...group, suggestions: [] })),
+  };
+
+  const markup = renderMarkup(
+    createElement(TabSettlement, { slug: "trip", members: [], isOwner: false }),
+  );
+
+  expect(markup).toContain('aria-label="CAD balances"');
 });

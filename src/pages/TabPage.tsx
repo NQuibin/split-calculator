@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
-import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
+import { currency, formatExpenseDate, formatExpenseDateShort, isUpcoming } from "@/lib/format";
 import {
   useTab,
   useTabActions,
@@ -55,6 +55,7 @@ import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
+import { computeExpenseBalances } from "@/lib/settlements";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -180,20 +181,30 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
     );
   }
 
+  const summaryCards = (
+    <div className={breakdown ? "grid gap-6 lg:grid-cols-2" : undefined}>
+      <TabSettlement
+        slug={slug}
+        members={tab.members}
+        isOwner={tab.isOwner}
+        expenseView={hasUpcoming ? expenseView : "paid"}
+      />
+      {breakdown && (
+        <TabBreakdown
+          expenseView={expenseView}
+          expenses={expenses}
+          hasUpcoming={hasUpcoming}
+          tabSlug={slug}
+          currencies={breakdown.currencies}
+          members={tab.members}
+        />
+      )}
+    </div>
+  );
+
   const tabContent = (
     <>
-      {breakdown && (
-        <div>
-          <TabBreakdown
-            expenseView={expenseView}
-            expenses={expenses}
-            hasUpcoming={hasUpcoming}
-            tabSlug={slug}
-            currencies={breakdown.currencies}
-            members={tab.members}
-          />
-        </div>
-      )}
+      {summaryCards}
       <div className="mt-7">
         <ExpenseList
           expenseView={expenseView}
@@ -242,7 +253,6 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
           )}
         </div>
       </header>
-      <TabSettlement slug={slug} members={tab.members} isOwner={tab.isOwner} />
       {hasUpcoming ? (
         <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Tab expense date">
           {tabContent}
@@ -707,16 +717,46 @@ function ExpenseActions({
   );
 }
 
-// One grid template shared by the expense list's header and its rows so the
-// columns line up. Every track but the first is a fixed width: each row is its
-// own grid, so an `auto` track would size to that row's own content and the
-// columns would drift out of alignment with each other. Below `md` the middle
-// columns collapse into a metadata line underneath the name, leaving
-// expense / amount. The last track is the row's own actions menu, which is a
-// sibling of the row trigger rather than a child - a button can't nest inside
-// a button (see DESIGN.md § 5, "Interactive rows").
-const expenseRowGrid =
-  "grid grid-cols-[minmax(0,1fr)_6.5rem_2.75rem] items-center gap-x-4 gap-y-3 px-5 md:grid-cols-[minmax(0,1fr)_7rem_9rem_7.5rem_6.5rem_2.75rem]";
+// The expense row's own layout. Rows are self-describing - there is no header
+// band naming columns - but the money still has to line up down the list, and
+// only a grid can do that: each row is its own formatting context, so fixed
+// tracks are what keep one row's amount above the next one's. Reading order is
+// date / name / amount and who paid it / your share, then the row's actions
+// menu, which is a sibling of the row trigger rather than a child - a button
+// can't nest inside a button (see DESIGN.md § 5, "Interactive rows").
+//
+// The money tracks size to their own content rather than to a fixed width, so
+// a six-figure amount widens its track instead of spilling over the cell beside
+// it; the values still line up because both are right-aligned and the track
+// after them is fixed. The amount's cap is `fit-content()`, **not**
+// `minmax(_,12rem)`: a track whose growth limit is a fixed length is maximized
+// to that limit before a `1fr` track gets any space at all, so the cap became
+// the width and the name column collapsed to 80px. `fit-content()` clamps the
+// growth limit to the content instead, which is what stops a long payer name
+// from eating the name column - the row's only flexible track.
+//
+// Two stages. Below `md` there is only room for name + amount on the first
+// line, so the date and your share drop to a second one. The budget is the
+// viewport minus the sidebar (240px from `lg`), the page gutter, the panel
+// padding and the row's own - about 600px at `md`, and still only ~615px at
+// `lg`, so a column that doesn't fit at `md` won't fit at `lg` either.
+//
+// The settlement track only exists when the viewer is in one of these splits,
+// so a signed-out or non-participating reader doesn't get a column of
+// "Not in split".
+//
+// The menu track only exists from `md` up. Below it the row's own trigger
+// already opens the detail dialog, and that dialog's footer carries the same
+// Edit/Delete for an owner - a second, cramped path to identical actions isn't
+// worth a whole column on the narrowest layout, so the track is dropped rather
+// than just visually hidden.
+function expenseRowClass(withSettlement: boolean) {
+  return `grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 px-5 ${
+    withSettlement
+      ? "md:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_minmax(6.75rem,max-content)_2.75rem]"
+      : "md:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_2.75rem]"
+  }`;
+}
 
 /** One expense row's actions. A sibling of the row trigger, never a child. */
 function ExpenseRowMenu({
@@ -742,25 +782,96 @@ function ExpenseRowMenu({
   );
 }
 
-function AvatarStack({ people }: { people: { id: string; name: string }[] }) {
-  const shown = people.slice(0, 3);
-  const overflow = people.length - shown.length;
+/** An expense's date as "Mar 3", with the full date kept in `dateTime`. */
+function ExpenseDate({ date }: { date: string | undefined }) {
+  const short = formatExpenseDateShort(date);
   return (
-    <span className="flex items-center">
-      <span className="flex gap-1">
-        {shown.map((person) => (
-          <MemberAvatar key={person.id} id={person.id} name={person.name} size="sm" />
-        ))}
-      </span>
-      {overflow > 0 && <span className="ml-2 text-xs text-ink-soft">+{overflow}</span>}
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <UpcomingExpenseIcon date={date} />
+      {date && short ? <time dateTime={date}>{short}</time> : "No date"}
     </span>
+  );
+}
+
+/** Who paid, phrased so it reads as a fact rather than a bare name. */
+function payerCaption(payer: { name: string } | undefined, upcoming: boolean) {
+  if (payer) return upcoming ? `${payer.name} pays` : `${payer.name} paid`;
+  return upcoming ? "Not paid yet" : "Payer needed";
+}
+
+/**
+ * The amount and who paid it, as one block - they answer the same question and
+ * were being read apart when the payer had a column of its own. The plain
+ * currency code came off this cell with the payer going on: the formatted
+ * amount already carries its symbol, so "CAD" under "CA$100.00" only repeated
+ * it. The conversion note stays, because that one does say something new.
+ */
+function ExpenseAmount({
+  total,
+  code,
+  native,
+  payer,
+  upcoming,
+}: {
+  total: number;
+  code: string;
+  /** The original amount, when a saved exchange rate converted this expense. */
+  native?: { amount: number; code: string };
+  payer: { name: string } | undefined;
+  upcoming: boolean;
+}) {
+  return (
+    <>
+      <span className="block font-numeric text-sm font-semibold">{currency(total, code)}</span>
+      <span className="mt-0.5 block truncate text-xs text-ink-soft">
+        {payerCaption(payer, upcoming)}
+      </span>
+      {native && (
+        <span className="block text-xs text-ink-soft">
+          {currency(native.amount, native.code)} · converted
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * What this expense does to the signed-in member's balance, in the same
+ * currency as the row's amount. Two absent cases, and they don't mean the same
+ * thing: `null` is an expense with no payer, so it owes nobody anything yet;
+ * `undefined` is a split the viewer simply isn't part of.
+ */
+function ViewerSettlement({
+  balance,
+  code,
+  projected,
+}: {
+  balance: number | null | undefined;
+  code: string;
+  projected: boolean;
+}) {
+  if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
+  if (balance === undefined) return <span className="text-xs text-ink-soft">Not in split</span>;
+  if (balance === 0)
+    return <span className="text-sm text-ink">{projected ? "Not due" : "Settled"}</span>;
+  const owed = balance < 0;
+  return (
+    <>
+      <span
+        className={`block font-numeric text-sm font-semibold ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
+      >
+        {owed ? "\u2212" : "+"}
+        {currency(Math.abs(balance), code)}
+      </span>
+      <span className="block text-xs text-ink-soft">{owed ? "You owe" : "You get back"}</span>
+    </>
   );
 }
 
 function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpenses>[number] }) {
   const date = formatExpenseDate(expense.date);
   return (
-    <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-soft">
+    <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
       <span>
         <span className="mr-1 font-medium">Date</span>
         {date ? <time dateTime={expense.date}>{date}</time> : "Not set"}
@@ -792,6 +903,7 @@ function ExpenseList({
   expenses: ReturnType<typeof useTabExpenses>;
 }) {
   const { remove } = useExpenseActions();
+  const viewer = useQuery(api.users.viewer);
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("all");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -815,24 +927,18 @@ function ExpenseList({
     : null;
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
-  const payerLabel = (expense: (typeof expenses)[number]) => {
-    const payer = payerFor(expense.payerId);
-    if (isUpcoming(expense.date)) return payer ? `Planned ${payer.name}` : "Not paid yet";
-    return payer?.name ?? "Payer needed";
-  };
+  // An expense records a seat id, but a claimed member can be keyed by either
+  // its seat or its account, so match on both before deciding the viewer isn't
+  // in a split. The settlement column is only worth a track when at least one
+  // expense here is actually the viewer's.
+  const viewerMember = members.find((member) => member.resolvedId === viewer?._id);
+  const viewerIds = new Set(viewerMember ? [viewerMember.id, viewerMember.resolvedId] : []);
+  const showSettlement =
+    viewerIds.size > 0 && expenses.some((e) => e.people.some((p) => viewerIds.has(p.id)));
+  const rowGrid = expenseRowClass(showSettlement);
   const expenseRows = (
     <>
       <div className="overflow-hidden rounded-lg border border-edge bg-field">
-        <div
-          className={`${expenseRowGrid} border-b border-rule/70 bg-band py-3 text-xs font-medium uppercase text-ink-soft`}
-        >
-          <span>Expense</span>
-          <span className="hidden md:block">Date</span>
-          <span className="hidden text-center md:block">Paid by</span>
-          <span className="hidden text-center md:block">Split with</span>
-          <span className="text-right">Amount</span>
-          <span className="sr-only">Actions</span>
-        </div>
         {!filtered.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length
@@ -843,94 +949,85 @@ function ExpenseList({
           </p>
         ) : (
           <ul className="divide-y divide-rule/70">
-            {filtered.map((expense) => (
-              <li key={expense.slug}>
-                <div
-                  className={`${expenseRowGrid} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
-                >
-                  {/* The trigger covers the row through its ::after overlay, so the
-              whole row stays tappable while the actions menu sits above it. */}
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    onClick={() => {
-                      setSelectedSlug(expense.slug);
-                    }}
-                    className="min-w-0 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
+            {filtered.map((expense) => {
+              const rowSplit = computeSplit(
+                expense.people,
+                expense.items,
+                expense.globalAdjustments,
+              );
+              const rate = expense.exchangeRate?.rate ?? 1;
+              const balances = computeExpenseBalances(expense.people, rowSplit, expense.payerId);
+              const viewerBalance = !balances.length
+                ? null
+                : balances.find((row) => viewerIds.has(row.memberId))?.balance;
+              const payer = payerFor(expense.payerId);
+              const upcoming = isUpcoming(expense.date);
+              return (
+                <li key={expense.slug}>
+                  <div
+                    className={`${rowGrid} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
                   >
-                    <span className="block font-semibold break-words">
+                    {/* The trigger covers the row through its ::after overlay, so the
+              whole row stays tappable while the actions menu sits above it. */}
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      onClick={() => {
+                        setSelectedSlug(expense.slug);
+                      }}
+                      className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest md:col-start-2"
+                    >
                       {expense.name ?? "Untitled expense"}
-                    </span>
-                    <span className="block text-xs text-ink-soft">
-                      {expense.items.length} {expense.items.length === 1 ? "item" : "items"}
-                    </span>
-                  </button>
-                  <span className="hidden items-center gap-1.5 text-sm text-ink-soft md:flex">
-                    <UpcomingExpenseIcon date={expense.date} />
-                    {expense.date ? (
-                      <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>
-                    ) : (
-                      "Not set"
-                    )}
-                  </span>
-                  <span className="hidden min-w-0 items-center justify-center gap-2 text-sm md:flex">
-                    {payerFor(expense.payerId) && (
-                      <MemberAvatar
-                        id={payerFor(expense.payerId)!.id}
-                        name={payerFor(expense.payerId)!.name}
-                        size="sm"
+                    </button>
+                    <span className="min-w-0 text-right md:col-start-3">
+                      <ExpenseAmount
+                        total={rowSplit.grandTotal * rate}
+                        code={expense.settlementCurrency}
+                        native={
+                          expense.exchangeRate
+                            ? { amount: rowSplit.grandTotal, code: expense.currency }
+                            : undefined
+                        }
+                        payer={payer}
+                        upcoming={upcoming}
                       />
-                    )}
-                    <span className="truncate">{payerLabel(expense)}</span>
-                  </span>
-                  <span className="hidden justify-center md:flex">
-                    <AvatarStack people={expense.people} />
-                  </span>
-                  <span className="text-right">
-                    <span className="block font-numeric text-sm font-semibold">
-                      {currency(
-                        computeSplit(expense.people, expense.items, expense.globalAdjustments)
-                          .grandTotal * (expense.exchangeRate?.rate ?? 1),
-                        expense.settlementCurrency,
-                      )}
                     </span>
-                    <span className="block text-xs text-ink-soft">
-                      {expense.exchangeRate
-                        ? `${currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal, expense.currency)} · converted`
-                        : expense.currency}
+                    {/* One date element for both layouts: the second row below `md`,
+                        its own leading column from `md` up. */}
+                    <span className="col-start-1 text-xs text-ink-soft md:col-start-1 md:row-start-1 md:text-sm">
+                      <ExpenseDate date={expense.date} />
                     </span>
-                  </span>
-                  <div className="relative z-10 col-start-3 row-start-1 flex justify-end md:col-start-6">
-                    {isOwner && (
-                      <ExpenseRowMenu
-                        expenseSlug={expense.slug}
-                        name={expense.name ?? "Untitled expense"}
-                        onDelete={() => setDeletingSlug(expense.slug)}
-                      />
-                    )}
-                  </div>
-                  <span className="col-span-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-soft md:hidden">
-                    {expense.date && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <UpcomingExpenseIcon date={expense.date} />
-                        <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>
+                    {showSettlement && (
+                      <span className="col-start-2 text-right md:col-start-4">
+                        <ViewerSettlement
+                          balance={
+                            typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
+                          }
+                          code={expense.settlementCurrency}
+                          projected={upcoming}
+                        />
                       </span>
                     )}
-                    <span className="inline-flex items-center gap-1.5">
-                      {payerFor(expense.payerId) && (
-                        <MemberAvatar
-                          id={payerFor(expense.payerId)!.id}
-                          name={payerFor(expense.payerId)!.name}
-                          size="sm"
+                    {/* Row-level Edit/Delete is redundant below `md`: the row's own
+                        trigger already opens the detail dialog, whose footer carries
+                        the same two actions for an owner. Hiding it here isn't losing
+                        access, it's dropping a second path to the same place - and it
+                        gives the name column back the width the menu track cost it. */}
+                    <div
+                      className={`z-10 hidden justify-end md:relative md:flex ${showSettlement ? "md:col-start-5" : "md:col-start-4"}`}
+                    >
+                      {isOwner && (
+                        <ExpenseRowMenu
+                          expenseSlug={expense.slug}
+                          name={expense.name ?? "Untitled expense"}
+                          onDelete={() => setDeletingSlug(expense.slug)}
                         />
                       )}
-                      {payerLabel(expense)}
-                    </span>
-                    <AvatarStack people={expense.people} />
-                  </span>
-                </div>
-              </li>
-            ))}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -966,12 +1063,18 @@ function ExpenseList({
           <Receipt aria-hidden="true" className="h-5 w-5 shrink-0 text-brass" strokeWidth={2.25} />
           Expenses <span className="text-sm font-normal text-ink-soft">{filtered.length}</span>
         </SectionTitle>
+        {/* Below `sm` there isn't room for three controls on one line - the
+            search box ends up too narrow to read what you typed. `order-last`
+            plus a full width drops it onto its own row, leaving the title and
+            the currency filter to share the first one. The DOM order stays
+            search-then-filter so the wider layout, where a keyboard user is far
+            likelier to be, keeps focus order matching what it shows. */}
         <SearchField
           aria-label="Search tab expenses"
           placeholder="Search expenses…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 sm:max-w-sm"
+          className="order-last w-full sm:order-none sm:w-auto sm:max-w-sm sm:flex-1"
           showLabel={false}
         />
         <CurrencyFilter
@@ -1019,8 +1122,14 @@ function ExpenseList({
                 )}
               </p>
               <ExpenseMetadata expense={selected} />
-              <p className="mt-3 text-sm text-ink-soft">
-                {isUpcoming(selected.date) ? "Planned payer" : "Paid by"}:{" "}
+              <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                <span>{isUpcoming(selected.date) ? "Planned payer" : "Paid by"}:</span>
+                {payerFor(selected.payerId) && (
+                  <MemberAvatar
+                    id={payerFor(selected.payerId)!.id}
+                    name={payerFor(selected.payerId)!.name}
+                  />
+                )}
                 <span className="text-ink">
                   {payerFor(selected.payerId)?.name ??
                     (isUpcoming(selected.date) ? "Not set" : "Payer needed")}
@@ -1131,6 +1240,7 @@ function ExpenseList({
                   <Button
                     variant="outline"
                     size="touch"
+                    nativeButton={false}
                     className="w-full sm:w-auto"
                     render={<Link to="/e/$slug" params={{ slug: selected.slug }} />}
                   >

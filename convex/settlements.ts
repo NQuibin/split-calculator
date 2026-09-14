@@ -14,6 +14,8 @@ import { resolveSeatName } from "./tabs";
 const READ_LIMIT = 500;
 const currencyCodes = new Set(CURRENCIES.map((c) => c.code));
 type ReadCtx = QueryCtx | MutationCtx;
+type ExpenseView = "paid" | "upcoming" | "all";
+const expenseViewValidator = v.union(v.literal("paid"), v.literal("upcoming"), v.literal("all"));
 type MemberTotals = { paidCents: number; shareCents: number; transferredCents: number };
 type CurrencyTotals = Map<string, MemberTotals>;
 
@@ -106,163 +108,187 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
     roster.map(async (seat) => ({ id: seat._id, name: await resolveSeatName(ctx, seat) })),
   );
   const memberIds = new Set<string>(people.map((person) => person.id));
-  const byCurrency = new Map<string, CurrencyTotals>();
-  const missingPayers: { slug: string; name: string }[] = [];
-
-  for (const expense of expenses) {
-    if (expense.date > asOfDate) continue;
-    if (!expense.payerId || !memberIds.has(expense.payerId)) {
-      missingPayers.push({ slug: expense.slug, name: expense.name });
-      continue;
+  const views = {} as Record<
+    ExpenseView,
+    {
+      byCurrency: Map<string, CurrencyTotals>;
+      missingPayers: { slug: string; name: string }[];
     }
-    if (
-      expense.items.some(
-        (item) =>
-          item.splitWith.length === 0 ||
-          new Set(item.splitWith).size !== item.splitWith.length ||
-          item.splitWith.some((id) => !memberIds.has(id)),
-      )
-    ) {
-      throw new Error(
-        `Expense "${expense.name || expense.slug}" needs a valid split before settling`,
+  >;
+
+  for (const expenseView of ["paid", "upcoming", "all"] as const) {
+    const byCurrency = new Map<string, CurrencyTotals>();
+    const missingPayers: { slug: string; name: string }[] = [];
+    for (const expense of expenses) {
+      const isUpcoming = expense.date > asOfDate;
+      if ((expenseView === "paid" && isUpcoming) || (expenseView === "upcoming" && !isUpcoming))
+        continue;
+      if (!expense.payerId || !memberIds.has(expense.payerId)) {
+        missingPayers.push({ slug: expense.slug, name: expense.name });
+        continue;
+      }
+      if (
+        expense.items.some(
+          (item) =>
+            item.splitWith.length === 0 ||
+            new Set(item.splitWith).size !== item.splitWith.length ||
+            item.splitWith.some((id) => !memberIds.has(id)),
+        )
+      ) {
+        throw new Error(
+          `Expense "${expense.name || expense.slug}" needs a valid split before settling`,
+        );
+      }
+      const split = computeSplit(
+        orderExpensePeople(expense, people),
+        expense.items,
+        expense.globalAdjustments,
       );
+      const rate = activeExchangeRate(expense, tab.defaultCurrency ?? "USD");
+      const code = rate?.to ?? expense.currency ?? "USD";
+      const convertedTotal = rate ? round2(split.grandTotal * rate.rate) : split.grandTotal;
+      const totalCents = checkedCents(convertedTotal);
+      const shares = rate
+        ? convertShares(computeShares(split), split.grandTotal, rate.rate)
+        : computeShares(split);
+      const shareAmounts = shares.map((share) => checkedCents(share.fairShare));
+      if (shareAmounts.reduce(addCents, 0) !== totalCents)
+        throw new Error(`Expense "${expense.name || expense.slug}" has inconsistent shares`);
+      const totals = byCurrency.get(code) ?? blank(roster);
+      shares.forEach((share, index) => {
+        const member = totals.get(share.personId)!;
+        member.shareCents = addCents(member.shareCents, shareAmounts[index]);
+      });
+      const payer = totals.get(expense.payerId)!;
+      payer.paidCents = addCents(payer.paidCents, totalCents);
+      byCurrency.set(code, totals);
     }
-    const split = computeSplit(
-      orderExpensePeople(expense, people),
-      expense.items,
-      expense.globalAdjustments,
-    );
-    const rate = activeExchangeRate(expense, tab.defaultCurrency ?? "USD");
-    const code = rate?.to ?? expense.currency ?? "USD";
-    const convertedTotal = rate ? round2(split.grandTotal * rate.rate) : split.grandTotal;
-    const totalCents = checkedCents(convertedTotal);
-    const shares = rate
-      ? convertShares(computeShares(split), split.grandTotal, rate.rate)
-      : computeShares(split);
-    const shareAmounts = shares.map((share) => checkedCents(share.fairShare));
-    if (shareAmounts.reduce(addCents, 0) !== totalCents)
-      throw new Error(`Expense "${expense.name || expense.slug}" has inconsistent shares`);
-    const totals = byCurrency.get(code) ?? blank(roster);
-    shares.forEach((share, index) => {
-      const member = totals.get(share.personId)!;
-      member.shareCents = addCents(member.shareCents, shareAmounts[index]);
-    });
-    const payer = totals.get(expense.payerId)!;
-    payer.paidCents = addCents(payer.paidCents, totalCents);
-    byCurrency.set(code, totals);
-  }
 
-  for (const payment of payments) {
-    if (payment.date > asOfDate || payment.reversedAt !== undefined) continue;
-    if (!memberIds.has(payment.fromMemberId) || !memberIds.has(payment.toMemberId)) {
-      throw new Error("A settlement references a missing member");
+    for (const payment of payments) {
+      const paymentView = payment.view ?? "paid";
+      const appliesToView =
+        expenseView === "all" ||
+        (expenseView === "paid" && paymentView === "paid") ||
+        (expenseView === "upcoming" && paymentView === "upcoming");
+      if (!appliesToView) continue;
+      if (payment.date > asOfDate || payment.reversedAt !== undefined) continue;
+      if (!memberIds.has(payment.fromMemberId) || !memberIds.has(payment.toMemberId)) {
+        throw new Error("A settlement references a missing member");
+      }
+      // A repayment remains real even if the related expense is edited/deleted
+      // or its conversion currency changes. Keep its original currency bucket.
+      const totals = byCurrency.get(payment.currency) ?? blank(roster);
+      const sender = totals.get(payment.fromMemberId)!;
+      const recipient = totals.get(payment.toMemberId)!;
+      sender.transferredCents = addCents(sender.transferredCents, payment.amountCents);
+      recipient.transferredCents = addCents(recipient.transferredCents, -payment.amountCents);
+      byCurrency.set(payment.currency, totals);
     }
-    // A repayment remains real even if the related expense is edited/deleted
-    // or its conversion currency changes. Keep its original currency bucket.
-    const totals = byCurrency.get(payment.currency) ?? blank(roster);
-    const sender = totals.get(payment.fromMemberId)!;
-    const recipient = totals.get(payment.toMemberId)!;
-    sender.transferredCents = addCents(sender.transferredCents, payment.amountCents);
-    recipient.transferredCents = addCents(recipient.transferredCents, -payment.amountCents);
-    byCurrency.set(payment.currency, totals);
+    views[expenseView] = { byCurrency, missingPayers };
   }
-  return { roster, people, byCurrency, missingPayers, payments };
+  return { roster, people, views, payments };
 }
 
-const settlementResult = v.union(
+const settlementSummary = v.object({
+  currencies: v.array(
+    v.object({
+      currency: v.string(),
+      members: v.array(
+        v.object({
+          memberId: v.id("tabMembers"),
+          name: v.string(),
+          paid: v.number(),
+          share: v.number(),
+          balance: v.number(),
+        }),
+      ),
+      suggestions: v.array(
+        v.object({
+          fromMemberId: v.id("tabMembers"),
+          toMemberId: v.id("tabMembers"),
+          amount: v.number(),
+        }),
+      ),
+    }),
+  ),
+  missingPayers: v.array(v.object({ slug: v.string(), name: v.string() })),
+  history: v.array(
+    v.object({
+      id: v.id("settlements"),
+      fromMemberId: v.id("tabMembers"),
+      toMemberId: v.id("tabMembers"),
+      amount: v.number(),
+      currency: v.string(),
+      date: v.string(),
+      note: v.optional(v.string()),
+      reversed: v.boolean(),
+      view: v.optional(expenseViewValidator),
+    }),
+  ),
+  viewerMemberId: v.union(v.id("tabMembers"), v.null()),
+});
+const consolidatedSettlementResult = v.union(
   v.null(),
-  v.object({
-    currencies: v.array(
-      v.object({
-        currency: v.string(),
-        members: v.array(
-          v.object({
-            memberId: v.id("tabMembers"),
-            name: v.string(),
-            paid: v.number(),
-            share: v.number(),
-            balance: v.number(),
-          }),
-        ),
-        suggestions: v.array(
-          v.object({
-            fromMemberId: v.id("tabMembers"),
-            toMemberId: v.id("tabMembers"),
-            amount: v.number(),
-          }),
-        ),
-      }),
-    ),
-    missingPayers: v.array(v.object({ slug: v.string(), name: v.string() })),
-    history: v.array(
-      v.object({
-        id: v.id("settlements"),
-        fromMemberId: v.id("tabMembers"),
-        toMemberId: v.id("tabMembers"),
-        amount: v.number(),
-        currency: v.string(),
-        date: v.string(),
-        note: v.optional(v.string()),
-        reversed: v.boolean(),
-      }),
-    ),
-    viewerMemberId: v.union(v.id("tabMembers"), v.null()),
-  }),
+  v.object({ paid: settlementSummary, upcoming: settlementSummary, all: settlementSummary }),
 );
 
 export const get = query({
-  args: { slug: v.string(), asOfDate: v.string() },
-  returns: settlementResult,
+  args: {
+    slug: v.string(),
+    asOfDate: v.string(),
+  },
+  returns: consolidatedSettlementResult,
   handler: async (ctx, { slug, asOfDate }) => {
     if (!isDate(asOfDate)) throw new Error("Use a real YYYY-MM-DD as-of date");
     const tab = await findTab(ctx, slug);
     if (!tab) return null;
     const viewer = await requireTabViewer(ctx, tab);
-    const { roster, people, byCurrency, missingPayers, payments } = await readBalances(
-      ctx,
-      tab,
-      asOfDate,
-    );
-    return {
-      currencies: [...byCurrency]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([currency, totals]) => {
-          const members = people.map((person) => {
-            const total = totals.get(person.id)!;
+    const { roster, people, views, payments } = await readBalances(ctx, tab, asOfDate);
+    const format = (expenseView: ExpenseView) => {
+      const { byCurrency, missingPayers } = views[expenseView];
+      return {
+        currencies: [...byCurrency]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([currency, totals]) => {
+            const members = people.map((person) => {
+              const total = totals.get(person.id)!;
+              return {
+                memberId: person.id,
+                name: person.name,
+                paid: total.paidCents / 100,
+                share: total.shareCents / 100,
+                balance: net(total) / 100,
+              };
+            });
             return {
-              memberId: person.id,
-              name: person.name,
-              paid: total.paidCents / 100,
-              share: total.shareCents / 100,
-              balance: net(total) / 100,
+              currency,
+              members,
+              suggestions: suggestSettlements(members).map((suggestion) => ({
+                ...suggestion,
+                fromMemberId: suggestion.fromMemberId as Id<"tabMembers">,
+                toMemberId: suggestion.toMemberId as Id<"tabMembers">,
+              })),
             };
-          });
-          return {
-            currency,
-            members,
-            suggestions: suggestSettlements(members).map((suggestion) => ({
-              ...suggestion,
-              fromMemberId: suggestion.fromMemberId as Id<"tabMembers">,
-              toMemberId: suggestion.toMemberId as Id<"tabMembers">,
-            })),
-          };
-        }),
-      missingPayers,
-      history: payments
-        .filter((payment) => payment.date <= asOfDate)
-        .sort((a, b) => b.date.localeCompare(a.date) || b._creationTime - a._creationTime)
-        .map((payment) => ({
-          id: payment._id,
-          fromMemberId: payment.fromMemberId,
-          toMemberId: payment.toMemberId,
-          amount: payment.amountCents / 100,
-          currency: payment.currency,
-          date: payment.date,
-          note: payment.note,
-          reversed: payment.reversedAt !== undefined,
-        })),
-      viewerMemberId: roster.find((seat) => seat.userId === viewer)?._id ?? null,
+          }),
+        missingPayers,
+        history: payments
+          .filter((payment) => payment.date <= asOfDate)
+          .sort((a, b) => b.date.localeCompare(a.date) || b._creationTime - a._creationTime)
+          .map((payment) => ({
+            id: payment._id,
+            fromMemberId: payment.fromMemberId,
+            toMemberId: payment.toMemberId,
+            amount: payment.amountCents / 100,
+            currency: payment.currency,
+            date: payment.date,
+            note: payment.note,
+            reversed: payment.reversedAt !== undefined,
+            view: payment.view,
+          })),
+        viewerMemberId: roster.find((seat) => seat.userId === viewer)?._id ?? null,
+      };
     };
+    return { paid: format("paid"), upcoming: format("upcoming"), all: format("all") };
   },
 });
 
@@ -277,6 +303,7 @@ export const record = mutation({
     note: v.optional(v.string()),
     requestId: v.string(),
     asOfDate: v.string(),
+    view: v.optional(expenseViewValidator),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -294,6 +321,7 @@ export const record = mutation({
       throw new Error("Payment notes must be 2,000 characters or less");
     if (args.fromMemberId === args.toMemberId)
       throw new Error("Settlement members must be distinct");
+    const view = args.view ?? "paid";
 
     const prior = await ctx.db
       .query("settlements")
@@ -306,7 +334,8 @@ export const record = mutation({
         prior.amountCents === amountCents &&
         prior.currency === args.currency &&
         prior.date === args.date &&
-        prior.note === note
+        prior.note === note &&
+        (prior.view ?? "paid") === view
       )
         return null;
       throw new Error("This request id was already used for a different settlement");
@@ -319,7 +348,8 @@ export const record = mutation({
     if (args.asOfDate < low || args.asOfDate > high || args.date > args.asOfDate) {
       throw new Error("Settlement date must not be after today; refresh and try again");
     }
-    const { byCurrency, roster } = await readBalances(ctx, tab, args.asOfDate);
+    const { views, roster } = await readBalances(ctx, tab, args.asOfDate);
+    const { byCurrency } = views[view];
     const ids = new Set(roster.map((seat) => seat._id));
     if (!ids.has(args.fromMemberId) || !ids.has(args.toMemberId))
       throw new Error("Settlement members must belong to this tab");
@@ -344,6 +374,7 @@ export const record = mutation({
       note,
       recordedBy: userId,
       requestId,
+      view,
     });
     return null;
   },
