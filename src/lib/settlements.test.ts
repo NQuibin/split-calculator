@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { computeSplit } from "./calculations";
-import { computeExpenseBalances, suggestSettlements } from "./settlements";
+import { computeExpenseBalances, splitParticipants, suggestSettlements } from "./settlements";
 
 const zero = { mode: "amount" as const, value: 0 };
 const item = (id: string, cost: number, splitWith: string[]) => ({
@@ -44,4 +44,27 @@ test("missing and foreign payers create no invented balances", () => {
   const split = computeSplit(people, [item("x", 10, ["a"])]);
   expect(computeExpenseBalances(people, split)).toEqual([]);
   expect(computeExpenseBalances(people, split, "elsewhere")).toEqual([]);
+});
+
+test("splitParticipants drops a candidate with no items assigned to them", () => {
+  // Mirrors the "Hmmm" expense: Nikki Q and P2 split the one item; P3 was
+  // added to the tab and to this expense's people, but never assigned to
+  // anything, so they neither owe nor get money back on it.
+  const people = [
+    { id: "nq", name: "Nikki Q" },
+    { id: "p2", name: "P2" },
+    { id: "p3", name: "P3" },
+  ];
+  const split = computeSplit(people, [item("thing", 20, ["nq", "p2"])]);
+  const balances = computeExpenseBalances(people, split, "p2");
+  expect(splitParticipants(people, balances).map((p) => p.name)).toEqual(["Nikki Q", "P2"]);
+});
+
+test("splitParticipants falls back to every candidate when there's no payer yet", () => {
+  const people = [
+    { id: "a", name: "A" },
+    { id: "b", name: "B" },
+  ];
+  const split = computeSplit(people, [item("x", 10, ["a", "b"])]);
+  expect(splitParticipants(people, computeExpenseBalances(people, split))).toEqual(people);
 });

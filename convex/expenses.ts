@@ -3,6 +3,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { listTabsForUser } from "./tabs";
 import { computeSplit, round2 } from "../src/lib/calculations";
+import { computeExpenseBalances, splitParticipants } from "../src/lib/settlements";
 import { mutation, query } from "./_generated/server";
 import { expenseState, person } from "./schema";
 import { isAcceptedImageType, MAX_IMAGE_BYTES } from "./imageFormats";
@@ -140,6 +141,30 @@ export const directory = query({
   },
 });
 
+/**
+ * The directory's avatar row shows who's actually splitting an expense, not
+ * every candidate it was ever offered to - `expense.people` includes anyone
+ * added to the split even if they end up with no items assigned to them (or
+ * a 0% share), and someone like that isn't really "in" it. Same rule the tab
+ * page's own expense list uses (`splitParticipants` in `src/lib/settlements`),
+ * computed once here alongside the total this row already needed, so the
+ * directory doesn't have to ship `items`/`globalAdjustments`/`payerId` down
+ * to the client just to let it redo the same computation.
+ */
+function summarizeExpense(e: {
+  people: Infer<typeof person>[];
+  items: Parameters<typeof computeSplit>[1];
+  globalAdjustments?: Parameters<typeof computeSplit>[2];
+  payerId?: string;
+}) {
+  const split = computeSplit(e.people, e.items, e.globalAdjustments);
+  const balances = computeExpenseBalances(e.people, split, e.payerId);
+  return {
+    people: splitParticipants(e.people, balances),
+    total: round2(split.grandTotal),
+  };
+}
+
 export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">) {
   const ownDocs = await ctx.db
     .query("expenses")
@@ -160,20 +185,23 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
     total: number;
     date: string;
     updatedAt: number;
-  }[] = own.map((e) => ({
-    key: `own-${e.slug}`,
-    kind: "own",
-    slug: e.slug,
-    tabSlug: undefined,
-    name: e.name,
-    tabName: "Personal expense",
-    people: e.people,
-    itemCount: e.items.length,
-    currency: e.currency ?? "USD",
-    total: round2(computeSplit(e.people, e.items, e.globalAdjustments).grandTotal),
-    date: e.date,
-    updatedAt: e.updatedAt,
-  }));
+  }[] = own.map((e) => {
+    const { people, total } = summarizeExpense(e);
+    return {
+      key: `own-${e.slug}`,
+      kind: "own",
+      slug: e.slug,
+      tabSlug: undefined,
+      name: e.name,
+      tabName: "Personal expense",
+      people,
+      itemCount: e.items.length,
+      currency: e.currency ?? "USD",
+      total,
+      date: e.date,
+      updatedAt: e.updatedAt,
+    };
+  });
 
   for (const tab of await listTabsForUser(ctx, userId)) {
     const expenses = await ctx.db
@@ -190,6 +218,7 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
         owned.tabName = tab.name;
         continue;
       }
+      const { people, total } = summarizeExpense(e);
       rows.push({
         key: `${tab.slug}-${e.slug}`,
         kind: "tab",
@@ -197,10 +226,10 @@ export async function expenseDirectoryForUser(ctx: QueryCtx, userId: Id<"users">
         tabSlug: tab.slug,
         name: e.name || "Untitled expense",
         tabName: tab.name,
-        people: e.people,
+        people,
         itemCount: e.items.length,
         currency: e.currency ?? "USD",
-        total: round2(computeSplit(e.people, e.items, e.globalAdjustments).grandTotal),
+        total,
         date: e.date,
         updatedAt: e.updatedAt,
       });

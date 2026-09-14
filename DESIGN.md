@@ -548,6 +548,13 @@ row look permanently hovered.
 - Person chip: `rounded-full border border-rule bg-paper px-4 py-2`.
 - Avatars: `MemberAvatar`. Avatar colours are a deliberate placeholder; custom
   avatars are planned, so colour churn on claim is expected and fine.
+- An overlapping avatar stack (the "Manage N members" trigger, the expense
+  row's `md`-tier participants) is `flex -space-x-*` with a `ring-2` on each
+  `MemberAvatar` that cuts one circle out from the one behind it. The ring
+  colour is whatever ground the stack is actually resting on — `ring-paper`
+  atop the tab page, `ring-field` inside the expense list — never copied from
+  the other site by reflex. Two instances of this so far; a third earns the
+  extraction AGENTS.md's count trigger calls for.
 
 ### Money
 
@@ -611,20 +618,73 @@ the search *before* the filter in the DOM so the wide layout, where a keyboard
 user is far likelier to be, reads in the order it shows.
 
 **Progressive disclosure.** Columns that don't fit drop to a second line rather
-than shrinking (see the tab expense grid): below `md` the date and the viewer's
-share move to a row beneath the name and the amount.
+than shrinking (see the tab expense grid): below `md` the date and the
+viewer's share drop out, leaving name + amount on one line and the date on a
+second, and who's in the split doesn't appear at all — there's no natural
+second line for a cluster of avatars to fall back to the way there is for
+text, so it's just omitted below `md` rather than squeezed in or wrapped.
+
+From `md` up, a column that's present at every tier can still change *how
+much room it's allowed*, not just whether it exists. Who's in the split shows
+at `md` too, but compressed — overlapping circles (`-space-x-1.5`, the same
+idiom as the "Manage N members" trigger atop the tab page), rather than the
+spaced-out individual circles it becomes at `lg`. The amount column's own
+`fit-content()` cap is smaller at `md` (`8rem`) than `lg` (`11rem`) for a
+subtler reason: that cap is a *ceiling shared by every row* (subgrid — see
+below), not a per-row one, so a single row with a long payer caption pushes
+the whole column toward its cap regardless of what any other row needs. A
+smaller cap at `md` doesn't fix that one row's own caption — it still
+truncates, same as always — it just stops that row from taxing every other
+row's name column for space nobody else needed.
 
 Pick the breakpoint from the **width budget**, not from the name of the
 breakpoint. The content column is the viewport minus the 240px sidebar (from
 `lg`), the page gutter, the panel padding and the row's own — which is ~600px
-at `md` and still only ~615px at `lg`, so a layout that doesn't fit at `md`
-usually doesn't fit at `lg` either. Dropping a column is what buys room; moving
-the same columns one breakpoint up buys about 15px.
+at `md` and still only ~615px at `lg` before the sidebar's own 240px comes out
+of it, so a layout that doesn't fit at `md` usually doesn't fit at `lg`
+either. Confirmed the hard way, twice: a wider column gap and a larger amount
+cap were each tried at `md` first, independently, and each collapsed the
+expense name column on its own (to 15px and ~60px respectively) before
+landing at `lg`, which is the first tier that actually has slack once the
+sidebar's cost is subtracted. Dropping a column, or shrinking what a shared
+cap is allowed to cost, is what buys room; moving the same columns one
+breakpoint up buys about 15px.
 
 A column of **right-aligned money** sizes to its content, never to a fixed
 width. A fixed track makes an unusually large amount overflow into the cell
 beside it; a content-sized one lets that row widen its own track, and the values
 still line up because the tracks to their right are fixed.
+
+**A list of independently-sized rows needs a shared grid, not one grid per
+row, or content-sized columns drift.** `fit-content()`/`max-content` tracks
+size to *that row's own* content — a short payer caption on one row and a long
+one on the next silently shifts every column after it on an otherwise
+identical row, avatars included, even though nothing about the avatars
+changed. Per-row independent grids can't fix this: the browser has no way to
+know two different `<li>`s' tracks should match. The fix is CSS `subgrid`: the
+list's own `<ul>` carries the real `grid-cols-[...]` template (one value per
+responsive tier) exactly once, and every row subgrids onto it
+(`grid-template-columns:subgrid` +
+`col-span-full`) instead of declaring its own columns, so every column is
+sized once over every row's content collectively and every row's line
+positions come out identical by construction. Row-level chrome (hover wash,
+the row-link overlay, `divide-y`) stays exactly where it was — on the row
+element itself — because subgrid only changes where a track's *size* comes
+from, not which element owns the box.
+
+**A Tailwind class name has to appear intact, in one piece, somewhere in the
+source — building one by gluing a breakpoint prefix onto a separately-held
+value (`` `md:${cols}` ``) makes the whole rule silently vanish from the
+build.** Tailwind's scanner is static: it greps source files for literal class
+name substrings, it does not evaluate JavaScript. `` `md:${cols}` `` never
+puts the string `md:grid-cols-[...]` anywhere in the file as one token, so
+nothing gets generated — no build warning, no type error, just a column that
+never applies and quietly collapses to its unstyled default. This is exactly
+what took every expense row's `md:grid-cols-[...]` template out from under it
+while this file's `md:col-start-6`-style ternaries (each *branch* a complete
+literal) stayed fine. When a class has to vary, write out each complete
+variant as its own literal string — one ternary/ternary-branch per full class
+name, never a shared prefix spliced onto an interpolated suffix.
 
 To cap such a column, use **`fit-content(11rem)`, not `minmax(_,11rem)`** — they
 are not the same thing. A track whose growth limit is a fixed length is

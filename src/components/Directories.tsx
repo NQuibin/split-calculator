@@ -12,6 +12,7 @@ import { NewExpenseButton } from "@/components/NewExpenseButton";
 import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useExpenseList } from "@/lib/expenseSync";
 import { computeSplit } from "@/lib/calculations";
+import { computeExpenseBalances, splitParticipants } from "@/lib/settlements";
 import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { EmptyState, Page } from "@/components/ui/Page";
@@ -147,20 +148,28 @@ export function ExpensesDirectory() {
   // shaped here to match what the server returns for a signed-in user.
   const localRows = useMemo(
     () =>
-      localExpenses.map(({ slug, state }) => ({
-        key: `own-${slug}`,
-        kind: "own" as const,
-        slug,
-        tabSlug: undefined,
-        name: state.name,
-        tabName: "Personal expense",
-        people: state.people,
-        itemCount: state.items.length,
-        currency: state.currency,
-        total: computeSplit(state.people, state.items, state.globalAdjustments).grandTotal,
-        date: state.date,
-        updatedAt: state.updatedAt ?? 0,
-      })),
+      localExpenses.map(({ slug, state }) => {
+        const split = computeSplit(state.people, state.items, state.globalAdjustments);
+        const balances = computeExpenseBalances(state.people, split, state.payerId);
+        return {
+          key: `own-${slug}`,
+          kind: "own" as const,
+          slug,
+          tabSlug: undefined,
+          name: state.name,
+          tabName: "Personal expense",
+          // Same "who's actually splitting" rule the server applies for a
+          // signed-in user (see `summarizeExpense` in `convex/expenses.ts`) -
+          // someone added to the split with no share ending up nonzero isn't
+          // really part of it, even though they're still in `state.people`.
+          people: splitParticipants(state.people, balances),
+          itemCount: state.items.length,
+          currency: state.currency,
+          total: split.grandTotal,
+          date: state.date,
+          updatedAt: state.updatedAt ?? 0,
+        };
+      }),
     [localExpenses],
   );
   const loading = isLoading || (isAuthenticated && remoteRows === undefined);

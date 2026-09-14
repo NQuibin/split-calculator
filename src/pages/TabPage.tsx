@@ -55,7 +55,7 @@ import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
-import { computeExpenseBalances } from "@/lib/settlements";
+import { computeExpenseBalances, splitParticipants } from "@/lib/settlements";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -718,12 +718,11 @@ function ExpenseActions({
 }
 
 // The expense row's own layout. Rows are self-describing - there is no header
-// band naming columns - but the money still has to line up down the list, and
-// only a grid can do that: each row is its own formatting context, so fixed
-// tracks are what keep one row's amount above the next one's. Reading order is
-// date / name / amount and who paid it / your share, then the row's actions
-// menu, which is a sibling of the row trigger rather than a child - a button
-// can't nest inside a button (see DESIGN.md § 5, "Interactive rows").
+// band naming columns - but the money still has to line up down the list.
+// Reading order is date / name / who's in the split / amount and who paid it /
+// your share, then the row's actions menu, which is a sibling of the row
+// trigger rather than a child - a button can't nest inside a button (see
+// DESIGN.md § 5, "Interactive rows").
 //
 // The money tracks size to their own content rather than to a fixed width, so
 // a six-figure amount widens its track instead of spilling over the cell beside
@@ -732,30 +731,82 @@ function ExpenseActions({
 // `minmax(_,12rem)`: a track whose growth limit is a fixed length is maximized
 // to that limit before a `1fr` track gets any space at all, so the cap became
 // the width and the name column collapsed to 80px. `fit-content()` clamps the
-// growth limit to the content instead, which is what stops a long payer name
-// from eating the name column - the row's only flexible track.
+// growth limit to the content instead.
+//
+// From `md` up the row is a genuine table column, and content-sized tracks
+// (amount, settlement) only line up down the list if every row shares the
+// SAME tracks - which independent per-row grids don't give you: a track sized
+// to `fit-content()`/`max-content` sizes to *that row's own* content, so a
+// short payer caption on one row and a long one on the next silently shift
+// every column after it, even though nothing about that column changed. The
+// list's own `<ul>` carries the real `grid-cols-[...]` template exactly once,
+// and every row subgrids onto it (`grid-cols-subgrid`) instead of declaring
+// its own columns - so track sizes are resolved once, over every row's
+// content collectively, and every row's line positions are then identical by
+// construction, not by coincidence.
 //
 // Two stages. Below `md` there is only room for name + amount on the first
-// line, so the date and your share drop to a second one. The budget is the
-// viewport minus the sidebar (240px from `lg`), the page gutter, the panel
-// padding and the row's own - about 600px at `md`, and still only ~615px at
-// `lg`, so a column that doesn't fit at `md` won't fit at `lg` either.
+// line, so the date and your share drop to a second one, and there's no room
+// for who's in the split at all. From `md` up it's a single, subgridded line -
+// date, name, who's in the split, amount and who paid it, your share, the
+// menu.
+//
+// The avatars column's own *track* stays the same (`max-content`) at both
+// desktop tiers; only what's rendered inside it changes at `lg` (see
+// `ExpenseParticipants`) - a `hidden` variant contributes nothing to intrinsic
+// sizing, so the track is simply as wide as whichever variant is actually
+// showing. The amount column isn't so lucky: its `fit-content()` cap is
+// smaller at `md` (`8rem`) than `lg` (`11rem`), because that cap is a *ceiling
+// shared by every row* (subgrid), not a per-row one - one row with a long
+// payer caption pushes the whole column up toward its cap regardless of what
+// any other row needs, and at `md` that was enough on its own to push the
+// name column back down to double digits even with avatars' own track staying
+// modest. Shrinking the cap at `md` doesn't fix that row's own caption (it
+// still truncates, same as always) - it just stops that one row from taxing
+// every other row's name column for space nobody else needed.
+//
+// The column *gap* steps up at `lg` too (`gap-x-6`, not `gap-x-4`): `md`'s
+// budget is already fully spoken for (~600px, see below), and both of these -
+// the wider gap and the larger amount cap - were tried at `md` first and
+// broke it, independently, before landing here. `lg` is the first tier with
+// real slack to spend on either.
 //
 // The settlement track only exists when the viewer is in one of these splits,
 // so a signed-out or non-participating reader doesn't get a column of
-// "Not in split".
+// "Not in split". The menu track only exists from `md` up: below it, the
+// row's own trigger already opens the detail dialog, whose footer carries the
+// same Edit/Delete for an owner - a second, cramped path to identical actions
+// isn't worth a whole column on the narrowest layout, so the track is dropped
+// rather than just visually hidden.
 //
-// The menu track only exists from `md` up. Below it the row's own trigger
-// already opens the detail dialog, and that dialog's footer carries the same
-// Edit/Delete for an owner - a second, cramped path to identical actions isn't
-// worth a whole column on the narrowest layout, so the track is dropped rather
-// than just visually hidden.
-function expenseRowClass(withSettlement: boolean) {
-  return `grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 px-5 ${
-    withSettlement
-      ? "md:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_minmax(6.75rem,max-content)_2.75rem]"
-      : "md:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_2.75rem]"
-  }`;
+// Pick a breakpoint from the width budget, not its name. The content column
+// is the viewport minus the 240px sidebar (from `lg`), the page gutter, the
+// panel padding and the row's own - about 600px at `md` and still only ~615px
+// at `lg` before the sidebar's own 240px is subtracted, which is why the
+// wider gap waits for `lg`: it's the first tier that actually has slack once
+// the sidebar's cost is accounted for.
+function expenseListGridClass(withSettlement: boolean) {
+  // Each branch spells out every full `md:`/`lg:` class as one literal string,
+  // not built by gluing a breakpoint prefix onto a shared value (e.g.
+  // `` `md:${cols}` ``) - Tailwind's scanner only picks up class names that
+  // appear intact in the source, so splitting the prefix from the value across
+  // a template-literal interpolation makes the whole rule silently vanish from
+  // the build. No warning, no type error: the class just isn't there, and the
+  // column collapses to one giant track.
+  const list = withSettlement
+    ? "divide-y divide-rule/70 md:grid md:gap-x-4 md:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_minmax(6.75rem,max-content)_2.75rem] lg:gap-x-6 lg:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_minmax(6.75rem,max-content)_2.75rem]"
+    : "divide-y divide-rule/70 md:grid md:gap-x-4 md:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_2.75rem] lg:gap-x-6 lg:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_2.75rem]";
+  return {
+    list,
+    // `gap-x-4` carries through from its base declaration (mobile and `md`)
+    // until `lg:gap-x-6` overrides it - matching the same step-up the list
+    // above takes, since a subgrid inherits the parent's gap only when it
+    // doesn't declare its own for that axis, and this element always declares
+    // one (it needs `gap-x-4` unconditionally for its own independent mobile
+    // grid), so its own value has to move in lockstep with the list's or the
+    // two silently mismatch.
+    row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 px-5 md:grid-cols-subgrid md:col-span-full lg:gap-x-6",
+  };
 }
 
 /** One expense row's actions. A sibling of the row trigger, never a child. */
@@ -779,6 +830,70 @@ function ExpenseRowMenu({
         Delete expense
       </OverflowAction>
     </OverflowMenu>
+  );
+}
+
+/**
+ * Who this expense's split is between - rendered from a list the caller has
+ * already narrowed to people who actually owe or get money back on it (see
+ * `splitParticipants` below), not raw `expense.people`: someone can be added
+ * to an expense as a split candidate and end up with no items assigned to
+ * them, in which case they aren't really "in" this split at all. Capped at
+ * four avatars plus a "+N" badge so a large group tab can't blow out the row;
+ * the cap is what keeps the column's `max-content` track bounded, not a fixed
+ * width on the track itself.
+ *
+ * Two variants render side by side in the row (each toggled by its own
+ * `hidden`/breakpoint classes, never both visible at once) because `md`'s
+ * width budget only has room for the compact one:
+ *
+ * - `stacked` - overlapping circles (`-space-x-1.5`, a `ring-field` to cut
+ *   each one out from its neighbour), the same idiom as the "Manage N
+ *   members" trigger atop the tab page. Used at `md`, where there's row for
+ *   *who* but not for spreading them out.
+ * - `spaced` - the individual circles from the `lg` design, gap between them
+ *   instead of overlap. Used from `lg`, where the wider column budget affords
+ *   it and overlap would only be worth it if space were still tight.
+ *
+ * The ring colour tracks the ground it sits on, not the header's - `ring-field`
+ * here, matching the list's own resting background, vs. the header stack's
+ * `ring-paper`. Overflow shows as plain text either way, not `aria-hidden`:
+ * unlike the header stack, there's no adjacent "N members" caption carrying
+ * that count for a screen reader, so hiding it would just drop the number.
+ */
+function ExpenseParticipants({
+  people,
+  variant,
+  className = "",
+}: {
+  people: { id: string; name: string }[];
+  variant: "stacked" | "spaced";
+  className?: string;
+}) {
+  if (!people.length) return null;
+  const shown = people.slice(0, 4);
+  const overflow = people.length - shown.length;
+  const stacked = variant === "stacked";
+  return (
+    <span className={`${stacked ? "flex -space-x-1.5" : "flex items-center gap-1.5"} ${className}`}>
+      {shown.map((person) => (
+        <MemberAvatar
+          key={person.id}
+          id={person.id}
+          name={person.name}
+          size="sm"
+          className={stacked ? "ring-2 ring-field" : undefined}
+        />
+      ))}
+      {overflow > 0 &&
+        (stacked ? (
+          <span className="relative inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface text-[10px] font-semibold ring-2 ring-field">
+            +{overflow}
+          </span>
+        ) : (
+          <span className="text-xs text-ink-soft">+{overflow}</span>
+        ))}
+    </span>
   );
 }
 
@@ -935,7 +1050,7 @@ function ExpenseList({
   const viewerIds = new Set(viewerMember ? [viewerMember.id, viewerMember.resolvedId] : []);
   const showSettlement =
     viewerIds.size > 0 && expenses.some((e) => e.people.some((p) => viewerIds.has(p.id)));
-  const rowGrid = expenseRowClass(showSettlement);
+  const { list: listGrid, row: rowGrid } = expenseListGridClass(showSettlement);
   const expenseRows = (
     <>
       <div className="overflow-hidden rounded-lg border border-edge bg-field">
@@ -948,7 +1063,7 @@ function ExpenseList({
                 : "No expenses match your filters."}
           </p>
         ) : (
-          <ul className="divide-y divide-rule/70">
+          <ul className={listGrid}>
             {filtered.map((expense) => {
               const rowSplit = computeSplit(
                 expense.people,
@@ -962,68 +1077,86 @@ function ExpenseList({
                 : balances.find((row) => viewerIds.has(row.memberId))?.balance;
               const payer = payerFor(expense.payerId);
               const upcoming = isUpcoming(expense.date);
+              const participants = splitParticipants(expense.people, balances);
               return (
-                <li key={expense.slug}>
-                  <div
-                    className={`${rowGrid} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
-                  >
-                    {/* The trigger covers the row through its ::after overlay, so the
+                // The row itself is the grid/subgrid item now - not a wrapping div -
+                // so `divide-y` on the list keeps drawing real borders between real
+                // boxes exactly as it did before, and the hover/focus-overlay classes
+                // that used to sit on that div work unchanged sitting here instead.
+                <li
+                  key={expense.slug}
+                  className={`${rowGrid} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
+                >
+                  {/* The trigger covers the row through its ::after overlay, so the
               whole row stays tappable while the actions menu sits above it. */}
-                    <button
-                      type="button"
-                      aria-haspopup="dialog"
-                      onClick={() => {
-                        setSelectedSlug(expense.slug);
-                      }}
-                      className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest md:col-start-2"
-                    >
-                      {expense.name ?? "Untitled expense"}
-                    </button>
-                    <span className="min-w-0 text-right md:col-start-3">
-                      <ExpenseAmount
-                        total={rowSplit.grandTotal * rate}
-                        code={expense.settlementCurrency}
-                        native={
-                          expense.exchangeRate
-                            ? { amount: rowSplit.grandTotal, code: expense.currency }
-                            : undefined
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setSelectedSlug(expense.slug);
+                    }}
+                    className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest md:col-start-2"
+                  >
+                    {expense.name ?? "Untitled expense"}
+                  </button>
+                  {/* Not interactive, so it sits under the row-link overlay like any
+                      other plain cell - no `z-10` needed. */}
+                  <span className="hidden md:col-start-3 md:block md:justify-self-center">
+                    <ExpenseParticipants
+                      people={participants}
+                      variant="stacked"
+                      className="lg:hidden"
+                    />
+                    <ExpenseParticipants
+                      people={participants}
+                      variant="spaced"
+                      className="hidden lg:flex"
+                    />
+                  </span>
+                  <span className="min-w-0 text-right md:col-start-4">
+                    <ExpenseAmount
+                      total={rowSplit.grandTotal * rate}
+                      code={expense.settlementCurrency}
+                      native={
+                        expense.exchangeRate
+                          ? { amount: rowSplit.grandTotal, code: expense.currency }
+                          : undefined
+                      }
+                      payer={payer}
+                      upcoming={upcoming}
+                    />
+                  </span>
+                  {/* One date element for both layouts: the second row below `md`,
+                      its own leading column from `md` up. */}
+                  <span className="col-start-1 text-xs text-ink-soft md:col-start-1 md:row-start-1 md:text-sm">
+                    <ExpenseDate date={expense.date} />
+                  </span>
+                  {showSettlement && (
+                    <span className="col-start-2 text-right md:col-start-5">
+                      <ViewerSettlement
+                        balance={
+                          typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
                         }
-                        payer={payer}
-                        upcoming={upcoming}
+                        code={expense.settlementCurrency}
+                        projected={upcoming}
                       />
                     </span>
-                    {/* One date element for both layouts: the second row below `md`,
-                        its own leading column from `md` up. */}
-                    <span className="col-start-1 text-xs text-ink-soft md:col-start-1 md:row-start-1 md:text-sm">
-                      <ExpenseDate date={expense.date} />
-                    </span>
-                    {showSettlement && (
-                      <span className="col-start-2 text-right md:col-start-4">
-                        <ViewerSettlement
-                          balance={
-                            typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
-                          }
-                          code={expense.settlementCurrency}
-                          projected={upcoming}
-                        />
-                      </span>
+                  )}
+                  {/* Row-level Edit/Delete is redundant below `md`: the row's own
+                      trigger already opens the detail dialog, whose footer carries
+                      the same two actions for an owner. Hiding it here isn't losing
+                      access, it's dropping a second path to the same place - and it
+                      gives the name column back the width the menu track cost it. */}
+                  <div
+                    className={`z-10 hidden justify-end md:relative md:flex ${showSettlement ? "md:col-start-6" : "md:col-start-5"}`}
+                  >
+                    {isOwner && (
+                      <ExpenseRowMenu
+                        expenseSlug={expense.slug}
+                        name={expense.name ?? "Untitled expense"}
+                        onDelete={() => setDeletingSlug(expense.slug)}
+                      />
                     )}
-                    {/* Row-level Edit/Delete is redundant below `md`: the row's own
-                        trigger already opens the detail dialog, whose footer carries
-                        the same two actions for an owner. Hiding it here isn't losing
-                        access, it's dropping a second path to the same place - and it
-                        gives the name column back the width the menu track cost it. */}
-                    <div
-                      className={`z-10 hidden justify-end md:relative md:flex ${showSettlement ? "md:col-start-5" : "md:col-start-4"}`}
-                    >
-                      {isOwner && (
-                        <ExpenseRowMenu
-                          expenseSlug={expense.slug}
-                          name={expense.name ?? "Untitled expense"}
-                          onDelete={() => setDeletingSlug(expense.slug)}
-                        />
-                      )}
-                    </div>
                   </div>
                 </li>
               );
