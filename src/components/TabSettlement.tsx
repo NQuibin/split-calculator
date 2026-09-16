@@ -2,7 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { ArrowRight, Banknote, HandCoins, MoveDown, MoveUp, RotateCcw, X } from "lucide-react";
+import {
+  ArrowRight,
+  Banknote,
+  ChevronRight,
+  MoveDown,
+  MoveUp,
+  RotateCcw,
+  Scale,
+  X,
+} from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -42,7 +51,16 @@ export type SettlementSummaryData = {
   missingPayers: { slug: string; name: string }[];
   currencies: {
     currency: string;
-    members: { memberId: string; name: string; balance: number }[];
+    /**
+     * `share` is what this member's split came to - the same figure the spend
+     * summary card used to show on its own. It rides on this snapshot rather
+     * than a second query, so the two money columns always describe the same
+     * set of expenses at the same as-of date. Optional because a client open
+     * across the consolidated-query rollout can still receive a response
+     * without it; that renders as no spend column rather than a column of
+     * blanks.
+     */
+    members: { memberId: string; name: string; balance: number; share?: number }[];
   }[];
 };
 
@@ -98,6 +116,26 @@ function BalanceValue({
   );
 }
 
+/**
+ * One template for the band, the rows and the totals footer, so the two money
+ * columns line up down the whole currency group. Fixed tracks are enough here
+ * (unlike the expense list, which needed a subgrid): every cell in these
+ * columns is a bounded money string, so no row can size a track differently
+ * from its neighbours.
+ *
+ * Below `sm` there's only room for member + balance, so spend drops to a
+ * sub-line under the name and the column labels go with it. Each variant is a
+ * complete literal string rather than a prefix glued to an interpolated
+ * value - Tailwind's scanner only sees class names that appear intact in the
+ * source (DESIGN.md § 6).
+ */
+const balanceRowGrid = {
+  withSpend:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  balanceOnly:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[29.5rem]:gap-x-4",
+};
+
 function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
   return (
     <div className="space-y-5">
@@ -107,37 +145,90 @@ function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
           (a, b) =>
             Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
         );
+        // A response from before the consolidated query carries no `share`, so
+        // the spend column is dropped wholesale rather than rendered blank.
+        const hasSpend = members.some((member) => member.share !== undefined);
+        const grid = hasSpend ? balanceRowGrid.withSpend : balanceRowGrid.balanceOnly;
+        const totalSpent = members.reduce((sum, member) => sum + (member.share ?? 0), 0);
 
         return (
           <section key={group.currency} aria-label={`${group.currency} balances`}>
-            <GroupTitle as="h3" className="bg-band px-3 py-2">
-              <span className="font-numeric">{group.currency}</span>
-              {currencyName && <span className="font-normal text-ink-soft"> · {currencyName}</span>}
+            <GroupTitle as="h3" className={`${grid} bg-band px-3 py-2`}>
+              <span className="min-w-0">
+                <span className="font-numeric">{group.currency}</span>
+                {currencyName && (
+                  <span className="font-normal text-ink-soft"> · {currencyName}</span>
+                )}
+              </span>
+              {hasSpend && (
+                <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+                  Spent
+                </span>
+              )}
+              <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+                Balance
+              </span>
             </GroupTitle>
             <ul className="divide-y divide-rule">
               {members.map((member) => {
                 const isViewer = member.memberId === data.viewerMemberId;
+                // A member with no share in this currency spent nothing in it,
+                // which reads better as "No expenses" than as a zero amount.
+                const spent = member.share ? currency(member.share, group.currency) : "No expenses";
                 return (
-                  <li
-                    key={member.memberId}
-                    className="flex min-w-0 items-center justify-between gap-3 py-3"
-                  >
+                  // `px-3` matches the band above and the totals band below, so
+                  // all three share one track geometry - without it the column
+                  // labels and the total sit 12px left of the values they
+                  // describe, which is the whole point of the ledger layout.
+                  <li key={member.memberId} className={`${grid} px-3 py-3`}>
                     <span className="flex min-w-0 items-center gap-3">
                       <MemberAvatar id={member.memberId} name={member.name} size="sm" />
                       <span className="min-w-0 break-words font-medium">
                         {member.name}
                         {isViewer && <span className="text-ink-soft"> (you)</span>}
+                        {hasSpend && (
+                          <span className="block text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
+                            {member.share ? `Spent ${spent}` : spent}
+                          </span>
+                        )}
                       </span>
                     </span>
-                    <BalanceValue
-                      balance={member.balance}
-                      code={group.currency}
-                      prominent={isViewer}
-                    />
+                    {hasSpend && (
+                      <span className="hidden text-right @min-[29.5rem]:block">
+                        {member.share ? (
+                          <span className="font-numeric font-semibold text-ink">{spent}</span>
+                        ) : (
+                          <span className="text-xs text-ink-soft">{spent}</span>
+                        )}
+                      </span>
+                    )}
+                    <span className="flex justify-end">
+                      <BalanceValue
+                        balance={member.balance}
+                        code={group.currency}
+                        prominent={isViewer}
+                      />
+                    </span>
                   </li>
                 );
               })}
             </ul>
+            {hasSpend && (
+              <div className={`${grid} border-t border-rule bg-band px-3 py-2 text-xs`}>
+                <span className="font-medium text-ink">Total spent</span>
+                <span className="hidden text-right @min-[29.5rem]:block">
+                  <span className="font-numeric font-semibold text-ink">
+                    {currency(totalSpent, group.currency)}
+                  </span>
+                </span>
+                <span className="text-right text-ink-soft">
+                  <span className="font-numeric font-semibold text-ink @min-[29.5rem]:hidden">
+                    {currency(totalSpent, group.currency)}
+                  </span>
+                  <span className="hidden @min-[29.5rem]:inline">nets to zero</span>
+                </span>
+              </div>
+            )}
           </section>
         );
       })}
@@ -263,8 +354,8 @@ export function TabSettlement({
 
   if (response === undefined)
     return (
-      <Panel bleedOnMobile className="p-5 sm:p-6" role="region" aria-label="Settle up">
-        <SectionTitle>Settle up</SectionTitle>
+      <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
+        <SectionTitle>Balances</SectionTitle>
         <p role="status" className="mt-2 text-sm text-ink-soft">
           Loading settlement balances…
         </p>
@@ -287,20 +378,38 @@ export function TabSettlement({
     members.find((member) => member.id === id)?.name ?? "Unknown member";
   const reverseHistory = allData.history.find((item) => item.id === reversingId);
   return (
-    <Panel bleedOnMobile className="p-5 sm:p-6" role="region" aria-label="Settle up">
+    <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
       <Dialog open={open} onOpenChange={setOpen}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {/* Two actions in one header now that spend lives here too, so neither
+            becomes the region's single `default` button: View payments stays
+            `outline` and Breakdown stays a link (DESIGN.md § 5). A phone has
+            room for one, so Breakdown drops to the card's foot below `sm`. */}
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <SectionTitle className="flex items-center gap-2">
-            <HandCoins aria-hidden="true" className="h-5 w-5 text-brass" />
-            Settle up
+            <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
+            Balances
           </SectionTitle>
-          <DialogTrigger
-            render={<Button variant="outline" size="touch" className="w-full sm:w-auto" />}
-          >
-            View payments
-          </DialogTrigger>
+          <div className="ml-auto flex w-full items-center gap-3 sm:w-auto">
+            <DialogTrigger
+              render={<Button variant="outline" size="touch" className="w-full sm:w-auto" />}
+            >
+              View payments
+            </DialogTrigger>
+            {data.currencies.length > 0 && (
+              <Link
+                to="/t/$slug/breakdown"
+                params={{ slug }}
+                className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-xs font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:inline-flex"
+              >
+                Breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 chevron-x" />
+              </Link>
+            )}
+          </div>
         </div>
         <SettlementSummary data={data} />
+        {/* One footnote now governs both columns, which it can only do because
+            spend and balance come from the same snapshot at the same as-of
+            date - see `share` on SettlementSummaryData. */}
         <p className="mt-3 text-xs text-ink-soft">
           {expenseView === "paid"
             ? "Paid expenses only · Upcoming expenses excluded · Currencies settled separately"
@@ -308,6 +417,15 @@ export function TabSettlement({
               ? "Expected balances from upcoming expenses · For planning only · Currencies settled separately"
               : "Paid and upcoming expenses · Upcoming balances are expected · Currencies settled separately"}
         </p>
+        {data.currencies.length > 0 && (
+          <Link
+            to="/t/$slug/breakdown"
+            params={{ slug }}
+            className="group mt-3 inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:hidden"
+          >
+            Full breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
+          </Link>
+        )}
         <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
           <header className="sticky top-0 z-10 shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">

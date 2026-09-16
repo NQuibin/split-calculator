@@ -23,7 +23,7 @@ export function ExpenseViewTabs({
     >
       <Tabs.List
         aria-label={label}
-        className="mb-6 flex gap-1 overflow-x-auto border-b border-rule"
+        className="mb-6 inline-flex w-full max-w-full gap-1 rounded-xl border border-edge bg-field p-1 sm:w-auto"
       >
         {(
           [
@@ -35,7 +35,7 @@ export function ExpenseViewTabs({
           <Tabs.Tab
             key={view.value}
             value={view.value}
-            className="shrink-0 border-b-2 border-transparent px-4 py-3 font-display text-sm font-medium text-ink-soft transition hover:text-forest data-active:border-forest data-active:text-forest focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
+            className="relative min-h-[calc(2.75rem-10px)] min-w-11 flex-1 shrink-0 rounded-lg border border-transparent px-4 font-display text-sm font-medium text-ink-soft transition after:absolute after:inset-x-0 after:-inset-y-[5px] hover:bg-wash hover:text-forest data-active:border-forest data-active:bg-forest data-active:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:flex-none"
           >
             {view.label}
           </Tabs.Tab>

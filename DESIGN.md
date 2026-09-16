@@ -446,7 +446,20 @@ font-semibold text-forest`, inactive = `text-ink-soft hover:bg-rule/20`, with
 `aria-current="page"` on the active link. The active icon must not rely on
 `--brass` alone (§ 1).
 
-Tabs (`ExpenseViewTabs`, breakdown currency tabs): `border-b-2 border-transparent
+Expense view selector (`ExpenseViewTabs`): a compact segmented control with
+`inline-flex gap-1 rounded-xl border border-edge bg-field p-1`. Segments use
+`min-h-[calc(2.75rem-10px)] min-w-11 rounded-lg border border-transparent px-4
+font-display text-sm font-medium text-ink-soft`; the 34px segment plus group
+padding and border matches the 44px input height. Each segment extends its hit
+area vertically by 5px with an absolutely positioned pseudo-element, preserving
+44px touch targets without horizontal overlap. Active = `border-forest bg-forest text-surface`,
+inactive hover = `bg-wash text-forest`. Keep the forest focus outline and the
+existing accessible tab/panel behavior. The group has an accessible name, with
+no visible "View" label. It sits above all content it filters, with `mb-6`.
+Below `sm`, the group fills the row (`w-full`) and segments share equal widths
+(`flex-1`); from `sm` upward, use `sm:w-auto` and `sm:flex-none` for compact sizing.
+
+Tabs (breakdown currency tabs): `border-b-2 border-transparent
 px-4 py-3 font-display text-sm font-medium text-ink-soft`, active =
 `data-active:border-forest data-active:text-forest`. The list scrolls with
 `overflow-x-auto` and keeps its `aria-label`.
@@ -606,6 +619,14 @@ everything rarer or destructive goes into an `<OverflowMenu>` (`⋯`) beside it,
 as `<OverflowAction>` rows. A row of four equal-weight buttons hides the one
 that matters and blows past the width.
 
+The tab page groups owner settings behind a cog button opening a **Tab settings**
+dialog: tab name, tab currency and deletion, with a delete confirmation. The page
+title is display-only. Tab details save together through an explicit footer action;
+Cancel discards pending edits. The footer places Delete on the left and Cancel /
+Save changes on the right from `sm` upward; on small screens the two save controls
+come first and Delete fills the row beneath them. Member management
+opens from the avatar cluster in the header, labelled "Manage" without a cog.
+
 A dialog that a menu item opens must be a **sibling** of the `OverflowMenu`,
 never a child — a menu item unmounts when the menu closes and would take its
 dialog with it.
@@ -637,12 +658,36 @@ smaller cap at `md` doesn't fix that one row's own caption — it still
 truncates, same as always — it just stops that row from taxing every other
 row's name column for space nobody else needed.
 
+**Size a card from its own width, not the viewport, once it can become a
+column.** A viewport breakpoint answers "how big is the screen", which stops
+being the same question as "how big is this card" the moment the card shares a
+row with another one. The tab page puts balances beside expenses above 1600px,
+so both cards use `@container` with container variants (`@min-[40rem]:`) rather
+than `md:`/`lg:`; each then steps down a tier on its own instead of overflowing
+a column narrower than the screen implied.
+
+Two things to get right when converting:
+
+- **Anchor each threshold on the width the tier actually needs**, measured, not
+  on the viewport breakpoint it used to sit at. The expense list's desktop tier
+  renders at a 688px card today, so that is the number to preserve.
+- **A container query resolves against the content box, not the border box.** A
+  card with `p-6` reports 48px less than its outer width, so a threshold
+  anchored on card widths fires ~48px late — which silently kept the balances
+  rail (560px card, 512px content) a tier below where it belonged, and dropped
+  the expense list into its mobile tier at exactly the width the split engages.
+  Subtract the card's own padding when turning a card width into a threshold.
+
 Pick the breakpoint from the **width budget**, not from the name of the
 breakpoint. The content column is the viewport minus the 240px sidebar (from
-`lg`), the page gutter, the panel padding and the row's own — which is ~600px
-at `md` and still only ~615px at `lg` before the sidebar's own 240px comes out
-of it, so a layout that doesn't fit at `md` usually doesn't fit at `lg`
-either. Confirmed the hard way, twice: a wider column gap and a larger amount
+`lg`), the page gutter and the panel padding: `min(viewport - 240, page cap) -
+80`. Measured against the real shell, that is 688px at `md`, 704px at `lg` and
+960px at `xl`, capping at 1200px under `max-w-7xl` — a cap reached at ~1520px
+viewport, not at `xl`. `lg` buys only 16px over `md`, so a layout that doesn't
+fit at `md` usually doesn't fit at `lg` either. The tab route uses `xwide`
+(`max-w-[96rem]`) instead, topping out at 1456px, which is what makes room for
+a 35rem balances rail beside an expense list that still clears its own desktop
+tier. Confirmed the hard way, twice: a wider column gap and a larger amount
 cap were each tried at `md` first, independently, and each collapsed the
 expense name column on its own (to 15px and ~60px respectively) before
 landing at `lg`, which is the first tier that actually has slack once the

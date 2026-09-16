@@ -19,10 +19,9 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
-import { TabBreakdown } from "@/components/TabBreakdown";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
-import { Field, Input, Label } from "@/components/ui/Input";
+import { Field, FieldError, Input, Label } from "@/components/ui/Input";
 import { SearchField } from "@/components/ui/SearchField";
 import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
@@ -37,13 +36,7 @@ import {
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { currency, formatExpenseDate, formatExpenseDateShort, isUpcoming } from "@/lib/format";
-import {
-  useTab,
-  useTabActions,
-  useTabBreakdown,
-  useTabInviteLinks,
-  type useTabExpenses,
-} from "@/lib/tabSync";
+import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { generateSlug } from "@/lib/slug";
@@ -73,7 +66,7 @@ export function TabPage() {
 
   if (isLoading || claim.status === "claiming") {
     return (
-      <Page width="wide">
+      <Page width="xwide">
         <p role="status" className="text-sm text-ink-soft">
           {claim.status === "claiming" ? "Joining tab…" : "Loading tab…"}
         </p>
@@ -122,7 +115,7 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
 
   if (tab === undefined)
     return (
-      <Page width="wide">
+      <Page width="xwide">
         <p role="status" className="text-sm text-ink-soft">
           Loading invite…
         </p>
@@ -159,7 +152,6 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
 
 function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   const tab = useTab(slug);
-  const breakdown = useTabBreakdown(slug);
   const expenses = useQuery(api.tabs.expensesForTab, { slug });
   const [expenseView, setExpenseView] = useState<ExpenseView>("paid");
   const hasUpcoming = expenses?.some((expense) => isUpcoming(expense.date)) ?? false;
@@ -167,7 +159,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
 
   if (tab === undefined || expenses === undefined)
     return (
-      <Page width="wide">
+      <Page width="xwide">
         <p role="status" className="text-sm text-ink-soft">
           Loading tab…
         </p>
@@ -181,45 +173,42 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
     );
   }
 
-  const summaryCards = (
-    <div className={breakdown ? "grid gap-6 lg:grid-cols-2" : undefined}>
+  // One card now carries both ledgers - what each member spent and where they
+  // land - so the spend summary's own card is gone rather than sitting beside
+  // this one repeating the same roster.
+  //
+  // Side by side from 1600px, not `xl`, and the number is measured rather than
+  // chosen: content width is `min(viewport - 240 sidebar, 96rem) - 80 gutter`,
+  // so `xl` (1280) yields only 960px - a 35rem balances rail would leave the
+  // expense list 376px. 1600px is the first width where the list clears the
+  // 688px it needs for its own desktop tier (it gets 696px there, 872px at
+  // 1920). Balances stays a fixed 35rem because that is what its Spent/Balance
+  // columns need; everything past it goes to the list.
+  //
+  // Both cards size their internals from their own width (`@container`), not
+  // the viewport, so becoming a column instead of the whole page makes each
+  // one step down a tier on its own rather than overflowing.
+  const tabContent = (
+    <div className="grid gap-6 min-[1600px]:grid-cols-[35rem_minmax(0,1fr)] min-[1600px]:items-start">
       <TabSettlement
         slug={slug}
         members={tab.members}
         isOwner={tab.isOwner}
         expenseView={hasUpcoming ? expenseView : "paid"}
       />
-      {breakdown && (
-        <TabBreakdown
-          expenseView={expenseView}
-          expenses={expenses}
-          hasUpcoming={hasUpcoming}
-          tabSlug={slug}
-          currencies={breakdown.currencies}
-          members={tab.members}
-        />
-      )}
+      <ExpenseList
+        expenseView={expenseView}
+        defaultCurrency={tab.defaultCurrency}
+        slug={slug}
+        isOwner={tab.isOwner}
+        members={tab.members}
+        expenses={expenses}
+      />
     </div>
   );
 
-  const tabContent = (
-    <>
-      {summaryCards}
-      <div className="mt-7">
-        <ExpenseList
-          expenseView={expenseView}
-          defaultCurrency={tab.defaultCurrency}
-          slug={slug}
-          isOwner={tab.isOwner}
-          members={tab.members}
-          expenses={expenses}
-        />
-      </div>
-    </>
-  );
-
   return (
-    <Page width="wide">
+    <Page width="xwide">
       <Breadcrumb>
         <Link to="/tabs" className={crumbLinkClass}>
           Tabs
@@ -236,16 +225,20 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       )}
       <header className="mb-7 grid gap-x-5 gap-y-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div className="min-w-0">
-          <TabTitle slug={slug} name={tab.name} isOwner={tab.isOwner} />
+          <PageTitle className="sm:text-4xl">{tab.name}</PageTitle>
         </div>
         {tab.isOwner && (
-          <TabOwnerActions slug={slug} members={tab.members} expenseCount={expenses.length} />
+          <TabOwnerActions
+            slug={slug}
+            members={tab.members}
+            defaultCurrency={tab.defaultCurrency}
+            name={tab.name}
+            expenseCount={expenses.length}
+          />
         )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft md:col-start-1 md:row-start-2">
           <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
-          {tab.isOwner ? (
-            <TabDefaultCurrency slug={slug} currency={tab.defaultCurrency} />
-          ) : (
+          {!tab.isOwner && (
             <span className="inline-flex items-center gap-2">
               <Coins aria-hidden="true" className="h-3.5 w-3.5 text-brass" strokeWidth={2.25} />
               Tab currency · {tab.defaultCurrency}
@@ -264,119 +257,180 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   );
 }
 
-function TabTitle({ slug, name, isOwner }: { slug: string; name: string; isOwner: boolean }) {
-  const { rename } = useTabActions();
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(name);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === name) {
-      setEditing(false);
-      return;
-    }
-    await rename({ slug, name: trimmed });
-    setEditing(false);
-  }
-
-  if (editing) {
-    return (
-      <form onSubmit={handleSubmit} className="flex max-w-sm flex-col items-stretch gap-2">
-        <PageTitle className="sr-only">{name}</PageTitle>
-        <Label htmlFor="tab-name-edit" className="mb-0">
-          Tab name
-        </Label>
-        <Input
-          id="tab-name-edit"
-          autoFocus
-          aria-label="Tab name"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={handleSubmit}
-          className="font-display max-w-sm font-medium"
-        />
-      </form>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <PageTitle className="sm:text-4xl">{name}</PageTitle>
-        {isOwner && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-touch"
-            onClick={() => {
-              setValue(name);
-              setEditing(true);
-            }}
-            aria-label="Rename tab"
-            className="text-ink-soft hover:text-forest"
-          >
-            <Pencil className="h-4 w-4" strokeWidth={2.25} />
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TabDefaultCurrency({ slug, currency: currencyCode }: { slug: string; currency: string }) {
-  const { setDefaultCurrency } = useTabActions();
-
-  return (
-    <Field
-      label="Currency"
-      htmlFor="tab-default-currency"
-      labelPosition="start"
-      className="w-full sm:w-auto"
-    >
-      <CurrencyPicker
-        id="tab-default-currency"
-        value={currencyCode}
-        onChange={(code) => setDefaultCurrency({ slug, currency: code })}
-        className="min-w-0 flex-1 justify-between sm:w-70 sm:flex-none"
-      />
-    </Field>
-  );
-}
-
 /**
  * The owner's action cluster. "Add expense" is the one action that earns a
- * button of its own; deleting the tab is rare and destructive, so it lives
- * behind the overflow menu (DESIGN.md § 6). The confirm dialog is a sibling
- * of the menu, not a child - a menu item unmounts when the menu closes, and
- * would take its dialog with it.
+ * button of its own; tab management lives behind the settings dialog.
  */
 function TabOwnerActions({
   slug,
   members,
+  defaultCurrency,
+  name,
   expenseCount,
 }: {
   slug: string;
   members: { resolvedId: string; id: string; name: string; claimed: boolean }[];
+  defaultCurrency: string;
+  name: string;
   expenseCount: number;
 }) {
-  const [confirming, setConfirming] = useState(false);
   return (
     <div className="flex w-full items-center gap-2 md:w-auto">
       <ExpenseActions slug={slug} members={members} />
-      <OverflowMenu label="More tab actions">
-        <OverflowAction destructive onClick={() => setConfirming(true)}>
-          <Trash2 />
-          Delete tab
-        </OverflowAction>
-      </OverflowMenu>
-      <DeleteTabDialog
+      <TabSettingsDialog
         slug={slug}
+        name={name}
+        defaultCurrency={defaultCurrency}
         expenseCount={expenseCount}
-        open={confirming}
-        onOpenChange={setConfirming}
       />
     </div>
+  );
+}
+
+function TabSettingsDialog({
+  slug,
+  name,
+  defaultCurrency,
+  expenseCount,
+}: {
+  slug: string;
+  name: string;
+  defaultCurrency: string;
+  expenseCount: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [draftName, setDraftName] = useState(name);
+  const [draftCurrency, setDraftCurrency] = useState(defaultCurrency);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { rename, setDefaultCurrency } = useTabActions();
+
+  function reset() {
+    setDraftName(name);
+    setDraftCurrency(defaultCurrency);
+    setError(null);
+  }
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    const trimmedName = draftName.trim();
+    if (!trimmedName) {
+      setError("Tab name is required.");
+      return;
+    }
+
+    const changes = [
+      ...(trimmedName === name ? [] : [rename({ slug, name: trimmedName })]),
+      ...(draftCurrency === defaultCurrency
+        ? []
+        : [setDefaultCurrency({ slug, currency: draftCurrency })]),
+    ];
+    if (changes.length === 0) {
+      setOpen(false);
+      return;
+    }
+
+    setPending(true);
+    setError(null);
+    try {
+      await Promise.all(changes);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save tab settings.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (pending) return;
+        if (next) reset();
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger
+        render={
+          <Button type="button" variant="menu-icon" size="icon-touch" aria-label="Tab settings" />
+        }
+      >
+        <Settings aria-hidden="true" className="h-5 w-5" />
+      </DialogTrigger>
+      <DialogContent>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <DialogTitle>Tab settings</DialogTitle>
+            <DialogDescription className="mt-1">Manage this tab.</DialogDescription>
+          </div>
+          <DialogClose
+            aria-label="Close tab settings"
+            render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+          >
+            <X className="h-5 w-5" />
+          </DialogClose>
+        </div>
+        <form onSubmit={save} className="mt-5">
+          <div className="space-y-4">
+            <Field label="Tab name" htmlFor="tab-name-settings">
+              <Input
+                id="tab-name-settings"
+                value={draftName}
+                disabled={pending}
+                aria-busy={pending}
+                aria-describedby={error ? "tab-settings-error" : undefined}
+                aria-invalid={Boolean(error)}
+                onChange={(event) => {
+                  setDraftName(event.target.value);
+                  if (error) setError(null);
+                }}
+              />
+            </Field>
+            <Field label="Tab currency" htmlFor="tab-default-currency" className="w-full">
+              <CurrencyPicker
+                id="tab-default-currency"
+                value={draftCurrency}
+                aria-label="Tab currency"
+                onChange={setDraftCurrency}
+                className="min-w-0 w-full justify-between"
+              />
+            </Field>
+            {error && <FieldError id="tab-settings-error">{error}</FieldError>}
+          </div>
+          <div className="-mx-5 -mb-5 mt-6 flex flex-col-reverse gap-3 border-t border-rule px-5 py-5 sm:-mx-6 sm:-mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <Button
+              type="button"
+              variant="destructive"
+              size="touch"
+              className="w-full sm:w-auto"
+              onClick={() => setConfirming(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete tab
+            </Button>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <DialogClose
+                disabled={pending}
+                render={<Button type="button" variant="outline" size="touch" />}
+              >
+                Cancel
+              </DialogClose>
+              <Button type="submit" size="touch" disabled={pending} aria-busy={pending}>
+                {pending ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </form>
+        <DeleteTabDialog
+          slug={slug}
+          expenseCount={expenseCount}
+          open={confirming}
+          onOpenChange={setConfirming}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -538,12 +592,7 @@ function Roster({
             )}
           </span>
         )}
-        <span className="flex items-center gap-1.5">
-          <span className="group-hover:underline">
-            Manage {members.length} {members.length === 1 ? "member" : "members"}
-          </span>
-          <Settings aria-hidden="true" className="h-4 w-4" />
-        </span>
+        <span className="group-hover:underline">Manage</span>
       </DialogTrigger>
       <DialogContent>
         <div className="flex items-start justify-between gap-3">
@@ -794,8 +843,8 @@ function expenseListGridClass(withSettlement: boolean) {
   // the build. No warning, no type error: the class just isn't there, and the
   // column collapses to one giant track.
   const list = withSettlement
-    ? "divide-y divide-rule/70 md:grid md:gap-x-4 md:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_minmax(6.75rem,max-content)_2.75rem] lg:gap-x-6 lg:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_minmax(6.75rem,max-content)_2.75rem]"
-    : "divide-y divide-rule/70 md:grid md:gap-x-4 md:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_2.75rem] lg:gap-x-6 lg:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_2.75rem]";
+    ? "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_minmax(6.75rem,max-content)_2.75rem] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_minmax(6.75rem,max-content)_2.75rem]"
+    : "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_2.75rem] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_2.75rem]";
   return {
     list,
     // `gap-x-4` carries through from its base declaration (mobile and `md`)
@@ -805,7 +854,7 @@ function expenseListGridClass(withSettlement: boolean) {
     // one (it needs `gap-x-4` unconditionally for its own independent mobile
     // grid), so its own value has to move in lockstep with the list's or the
     // two silently mismatch.
-    row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 px-5 md:grid-cols-subgrid md:col-span-full lg:gap-x-6",
+    row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 px-5 @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[56rem]:gap-x-6",
   };
 }
 
@@ -1095,25 +1144,25 @@ function ExpenseList({
                     onClick={() => {
                       setSelectedSlug(expense.slug);
                     }}
-                    className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest md:col-start-2"
+                    className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[40rem]:col-start-2"
                   >
                     {expense.name ?? "Untitled expense"}
                   </button>
                   {/* Not interactive, so it sits under the row-link overlay like any
                       other plain cell - no `z-10` needed. */}
-                  <span className="hidden md:col-start-3 md:block md:justify-self-center">
+                  <span className="hidden @min-[40rem]:col-start-3 @min-[40rem]:block @min-[40rem]:justify-self-center">
                     <ExpenseParticipants
                       people={participants}
                       variant="stacked"
-                      className="lg:hidden"
+                      className="@min-[56rem]:hidden"
                     />
                     <ExpenseParticipants
                       people={participants}
                       variant="spaced"
-                      className="hidden lg:flex"
+                      className="hidden @min-[56rem]:flex"
                     />
                   </span>
-                  <span className="min-w-0 text-right md:col-start-4">
+                  <span className="min-w-0 text-right @min-[40rem]:col-start-4">
                     <ExpenseAmount
                       total={rowSplit.grandTotal * rate}
                       code={expense.settlementCurrency}
@@ -1128,11 +1177,11 @@ function ExpenseList({
                   </span>
                   {/* One date element for both layouts: the second row below `md`,
                       its own leading column from `md` up. */}
-                  <span className="col-start-1 text-xs text-ink-soft md:col-start-1 md:row-start-1 md:text-sm">
+                  <span className="col-start-1 text-xs text-ink-soft @min-[40rem]:col-start-1 @min-[40rem]:row-start-1 @min-[40rem]:text-sm">
                     <ExpenseDate date={expense.date} />
                   </span>
                   {showSettlement && (
-                    <span className="col-start-2 text-right md:col-start-5">
+                    <span className="col-start-2 text-right @min-[40rem]:col-start-5">
                       <ViewerSettlement
                         balance={
                           typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
@@ -1148,7 +1197,7 @@ function ExpenseList({
                       access, it's dropping a second path to the same place - and it
                       gives the name column back the width the menu track cost it. */}
                   <div
-                    className={`z-10 hidden justify-end md:relative md:flex ${showSettlement ? "md:col-start-6" : "md:col-start-5"}`}
+                    className={`z-10 hidden justify-end @min-[40rem]:relative @min-[40rem]:flex ${showSettlement ? "@min-[40rem]:col-start-6" : "@min-[40rem]:col-start-5"}`}
                   >
                     {isOwner && (
                       <ExpenseRowMenu
@@ -1189,7 +1238,7 @@ function ExpenseList({
   return (
     <section
       aria-label="Expenses"
-      className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 p-5 sm:p-6`}
+      className={`@container ${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 p-5 sm:p-6`}
     >
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SectionTitle className="mr-auto flex items-center gap-2">
