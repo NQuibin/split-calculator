@@ -192,7 +192,7 @@ for surfaces that genuinely float above the page:
 | Surface                        | Treatment                          |
 | ------------------------------ | ---------------------------------- |
 | Form field, picker trigger     | `border-edge` + `bg-field` — no shadow |
-| Data table / row list in a card | `border-edge` + `bg-field`, header row `bg-paper` |
+| Data table / row list in a card | Follow the balances table: `border-edge/70` + `bg-field`, `bg-band` header/footer |
 | Card, panel, list container    | `border-rule` — no shadow           |
 | Popover, dropdown, menu        | `border-edge` + `shadow-lg`         |
 | Dialog                         | `border-rule/70` + `shadow-xl`, over a `bg-ink/40` backdrop |
@@ -514,9 +514,11 @@ row.
 ### Data tables and banded cards
 
 Anything with a **header / body / footer** structure — the spend-summary table,
-a breakdown member card — uses one banding scheme. Left alone, every band
-inherits the card and the whole thing reads as one flat rectangle (the body was
-literally 1.00:1 against the card).
+a breakdown member card — uses one banding scheme. The tab **Balances** table
+is the canonical reference for this pattern: its square outer edge is a soft
+`border-edge/70`, its body is `bg-field`, and its header and footer are
+`bg-band`. Left alone, every band inherits the card and the whole thing reads
+as one flat rectangle (the body was literally 1.00:1 against the card).
 
 | Band                          | Ground                  | Step vs. its neighbour |
 | ----------------------------- | ----------------------- | ---------------------- |
@@ -535,11 +537,11 @@ band must never be mistakable for a hover state. If you need a band and reach
 for `--wash` because it's "the other light colour", you'll make every totals
 row look permanently hovered.
 
-- A block that is **bordered** (a table inside a panel) also takes
-  `border-edge` — `bg-field` alone is only 1.085:1, so at this end of the
-  lightness range the fill can't separate the block on its own. A block that
-  is **full-bleed** inside a card (the breakdown card's rows) doesn't need
-  one; the card's own border is the boundary.
+- A block that is **bordered** (a table inside a panel) follows the balances
+  table: square corners, `border-edge/70`, and `bg-field`. The fill alone is
+  only 1.085:1, so at this end of the lightness range the outline still matters.
+  A block that is **full-bleed** inside a card (the breakdown card's rows)
+  doesn't need one; the card's own border is the boundary.
 - Dividers *inside* a block stay `border-rule`. `--edge` is for a block's
   outer boundary, never its internal lines.
 - Rows hover to `--wash`, which lands harder on `--field` than on a

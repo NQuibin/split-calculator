@@ -176,6 +176,11 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   // one step down a tier on its own rather than overflowing.
   const tabContent = (
     <div className="grid gap-6 min-[1600px]:grid-cols-[35rem_minmax(0,1fr)] min-[1600px]:items-start">
+      {tab.isOwner && (
+        <div className="md:hidden">
+          <ExpenseActions slug={slug} members={tab.members} className="w-full" />
+        </div>
+      )}
       <TabSettlement
         slug={slug}
         members={tab.members}
@@ -211,7 +216,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
           {claimError}
         </p>
       )}
-      <header className="mb-7 grid gap-x-5 gap-y-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+      <header className="mb-7 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-3">
         <div className="min-w-0">
           <PageTitle className="sm:text-4xl">{tab.name}</PageTitle>
         </div>
@@ -224,7 +229,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
             expenseCount={expenses.length}
           />
         )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft md:col-start-1 md:row-start-2">
+        <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
           <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
           {!tab.isOwner && (
             <span className="inline-flex items-center gap-2">
@@ -263,8 +268,8 @@ function TabOwnerActions({
   expenseCount: number;
 }) {
   return (
-    <div className="flex w-full items-center gap-2 md:w-auto">
-      <ExpenseActions slug={slug} members={members} />
+    <div className="flex w-auto items-center justify-end gap-2 md:justify-start">
+      <ExpenseActions slug={slug} members={members} className="hidden md:inline-flex" />
       <TabSettingsDialog
         slug={slug}
         name={name}
@@ -725,9 +730,11 @@ function Roster({
 function ExpenseActions({
   slug,
   members,
+  className,
 }: {
   slug: string;
   members: { resolvedId: string; id: string; name: string; claimed: boolean }[];
+  className?: string;
 }) {
   const navigate = useNavigate();
   function handleNewExpense() {
@@ -745,8 +752,8 @@ function ExpenseActions({
     <Button
       type="button"
       size="touch"
+      className={`${className ?? ""} min-w-0 flex-1 md:flex-none`}
       onClick={handleNewExpense}
-      className="min-w-0 flex-1 md:flex-none"
     >
       <Plus className="h-4 w-4" />
       Add expense

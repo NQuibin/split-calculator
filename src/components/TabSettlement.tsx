@@ -161,8 +161,12 @@ function SingleCurrencySummaryList({
         const totalSpent = members.reduce((sum, member) => sum + (member.share ?? 0), 0);
 
         return (
-          <section key={group.currency} aria-label={`${group.currency} balances`}>
-            <GroupTitle as="h3" className={`${grid} bg-band px-3 py-2`}>
+          <section
+            key={group.currency}
+            aria-label={`${group.currency} balances`}
+            className="overflow-hidden border border-edge/70"
+          >
+            <GroupTitle as="h3" className={`${grid} bg-band px-3 py-2 text-xs`}>
               <span className="min-w-0">
                 <span className="font-numeric">{group.currency}</span>
                 {currencyName && (
@@ -204,8 +208,15 @@ function SingleCurrencySummaryList({
                         {member.name}
                         {isViewer && <span className="text-ink-soft"> (you)</span>}
                         {hasSpend && (
-                          <span className="block text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
-                            {member.share ? `Spent ${spent}` : spent}
+                          <span className="mt-1 block text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
+                            {member.share ? (
+                              <>
+                                Spent{" "}
+                                <span className="font-numeric font-semibold text-ink">{spent}</span>
+                              </>
+                            ) : (
+                              spent
+                            )}
                           </span>
                         )}
                       </span>
@@ -290,15 +301,14 @@ function ConsolidatedSummaryList({
     .filter(({ spent, outstanding }) => spent !== 0 || outstanding !== 0);
 
   return (
-    <div className="space-y-0">
-      <div className={`${grid} bg-band px-3 py-2`}>
-        <span aria-hidden="true" />
+    <div className="space-y-0 overflow-hidden border border-edge/70">
+      <div className={`${grid} hidden bg-band px-3 py-2 @min-[29.5rem]:grid`}>
         {hasSpend && (
-          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:col-start-2 @min-[29.5rem]:block">
             Spent
           </span>
         )}
-        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:col-start-3 @min-[29.5rem]:block">
           Balance
         </span>
       </div>
@@ -332,6 +342,18 @@ function ConsolidatedSummaryList({
                     >
                       <span className="min-w-0 break-words pl-9 text-xs text-ink-soft">
                         <span className="font-numeric">{group.currency}</span>
+                        {hasSpend && (
+                          <span className="mt-1 block @min-[29.5rem]:hidden">
+                            {currencyMember.share ? (
+                              <>
+                                Spent{" "}
+                                <span className="font-numeric font-semibold text-ink">{spent}</span>
+                              </>
+                            ) : (
+                              spent
+                            )}
+                          </span>
+                        )}
                       </span>
                       {hasSpend && (
                         <span className="hidden text-right @min-[29.5rem]:block">
@@ -361,7 +383,7 @@ function ConsolidatedSummaryList({
         <div className={`${grid} bg-band px-3 py-2 text-xs`}>
           <span className="font-medium text-ink">{hasSpend ? "Total spent" : "Totals"}</span>
           {hasSpend && (
-            <span className="hidden text-right @min-[29.5rem]:block">
+            <span className="hidden space-y-1 text-right @min-[29.5rem]:block">
               {totalCurrencies.map(({ currency: code, spent }) =>
                 spent === 0 ? null : (
                   <span key={code} className="block font-numeric font-semibold text-ink">
@@ -371,8 +393,8 @@ function ConsolidatedSummaryList({
               )}
             </span>
           )}
-          {!hasSpend && <span aria-hidden="true" />}
-          <span className="text-right text-ink-soft">
+          {!hasSpend && <span className="hidden @min-[29.5rem]:block" aria-hidden="true" />}
+          <span className="hidden text-right text-ink-soft @min-[29.5rem]:block">
             {totalCurrencies.map(({ currency: code, outstanding }) =>
               outstanding === 0 ? null : (
                 <span key={code} className="block font-numeric font-semibold text-ink">
@@ -380,6 +402,18 @@ function ConsolidatedSummaryList({
                 </span>
               ),
             )}
+          </span>
+          <span className="space-y-1 text-right @min-[29.5rem]:hidden">
+            {(hasSpend
+              ? totalCurrencies.map(({ currency: code, spent }) => ({ code, amount: spent }))
+              : []
+            )
+              .filter(({ amount }) => amount !== 0)
+              .map(({ code, amount }) => (
+                <span key={code} className="block font-numeric font-semibold text-ink">
+                  {currency(amount, code)}
+                </span>
+              ))}
           </span>
         </div>
       )}
@@ -569,15 +603,23 @@ export function TabSettlement({
   return (
     <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
       <Dialog open={open} onOpenChange={setOpen}>
-        {/* Two actions in one header now that spend lives here too, so neither
-            becomes the region's single `default` button: View payments stays
-            `outline` and Breakdown stays a link (DESIGN.md § 5). A phone has
-            room for one, so Breakdown drops to the card's foot below `sm`. */}
+        {/* View payments stays `outline` and Breakdown stays a link (DESIGN.md
+            § 5). On a phone, Breakdown shares the title row while the wider
+            View payments action takes the row below. */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <SectionTitle className="flex items-center gap-2">
             <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
             Balances
           </SectionTitle>
+          {data.currencies.length > 0 && (
+            <Link
+              to="/t/$slug/breakdown"
+              params={{ slug }}
+              className="group ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:hidden"
+            >
+              Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
+            </Link>
+          )}
           <div className="ml-auto flex w-full items-center gap-3 sm:w-auto">
             <DialogTrigger
               render={<Button variant="outline" size="touch" className="w-full sm:w-auto" />}
@@ -588,9 +630,9 @@ export function TabSettlement({
               <Link
                 to="/t/$slug/breakdown"
                 params={{ slug }}
-                className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-xs font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:inline-flex"
+                className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:inline-flex"
               >
-                Breakdown <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 chevron-x" />
+                Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
               </Link>
             )}
           </div>
@@ -607,15 +649,6 @@ export function TabSettlement({
             }
           }}
         />
-        {data.currencies.length > 0 && (
-          <Link
-            to="/t/$slug/breakdown"
-            params={{ slug }}
-            className="group mt-3 inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:hidden"
-          >
-            Full breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
-          </Link>
-        )}
         <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
           <header className="sticky top-0 z-10 shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">

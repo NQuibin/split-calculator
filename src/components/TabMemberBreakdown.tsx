@@ -20,7 +20,7 @@ export function TabMemberBreakdown({
     <article
       className={
         modal
-          ? "overflow-hidden bg-field"
+          ? "overflow-hidden border border-edge/70 bg-field"
           : `${mobileRaisedSurfaceClass} overflow-hidden border border-rule/70 bg-surface/80`
       }
     >
@@ -115,13 +115,26 @@ export function TabMemberBreakdown({
         </>
       )}
 
-      <dl className="flex flex-wrap justify-between gap-x-6 gap-y-3 border-t border-rule/70 bg-band px-5 py-4 text-sm sm:px-6">
-        <div className="flex items-baseline gap-2">
-          <dt className="text-ink-soft">Total spent</dt>
-          <dd className="font-numeric font-medium text-ink">
-            {currency(member.totalSpent, currencyCode)}
-          </dd>
-        </div>
+      <dl
+        className={`flex flex-wrap justify-between gap-x-6 gap-y-3 border-t bg-band px-5 sm:px-6 ${
+          modal ? "border-rule py-2 text-xs" : "border-rule/70 py-4 text-sm"
+        }`}
+      >
+        {modal ? (
+          <>
+            <dt className="font-medium text-ink">Total spent</dt>
+            <dd className="font-numeric font-semibold text-ink">
+              {currency(member.totalSpent, currencyCode)}
+            </dd>
+          </>
+        ) : (
+          <div className="flex items-baseline gap-2">
+            <dt className="text-ink-soft">Total spent</dt>
+            <dd className="font-numeric font-medium text-ink">
+              {currency(member.totalSpent, currencyCode)}
+            </dd>
+          </div>
+        )}
       </dl>
     </article>
   );
