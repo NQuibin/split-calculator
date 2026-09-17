@@ -5,25 +5,11 @@ import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
-import {
-  ArrowUpRight,
-  FileText,
-  Check,
-  ChevronDown,
-  X,
-  Coins,
-  Link2,
-  Pencil,
-  Plus,
-  Receipt,
-  Settings,
-  Trash2,
-} from "lucide-react";
+import { Check, X, Coins, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
 import { SearchField } from "@/components/ui/SearchField";
-import { CurrencyFilter } from "@/components/ui/CurrencyFilter";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import {
   Dialog,
@@ -35,19 +21,19 @@ import {
 } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
-import { currency, formatExpenseDate, formatExpenseDateShort, isUpcoming } from "@/lib/format";
+import { currency, formatExpenseDateShort, isUpcoming } from "@/lib/format";
 import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { generateSlug } from "@/lib/slug";
-import { GroupTitle, PageTitle, SectionTitle } from "@/components/ui/Typography";
+import { PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { Page } from "@/components/ui/Page";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
-import { ExpenseBalances } from "@/components/ExpenseBalances";
+import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { computeExpenseBalances, splitParticipants } from "@/lib/settlements";
 
 const route = getRouteApi("/t/$slug/");
@@ -194,6 +180,8 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         slug={slug}
         members={tab.members}
         isOwner={tab.isOwner}
+        defaultCurrency={tab.defaultCurrency}
+        expenses={expenses}
         expenseView={hasUpcoming ? expenseView : "paid"}
       />
       <ExpenseList
@@ -1032,25 +1020,6 @@ function ViewerSettlement({
   );
 }
 
-function ExpenseMetadata({ expense }: { expense: ReturnType<typeof useTabExpenses>[number] }) {
-  const date = formatExpenseDate(expense.date);
-  return (
-    <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-      <span>
-        <span className="mr-1 font-medium">Date</span>
-        {date ? <time dateTime={expense.date}>{date}</time> : "Not set"}
-      </span>
-      <span className="inline-flex items-center gap-2">
-        <span className="font-medium">Created by</span>
-        {expense.createdBy && (
-          <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} />
-        )}
-        <span>{expense.createdBy?.name ?? "Unknown creator"}</span>
-      </span>
-    </span>
-  );
-}
-
 function ExpenseList({
   slug,
   defaultCurrency,
@@ -1069,10 +1038,8 @@ function ExpenseList({
   const { remove } = useExpenseActions();
   const viewer = useQuery(api.users.viewer);
   const [search, setSearch] = useState("");
-  const [currencyFilter, setCurrencyFilter] = useState("all");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
-  const codes = [...new Set(expenses.map((e) => e.settlementCurrency))].sort();
   const hasUpcoming = expenses.some((expense) => isUpcoming(expense.date));
   const activeView = hasUpcoming ? expenseView : "all";
   const visibleExpenses = expenses.filter(
@@ -1080,15 +1047,10 @@ function ExpenseList({
       activeView === "all" ||
       (activeView === "upcoming" ? isUpcoming(expense.date) : !isUpcoming(expense.date)),
   );
-  const filtered = visibleExpenses.filter(
-    (e) =>
-      (currencyFilter === "all" || e.settlementCurrency === currencyFilter) &&
-      (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()),
+  const filtered = visibleExpenses.filter((e) =>
+    (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()),
   );
   const selected = expenses.find((e) => e.slug === selectedSlug);
-  const split = selected
-    ? computeSplit(selected.people, selected.items, selected.globalAdjustments)
-    : null;
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
   // An expense records a seat id, but a claimed member can be keyed by either
@@ -1245,343 +1207,28 @@ function ExpenseList({
           <Receipt aria-hidden="true" className="h-5 w-5 shrink-0 text-brass" strokeWidth={2.25} />
           Expenses <span className="text-sm font-normal text-ink-soft">{filtered.length}</span>
         </SectionTitle>
-        {/* Below `sm` there isn't room for three controls on one line - the
-            search box ends up too narrow to read what you typed. `order-last`
-            plus a full width drops it onto its own row, leaving the title and
-            the currency filter to share the first one. The DOM order stays
-            search-then-filter so the wider layout, where a keyboard user is far
-            likelier to be, keeps focus order matching what it shows. */}
         <SearchField
           aria-label="Search tab expenses"
           placeholder="Search expenses…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="order-last w-full sm:order-none sm:w-auto sm:max-w-sm sm:flex-1"
+          className="w-full sm:w-auto sm:max-w-sm sm:flex-1"
           showLabel={false}
-        />
-        <CurrencyFilter
-          value={currencyFilter}
-          onChange={setCurrencyFilter}
-          codes={codes}
-          label="Filter by currency"
         />
       </div>
       {expenseRows}
-      <Dialog
+      <ExpenseDetailsDialog
         open={Boolean(selected)}
         onOpenChange={(next) => {
           if (!next) setSelectedSlug(null);
         }}
-      >
-        {selected && split && (
-          <DialogContent
-            key={selected.slug}
-            aria-label="Expense details"
-            className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
-          >
-            <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <DialogTitle>{selected.name ?? "Untitled expense"}</DialogTitle>
-                <DialogClose
-                  aria-label="Close expense details"
-                  render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
-                >
-                  <X className="h-5 w-5" />
-                </DialogClose>
-              </div>
-            </header>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
-              <p className="font-numeric text-2xl font-semibold">
-                {currency(split.grandTotal, selected.currency)}
-              </p>
-              <p className="mt-1 text-sm text-ink-soft">
-                {selected.currency}
-                {selected.mode === "itemized" && (
-                  <>
-                    {" "}
-                    · {selected.items.length} {selected.items.length === 1 ? "item" : "items"}
-                  </>
-                )}
-              </p>
-              <ExpenseMetadata expense={selected} />
-              <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-                <span>{isUpcoming(selected.date) ? "Planned payer" : "Paid by"}:</span>
-                {payerFor(selected.payerId) && (
-                  <MemberAvatar
-                    id={payerFor(selected.payerId)!.id}
-                    name={payerFor(selected.payerId)!.name}
-                  />
-                )}
-                <span className="text-ink">
-                  {payerFor(selected.payerId)?.name ??
-                    (isUpcoming(selected.date) ? "Not set" : "Payer needed")}
-                </span>
-              </p>
-              <ExpenseBalances
-                people={selected.people}
-                split={split}
-                payerId={selected.payerId}
-                currency={selected.currency}
-                projected={isUpcoming(selected.date)}
-                unallocated={selected.items.some((item) => item.splitWith.length === 0)}
-                headingLevel="h3"
-              />
-              {selected.note && (
-                <section className="mt-5 border-t border-rule/70 pt-5">
-                  <GroupTitle as="h4">Note</GroupTitle>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-soft">
-                    {selected.note}
-                  </p>
-                </section>
-              )}
-              {selected.image && (
-                <section className="mt-5 border-t border-rule/70 pt-5">
-                  <GroupTitle as="h4">Receipt</GroupTitle>
-                  {selected.image.url ? (
-                    <a
-                      href={selected.image.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 flex items-center gap-3 rounded-lg border border-rule/70 p-3 text-sm text-forest transition hover:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
-                    >
-                      {selected.image.type !== "application/pdf" ? (
-                        <img
-                          src={selected.image.url}
-                          alt=""
-                          className="h-12 w-12 shrink-0 rounded-md border border-rule/70 object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-paper">
-                          <FileText className="h-5 w-5" />
-                        </span>
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block break-words">{selected.image.name}</span>
-                        <span className="mt-0.5 block text-xs text-ink-soft">
-                          {selected.image.type === "application/pdf"
-                            ? "PDF receipt"
-                            : "Receipt image"}
-                        </span>
-                      </span>
-                      <ArrowUpRight aria-hidden="true" className="h-4 w-4 shrink-0" />
-                      <span className="sr-only"> (opens in a new tab)</span>
-                    </a>
-                  ) : (
-                    <p className="mt-2 text-sm text-ink-soft">
-                      This receipt is no longer available.
-                    </p>
-                  )}
-                </section>
-              )}
-
-              {selected.currency !== defaultCurrency && (
-                <ExchangeRateForm
-                  key={`${selected.slug}:${selected.currency}:${defaultCurrency}:${selected.exchangeRate?.rate ?? "none"}`}
-                  tabSlug={slug}
-                  expense={selected}
-                  target={defaultCurrency}
-                  canEdit={isOwner}
-                />
-              )}
-              <GroupTitle as="h4" className="mt-6 border-t border-rule/70 pt-5">
-                Split with
-              </GroupTitle>
-              <ul className="mt-3 space-y-3">
-                {split.people.map((person) => (
-                  <li key={person.personId} className="flex items-center gap-2 text-sm">
-                    <MemberAvatar id={person.personId} name={person.name} />
-                    <span className="min-w-0 flex-1 break-words">{person.name}</span>
-                    <span className="font-numeric">
-                      {currency(person.total, selected.currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {selected.mode === "itemized" && (
-                <details className="group mt-6 border-t border-rule/70 pt-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
-                    Items · {split.items.length}
-                    <ChevronDown className="h-4 w-4 chevron-flip" />
-                  </summary>
-                  <ul className="mt-3 space-y-3">
-                    {split.items.map((item) => (
-                      <li key={item.itemId} className="flex justify-between gap-3 text-sm">
-                        <span className="min-w-0 break-words">{item.itemName}</span>
-                        <span className="font-numeric shrink-0">
-                          {currency(item.total, selected.currency)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </div>
-            <footer className="shrink-0 border-t border-rule/70 bg-surface px-5 py-4 sm:px-6">
-              {isOwner && (
-                <div className="grid w-full gap-3 sm:flex sm:justify-end">
-                  <Button
-                    variant="outline"
-                    size="touch"
-                    nativeButton={false}
-                    className="w-full sm:w-auto"
-                    render={<Link to="/e/$slug" params={{ slug: selected.slug }} />}
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="touch"
-                    className="w-full sm:w-auto"
-                    onClick={() => setDeletingSlug(selected.slug)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </Button>
-                </div>
-              )}
-              {!isOwner && (
-                <DialogClose render={<Button variant="outline" size="touch" />}>Done</DialogClose>
-              )}
-            </footer>
-          </DialogContent>
-        )}
-      </Dialog>
+        expense={selected}
+        slug={slug}
+        defaultCurrency={defaultCurrency}
+        isOwner={isOwner}
+        members={members}
+        onDelete={(expenseSlug) => setDeletingSlug(expenseSlug)}
+      />
     </section>
-  );
-}
-
-function ExchangeRateForm({
-  tabSlug,
-  expense,
-  target,
-  canEdit,
-}: {
-  tabSlug: string;
-  expense: ReturnType<typeof useTabExpenses>[number];
-  target: string;
-  canEdit: boolean;
-}) {
-  const { setExpenseExchangeRate } = useTabActions();
-  const [value, setValue] = useState(expense.exchangeRate?.rate.toString() ?? "");
-  const [expanded, setExpanded] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const rate = Number(value);
-  const valid = value.trim() !== "" && Number.isFinite(rate) && rate > 0;
-  async function save(next: number | null) {
-    setPending(true);
-    setError(null);
-    try {
-      await setExpenseExchangeRate({
-        slug: tabSlug,
-        expenseSlug: expense.slug,
-        from: expense.currency,
-        to: target,
-        rate: next,
-      });
-      setExpanded(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save the exchange rate.");
-    } finally {
-      setPending(false);
-    }
-  }
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (valid) void save(rate);
-      }}
-      className="mt-5 rounded-lg border border-rule bg-paper p-4"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <GroupTitle as="h4">
-            {expense.exchangeRate
-              ? currency(
-                  computeSplit(expense.people, expense.items, expense.globalAdjustments)
-                    .grandTotal * expense.exchangeRate.rate,
-                  target,
-                )
-              : `Exchange to ${target}`}
-          </GroupTitle>
-          <p className="mt-1 text-xs text-ink-soft">
-            {expense.exchangeRate
-              ? `Included in ${target} totals · 1 ${expense.currency} = ${expense.exchangeRate.rate} ${target}`
-              : `No rate added. This expense stays in ${expense.currency} totals.`}
-          </p>
-        </div>
-        {canEdit && (
-          <Button
-            type="button"
-            variant="link"
-            size="xs"
-            disabled={pending}
-            aria-expanded={expanded}
-            aria-controls="exchange-rate-fields"
-            onClick={() => setExpanded(!expanded)}
-            className="h-auto shrink-0 px-0 text-xs underline-offset-4"
-          >
-            {expanded ? "Cancel" : expense.exchangeRate ? "Change" : "Add rate"}
-          </Button>
-        )}
-      </div>
-      {canEdit && expanded && (
-        <div id="exchange-rate-fields">
-          {!expense.exchangeRate && (
-            <p className="mt-3 text-xs text-ink-soft">
-              Add a rate to include this expense in the tab’s {target} totals.
-            </p>
-          )}
-          <div className="mt-3">
-            <Label htmlFor="expense-exchange-rate">
-              Exchange rate (1 {expense.currency} = {target})
-            </Label>
-            <Input
-              id="expense-exchange-rate"
-              type="number"
-              inputMode="decimal"
-              step="any"
-              min="0"
-              required
-              value={value}
-              disabled={pending}
-              onChange={(event) => setValue(event.target.value)}
-              placeholder="e.g. 1.38"
-              aria-describedby="exchange-preview"
-              className="font-numeric"
-            />
-          </div>
-          <p id="exchange-preview" aria-live="polite" className="mt-2 text-xs text-ink-soft">
-            {valid
-              ? `Converted total: ${currency(computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal * rate, target)}`
-              : "Enter a rate greater than zero."}
-          </p>
-          <div className="mt-3 flex gap-3">
-            <Button type="submit" size="lg" disabled={!valid || pending} aria-busy={pending}>
-              {pending ? "Saving…" : "Save rate"}
-            </Button>
-            {expense.exchangeRate && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="lg"
-                disabled={pending}
-                onClick={() => void save(null)}
-              >
-                Remove rate
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="mt-2 text-xs text-margin-red-ink">
-          {error}
-        </p>
-      )}
-    </form>
   );
 }

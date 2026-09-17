@@ -27,10 +27,13 @@ import {
 } from "@/components/ui/Dialog";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { TabMemberBreakdown } from "@/components/TabMemberBreakdown";
+import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
 import { CURRENCIES } from "@/lib/currencies";
 import { currency, formatExpenseDate, todayISODate } from "@/lib/format";
+import { useTabBreakdown, type TabExpenseSummary } from "@/lib/tabSync";
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
 
 type Member = { id: string; name: string };
@@ -136,7 +139,13 @@ const balanceRowGrid = {
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[29.5rem]:gap-x-4",
 };
 
-function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
+function SingleCurrencySummaryList({
+  data,
+  onMemberClick,
+}: {
+  data: SettlementSummaryData;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+}) {
   return (
     <div className="space-y-5">
       {data.currencies.map((group) => {
@@ -169,7 +178,7 @@ function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
                 Balance
               </span>
             </GroupTitle>
-            <ul className="divide-y divide-rule">
+            <ul className="divide-y divide-rule bg-field">
               {members.map((member) => {
                 const isViewer = member.memberId === data.viewerMemberId;
                 // A member with no share in this currency spent nothing in it,
@@ -180,8 +189,16 @@ function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
                   // all three share one track geometry - without it the column
                   // labels and the total sit 12px left of the values they
                   // describe, which is the whole point of the ledger layout.
-                  <li key={member.memberId} className={`${grid} px-3 py-3`}>
-                    <span className="flex min-w-0 items-center gap-3">
+                  <li
+                    key={member.memberId}
+                    className={`${grid} relative px-3 py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
+                  >
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      onClick={() => onMemberClick?.(member.memberId, group.currency)}
+                      className="flex min-w-0 items-center gap-3 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
+                    >
                       <MemberAvatar id={member.memberId} name={member.name} size="sm" />
                       <span className="min-w-0 break-words font-medium">
                         {member.name}
@@ -192,7 +209,7 @@ function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
                           </span>
                         )}
                       </span>
-                    </span>
+                    </button>
                     {hasSpend && (
                       <span className="hidden text-right @min-[29.5rem]:block">
                         {member.share ? (
@@ -225,7 +242,6 @@ function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
                   <span className="font-numeric font-semibold text-ink @min-[29.5rem]:hidden">
                     {currency(totalSpent, group.currency)}
                   </span>
-                  <span className="hidden @min-[29.5rem]:inline">nets to zero</span>
                 </span>
               </div>
             )}
@@ -236,7 +252,162 @@ function SettlementSummaryList({ data }: { data: SettlementSummaryData }) {
   );
 }
 
-export function SettlementSummary({ data }: { data: SettlementSummaryData }) {
+function ConsolidatedSummaryList({
+  data,
+  onMemberClick,
+}: {
+  data: SettlementSummaryData;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+}) {
+  const members = new Map<string, { memberId: string; name: string }>();
+  for (const group of data.currencies) {
+    for (const member of group.members) {
+      if (!members.has(member.memberId)) {
+        members.set(member.memberId, { memberId: member.memberId, name: member.name });
+      }
+    }
+  }
+  const orderedMembers = [...members.values()].sort(
+    (a, b) =>
+      Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
+  );
+  const grid = balanceRowGrid.withSpend;
+  const hasSpend = data.currencies.some((group) =>
+    group.members.some((member) => member.share !== undefined),
+  );
+  const rowsByCurrency = (memberId: string) =>
+    data.currencies.flatMap((group) => {
+      const member = group.members.find((row) => row.memberId === memberId);
+      if (!member || ((member.share ?? 0) === 0 && member.balance === 0)) return [];
+      return [{ group, member }];
+    });
+  const totalCurrencies = data.currencies
+    .map((group) => {
+      const spent = group.members.reduce((sum, member) => sum + (member.share ?? 0), 0);
+      const outstanding = group.members.reduce((sum, member) => sum + Math.abs(member.balance), 0);
+      return { currency: group.currency, spent, outstanding };
+    })
+    .filter(({ spent, outstanding }) => spent !== 0 || outstanding !== 0);
+
+  return (
+    <div className="space-y-0">
+      <div className={`${grid} bg-band px-3 py-2`}>
+        <span className="text-xs font-medium uppercase text-ink-soft">Member</span>
+        {hasSpend && (
+          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+            Spent
+          </span>
+        )}
+        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+          Balance
+        </span>
+      </div>
+      <div className="divide-y divide-rule bg-field">
+        {orderedMembers.map((member) => {
+          const isViewer = member.memberId === data.viewerMemberId;
+          const rows = rowsByCurrency(member.memberId);
+          return (
+            <div key={member.memberId}>
+              <div className={`${grid} bg-surface px-3 py-3`}>
+                <span className="flex min-w-0 items-center gap-3">
+                  <MemberAvatar id={member.memberId} name={member.name} size="sm" />
+                  <span className="min-w-0 break-words font-medium">
+                    {member.name}
+                    {isViewer && <span className="text-ink-soft"> (you)</span>}
+                  </span>
+                </span>
+              </div>
+              <div className="divide-y divide-rule">
+                {rows.map(({ group, member: currencyMember }) => {
+                  const spent = currencyMember.share
+                    ? currency(currencyMember.share, group.currency)
+                    : "No expenses";
+                  return (
+                    <button
+                      key={group.currency}
+                      type="button"
+                      aria-haspopup="dialog"
+                      onClick={() => onMemberClick?.(member.memberId, group.currency)}
+                      className={`${grid} relative w-full px-3 py-3 text-left transition-colors hover:bg-wash focus-visible:outline-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest`}
+                    >
+                      <span className="min-w-0 break-words pl-9 text-xs text-ink-soft">
+                        <span className="font-numeric">{group.currency}</span>
+                      </span>
+                      {hasSpend && (
+                        <span className="hidden text-right @min-[29.5rem]:block">
+                          {currencyMember.share ? (
+                            <span className="font-numeric font-semibold text-ink">{spent}</span>
+                          ) : (
+                            <span className="text-xs text-ink-soft">{spent}</span>
+                          )}
+                        </span>
+                      )}
+                      <span className="flex justify-end">
+                        <BalanceValue
+                          balance={currencyMember.balance}
+                          code={group.currency}
+                          prominent={isViewer}
+                        />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {(hasSpend || totalCurrencies.length > 0) && (
+        <div className={`${grid} bg-band px-3 py-2 text-xs`}>
+          <span className="font-medium text-ink">{hasSpend ? "Total spent" : "Totals"}</span>
+          {hasSpend && (
+            <span className="hidden text-right @min-[29.5rem]:block">
+              {totalCurrencies.map(({ currency: code, spent }) =>
+                spent === 0 ? null : (
+                  <span key={code} className="block font-numeric font-semibold text-ink">
+                    {currency(spent, code)}
+                  </span>
+                ),
+              )}
+            </span>
+          )}
+          {!hasSpend && <span aria-hidden="true" />}
+          <span className="text-right text-ink-soft">
+            {totalCurrencies.map(({ currency: code, outstanding }) =>
+              outstanding === 0 ? null : (
+                <span key={code} className="block font-numeric font-semibold text-ink">
+                  {currency(outstanding, code)}
+                </span>
+              ),
+            )}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettlementSummaryList({
+  data,
+  onMemberClick,
+}: {
+  data: SettlementSummaryData;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+}) {
+  return data.currencies.length > 1 ? (
+    <ConsolidatedSummaryList data={data} onMemberClick={onMemberClick} />
+  ) : (
+    <SingleCurrencySummaryList data={data} onMemberClick={onMemberClick} />
+  );
+}
+
+export function SettlementSummary({
+  data,
+  onMemberClick,
+}: {
+  data: SettlementSummaryData;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+}) {
   return (
     <div className="space-y-2 text-sm" aria-live="polite">
       {data.missingPayers.length > 0 && (
@@ -254,7 +425,7 @@ export function SettlementSummary({ data }: { data: SettlementSummaryData }) {
             : "No outstanding balances."}
         </p>
       ) : (
-        <SettlementSummaryList data={data} />
+        <SettlementSummaryList data={data} onMemberClick={onMemberClick} />
       )}
     </div>
   );
@@ -264,15 +435,26 @@ export function TabSettlement({
   slug,
   members,
   isOwner,
+  defaultCurrency = "USD",
+  expenses = [],
   expenseView = "paid",
 }: {
   slug: string;
   members: Member[];
   isOwner: boolean;
+  defaultCurrency?: string;
+  expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
 }) {
   const [day, setDay] = useState(todayISODate);
   const [open, setOpen] = useState(false);
+  const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<{
+    memberId: string;
+    currency: string;
+    name: string;
+  } | null>(null);
+  const [selectedExpenseSlug, setSelectedExpenseSlug] = useState<string | null>(null);
   const [payment, setPayment] = useState<PaymentDraft | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentPending, setPaymentPending] = useState(false);
@@ -288,6 +470,7 @@ export function TabSettlement({
     | SettlementQueryResponse
     | null
     | undefined;
+  const breakdown = useTabBreakdown(slug);
   const record = useMutation(api.settlements.record);
   const reverse = useMutation(api.settlements.reverse);
 
@@ -377,6 +560,12 @@ export function TabSettlement({
   const memberName = (id: string) =>
     members.find((member) => member.id === id)?.name ?? "Unknown member";
   const reverseHistory = allData.history.find((item) => item.id === reversingId);
+  const selectedBreakdown = selectedMember
+    ? breakdown?.currencies
+        .find((group) => group.currency === selectedMember.currency)
+        ?.members.find((member) => member.memberId === selectedMember.memberId)
+    : undefined;
+  const selectedExpense = expenses.find((expense) => expense.slug === selectedExpenseSlug);
   return (
     <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
       <Dialog open={open} onOpenChange={setOpen}>
@@ -406,17 +595,18 @@ export function TabSettlement({
             )}
           </div>
         </div>
-        <SettlementSummary data={data} />
-        {/* One footnote now governs both columns, which it can only do because
-            spend and balance come from the same snapshot at the same as-of
-            date - see `share` on SettlementSummaryData. */}
-        <p className="mt-3 text-xs text-ink-soft">
-          {expenseView === "paid"
-            ? "Paid expenses only · Upcoming expenses excluded · Currencies settled separately"
-            : expenseView === "upcoming"
-              ? "Expected balances from upcoming expenses · For planning only · Currencies settled separately"
-              : "Paid and upcoming expenses · Upcoming balances are expected · Currencies settled separately"}
-        </p>
+        <SettlementSummary
+          data={data}
+          onMemberClick={(memberId, currencyCode) => {
+            const member = data.currencies
+              .find((group) => group.currency === currencyCode)
+              ?.members.find((row) => row.memberId === memberId);
+            if (member) {
+              setSelectedMember({ memberId, currency: currencyCode, name: member.name });
+              setMemberBreakdownOpen(true);
+            }
+          }}
+        />
         {data.currencies.length > 0 && (
           <Link
             to="/t/$slug/breakdown"
@@ -589,6 +779,74 @@ export function TabSettlement({
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={memberBreakdownOpen}
+        onOpenChange={(next) => {
+          setMemberBreakdownOpen(next);
+        }}
+      >
+        <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
+          <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  {selectedBreakdown && selectedMember && (
+                    <MemberAvatar
+                      id={selectedBreakdown.memberId}
+                      name={selectedBreakdown.name}
+                      size="lg"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <DialogTitle>{selectedMember?.name ?? "Member breakdown"}</DialogTitle>
+                    <DialogDescription className="mt-1">
+                      {selectedBreakdown
+                        ? `${selectedBreakdown.expenseCount} ${selectedBreakdown.expenseCount === 1 ? "expense" : "expenses"} · ${selectedMember?.currency}`
+                        : `${selectedMember?.currency ?? ""} expense breakdown`}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </div>
+              <DialogClose
+                aria-label="Close member breakdown"
+                render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+              >
+                <X aria-hidden="true" />
+              </DialogClose>
+            </div>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+            {breakdown === undefined ? (
+              <p role="status" className="text-sm text-ink-soft">
+                Loading breakdown…
+              </p>
+            ) : selectedBreakdown && selectedMember ? (
+              <TabMemberBreakdown
+                member={selectedBreakdown}
+                currencyCode={selectedMember.currency}
+                variant="modal"
+                onExpenseClick={(expenseSlug) => {
+                  setMemberBreakdownOpen(false);
+                  setSelectedExpenseSlug(expenseSlug);
+                }}
+              />
+            ) : (
+              <p className="text-sm text-ink-soft">No breakdown available.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <ExpenseDetailsDialog
+        open={selectedExpenseSlug !== null}
+        onOpenChange={(next) => {
+          if (!next) setSelectedExpenseSlug(null);
+        }}
+        expense={selectedExpense}
+        slug={slug}
+        defaultCurrency={defaultCurrency}
+        isOwner={isOwner}
+        members={members}
+      />
       <ConfirmDialog
         open={reversingId !== null}
         onOpenChange={(next) => {

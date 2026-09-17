@@ -51,8 +51,8 @@ test("renders each viewer currency once with its own balance", () => {
   expect(markup).toContain("Gets ");
   expect(markup).toContain("USD");
   expect(markup).toContain("Owes ");
-  expect(markup.match(/CA\$7\.34/g)).toHaveLength(1);
-  expect(markup.match(/\$0\.50/g)).toHaveLength(1);
+  expect(markup.match(/CA\$7\.34/g)).toHaveLength(2);
+  expect(markup.match(/\$0\.50/g)).toHaveLength(2);
 });
 
 test("uses currency bands for mixed settled and outstanding balances", () => {
@@ -69,11 +69,10 @@ test("uses currency bands for mixed settled and outstanding balances", () => {
   );
 
   expect(markup).not.toContain("<table");
-  expect(markup).toContain('aria-label="CAD balances"');
-  expect(markup).toContain('aria-label="USD balances"');
-  expect(markup).toContain("Settled");
+  expect(markup).toContain(">Member<");
+  expect(markup).not.toContain('aria-label="CAD balances"');
+  expect(markup).not.toContain('aria-label="USD balances"');
   expect(markup).toContain("Gets ");
-  expect(markup).toContain("text-ink font-semibold");
   expect(markup).not.toContain("text-lg font-semibold");
 });
 
@@ -130,12 +129,79 @@ test("renders all members in each currency band", () => {
     }),
   );
   expect(markup).not.toContain("<table");
-  expect(markup).toContain('class="space-y-5"');
+  expect(markup).toContain(">Member<");
   expect(markup).toContain("CAD");
-  expect(markup).toContain("Canadian Dollar");
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
-  expect(markup).toContain('aria-label="CAD balances"');
-  expect(markup).toContain('aria-label="USD balances"');
+  expect(markup).not.toContain('aria-label="CAD balances"');
+  expect(markup).not.toContain('aria-label="USD balances"');
+  expect(markup.match(/aria-haspopup="dialog"/g)).toHaveLength(4);
+});
+
+test("consolidates mixed currencies into member blocks with currency-aware totals", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "CAD",
+            members: [
+              { memberId: "alex", name: "Alex", balance: 0, share: 42.39 },
+              { memberId: "bea", name: "Bea", balance: 0, share: 42.4 },
+            ],
+          },
+          {
+            currency: "USD",
+            members: [
+              { memberId: "alex", name: "Alex", balance: 0.5, share: 0.5 },
+              { memberId: "bea", name: "Bea", balance: -0.5, share: 0 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup.match(/>Member</g)).toHaveLength(1);
+  expect(markup.match(/>Spent</g)).toHaveLength(1);
+  expect(markup.match(/>Balance</g)).toHaveLength(1);
+  expect(markup).toContain("CA$42.39");
+  expect(markup).toContain("CA$42.40");
+  expect(markup).toContain("$0.50");
+  expect(markup).toContain("Total spent");
+  expect(markup).toContain("CA$84.79");
+  expect(markup).toContain("$1.00");
+  // Alex's settled CAD row is omitted only when it has no spend; the USD row
+  // remains because it carries a non-zero balance.
+  expect(markup.match(/font-numeric">CAD</g)).toHaveLength(2);
+  expect(markup.match(/font-numeric">USD</g)).toHaveLength(2);
+});
+
+test("omits zero-only currency rows and keeps sparse nonzero rows", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "CAD",
+            members: [{ memberId: "alex", name: "Alex", balance: 0, share: 10 }],
+          },
+          {
+            currency: "USD",
+            members: [{ memberId: "bea", name: "Bea", balance: -2, share: 0 }],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup).toContain("CAD");
+  expect(markup).toContain("USD");
+  expect(markup).toContain("Bea");
+  expect(markup).toContain("No expenses");
 });
 
 test("shows incomplete, empty, viewer-free, and loading settlement states", () => {
@@ -159,7 +225,7 @@ test("shows incomplete, empty, viewer-free, and loading settlement states", () =
   ).toContain("Loading settlement balances…");
 });
 
-test("labels upcoming balances as expected while retaining payment history", () => {
+test("retains payment history controls for upcoming balances", () => {
   const upcoming = {
     ...viewerData,
     history: [],
@@ -176,7 +242,7 @@ test("labels upcoming balances as expected while retaining payment history", () 
     }),
   );
 
-  expect(markup).toContain("Expected balances from upcoming expenses");
+  expect(markup).not.toContain("Expected balances from upcoming expenses");
   expect(markup).toContain("View payments");
 });
 
@@ -191,7 +257,7 @@ test("renders a legacy settlement response while the consolidated query deploys"
     createElement(TabSettlement, { slug: "trip", members: [], isOwner: false }),
   );
 
-  expect(markup).toContain('aria-label="CAD balances"');
+  expect(markup).not.toContain('aria-label="CAD balances"');
 });
 
 test("shows what each member spent beside their balance, and totals the column", () => {
@@ -221,7 +287,6 @@ test("shows what each member spent beside their balance, and totals the column",
   expect(markup).toContain("Total spent");
   expect(markup).toContain("CA$127.19");
   // Both ledgers still read on the same row.
-  expect(markup).toContain("Settled");
   expect(markup).toContain("Gets ");
   expect(markup).toContain("Owes ");
 });
