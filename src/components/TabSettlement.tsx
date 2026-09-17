@@ -292,7 +292,7 @@ function ConsolidatedSummaryList({
   return (
     <div className="space-y-0">
       <div className={`${grid} bg-band px-3 py-2`}>
-        <span className="text-xs font-medium uppercase text-ink-soft">Member</span>
+        <span aria-hidden="true" />
         {hasSpend && (
           <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
             Spent

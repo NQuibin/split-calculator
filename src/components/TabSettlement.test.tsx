@@ -69,7 +69,7 @@ test("uses currency bands for mixed settled and outstanding balances", () => {
   );
 
   expect(markup).not.toContain("<table");
-  expect(markup).toContain(">Member<");
+  expect(markup).not.toContain(">Member<");
   expect(markup).not.toContain('aria-label="CAD balances"');
   expect(markup).not.toContain('aria-label="USD balances"');
   expect(markup).toContain("Gets ");
@@ -129,7 +129,7 @@ test("renders all members in each currency band", () => {
     }),
   );
   expect(markup).not.toContain("<table");
-  expect(markup).toContain(">Member<");
+  expect(markup).not.toContain(">Member<");
   expect(markup).toContain("CAD");
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
   expect(markup).not.toContain('aria-label="CAD balances"');
@@ -163,7 +163,7 @@ test("consolidates mixed currencies into member blocks with currency-aware total
     }),
   );
 
-  expect(markup.match(/>Member</g)).toHaveLength(1);
+  expect(markup).not.toContain(">Member<");
   expect(markup.match(/>Spent</g)).toHaveLength(1);
   expect(markup.match(/>Balance</g)).toHaveLength(1);
   expect(markup).toContain("CA$42.39");
