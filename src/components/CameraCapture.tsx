@@ -144,7 +144,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
         )}
 
         <div className="mt-3 flex items-center justify-end gap-3">
-          <Button type="button" variant="outline" size="touch" onClick={onClose}>
+          <Button type="button" variant="secondary" size="touch" onClick={onClose}>
             Cancel
           </Button>
           {!error && (

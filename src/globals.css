@@ -96,8 +96,6 @@
   --popover-foreground: var(--ink);
   --primary: var(--forest);
   --primary-foreground: var(--surface);
-  --secondary: var(--paper);
-  --secondary-foreground: var(--ink);
   --muted: var(--paper);
   --muted-foreground: var(--ink-soft);
   /* shadcn's --accent is the hover/active surface, so it points at --wash.
@@ -141,8 +139,6 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);

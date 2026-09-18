@@ -86,7 +86,7 @@ function Shell({
           <Button size="touch" nativeButton={false} render={<Link to="/tabs" />}>
             Go to your tabs
           </Button>
-          <Button variant="outline" size="touch" nativeButton={false} render={<Link to="/" />}>
+          <Button variant="secondary" size="touch" nativeButton={false} render={<Link to="/" />}>
             Home
           </Button>
         </div>

@@ -69,7 +69,7 @@ export function ConfirmDialog({
           </p>
         )}
         <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <DialogClose disabled={pending} render={<Button variant="outline" size="touch" />}>
+          <DialogClose disabled={pending} render={<Button variant="secondary" size="touch" />}>
             Cancel
           </DialogClose>
           <Button

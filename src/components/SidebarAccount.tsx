@@ -108,7 +108,7 @@ function SignInMenu() {
       }}
     >
       <DialogTrigger
-        render={<Button type="button" variant="outline" size="touch" className="w-full" />}
+        render={<Button type="button" variant="secondary" size="touch" className="w-full" />}
       >
         <LogIn className="h-3.5 w-3.5" strokeWidth={2.25} />
         Sign in
@@ -138,7 +138,7 @@ function SignInMenu() {
           <>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="lg"
               onClick={() => void signIn("google")}
               className="w-full"

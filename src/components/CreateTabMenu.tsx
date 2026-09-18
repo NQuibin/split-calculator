@@ -105,14 +105,15 @@ function CreateTabModal({
             variant === "primary" ? (
               <Button type="button" size="touch" />
             ) : (
-              // The empty-state call to action: an outlined pill that fills on
-              // hover, rather than a second filled button competing with the
-              // page's own primary.
+              // The empty-state call to action: `secondary` (DESIGN.md § 5)
+              // rather than the hand-written forest border and invert hover it
+              // used to carry. `border-2` is geometry - the hero pill wants a
+              // heavier edge - and leaves the variant's hover intact.
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="hero"
-                className="mx-auto rounded-full border-2 border-forest bg-transparent text-forest hover:bg-forest hover:text-surface"
+                className="mx-auto rounded-full border-2"
               />
             )
           }

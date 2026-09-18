@@ -193,7 +193,7 @@ export function ExpenseDetailsDialog({
             {isOwner ? (
               <div className="grid w-full gap-3 sm:flex sm:justify-end">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="touch"
                   nativeButton={false}
                   className="w-full sm:w-auto"
@@ -216,7 +216,7 @@ export function ExpenseDetailsDialog({
                 )}
               </div>
             ) : (
-              <DialogClose render={<Button variant="outline" size="touch" />}>Done</DialogClose>
+              <DialogClose render={<Button variant="secondary" size="touch" />}>Done</DialogClose>
             )}
           </footer>
         </DialogContent>

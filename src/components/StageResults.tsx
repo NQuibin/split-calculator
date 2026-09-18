@@ -360,7 +360,7 @@ export function StageResults({
           {isOwner && (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="touch"
               onClick={handleShare}
               className="bg-surface"

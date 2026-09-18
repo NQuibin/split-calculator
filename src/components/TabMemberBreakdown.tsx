@@ -54,65 +54,78 @@ export function TabMemberBreakdown({
           Not part of any expenses yet.
         </p>
       ) : (
-        <>
+        <ul
+          className={`${modal ? "grid grid-cols-[minmax(0,1fr)_auto] divide-y divide-rule sm:grid-cols-[minmax(0,1fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "divide-y divide-rule/70 border-t border-rule/70"} bg-field text-sm`}
+        >
           {modal && (
-            <div className="flex items-center justify-between bg-band px-5 py-2 text-xs font-medium uppercase text-ink-soft sm:px-6">
+            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-5 bg-band px-5 py-2 text-xs font-medium uppercase text-ink-soft sm:px-6">
               <span>Expense</span>
-              <span>Share</span>
-            </div>
+              <span className="hidden sm:block">Paid by</span>
+              <span className="hidden text-right sm:block">Total</span>
+              <span className="text-right">Spent</span>
+            </li>
           )}
-          <ul
-            className={`${modal ? "divide-y divide-rule" : "divide-y divide-rule/70 border-t border-rule/70"} bg-field text-sm`}
-          >
-            {member.expenses.map((line) => (
-              <li
-                key={line.expenseSlug}
-                className={`${modal ? "relative transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash" : ""} flex flex-wrap items-start justify-between gap-x-5 gap-y-2 px-5 py-4 sm:px-6`}
-              >
-                {modal ? (
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    onClick={() => onExpenseClick?.(line.expenseSlug)}
-                    className="min-w-0 flex-1 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
-                  >
-                    <p className="break-words font-medium text-ink">
-                      {line.expenseName || "Untitled expense"}
-                    </p>
-                    <time dateTime={line.date} className="mt-1 block text-xs text-ink-soft">
-                      {parseISODate(line.date)?.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      }) ?? line.date}
-                    </time>
-                  </button>
-                ) : (
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words font-medium text-ink">
-                      {line.expenseName || "Untitled expense"}
-                    </p>
-                    <time dateTime={line.date} className="mt-1 block text-xs text-ink-soft">
-                      {parseISODate(line.date)?.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      }) ?? line.date}
-                    </time>
-                  </div>
-                )}
-                <div className="shrink-0 text-right">
-                  <p className="text-ink">
-                    {!modal && <span className="text-xs text-ink-soft">Share </span>}
-                    <span className="font-numeric font-medium">
-                      {currency(line.fairShare, currencyCode)}
-                    </span>
+          {member.expenses.map((line) => (
+            <li
+              key={line.expenseSlug}
+              className={`${modal ? "relative col-span-full grid grid-cols-[subgrid] items-center gap-x-5 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash" : "flex flex-wrap items-start justify-between gap-x-5 gap-y-2"} px-5 py-4 sm:px-6`}
+            >
+              {modal ? (
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => onExpenseClick?.(line.expenseSlug)}
+                  className="min-w-0 flex-1 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
+                >
+                  <p className="break-words font-medium text-ink">
+                    {line.expenseName || "Untitled expense"}
                   </p>
+                  <time dateTime={line.date} className="mt-1 block text-xs text-ink-soft">
+                    {parseISODate(line.date)?.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }) ?? line.date}
+                  </time>
+                </button>
+              ) : (
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-medium text-ink">
+                    {line.expenseName || "Untitled expense"}
+                  </p>
+                  <time dateTime={line.date} className="mt-1 block text-xs text-ink-soft">
+                    {parseISODate(line.date)?.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }) ?? line.date}
+                  </time>
                 </div>
-              </li>
-            ))}
-          </ul>
-        </>
+              )}
+              {modal && (
+                <span className="hidden min-w-0 items-center gap-2 break-words text-sm text-ink-soft sm:flex">
+                  {line.payerId && (
+                    <MemberAvatar id={line.payerId} name={line.payerName} size="sm" />
+                  )}
+                  <span className="min-w-0 break-words">{line.payerName}</span>
+                </span>
+              )}
+              {modal && (
+                <span className="hidden shrink-0 text-right font-numeric text-sm text-ink sm:block">
+                  {currency(line.total, currencyCode)}
+                </span>
+              )}
+              <div className="shrink-0 text-right">
+                <p className="text-ink">
+                  {!modal && <span className="text-xs text-ink-soft">Share </span>}
+                  <span className="font-numeric font-medium">
+                    {currency(line.fairShare, currencyCode)}
+                  </span>
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
       <dl

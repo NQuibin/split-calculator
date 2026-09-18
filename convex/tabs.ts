@@ -761,6 +761,9 @@ async function computeCurrencyBreakdown(
       expenseName: string;
       date: string;
       fairShare: number;
+      payerId?: string;
+      payerName: string;
+      total: number;
     }[]
   >();
   for (const seat of seats) {
@@ -785,6 +788,10 @@ async function computeCurrencyBreakdown(
         expenseName: expense.name,
         date: expense.date,
         fairShare: round2(row.fairShare),
+        payerId: expense.payerId,
+        payerName:
+          expense.people.find((person) => person.id === expense.payerId)?.name ?? "Unknown",
+        total: round2(rate ? split.grandTotal * rate.rate : split.grandTotal),
       });
     }
   }

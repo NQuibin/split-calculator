@@ -406,7 +406,7 @@ function TabSettingsDialog({
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <DialogClose
                 disabled={pending}
-                render={<Button type="button" variant="outline" size="touch" />}
+                render={<Button type="button" variant="secondary" size="touch" />}
               >
                 Cancel
               </DialogClose>
@@ -547,7 +547,7 @@ function Roster({
       <Button type="submit" size="lg" disabled={pending || !name.trim()} aria-busy={pending}>
         {pending ? "Saving…" : adding ? "Add" : "Save"}
       </Button>
-      <Button type="button" variant="outline" size="lg" disabled={pending} onClick={resetForm}>
+      <Button type="button" variant="secondary" size="lg" disabled={pending} onClick={resetForm}>
         Cancel
       </Button>
     </form>

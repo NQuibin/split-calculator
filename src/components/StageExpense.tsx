@@ -542,7 +542,7 @@ export function StageExpense({
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-        <Button type="button" variant="outline" size="touch" onClick={closeItemEditor}>
+        <Button type="button" variant="secondary" size="touch" onClick={closeItemEditor}>
           Cancel item changes
         </Button>
         <Button type="button" size="touch" onClick={handleSubmit}>
@@ -639,7 +639,7 @@ export function StageExpense({
               </GroupTitle>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="touch"
                 onClick={() => {
                   resetForm();
@@ -760,7 +760,7 @@ export function StageExpense({
 
         <div className="mt-6 flex flex-col-reverse gap-2 border-t border-rule pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           {onCancel ? (
-            <Button type="button" variant="outline" size="touch" onClick={onCancel}>
+            <Button type="button" variant="secondary" size="touch" onClick={onCancel}>
               {cancelLabel}
             </Button>
           ) : (

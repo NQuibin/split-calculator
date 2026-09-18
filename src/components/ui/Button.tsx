@@ -9,8 +9,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
+        // Every labelled action that is not the region's `default`. Forest
+        // ties it to the primary by hue while the unfilled ground keeps it a
+        // rank below - the two are told apart by fill, not by colour. There is
+        // deliberately no quieter bordered weight: a `--rule` edge is 1.32:1
+        // on a card, which DESIGN.md § 1 rules out as a control border, and
+        // `--edge` with an ink label read as chrome wherever nothing was
+        // filled beside it. Hover is the `--accent` fill every action shares;
+        // the label goes to `--ink` with it, because forest on `--wash` is the
+        // `field` control's signal and an action must not borrow it.
+        secondary:
+          "border-forest bg-background text-forest hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         // A button that stands in for a form control - the popover triggers
         // behind the currency, date and tab pickers. It reads as an input, so
         // it behaves like one: the ground never fills, the border darkens to
@@ -18,11 +27,9 @@ const buttonVariants = cva(
         // action; see DESIGN.md § 5.
         field:
           "border-edge bg-field font-normal text-ink hover:border-forest hover:bg-field aria-expanded:border-forest aria-expanded:bg-field",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         ghost:
           "hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
-        // Bordered like `outline`, so a destructive action can sit in a row
+        // Bordered like `secondary`, so a destructive action can sit in a row
         // beside one without the group looking like two different controls.
         // The tint is what distinguishes it, not the absence of an edge.
         destructive:

@@ -223,7 +223,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                     <div className="grid w-full gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="touch"
                         onClick={() => fileInput.current?.click()}
                         disabled={busy}
@@ -239,7 +239,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="touch"
                         onClick={handleTakePhoto}
                         disabled={busy}

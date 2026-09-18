@@ -381,7 +381,7 @@ function ExpenseEditor() {
             you&rsquo;ve changed.
           </DialogDescription>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <DialogClose render={<Button variant="outline" size="touch" />}>
+            <DialogClose render={<Button variant="secondary" size="touch" />}>
               Keep editing
             </DialogClose>
             <Button
@@ -406,7 +406,7 @@ function ExpenseEditor() {
             This permanently deletes the expense and its itemized split. This can&rsquo;t be undone.
           </DialogDescription>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <DialogClose render={<Button variant="outline" size="touch" />}>Cancel</DialogClose>
+            <DialogClose render={<Button variant="secondary" size="touch" />}>Cancel</DialogClose>
             <Button
               type="button"
               variant="destructive"

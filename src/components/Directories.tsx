@@ -294,7 +294,7 @@ function FriendRow({
           render={
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="touch"
               aria-label={`View the ${count} with ${name}`}
               className="w-full justify-between sm:w-auto sm:justify-center"

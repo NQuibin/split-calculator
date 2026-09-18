@@ -293,7 +293,7 @@ states:
 | Variant       | Rest                                       | Hover                | Use for                                   |
 | ------------- | ------------------------------------------ | -------------------- | ----------------------------------------- |
 | `default`     | `bg-primary text-primary-foreground`       | `bg-primary/80`      | The one primary action in a region         |
-| `outline`     | bordered, `bg-background`                  | `bg-accent`          | Any other **labelled** action              |
+| `secondary`   | `border-forest`, `bg-background`, forest text | `bg-accent`       | Any other **labelled** action              |
 | `destructive` | bordered, `bg-destructive/10`, red text    | `bg-destructive/20`  | Delete, remove, discard — labelled         |
 | `destructive-icon` | transparent, muted icon/text              | transparent, red icon/text | Compact destructive icon-only actions       |
 | `quiet-icon` | transparent, muted icon/text              | transparent, forest icon/text | Compact non-destructive icon-only actions |
@@ -301,7 +301,6 @@ states:
 | `ghost`       | transparent, no border                     | `bg-accent`          | **Icon-only** buttons and row actions      |
 | `link`        | `text-primary`                             | `underline`          | Inline text actions inside content flow    |
 | `field`       | `border-rule bg-paper`, normal weight      | border → `--forest`  | A trigger that stands in for a form control |
-| `secondary`   | `bg-secondary`                             | `bg-accent`          | Rare: a filled action beside a `default`   |
 
 **Picking one is mechanical — work down this list:**
 
@@ -315,15 +314,15 @@ states:
    "Copy invite")? → `link`.
 8. Is it a popover trigger that *reads as a form control* — the currency,
    date or tab picker? → `field`.
-9. Otherwise → `outline`.
+9. Otherwise → `secondary`.
 
 Two rules that follow from this, and are the ones that actually get broken:
 
 - **A labelled button never uses `ghost`.** `ghost` has no border, so beside a
   bordered neighbour it looks like a different kind of control at rest and
   then grows a filled background on hover. Cancel, Done, Close and friends are
-  `outline`.
-- **`destructive` is bordered, exactly like `outline`.** A delete sitting in a
+  `secondary`.
+- **`destructive` is bordered, exactly like `secondary`.** A delete sitting in a
   row with other buttons must share their geometry; the red tint is what marks
   it, not a missing edge. Never hand-roll a delete as `ghost` + red text — on
   hover that puts red text on the green `--wash` and the two colours fight.
@@ -334,11 +333,26 @@ A dialog is its own region, so it gets its own `default` button.
 never to `--margin-red`; red is reserved for actions that actually destroy
 something.
 
-**`field` vs `outline` is the action/control distinction.** An *action*
-(`outline`) fills with `--accent` on hover and keeps its border. A *control*
+**There is one bordered weight, and it is forest.** The app tried the quieter
+alternative first: a `--edge` border with an `--ink` label. It works in a
+dialog footer, where the filled `default` beside it supplies the contrast —
+but a button alone in a card (the balances panel's `View payments`, the tabs
+empty state) has nothing to be quieter *than*, and it read as chrome rather
+than as the region's action. Rather than keep two bordered weights and a rule
+about which regions get which, `secondary` is forest everywhere: `default` and
+`secondary` are told apart by **fill**, not by colour, so a dialog footer
+shows one filled forest button beside one outlined forest button and the
+hierarchy still reads. The cost is that a footer carries two forest shapes;
+that is the accepted trade for one variant instead of two.
+
+The label goes to `--ink` on hover with the `--accent` fill — forest on
+`--wash` is the `field` control's signal, and an action must not borrow it.
+
+**`field` vs `secondary` is the action/control distinction.** An *action*
+(`secondary`) fills with `--accent` on hover and keeps its border. A *control*
 (`field`) never fills — its border darkens to `--forest`, the same signal
 `fieldClass` gives on focus — because it stands in for an input and should
-read like one. Never mix the two: an `outline` action that also darkens its
+read like one. Never mix the two: a `secondary` action that also darkens its
 border is wearing a control's clothes, and an action never needs two hover
 signals.
 
@@ -364,7 +378,7 @@ Sizes:
 Binding rules:
 
 - One `default`-variant button per screen region. Everything else is
-  `secondary`, `outline`, or `ghost`.
+  `secondary` or `ghost`.
 - A destructive action is `destructive` variant *and* lives behind a
   confirmation dialog.
 - Hover is **always** a background change from the table above, except
@@ -435,7 +449,7 @@ viewport, `max-w-lg` popup, `rounded-xl border-rule/70 bg-surface`, and
 
 - Always render a `DialogTitle`, even when visually redundant — it is the
   accessible name.
-- Footer: actions right-aligned, `flex justify-end gap-3`, cancel as `outline`
+- Footer: actions right-aligned, `flex justify-end gap-3`, cancel as `secondary`
   to the left of the confirm.
 - Destructive confirmations state what will be lost and use the item's name.
 
@@ -822,7 +836,7 @@ reintroduce them.
   segmented control.
 - ~~Invisible hover states.~~ `--wash` replaced `--paper` on every row, list
   item and quiet button, and `--accent` now points at it so `Button`'s
-  `outline`/`ghost`/`secondary` hovers are visible on a `--surface` dialog.
+  `secondary`/`ghost` hovers are visible on a `--surface` dialog.
 - ~~Three duplicated `inputClass` constants + ~12 hand-rolled fields.~~ →
   `ui/Input.tsx` (`Input`, `Textarea`, `Label`, `FieldError`).
 - ~~Inputs at 14px, zooming on iOS focus.~~ `fieldClass` is `text-base
@@ -880,12 +894,30 @@ reintroduce them.
   rather than half-active under prefers-color-scheme.
 - ~~Labelled buttons using `ghost`.~~ "Cancel item changes", "Close", the
   stage-footer cancel and the member-form cancel were borderless at rest and
-  filled on hover beside bordered neighbours. All `outline` now; `ghost` is
+  filled on hover beside bordered neighbours. All bordered now; `ghost` is
   icon-only (verified: all 20 remaining `ghost` sites are `icon-*`).
+- ~~`outline` bordered with `--rule`.~~ Every labelled action carried a
+  1.32:1 hairline — the divider token § 1 rules out as a control border — on
+  `bg-background`, which on a card *is* the card. The variant went to `--edge`,
+  then to forest outright: `outline` and its promoted twin `outline-strong`
+  collapsed into one `secondary`, so there is a single bordered weight to pick
+  and no region-by-region judgement about which one applies.
+- ~~A `secondary` variant nothing could use.~~ It filled with `--secondary`
+  (`--paper`), which is 1.00:1 on the page and 1.05:1 on a card - a borderless
+  button in the ground's own colour. It had zero call sites in the app's
+  history; removed rather than retuned. The name is now the bordered forest
+  variant, and the old `--secondary` / `--secondary-foreground` tokens are
+  gone with it — nothing read them, and leaving them under that name beside a
+  variant that does not use them was the more confusing option.
+- ~~A hand-rolled forest outline on the tabs empty state.~~ `CreateTabMenu`
+  carried `border-2 border-forest bg-transparent text-forest hover:bg-forest
+  hover:text-surface` inline - the hand-written hover § 5 forbids, and an
+  invert no other button in the app performs. It is `secondary` now, keeping
+  only `border-2` for the hero pill's weight.
 - ~~Deletes split across two treatments.~~ "Delete note", "Remove" (receipt)
   and "Remove rate" were `ghost` + red text, which put red on the green
   `--wash` at hover. All `destructive` now, and `destructive` gained a border
-  so it shares geometry with `outline` in a button row.
+  so it shares geometry with `secondary` in a button row.
 - ~~Panel borders lighting from any nested button.~~ `has-[button:hover]`
   matched every descendant once the panels gained real buttons; scoped to
   `has-[>button:hover]` (the panel's own disclosure trigger).

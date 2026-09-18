@@ -59,6 +59,9 @@ export interface TabBreakdownExpenseLine {
   expenseName: string;
   date: string;
   fairShare: number;
+  payerId?: string;
+  payerName: string;
+  total: number;
 }
 
 export interface TabBreakdownMember {

@@ -71,19 +71,9 @@ function balanceColor(balance: number) {
   return balance > 0 ? "text-ledger-green" : balance < 0 ? "text-margin-red-ink" : "text-ink";
 }
 
-function BalanceLabel({
-  balance,
-  code,
-  prominent = false,
-}: {
-  balance: number;
-  code: string;
-  prominent?: boolean;
-}) {
+function BalanceLabel({ balance, code }: { balance: number; code: string }) {
   return (
-    <span
-      className={`${balanceColor(balance)} ${prominent ? "font-semibold" : ""} whitespace-nowrap`}
-    >
+    <span className={`${balanceColor(balance)} whitespace-nowrap`}>
       {balance === 0 ? "Settled" : balance > 0 ? "Gets " : "Owes "}
       {balance !== 0 && <span className="font-numeric">{currency(Math.abs(balance), code)}</span>}
     </span>
@@ -102,18 +92,10 @@ function BalanceDirection({ balance }: { balance: number }) {
   );
 }
 
-function BalanceValue({
-  balance,
-  code,
-  prominent = false,
-}: {
-  balance: number;
-  code: string;
-  prominent?: boolean;
-}) {
+function BalanceValue({ balance, code }: { balance: number; code: string }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <BalanceLabel balance={balance} code={code} prominent={prominent} />
+      <BalanceLabel balance={balance} code={code} />
       <BalanceDirection balance={balance} />
     </span>
   );
@@ -231,11 +213,7 @@ function SingleCurrencySummaryList({
                       </span>
                     )}
                     <span className="flex justify-end">
-                      <BalanceValue
-                        balance={member.balance}
-                        code={group.currency}
-                        prominent={isViewer}
-                      />
+                      <BalanceValue balance={member.balance} code={group.currency} />
                     </span>
                   </li>
                 );
@@ -340,8 +318,10 @@ function ConsolidatedSummaryList({
                       onClick={() => onMemberClick?.(member.memberId, group.currency)}
                       className={`${grid} relative w-full px-3 py-3 text-left transition-colors hover:bg-wash focus-visible:outline-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest`}
                     >
-                      <span className="min-w-0 break-words pl-9 text-xs text-ink-soft">
-                        <span className="font-numeric">{group.currency}</span>
+                      <span className="min-w-0 break-words text-xs text-ink-soft">
+                        <span className="font-numeric font-semibold text-ink">
+                          {group.currency}
+                        </span>
                         {hasSpend && (
                           <span className="mt-1 block @min-[29.5rem]:hidden">
                             {currencyMember.share ? (
@@ -365,11 +345,7 @@ function ConsolidatedSummaryList({
                         </span>
                       )}
                       <span className="flex justify-end">
-                        <BalanceValue
-                          balance={currencyMember.balance}
-                          code={group.currency}
-                          prominent={isViewer}
-                        />
+                        <BalanceValue balance={currencyMember.balance} code={group.currency} />
                       </span>
                     </button>
                   );
@@ -603,7 +579,7 @@ export function TabSettlement({
   return (
     <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
       <Dialog open={open} onOpenChange={setOpen}>
-        {/* View payments stays `outline` and Breakdown stays a link (DESIGN.md
+        {/* View payments is `secondary` and Breakdown stays a link (DESIGN.md
             § 5). On a phone, Breakdown shares the title row while the wider
             View payments action takes the row below. */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -622,7 +598,7 @@ export function TabSettlement({
           )}
           <div className="ml-auto flex w-full items-center gap-3 sm:w-auto">
             <DialogTrigger
-              render={<Button variant="outline" size="touch" className="w-full sm:w-auto" />}
+              render={<Button variant="secondary" size="touch" className="w-full sm:w-auto" />}
             >
               View payments
             </DialogTrigger>
@@ -739,7 +715,7 @@ export function TabSettlement({
                                     </span>
                                     {isOwner && (
                                       <Button
-                                        variant="outline"
+                                        variant="secondary"
                                         size="touch"
                                         onClick={() =>
                                           beginPayment(
@@ -962,7 +938,7 @@ export function TabSettlement({
               <div className="flex flex-wrap justify-end gap-3">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="touch"
                   disabled={paymentPending}
                   onClick={() => {
