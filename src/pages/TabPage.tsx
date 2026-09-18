@@ -1072,7 +1072,7 @@ function ExpenseList({
   const { list: listGrid, row: rowGrid } = expenseListGridClass(showSettlement);
   const expenseRows = (
     <>
-      <div className="overflow-hidden rounded-lg border border-edge bg-field">
+      <div className="overflow-hidden border border-edge/70 bg-field">
         {!filtered.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length

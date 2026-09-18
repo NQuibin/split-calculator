@@ -43,14 +43,14 @@ export function ExpenseLineItem({
 
   return (
     <li
-      className={`rounded-lg border bg-surface text-sm transition-colors hover:bg-wash ${isEditing ? "border-forest" : "border-rule"}`}
+      className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center text-sm transition-colors hover:bg-wash ${isEditing ? "bg-wash" : "bg-field"}`}
     >
-      <div className="flex flex-wrap items-center gap-1 px-4 py-2 sm:gap-2">
+      <div className="min-w-0">
         <button
           type="button"
           onClick={onEdit}
           aria-haspopup="dialog"
-          className="min-h-11 min-w-24 flex-1 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          className="relative flex min-h-11 min-w-0 w-full flex-col justify-center px-3 py-2 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest sm:px-4"
         >
           <p className="break-words text-ink">
             <span className="font-numeric text-ink-soft">{index + 1}.</span> {item.name}
@@ -86,44 +86,45 @@ export function ExpenseLineItem({
             </span>
           )}
         </button>
+      </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-0">
-          <span className="font-numeric flex flex-wrap items-baseline justify-end gap-x-2 text-ink">
-            {item.discount.value > 0 && (
-              <>
-                <span className="sr-only">Original price </span>
-                <s className="text-xs text-ink-soft">{currency(item.cost, currencyCode)}</s>
-              </>
-            )}
-            <span>
-              <span className="sr-only">
-                {item.discount.value > 0
-                  ? "Discounted price before tax and tip "
-                  : "Price before tax and tip "}
-              </span>
-              {currency(Math.max(0, item.cost - discountAmount(item)), currencyCode)}
+      <div className="relative z-10 flex items-center gap-0 pr-2 sm:pr-3">
+        <span className="font-numeric flex flex-wrap items-baseline justify-end gap-x-2 text-ink">
+          {item.discount.value > 0 && (
+            <>
+              <span className="sr-only">Original price </span>
+              <s className="text-xs text-ink-soft">{currency(item.cost, currencyCode)}</s>
+            </>
+          )}
+          <span>
+            <span className="sr-only">
+              {item.discount.value > 0
+                ? "Discounted price before tax and tip "
+                : "Price before tax and tip "}
             </span>
+            {currency(Math.max(0, item.cost - discountAmount(item)), currencyCode)}
           </span>
-          <Button
-            type="button"
-            variant="quiet-icon"
-            size="icon"
-            onClick={onEdit}
-            aria-label={`Edit ${item.name}`}
-            aria-haspopup="dialog"
-          >
-            <Pencil className="h-4 w-4" strokeWidth={2.25} />
-          </Button>
-          <Button
-            type="button"
-            variant="destructive-icon"
-            size="icon"
-            onClick={onRemove}
-            aria-label={`Remove ${item.name}`}
-          >
-            <Trash2 className="h-4 w-4" strokeWidth={2.25} />
-          </Button>
-        </div>
+        </span>
+        <Button
+          type="button"
+          variant="quiet-icon"
+          size="icon"
+          className="ml-2"
+          onClick={onEdit}
+          aria-label={`Edit ${item.name}`}
+          aria-haspopup="dialog"
+        >
+          <Pencil className="h-4 w-4" strokeWidth={2.25} />
+        </Button>
+        <Button
+          type="button"
+          variant="destructive-icon"
+          size="icon"
+          onClick={onRemove}
+          aria-label={`Remove ${item.name}`}
+        >
+          <Trash2 className="h-4 w-4" strokeWidth={2.25} />
+        </Button>
       </div>
     </li>
   );

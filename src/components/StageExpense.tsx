@@ -674,7 +674,7 @@ export function StageExpense({
             </Dialog>
 
             {items.length > 0 && (
-              <ul className="mt-2 space-y-3">
+              <ul className="mt-2 divide-y divide-rule overflow-hidden border border-edge/70 bg-field">
                 {items.map((item, i) => (
                   <ExpenseLineItem
                     key={item.id}
