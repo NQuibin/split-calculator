@@ -176,11 +176,6 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   // one step down a tier on its own rather than overflowing.
   const tabContent = (
     <div className="grid gap-6 min-[1600px]:grid-cols-[35rem_minmax(0,1fr)] min-[1600px]:items-start">
-      {tab.isOwner && (
-        <div className="md:hidden">
-          <ExpenseActions slug={slug} members={tab.members} className="w-full" />
-        </div>
-      )}
       <TabSettlement
         slug={slug}
         members={tab.members}
@@ -199,6 +194,11 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       />
     </div>
   );
+  const mobileExpenseActions = tab.isOwner ? (
+    <div className="mb-6 md:hidden">
+      <ExpenseActions slug={slug} members={tab.members} className="w-full" />
+    </div>
+  ) : null;
 
   return (
     <Page width="xwide">
@@ -239,6 +239,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
           )}
         </div>
       </header>
+      {mobileExpenseActions}
       {hasUpcoming ? (
         <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Tab expense date">
           {tabContent}

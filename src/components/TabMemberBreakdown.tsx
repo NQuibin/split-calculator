@@ -16,6 +16,7 @@ export function TabMemberBreakdown({
   onExpenseClick?: (expenseSlug: string) => void;
 }) {
   const modal = variant === "modal";
+  const totalAmount = member.expenses.reduce((total, line) => total + line.total, 0);
   return (
     <article
       className={
@@ -55,20 +56,21 @@ export function TabMemberBreakdown({
         </p>
       ) : (
         <ul
-          className={`${modal ? "grid grid-cols-[minmax(0,1fr)_auto] divide-y divide-rule sm:grid-cols-[minmax(0,1fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "divide-y divide-rule/70 border-t border-rule/70"} bg-field text-sm`}
+          className={`${modal ? "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] divide-y divide-rule sm:grid-cols-[minmax(0,2fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "divide-y divide-rule/70 border-t border-rule/70"} bg-field text-sm`}
         >
           {modal && (
-            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-5 bg-band px-5 py-2 text-xs font-medium uppercase text-ink-soft sm:px-6">
+            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 bg-band px-5 py-2 text-xs font-medium uppercase text-ink-soft sm:gap-x-5 sm:px-6">
               <span>Expense</span>
+              <span aria-hidden="true" className="sm:hidden" />
               <span className="hidden sm:block">Paid by</span>
-              <span className="hidden text-right sm:block">Total</span>
+              <span className="hidden text-right sm:block">Amount</span>
               <span className="text-right">Spent</span>
             </li>
           )}
           {member.expenses.map((line) => (
             <li
               key={line.expenseSlug}
-              className={`${modal ? "relative col-span-full grid grid-cols-[subgrid] items-center gap-x-5 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash" : "flex flex-wrap items-start justify-between gap-x-5 gap-y-2"} px-5 py-4 sm:px-6`}
+              className={`${modal ? "relative col-span-full grid grid-cols-[subgrid] items-center gap-x-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash sm:gap-x-5" : "flex flex-wrap items-start justify-between gap-x-5 gap-y-2"} px-5 py-4 sm:px-6`}
             >
               {modal ? (
                 <button
@@ -103,11 +105,23 @@ export function TabMemberBreakdown({
                 </div>
               )}
               {modal && (
+                <span className="min-w-0 text-xs text-ink-soft sm:hidden">
+                  <span className="block break-words">
+                    <span className="font-medium text-ink">{line.payerName}</span> paid
+                  </span>
+                  <span className="mt-1 block font-numeric text-ink">
+                    {currency(line.total, currencyCode)}
+                  </span>
+                </span>
+              )}
+              {modal && (
                 <span className="hidden min-w-0 items-center gap-2 break-words text-sm text-ink-soft sm:flex">
                   {line.payerId && (
                     <MemberAvatar id={line.payerId} name={line.payerName} size="sm" />
                   )}
-                  <span className="min-w-0 break-words">{line.payerName}</span>
+                  <span className="min-w-0 break-words sm:font-semibold sm:text-ink">
+                    {line.payerName}
+                  </span>
                 </span>
               )}
               {modal && (
@@ -125,30 +139,49 @@ export function TabMemberBreakdown({
               </div>
             </li>
           ))}
+          {modal && (
+            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 border-t border-rule bg-band px-5 py-2 text-xs sm:gap-x-5 sm:px-6">
+              <dl className="contents">
+                <dt className="font-medium text-ink">
+                  <span className="sm:hidden">Total spent</span>
+                  <span className="hidden sm:inline">Total</span>
+                </dt>
+                <dd aria-hidden="true" />
+                <dd className="hidden justify-self-end font-numeric font-semibold text-ink sm:block">
+                  {currency(totalAmount, currencyCode)}
+                </dd>
+                <dd className="justify-self-end font-numeric font-semibold text-ink">
+                  {currency(member.totalSpent, currencyCode)}
+                </dd>
+              </dl>
+            </li>
+          )}
         </ul>
       )}
 
-      <dl
-        className={`flex flex-wrap justify-between gap-x-6 gap-y-3 border-t bg-band px-5 sm:px-6 ${
-          modal ? "border-rule py-2 text-xs" : "border-rule/70 py-4 text-sm"
-        }`}
-      >
-        {modal ? (
-          <>
-            <dt className="font-medium text-ink">Total spent</dt>
-            <dd className="font-numeric font-semibold text-ink">
-              {currency(member.totalSpent, currencyCode)}
-            </dd>
-          </>
-        ) : (
-          <div className="flex items-baseline gap-2">
-            <dt className="text-ink-soft">Total spent</dt>
-            <dd className="font-numeric font-medium text-ink">
-              {currency(member.totalSpent, currencyCode)}
-            </dd>
-          </div>
-        )}
-      </dl>
+      {(!modal || member.expenses.length === 0) && (
+        <dl
+          className={`flex flex-wrap justify-between gap-x-6 gap-y-3 border-t bg-band px-5 sm:px-6 ${
+            modal ? "border-rule py-2 text-xs" : "border-rule/70 py-4 text-sm"
+          }`}
+        >
+          {modal ? (
+            <>
+              <dt className="font-medium text-ink">Total spent</dt>
+              <dd className="font-numeric font-semibold text-ink">
+                {currency(member.totalSpent, currencyCode)}
+              </dd>
+            </>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <dt className="text-ink-soft">Total spent</dt>
+              <dd className="font-numeric font-medium text-ink">
+                {currency(member.totalSpent, currencyCode)}
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
     </article>
   );
 }
