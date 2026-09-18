@@ -56,7 +56,7 @@ export function ExpenseDetailsDialog({
               </DialogClose>
             </div>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+          <div className="min-h-0 flex-1 overflow-y-auto card-inset">
             <p className="font-numeric text-2xl font-semibold">
               {currency(split.grandTotal, expense.currency)}
             </p>

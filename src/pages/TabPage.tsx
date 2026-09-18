@@ -763,7 +763,7 @@ function ExpenseActions({
 }
 
 // The expense row's own layout. Rows are self-describing - there is no header
-// band naming columns - but the money still has to line up down the list.
+// row naming columns - but the money still has to line up down the list.
 // Reading order is date / name / who's in the split / amount and who paid it /
 // your share, then the row's actions menu, which is a sibling of the row
 // trigger rather than a child - a button can't nest inside a button (see
@@ -850,7 +850,7 @@ function expenseListGridClass(withSettlement: boolean) {
     // one (it needs `gap-x-4` unconditionally for its own independent mobile
     // grid), so its own value has to move in lockstep with the list's or the
     // two silently mismatch.
-    row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 px-5 @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[56rem]:gap-x-6",
+    row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 bleed-px @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[56rem]:gap-x-6",
   };
 }
 
@@ -1072,7 +1072,10 @@ function ExpenseList({
   const { list: listGrid, row: rowGrid } = expenseListGridClass(showSettlement);
   const expenseRows = (
     <>
-      <div className="overflow-hidden border border-edge/70 bg-field">
+      {/* A row list with no header or footer is still a table body (DESIGN.md
+          "Data tables"): the field ground between two `--edge` rules, open at
+          the sides. */}
+      <div className="bleed overflow-hidden border-y border-edge bg-field">
         {!filtered.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length
@@ -1208,7 +1211,7 @@ function ExpenseList({
   return (
     <section
       aria-label="Expenses"
-      className={`@container ${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 p-5 sm:p-6`}
+      className={`@container ${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 card-inset`}
     >
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SectionTitle className="mr-auto flex items-center gap-2">

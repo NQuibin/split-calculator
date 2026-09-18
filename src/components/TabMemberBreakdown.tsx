@@ -16,12 +16,17 @@ export function TabMemberBreakdown({
   onExpenseClick?: (expenseSlug: string) => void;
 }) {
   const modal = variant === "modal";
+  // The card has no padding of its own, so its rows supply the card's inset.
+  // The modal sits inside a `card-inset` dialog body, so the whole article
+  // bleeds out to the dialog's edges and each row puts the inset back
+  // (DESIGN.md "Data tables").
+  const inset = modal ? "bleed-px" : "px-5 sm:px-6";
   const totalAmount = member.expenses.reduce((total, line) => total + line.total, 0);
   return (
     <article
       className={
         modal
-          ? "overflow-hidden border border-edge/70 bg-field"
+          ? "bleed"
           : `${mobileRaisedSurfaceClass} overflow-hidden border border-rule/70 bg-surface/80`
       }
     >
@@ -51,15 +56,21 @@ export function TabMemberBreakdown({
       )}
 
       {member.expenses.length === 0 ? (
-        <p className="border-t border-rule/70 bg-field px-5 py-5 text-sm text-ink-soft sm:px-6">
+        <p className={`border-y border-edge bg-field py-5 text-sm text-ink-soft ${inset}`}>
           Not part of any expenses yet.
         </p>
       ) : (
         <ul
-          className={`${modal ? "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] divide-y divide-rule sm:grid-cols-[minmax(0,2fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "divide-y divide-rule/70 border-t border-rule/70"} bg-field text-sm`}
+          // The modal's header and totals rows have to be `<li>`s of this list
+          // to share its subgrid, so its body can't be one element carrying
+          // both rules the way DESIGN.md "Data tables" describes. Both rows
+          // always render in the modal, though, so the rules sit on them
+          // instead - the concern that puts rules on the body (a header or
+          // footer that sometimes doesn't render) doesn't arise here.
+          className={`${modal ? "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,2fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "divide-y divide-rule border-y border-edge bg-field"} text-sm`}
         >
           {modal && (
-            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 bg-band px-5 py-2 text-xs font-medium uppercase text-ink-soft sm:gap-x-5 sm:px-6">
+            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 border-b border-edge bleed-px py-2 text-xs font-medium uppercase text-ink-soft sm:gap-x-5">
               <span>Expense</span>
               <span aria-hidden="true" className="sm:hidden" />
               <span className="hidden sm:block">Paid by</span>
@@ -67,10 +78,10 @@ export function TabMemberBreakdown({
               <span className="text-right">Spent</span>
             </li>
           )}
-          {member.expenses.map((line) => (
+          {member.expenses.map((line, index) => (
             <li
               key={line.expenseSlug}
-              className={`${modal ? "relative col-span-full grid grid-cols-[subgrid] items-center gap-x-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash sm:gap-x-5" : "flex flex-wrap items-start justify-between gap-x-5 gap-y-2"} px-5 py-4 sm:px-6`}
+              className={`${modal ? `relative col-span-full grid grid-cols-[subgrid] items-center gap-x-3 bg-field transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash sm:gap-x-5 ${index > 0 ? "border-t border-rule" : ""}` : "flex flex-wrap items-start justify-between gap-x-5 gap-y-2"} py-4 ${inset}`}
             >
               {modal ? (
                 <button
@@ -140,7 +151,7 @@ export function TabMemberBreakdown({
             </li>
           ))}
           {modal && (
-            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 border-t border-rule bg-band px-5 py-2 text-xs sm:gap-x-5 sm:px-6">
+            <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 border-t border-edge bleed-px py-2 text-xs sm:gap-x-5">
               <dl className="contents">
                 <dt className="font-medium text-ink">
                   <span className="sm:hidden">Total spent</span>
@@ -161,8 +172,8 @@ export function TabMemberBreakdown({
 
       {(!modal || member.expenses.length === 0) && (
         <dl
-          className={`flex flex-wrap justify-between gap-x-6 gap-y-3 border-t bg-band px-5 sm:px-6 ${
-            modal ? "border-rule py-2 text-xs" : "border-rule/70 py-4 text-sm"
+          className={`flex flex-wrap justify-between gap-x-6 gap-y-3 ${inset} ${
+            modal ? "py-2 text-xs" : "py-4 text-sm"
           }`}
         >
           {modal ? (

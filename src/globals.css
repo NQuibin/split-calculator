@@ -64,15 +64,6 @@
      --rule for dividers *within* a surface, --edge only where one surface
      floats above another. */
   --edge: #788576;
-  /* A structural band inside a card: a table's header row, a card's totals
-     footer. --paper was standing in for this, but --paper *is* the page, so a
-     footer at the bottom edge of a card read as a hole punched through to the
-     page behind it. This is sage like the grounds it sits among - deliberately
-     NOT --wash, which is warm - so a static band can never be mistaken for a
-     hover state. Clears a step against all three grounds it can touch: the
-     page (1.22:1), a card (1.26:1) and a --field body (1.37:1). --ink 10.7:1,
-     --ink-soft 5.2:1. */
-  --band: #d6ddc9;
   /* The inset ground: content nested inside a --surface card that has to lift
      off it - an input well, a data table. Fields used to be --paper, the
      page's own colour (1.00:1 on a page, 1.05:1 in a card), so the fill did
@@ -127,7 +118,6 @@
   --color-wash: var(--wash);
   --color-brass-ink: var(--brass-ink);
   --color-edge: var(--edge);
-  --color-band: var(--band);
   --color-field: var(--field);
   --color-margin-red-ink: var(--margin-red-ink);
 
@@ -302,4 +292,34 @@ details[open] .chevron-flip,
     transition-duration: 0.01ms !important;
     /* biome-ignore-end lint/complexity/noImportantStyles: see above */
   }
+}
+
+/* Full-bleed tables (DESIGN.md "Data tables"). A padded surface that hosts a
+   table sets its padding through `card-inset`, which also publishes it as
+   --card-inset; a table then bleeds out by exactly that amount (`bleed`) and
+   its rows put it back as padding (`bleed-px`, or `bleed-pl` / `bleed-pr` on a
+   <table>'s edge cells), so row content lines up with the card's own content
+   column while the field ground and hover run to the card's edges.
+
+   Outside a `card-inset` surface the variable is unset: `bleed` falls back to
+   no bleed at all, and the row padding to --spacing(3), so the same table still
+   renders correctly on a bare page. */
+@utility card-inset {
+  --card-inset: --spacing(5);
+  padding: var(--card-inset);
+  @variant sm {
+    --card-inset: --spacing(6);
+  }
+}
+@utility bleed {
+  margin-inline: calc(var(--card-inset, 0px) * -1);
+}
+@utility bleed-px {
+  padding-inline: var(--card-inset, --spacing(3));
+}
+@utility bleed-pl {
+  padding-left: var(--card-inset, --spacing(3));
+}
+@utility bleed-pr {
+  padding-right: var(--card-inset, --spacing(3));
 }

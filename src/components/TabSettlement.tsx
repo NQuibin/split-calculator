@@ -102,7 +102,7 @@ function BalanceValue({ balance, code }: { balance: number; code: string }) {
 }
 
 /**
- * One template for the band, the rows and the totals footer, so the two money
+ * One template for the header, the rows and the totals footer, so the two money
  * columns line up down the whole currency group. Fixed tracks are enough here
  * (unlike the expense list, which needed a subgrid): every cell in these
  * columns is a bounded money string, so no row can size a track differently
@@ -143,12 +143,8 @@ function SingleCurrencySummaryList({
         const totalSpent = members.reduce((sum, member) => sum + (member.share ?? 0), 0);
 
         return (
-          <section
-            key={group.currency}
-            aria-label={`${group.currency} balances`}
-            className="overflow-hidden border border-edge/70"
-          >
-            <GroupTitle as="h3" className={`${grid} bg-band px-3 py-2 text-xs`}>
+          <section key={group.currency} aria-label={`${group.currency} balances`} className="bleed">
+            <GroupTitle as="h3" className={`${grid} bleed-px py-2 text-xs`}>
               <span className="min-w-0">
                 <span className="font-numeric">{group.currency}</span>
                 {currencyName && (
@@ -164,20 +160,23 @@ function SingleCurrencySummaryList({
                 Balance
               </span>
             </GroupTitle>
-            <ul className="divide-y divide-rule bg-field">
+            {/* The body owns both rules, so the table closes top and bottom
+                whether or not a header or totals row renders around it - see
+                DESIGN.md "Data tables". */}
+            <ul className="divide-y divide-rule border-y border-edge bg-field">
               {members.map((member) => {
                 const isViewer = member.memberId === data.viewerMemberId;
                 // A member with no share in this currency spent nothing in it,
                 // which reads better as "No expenses" than as a zero amount.
                 const spent = member.share ? currency(member.share, group.currency) : "No expenses";
                 return (
-                  // `px-3` matches the band above and the totals band below, so
-                  // all three share one track geometry - without it the column
-                  // labels and the total sit 12px left of the values they
+                  // `bleed-px` matches the header above and the totals row
+                  // below, so all three share one track geometry - without it
+                  // the column labels and the total sit off the values they
                   // describe, which is the whole point of the ledger layout.
                   <li
                     key={member.memberId}
-                    className={`${grid} relative px-3 py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
+                    className={`${grid} relative bleed-px py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
                   >
                     <button
                       type="button"
@@ -220,7 +219,7 @@ function SingleCurrencySummaryList({
               })}
             </ul>
             {hasSpend && (
-              <div className={`${grid} border-t border-rule bg-band px-3 py-2 text-xs`}>
+              <div className={`${grid} bleed-px py-2 text-xs`}>
                 <span className="font-medium text-ink">Total spent</span>
                 <span className="hidden text-right @min-[29.5rem]:block">
                   <span className="font-numeric font-semibold text-ink">
@@ -279,8 +278,8 @@ function ConsolidatedSummaryList({
     .filter(({ spent, outstanding }) => spent !== 0 || outstanding !== 0);
 
   return (
-    <div className="space-y-0 overflow-hidden border border-edge/70">
-      <div className={`${grid} hidden bg-band px-3 py-2 @min-[29.5rem]:grid`}>
+    <div className="bleed">
+      <div className={`${grid} hidden bleed-px py-2 @min-[29.5rem]:grid`}>
         {hasSpend && (
           <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:col-start-2 @min-[29.5rem]:block">
             Spent
@@ -290,13 +289,15 @@ function ConsolidatedSummaryList({
           Balance
         </span>
       </div>
-      <div className="divide-y divide-rule bg-field">
+      {/* The column labels hide below the container breakpoint, so the top
+          rule lives on the body rather than the header row. */}
+      <div className="divide-y divide-rule border-y border-edge bg-field">
         {orderedMembers.map((member) => {
           const isViewer = member.memberId === data.viewerMemberId;
           const rows = rowsByCurrency(member.memberId);
           return (
             <div key={member.memberId}>
-              <div className={`${grid} bg-surface px-3 py-3`}>
+              <div className={`${grid} bg-surface bleed-px py-3`}>
                 <span className="flex min-w-0 items-center gap-3">
                   <MemberAvatar id={member.memberId} name={member.name} size="sm" />
                   <span className="min-w-0 break-words font-medium">
@@ -316,7 +317,7 @@ function ConsolidatedSummaryList({
                       type="button"
                       aria-haspopup="dialog"
                       onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                      className={`${grid} relative w-full px-3 py-3 text-left transition-colors hover:bg-wash focus-visible:outline-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest`}
+                      className={`${grid} relative w-full bleed-px py-3 text-left transition-colors hover:bg-wash focus-visible:outline-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest`}
                     >
                       <span className="min-w-0 break-words text-xs text-ink-soft">
                         <span className="font-numeric font-semibold text-ink">
@@ -356,7 +357,7 @@ function ConsolidatedSummaryList({
         })}
       </div>
       {(hasSpend || totalCurrencies.length > 0) && (
-        <div className={`${grid} bg-band px-3 py-2 text-xs`}>
+        <div className={`${grid} bleed-px py-2 text-xs`}>
           <span className="font-medium text-ink">{hasSpend ? "Total spent" : "Totals"}</span>
           {hasSpend && (
             <span className="hidden space-y-1 text-right @min-[29.5rem]:block">
@@ -547,7 +548,7 @@ export function TabSettlement({
 
   if (response === undefined)
     return (
-      <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
+      <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
         <SectionTitle>Balances</SectionTitle>
         <p role="status" className="mt-2 text-sm text-ink-soft">
           Loading settlement balances…
@@ -577,7 +578,7 @@ export function TabSettlement({
     : undefined;
   const selectedExpense = expenses.find((expense) => expense.slug === selectedExpenseSlug);
   return (
-    <Panel bleedOnMobile className="@container p-5 sm:p-6" role="region" aria-label="Balances">
+    <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
       <Dialog open={open} onOpenChange={setOpen}>
         {/* View payments is `secondary` and Breakdown stays a link (DESIGN.md
             § 5). On a phone, Breakdown shares the title row while the wider
@@ -824,7 +825,7 @@ export function TabSettlement({
               </DialogClose>
             </div>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+          <div className="min-h-0 flex-1 overflow-y-auto card-inset">
             {breakdown === undefined ? (
               <p role="status" className="text-sm text-ink-soft">
                 Loading breakdown…

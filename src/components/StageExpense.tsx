@@ -564,7 +564,7 @@ export function StageExpense({
         {headerAction}
       </header>
 
-      <Panel bleedOnMobile className="p-5 sm:p-6">
+      <Panel bleedOnMobile className="card-inset">
         <div className="mb-4 flex gap-2 border-b border-rule pb-4">
           <ModeButton
             icon={Calculator}

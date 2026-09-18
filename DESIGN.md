@@ -44,7 +44,6 @@ utilities via `@theme inline`. **Never write a hex literal in a `className`.**
 | `--brass`       | `#b8933a` | `text-brass`        | **Decoration only** — see the contrast warning below          |
 | `--rule`        | `#ccd5bd` | `border-rule`       | Borders, dividers, input outlines                             |
 | `--wash`        | `#e9dfc5` | `bg-wash`           | Hover/active wash — **warm**, against sage resting grounds      |
-| `--band`        | `#d6ddc9` | `bg-band`           | A structural band in a card — a table header, a totals footer   |
 | `--brass-ink`   | `#7a611f` | `text-brass-ink`    | Brass where it must be **readable** — the wordmark, brass text  |
 | `--edge`        | `#788576` | `border-edge`       | The boundary of a floating surface **or a form field**          |
 | `--field`       | `#fffdf6` | `bg-field`          | The **inset** ground — input wells *and* data tables            |
@@ -192,7 +191,7 @@ for surfaces that genuinely float above the page:
 | Surface                        | Treatment                          |
 | ------------------------------ | ---------------------------------- |
 | Form field, picker trigger     | `border-edge` + `bg-field` — no shadow |
-| Data table / row list in a card | Follow the balances table: `border-edge/70` + `bg-field`, `bg-band` header/footer |
+| Data table / row list in a card | Follow the balances table: full-bleed, `bg-field` body between `border-y border-edge`; no box, no bands |
 | Card, panel, list container    | `border-rule` — no shadow           |
 | Popover, dropdown, menu        | `border-edge` + `shadow-lg`         |
 | Dialog                         | `border-rule/70` + `shadow-xl`, over a `bg-ink/40` backdrop |
@@ -525,49 +524,82 @@ track. Reach for the pattern above only when a row genuinely needs its own
 actions; it exists to make a nested button legal, not because it is the better
 row.
 
-### Data tables and banded cards
+### Data tables
 
-Anything with a **header / body / footer** structure — the spend-summary table,
-a breakdown member card — uses one banding scheme. The tab **Balances** table
-is the canonical reference for this pattern: its square outer edge is a soft
-`border-edge/70`, its body is `bg-field`, and its header and footer are
-`bg-band`. Left alone, every band inherits the card and the whole thing reads
-as one flat rectangle (the body was literally 1.00:1 against the card).
+Anything with a **header / body / footer** structure — the tab **Balances**
+table, the spend-summary table, a breakdown member card — uses one scheme, and
+the Balances table is the canonical reference. It is built from **two rules
+and one ground**, with no box around it and no fill on the header or footer:
 
-| Band                          | Ground                  | Step vs. its neighbour |
-| ----------------------------- | ----------------------- | ---------------------- |
-| Header (column names)         | `bg-band`               | 1.37:1 vs body         |
-| Body (the rows)               | `bg-field`              | 1.085:1 vs the card    |
-| Footer (totals, summary)      | `bg-band`               | 1.37:1 vs body         |
+| Part                     | Treatment                                         |
+| ------------------------ | ------------------------------------------------- |
+| Header (column names)    | Transparent — sits on the card                     |
+| Body (the rows)          | `bg-field`, closed top and bottom by `border-y border-edge` |
+| Footer (totals, summary) | Transparent — sits on the card                     |
 
-**A band is `--band`, never `--paper`.** `--paper` *is* the page, so a footer
-at the bottom edge of a card reads as a hole punched through to the page
-behind it — and even mid-card it's only 1.04:1 against the card. `--band`
-clears a step against all three grounds it can touch: the page (1.22:1), a
-card (1.26:1) and a `--field` body (1.37:1).
+**The rules are what make it a table.** One `--edge` rule under the header and
+one above the footer, both the same weight. They separate header from body and
+body from footer, and between them they bracket the rows as a unit. Don't make
+the footer rule heavier to mark it as a total — the label (`Total spent`) and
+its position at the bottom already say that; a second weight is a second thing
+to keep consistent.
 
-**`--band` is sage; `--wash` is warm.** That's deliberate: a static structural
-band must never be mistakable for a hover state. If you need a band and reach
-for `--wash` because it's "the other light colour", you'll make every totals
-row look permanently hovered.
+**The rules belong to the body, not to the header and footer rows.** Put
+`border-y border-edge` on the body element. A header that hides below a
+container breakpoint, or a footer that only renders when there is spend, would
+otherwise take the rule with it and leave the rows open at one end.
 
-- A block that is **bordered** (a table inside a panel) follows the balances
-  table: square corners, `border-edge/70`, and `bg-field`. The fill alone is
-  only 1.085:1, so at this end of the lightness range the outline still matters.
-  A block that is **full-bleed** inside a card (the breakdown card's rows)
-  doesn't need one; the card's own border is the boundary.
-- Dividers *inside* a block stay `border-rule`. `--edge` is for a block's
-  outer boundary, never its internal lines.
+**The body is `--field`, and the table bleeds.** The light ground is what
+tells rows apart from the header and footer sitting on the card. The whole
+table — header, body and footer — runs out to the card's edges, so the rules,
+the field ground, the hover wash and the focus ring all span the full card
+width, while each row puts the card's padding back so its content still lines
+up with the card title above it. That is the point of the bleed: a table
+inside a padded card used to spend its own inset *on top of* the card's; now
+the card's padding is the only inset, and every row gets the full width.
+`--field` on `--surface` is only 1.085:1, so the ground alone is not a
+boundary — the two rules are.
+
+**How to bleed.** Never hand-write `-mx-6 px-6`: the amount has to match
+whatever padding the table's host has, and tables render in several hosts.
+
+1. The padded surface uses **`card-inset`** instead of `p-5 sm:p-6`. It sets
+   the same padding and publishes it as `--card-inset`.
+2. The table's outermost element takes **`bleed`** — a negative inline margin
+   of exactly `--card-inset`.
+3. Every row — header, body rows, footer — takes **`bleed-px`**, which puts
+   `--card-inset` back as padding. A `<table>` pads only its edge cells, with
+   `[&_tr>:first-child]:bleed-pl [&_tr>:last-child]:bleed-pr`, so the inner
+   cells keep their column gaps.
+
+Outside a `card-inset` host the variable is unset, so `bleed` does nothing and
+`bleed-px` falls back to `--spacing(3)` — the same table still renders on a
+bare page (the shared-expense results page does exactly this). The utilities
+live at the end of `globals.css`. Only bleed in a single-column host; in one
+column of a multi-column layout the negative margin would push into the
+neighbouring column.
+
+**Why no box and no bands.** The earlier version wrapped the table in a
+`border-edge/70` box and filled the header and footer with `--band`. The box
+cost a border plus its own inset inside a card that was already padded, and
+the bands made the table's chrome heavier than its data. Rules carry the same
+structure for a fraction of the ink.
+
+- Header, body rows and footer share **one horizontal padding** (`bleed-px`)
+  so every column lines up down the whole table — the labels over their
+  values, the total under its column.
+- Dividers *between* rows stay `border-rule`. `--edge` is for the two rules
+  that bound the body, never its internal lines.
 - Rows hover to `--wash`, which lands harder on `--field` than on a
   transparent row.
-- **A row list with no header band is still a block**, and keeps the body
-  treatment on its own: `border-edge` + `bg-field`, rows divided by
-  `border-rule`. The tab's expense list is this shape — its rows carry their
-  own labels ("You owe", a payer's avatar), so a band of column names would be
-  naming what the rows already say.
-- Don't reach for `/50` opacities to make a band (`bg-paper/50` was what made
-  the breakdown footer vanish). Bands are flat tokens; a half-transparent one
-  just averages toward whatever it sits on.
+- **A row list with no header or footer is still a body**, and keeps the body
+  treatment on its own: `bg-field` between `border-y border-edge`, rows
+  divided by `border-rule`. The tab's expense list is this shape — its rows
+  carry their own labels ("You owe", a payer's avatar), so a header of column
+  names would be naming what the rows already say.
+- Don't reach for `/50` opacities to tint a table part (`bg-paper/50` was what
+  made the breakdown footer vanish). A half-transparent fill just averages
+  toward whatever it sits on.
 
 ### Cards, rows, chips
 
@@ -868,7 +900,8 @@ reintroduce them.
   spend-summary table, the tab's expense list and the breakdown member cards
   were all transparent on a `--surface/80` card (1.00:1), and the breakdown's
   totals footer was a `bg-paper/50` that averaged back into it. All three now
-  use the header/body/footer banding above.
+  use a header/body/footer banding (since superseded by § 5's rules — see
+  "Open — consistency").
 - ~~Friends' shared-tab chips invisible.~~ They were `bg-paper` on a card
   (1.05:1) and wrapped badly past two or three tabs. Replaced with a
   count button opening a dialog that lists the tabs as navigable rows —
@@ -902,6 +935,14 @@ reintroduce them.
   then to forest outright: `outline` and its promoted twin `outline-strong`
   collapsed into one `secondary`, so there is a single bordered weight to pick
   and no region-by-region judgement about which one applies.
+- ~~Tables boxed and banded.~~ Every header/body/footer table sat in a
+  `border-edge` box with `--band` fills on its header and footer, and the box's
+  own inset stacked on top of the card's padding. All four — the Balances
+  table, the per-expense Paid/Share table, the breakdown member card and the
+  expense list — are now ruled per § 5 "Data tables": a `--field` body between
+  two `--edge` rules, header and footer on the card, and the whole table
+  bleeding to its host's edges through `card-inset` / `bleed` / `bleed-px`.
+  `--band` is deleted; nothing reads it.
 - ~~A `secondary` variant nothing could use.~~ It filled with `--secondary`
   (`--paper`), which is 1.00:1 on the page and 1.05:1 on a card - a borderless
   button in the ground's own colour. It had zero call sites in the app's

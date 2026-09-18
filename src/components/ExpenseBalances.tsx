@@ -55,9 +55,14 @@ export function ExpenseBalances({
           This expense is dated in the future, so it has not become a debt yet.
         </p>
       )}
-      <div className="mt-3 overflow-x-auto rounded-md border border-edge bg-field">
-        <table className="w-full min-w-[28rem] text-sm">
-          <thead className="bg-band text-left text-xs text-ink-soft">
+      {/* Ruled rather than boxed (DESIGN.md "Data tables"): the header sits on
+          the card, and the body carries both `--edge` rules and the field
+          ground. Preflight collapses table borders, so a `<tbody>` border
+          draws. The table bleeds to its host's edges; the edge cells put the
+          host's inset back so the first and last columns line up with it. */}
+      <div className="bleed mt-3 overflow-x-auto">
+        <table className="w-full min-w-[28rem] text-sm [&_tr>:first-child]:bleed-pl [&_tr>:last-child]:bleed-pr">
+          <thead className="text-left text-xs text-ink-soft">
             <tr>
               <th className="px-3 py-2 font-medium">Person</th>
               <th className="px-3 py-2 text-right font-medium">Paid</th>
@@ -65,7 +70,7 @@ export function ExpenseBalances({
               <th className="px-3 py-2 text-right font-medium">Balance</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-rule">
+          <tbody className="divide-y divide-rule border-y border-edge bg-field">
             {rows.map((row) => (
               <tr key={row.memberId}>
                 <th scope="row" className="px-3 py-3 text-left font-medium">
