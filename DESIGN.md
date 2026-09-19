@@ -234,8 +234,8 @@ Every route renders exactly one `<Page>` (`ui/Page.tsx`). Never hand-write a
 `<main>` or copy a `pageClass` constant.
 
 ```tsx
-<Page>…</Page>                      {/* max-w-5xl — the default */}
-<Page width="wide">…</Page>         {/* max-w-7xl — only the tab's expense grid */}
+<Page>…</Page>                      {/* max-w-5xl — the default for every page */}
+<Page width="wide">…</Page>         {/* max-w-7xl — only a genuinely wide data grid */}
 <Page width="narrow" center>…</Page> {/* a centred single-purpose state */}
 ```
 
@@ -732,16 +732,9 @@ breakpoint. The content column is the viewport minus the 240px sidebar (from
 80`. Measured against the real shell, that is 688px at `md`, 704px at `lg` and
 960px at `xl`, capping at 1200px under `max-w-7xl` — a cap reached at ~1520px
 viewport, not at `xl`. `lg` buys only 16px over `md`, so a layout that doesn't
-fit at `md` usually doesn't fit at `lg` either. The tab route uses `xwide`
-(`max-w-[96rem]`) instead, topping out at 1456px, which is what makes room for
-a 35rem balances rail beside an expense list that still clears its own desktop
-tier. Confirmed the hard way, twice: a wider column gap and a larger amount
-cap were each tried at `md` first, independently, and each collapsed the
-expense name column on its own (to 15px and ~60px respectively) before
-landing at `lg`, which is the first tier that actually has slack once the
-sidebar's cost is subtracted. Dropping a column, or shrinking what a shared
-cap is allowed to cost, is what buys room; moving the same columns one
-breakpoint up buys about 15px.
+fit at `md` usually doesn't fit at `lg` either. Keep ordinary pages, including
+the tab info page, on the shared `max-w-5xl` default; use `wide` only for a
+single genuinely wide data grid that cannot remain readable at that width.
 
 A column of **right-aligned money** sizes to its content, never to a fixed
 width. A fixed track makes an unusually large amount overflow into the cell

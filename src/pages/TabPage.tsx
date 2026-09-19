@@ -23,14 +23,13 @@ import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { currency, formatExpenseDateShort, isUpcoming } from "@/lib/format";
 import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
-import { encodeDraftParams } from "@/lib/expenseDraft";
 import { useExpenseActions } from "@/lib/expenseSync";
+import { encodeDraftParams } from "@/lib/expenseDraft";
 import { generateSlug } from "@/lib/slug";
 import { PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { Page } from "@/components/ui/Page";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
-import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
@@ -52,7 +51,7 @@ export function TabPage() {
 
   if (isLoading || claim.status === "claiming") {
     return (
-      <Page width="xwide">
+      <Page>
         <p role="status" className="text-sm text-ink-soft">
           {claim.status === "claiming" ? "Joining tab…" : "Loading tab…"}
         </p>
@@ -101,7 +100,7 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
 
   if (tab === undefined)
     return (
-      <Page width="xwide">
+      <Page>
         <p role="status" className="text-sm text-ink-soft">
           Loading invite…
         </p>
@@ -145,7 +144,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
 
   if (tab === undefined || expenses === undefined)
     return (
-      <Page width="xwide">
+      <Page>
         <p role="status" className="text-sm text-ink-soft">
           Loading tab…
         </p>
@@ -159,23 +158,10 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
     );
   }
 
-  // One card now carries both ledgers - what each member spent and where they
-  // land - so the spend summary's own card is gone rather than sitting beside
-  // this one repeating the same roster.
-  //
-  // Side by side from 1600px, not `xl`, and the number is measured rather than
-  // chosen: content width is `min(viewport - 240 sidebar, 96rem) - 80 gutter`,
-  // so `xl` (1280) yields only 960px - a 35rem balances rail would leave the
-  // expense list 376px. 1600px is the first width where the list clears the
-  // 688px it needs for its own desktop tier (it gets 696px there, 872px at
-  // 1920). Balances stays a fixed 35rem because that is what its Spent/Balance
-  // columns need; everything past it goes to the list.
-  //
-  // Both cards size their internals from their own width (`@container`), not
-  // the viewport, so becoming a column instead of the whole page makes each
-  // one step down a tier on its own rather than overflowing.
+  // Keep the two cards in a single standard-width column. The shared Page
+  // shell intentionally gives every page the same readable max width.
   const tabContent = (
-    <div className="grid gap-6 min-[1600px]:grid-cols-[35rem_minmax(0,1fr)] min-[1600px]:items-start">
+    <div className="grid gap-6">
       <TabSettlement
         slug={slug}
         members={tab.members}
@@ -201,7 +187,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   ) : null;
 
   return (
-    <Page width="xwide">
+    <Page>
       <Breadcrumb>
         <Link to="/tabs" className={crumbLinkClass}>
           Tabs
@@ -839,8 +825,8 @@ function expenseListGridClass(withSettlement: boolean) {
   // the build. No warning, no type error: the class just isn't there, and the
   // column collapses to one giant track.
   const list = withSettlement
-    ? "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_minmax(6.75rem,max-content)_2.75rem] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_minmax(6.75rem,max-content)_2.75rem]"
-    : "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_2.75rem] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_2.75rem]";
+    ? "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_minmax(6.75rem,max-content)]"
+    : "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)]";
   return {
     list,
     // `gap-x-4` carries through from its base declaration (mobile and `md`)
@@ -852,30 +838,6 @@ function expenseListGridClass(withSettlement: boolean) {
     // two silently mismatch.
     row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 bleed-px @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[56rem]:gap-x-6",
   };
-}
-
-/** One expense row's actions. A sibling of the row trigger, never a child. */
-function ExpenseRowMenu({
-  expenseSlug,
-  name,
-  onDelete,
-}: {
-  expenseSlug: string;
-  name: string;
-  onDelete: () => void;
-}) {
-  return (
-    <OverflowMenu label={`Actions for ${name}`}>
-      <OverflowAction render={<Link to="/e/$slug" params={{ slug: expenseSlug }} />}>
-        <Pencil />
-        Edit expense
-      </OverflowAction>
-      <OverflowAction destructive onClick={onDelete}>
-        <Trash2 />
-        Delete expense
-      </OverflowAction>
-    </OverflowMenu>
-  );
 }
 
 /**
@@ -1164,22 +1126,6 @@ function ExpenseList({
                       />
                     </span>
                   )}
-                  {/* Row-level Edit/Delete is redundant below `md`: the row's own
-                      trigger already opens the detail dialog, whose footer carries
-                      the same two actions for an owner. Hiding it here isn't losing
-                      access, it's dropping a second path to the same place - and it
-                      gives the name column back the width the menu track cost it. */}
-                  <div
-                    className={`z-10 hidden justify-end @min-[40rem]:relative @min-[40rem]:flex ${showSettlement ? "@min-[40rem]:col-start-6" : "@min-[40rem]:col-start-5"}`}
-                  >
-                    {isOwner && (
-                      <ExpenseRowMenu
-                        expenseSlug={expense.slug}
-                        name={expense.name ?? "Untitled expense"}
-                        onDelete={() => setDeletingSlug(expense.slug)}
-                      />
-                    )}
-                  </div>
                 </li>
               );
             })}

@@ -1,5 +1,4 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { SectionTitle } from "@/components/ui/Typography";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { currency, parseISODate } from "@/lib/format";
 import type { TabBreakdownMember } from "@/lib/tabSync";
@@ -16,47 +15,36 @@ export function TabMemberBreakdown({
   onExpenseClick?: (expenseSlug: string) => void;
 }) {
   const modal = variant === "modal";
-  // The card has no padding of its own, so its rows supply the card's inset.
-  // The modal sits inside a `card-inset` dialog body, so the whole article
-  // bleeds out to the dialog's edges and each row puts the inset back
-  // (DESIGN.md "Data tables").
-  const inset = modal ? "bleed-px" : "px-5 sm:px-6";
+  // Both variants live inside a `card-inset` surface. Tables bleed to that
+  // surface's horizontal edges and their rows restore the same inset.
+  const inset = "bleed-px";
   const totalAmount = member.expenses.reduce((total, line) => total + line.total, 0);
   return (
     <article
       className={
         modal
           ? "bleed"
-          : `${mobileRaisedSurfaceClass} overflow-hidden border border-rule/70 bg-surface/80`
+          : `${mobileRaisedSurfaceClass} card-inset overflow-hidden border border-rule/70 bg-surface/80`
       }
     >
       {!modal && (
-        <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
+        <header className="pb-5">
           <div className="flex min-w-0 items-center gap-3">
-            <MemberAvatar id={member.memberId} name={member.name} size="lg" />
+            <MemberAvatar id={member.memberId} name={member.name} size="sm" />
             <div className="min-w-0">
-              <SectionTitle>{member.name}</SectionTitle>
+              <p className="break-words text-sm font-medium text-ink">{member.name}</p>
               <p className="mt-1 text-xs text-ink-soft">
                 {member.expenseCount} {member.expenseCount === 1 ? "expense" : "expenses"}
               </p>
             </div>
           </div>
-          {!modal && member.expenses.length ? (
-            <span>
-              <span className="block text-xs text-ink-soft">Total spent</span>
-              <span className="block font-numeric text-lg font-semibold text-ink">
-                {currency(member.totalSpent, currencyCode)}
-              </span>
-            </span>
-          ) : !modal ? (
-            <span className="text-sm text-ink-soft">No expenses</span>
-          ) : null}
-          {modal && <span className="text-xs text-ink-soft">{currencyCode}</span>}
         </header>
       )}
 
       {member.expenses.length === 0 ? (
-        <p className={`border-y border-edge bg-field py-5 text-sm text-ink-soft ${inset}`}>
+        <p
+          className={`${modal ? "" : "bleed"} border-y border-edge bg-field py-5 text-sm text-ink-soft ${inset}`}
+        >
           Not part of any expenses yet.
         </p>
       ) : (
@@ -67,7 +55,7 @@ export function TabMemberBreakdown({
           // always render in the modal, though, so the rules sit on them
           // instead - the concern that puts rules on the body (a header or
           // footer that sometimes doesn't render) doesn't arise here.
-          className={`${modal ? "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,2fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "divide-y divide-rule border-y border-edge bg-field"} text-sm`}
+          className={`${modal ? "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,2fr)_minmax(9rem,1fr)_minmax(6rem,auto)_minmax(5rem,auto)]" : "bleed divide-y divide-rule border-b border-edge"} text-sm`}
         >
           {modal && (
             <li className="col-span-full grid grid-cols-[subgrid] items-center gap-x-3 border-b border-edge bleed-px py-2 text-xs font-medium uppercase text-ink-soft sm:gap-x-5">
@@ -78,10 +66,18 @@ export function TabMemberBreakdown({
               <span className="text-right">Spent</span>
             </li>
           )}
+          {!modal && (
+            <li
+              className={`grid grid-cols-[minmax(0,1fr)_auto] items-center ${inset} bg-transparent py-2 text-xs font-medium uppercase text-ink-soft`}
+            >
+              <span>Expense</span>
+              <span className="text-right">Spent</span>
+            </li>
+          )}
           {member.expenses.map((line, index) => (
             <li
               key={line.expenseSlug}
-              className={`${modal ? `relative col-span-full grid grid-cols-[subgrid] items-center gap-x-3 bg-field transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash sm:gap-x-5 ${index > 0 ? "border-t border-rule" : ""}` : "flex flex-wrap items-start justify-between gap-x-5 gap-y-2"} py-4 ${inset}`}
+              className={`${modal ? `relative col-span-full grid grid-cols-[subgrid] items-center gap-x-3 bg-field transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash sm:gap-x-5 ${index > 0 ? "border-t border-rule" : ""}` : "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 bg-field"} py-4 ${inset}`}
             >
               {modal ? (
                 <button
@@ -142,7 +138,6 @@ export function TabMemberBreakdown({
               )}
               <div className="shrink-0 text-right">
                 <p className="text-ink">
-                  {!modal && <span className="text-xs text-ink-soft">Share </span>}
                   <span className="font-numeric font-medium">
                     {currency(line.fairShare, currencyCode)}
                   </span>
@@ -173,7 +168,7 @@ export function TabMemberBreakdown({
       {(!modal || member.expenses.length === 0) && (
         <dl
           className={`flex flex-wrap justify-between gap-x-6 gap-y-3 ${inset} ${
-            modal ? "py-2 text-xs" : "py-4 text-sm"
+            modal ? "py-2 text-xs" : "bleed py-2 text-xs"
           }`}
         >
           {modal ? (
@@ -184,12 +179,12 @@ export function TabMemberBreakdown({
               </dd>
             </>
           ) : (
-            <div className="flex items-baseline gap-2">
-              <dt className="text-ink-soft">Total spent</dt>
-              <dd className="font-numeric font-medium text-ink">
+            <>
+              <dt className="font-medium text-ink">Total spent</dt>
+              <dd className="font-numeric font-semibold text-ink">
                 {currency(member.totalSpent, currencyCode)}
               </dd>
-            </div>
+            </>
           )}
         </dl>
       )}

@@ -16,14 +16,6 @@ const widths = {
   default: "max-w-5xl",
   /** The tab's expense grid, which needs the extra columns. */
   wide: "max-w-7xl",
-  /**
-   * The tab page, which puts balances beside expenses on a large screen and so
-   * needs room for two cards rather than one. Measured: content width is
-   * `min(viewport - 240 sidebar, this cap) - 80 gutter`, so this tops out at
-   * 1456px and the split gives expenses ~872px at 1920. `wide` caps at 1200px,
-   * which isn't enough for both cards (they want ~1454px between them).
-   */
-  xwide: "max-w-[96rem]",
   /** A single-purpose centred state: access errors, invites, empty shells. */
   narrow: "max-w-lg",
 } as const;
