@@ -498,7 +498,7 @@ export function StageExpense({
           {adjustmentsOpen && (
             <>
               <div className="rate-inputs-container">
-                <div className="rate-inputs [&>div]:flex-wrap">
+                <div className="rate-inputs rate-inputs-global">
                   <RateInput
                     label="Discount"
                     icon={TicketPercent}
@@ -506,14 +506,16 @@ export function StageExpense({
                     onChange={setDiscount}
                     fullWidth
                   />
-                  <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} fullWidth />
-                  <TipRateInput
-                    rate={tip}
-                    onChange={setTip}
-                    afterTax={tipAfterTax}
-                    onAfterTaxChange={setTipAfterTax}
-                    fullWidth
-                  />
+                  <div className="rate-inputs-tax-tip">
+                    <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} fullWidth />
+                    <TipRateInput
+                      rate={tip}
+                      onChange={setTip}
+                      afterTax={tipAfterTax}
+                      onAfterTaxChange={setTipAfterTax}
+                      fullWidth
+                    />
+                  </div>
                 </div>
               </div>
               <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
@@ -541,13 +543,19 @@ export function StageExpense({
           {error}
         </p>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-        <Button type="button" variant="secondary" size="touch" onClick={closeItemEditor}>
-          Cancel item changes
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between md:col-span-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="touch"
+          className="w-full sm:w-auto"
+          onClick={closeItemEditor}
+        >
+          Cancel
         </Button>
-        <Button type="button" size="touch" onClick={handleSubmit}>
+        <Button type="button" size="touch" className="w-full sm:w-auto" onClick={handleSubmit}>
           {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {editingId ? "Done with item" : "Add to expense"}
+          {editingId ? "Update" : "Add"}
         </Button>
       </div>
     </div>
