@@ -30,7 +30,7 @@ test("the expense form distinguishes money paid from each share and net debt", (
   const html = render();
   expect(html).toContain("Gets $80.00");
   expect(html.match(/Owes \$40.00/g)).toHaveLength(2);
-  expect(html).toContain("Suggested transfers");
+  expect(html).not.toContain("Suggested transfers");
 });
 
 test("payer outside split receives the full expense back", () => {
@@ -45,7 +45,6 @@ test("missing payer and unallocated items do not show invented debts", () => {
   expect(missing).not.toContain("Gets");
   const unallocated = render({ unallocated: true });
   expect(unallocated).toContain("Choose at least one person");
-  expect(unallocated).not.toContain("Suggested transfers");
 });
 
 test("upcoming expenses are clearly projected and a zero balance is settled", () => {

@@ -1,8 +1,8 @@
-import { AlertCircle, ArrowRight, MoveDown, MoveUp } from "lucide-react";
+import { AlertCircle, MoveDown, MoveUp } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { GroupTitle } from "@/components/ui/Typography";
 import { currency as formatCurrency } from "@/lib/format";
-import { computeExpenseBalances, suggestSettlements } from "@/lib/settlements";
+import { computeExpenseBalances } from "@/lib/settlements";
 import type { Person } from "@/lib/types";
 import type { SplitResult } from "@/lib/calculations";
 
@@ -43,7 +43,6 @@ export function ExpenseBalances({
     );
   }
   const rows = computeExpenseBalances(people, split, payerId);
-  const transfers = suggestSettlements(rows);
   return (
     <section className="mt-6 border-t border-rule pt-5" aria-label="Expense balances">
       <GroupTitle as={headingLevel}>
@@ -108,29 +107,6 @@ export function ExpenseBalances({
           </tbody>
         </table>
       </div>
-      {transfers.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-medium text-ink-soft">Suggested transfers</p>
-          {transfers.map((transfer) => {
-            const from = people.find((person) => person.id === transfer.fromMemberId);
-            const to = people.find((person) => person.id === transfer.toMemberId);
-            if (!from || !to) return null;
-            return (
-              <div
-                key={`${transfer.fromMemberId}-${transfer.toMemberId}`}
-                className="flex items-center gap-2 text-sm"
-              >
-                <span className="min-w-0 break-words">{from.name}</span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-ink-soft" aria-hidden="true" />
-                <span className="min-w-0 break-words">{to.name}</span>
-                <span className="font-numeric ml-auto shrink-0">
-                  {formatCurrency(transfer.amount, currency)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </section>
   );
 }

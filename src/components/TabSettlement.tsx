@@ -2,16 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import {
-  ArrowRight,
-  Banknote,
-  ChevronRight,
-  MoveDown,
-  MoveUp,
-  RotateCcw,
-  Scale,
-  X,
-} from "lucide-react";
+import { Banknote, ChevronRight, MoveDown, MoveUp, RotateCcw, Scale, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -25,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/Dialog";
-import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
+import { FieldError, Input, Label, Select, Textarea } from "@/components/ui/Input";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { TabMemberBreakdown } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
@@ -41,8 +32,10 @@ type SettlementResponse = NonNullable<FunctionReturnType<typeof api.settlements.
 type SettlementData = SettlementResponse["paid"];
 type SettlementQueryResponse = SettlementResponse | SettlementData;
 type CurrencySettlement = SettlementData["currencies"][number];
-type Suggestion = CurrencySettlement["suggestions"][number];
-type PaymentDraft = Suggestion & {
+type SettlementMember = CurrencySettlement["members"][number];
+type PaymentDraft = {
+  fromMemberId: SettlementMember["memberId"];
+  toMemberId: SettlementMember["memberId"];
   currency: string;
   expenseView: ExpenseView;
   amountText: string;
@@ -495,25 +488,19 @@ export function TabSettlement({
     };
   }, []);
 
-  function beginPayment(suggestion: Suggestion, code: string, paymentExpenseView: ExpenseView) {
-    requestId.current = crypto.randomUUID();
-    setPaymentError(null);
-    setPayment({
-      ...suggestion,
-      currency: code,
-      expenseView: paymentExpenseView,
-      amountText: String(suggestion.amount),
-      date: day,
-      note: "",
-    });
-  }
-
   async function savePayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!payment || submitting.current) return;
     const amount = Number(payment.amountText);
     if (!Number.isFinite(amount) || amount <= 0) {
       setPaymentError("Enter an amount greater than zero.");
+      return;
+    }
+    const limit = maxPayment(payment);
+    if (amount > limit) {
+      setPaymentError(
+        `${memberName(payment.fromMemberId)} can pay ${memberName(payment.toMemberId)} at most ${currency(limit, payment.currency)}.`,
+      );
       return;
     }
     if (!payment.date || payment.date > day) {
@@ -570,6 +557,58 @@ export function TabSettlement({
 
   const memberName = (id: string) =>
     members.find((member) => member.id === id)?.name ?? "Unknown member";
+
+  // Recording a payment is free-form: pick who paid whom. The server only
+  // accepts a payment from someone who owes to someone who is owed, for at
+  // most the smaller of their two balances, so the pickers offer exactly those
+  // people and the amount defaults to that ceiling.
+  const payingParties = (code: string) => {
+    const group = data.currencies.find((row) => row.currency === code);
+    const byMagnitude = (a: SettlementMember, b: SettlementMember) =>
+      Math.abs(b.balance) - Math.abs(a.balance);
+    return {
+      payers: (group?.members ?? []).filter((member) => member.balance < 0).sort(byMagnitude),
+      payees: (group?.members ?? []).filter((member) => member.balance > 0).sort(byMagnitude),
+    };
+  };
+  const payableCurrencies = data.currencies
+    .map((group) => group.currency)
+    .filter((code) => {
+      const { payers, payees } = payingParties(code);
+      return payers.length > 0 && payees.length > 0;
+    });
+  function maxPayment(draft: Pick<PaymentDraft, "currency" | "fromMemberId" | "toMemberId">) {
+    const { payers, payees } = payingParties(draft.currency);
+    const from = payers.find((member) => member.memberId === draft.fromMemberId);
+    const to = payees.find((member) => member.memberId === draft.toMemberId);
+    if (!from || !to) return 0;
+    return Math.round(Math.min(-from.balance, to.balance) * 100) / 100;
+  }
+  // Changing the currency picks fresh parties; changing either party keeps the
+  // other and resets the amount to the new ceiling.
+  function paymentDraft(
+    code: string,
+    parties: Partial<Pick<PaymentDraft, "fromMemberId" | "toMemberId">> = {},
+  ) {
+    const { payers, payees } = payingParties(code);
+    const fromMemberId = parties.fromMemberId ?? payers[0].memberId;
+    const toMemberId = parties.toMemberId ?? payees[0].memberId;
+    return {
+      currency: code,
+      fromMemberId,
+      toMemberId,
+      amountText: String(maxPayment({ currency: code, fromMemberId, toMemberId })),
+    };
+  }
+  function beginPayment() {
+    const code = payableCurrencies.includes(defaultCurrency)
+      ? defaultCurrency
+      : payableCurrencies[0];
+    if (!code) return;
+    requestId.current = crypto.randomUUID();
+    setPaymentError(null);
+    setPayment({ ...paymentDraft(code), expenseView, date: day, note: "" });
+  }
   const reverseHistory = allData.history.find((item) => item.id === reversingId);
   const selectedBreakdown = selectedMember
     ? breakdown?.currencies
@@ -675,7 +714,7 @@ export function TabSettlement({
                   {viewData.currencies.length === 0 ? (
                     <p className="mt-3 text-sm text-ink-soft">
                       {viewData.missingPayers.length
-                        ? "Assign payers to see settlement suggestions."
+                        ? "Assign payers to see balances."
                         : "No outstanding balances."}
                     </p>
                   ) : (
@@ -694,46 +733,6 @@ export function TabSettlement({
                               </li>
                             ))}
                           </ul>
-                          {group.suggestions.length > 0 && (
-                            <div className="mt-4">
-                              <GroupTitle as="h3">Suggested transfers</GroupTitle>
-                              <ul className="mt-2 space-y-3">
-                                {group.suggestions.map((suggestion) => (
-                                  <li
-                                    key={`${suggestion.fromMemberId}-${suggestion.toMemberId}`}
-                                    className="flex flex-wrap items-center gap-3 text-sm"
-                                  >
-                                    <span className="min-w-0 flex-1 break-words">
-                                      {memberName(suggestion.fromMemberId)}{" "}
-                                      <ArrowRight
-                                        aria-hidden="true"
-                                        className="mx-1 inline h-3.5 w-3.5"
-                                      />{" "}
-                                      {memberName(suggestion.toMemberId)}
-                                    </span>
-                                    <span className="font-numeric whitespace-nowrap">
-                                      {currency(suggestion.amount, group.currency)}
-                                    </span>
-                                    {isOwner && (
-                                      <Button
-                                        variant="secondary"
-                                        size="touch"
-                                        onClick={() =>
-                                          beginPayment(
-                                            suggestion,
-                                            group.currency,
-                                            paymentExpenseView,
-                                          )
-                                        }
-                                      >
-                                        Record payment
-                                      </Button>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
                         </section>
                       ))}
                     </div>
@@ -741,6 +740,16 @@ export function TabSettlement({
                 </section>
               ))}
             </div>
+            {/* The dialog's own `default` (DESIGN.md § 5: a dialog is its own
+                region). Only shown when someone in this view owes someone. */}
+            {isOwner && payableCurrencies.length > 0 && (
+              <div className="mt-5 flex justify-end">
+                <Button size="touch" className="w-full sm:w-auto" onClick={beginPayment}>
+                  <Banknote aria-hidden="true" className="h-4 w-4" />
+                  Record payment
+                </Button>
+              </div>
+            )}
             <section className="mt-5 border-t border-rule pt-4">
               <GroupTitle as="h3">Payment history</GroupTitle>
               {!allData.history.length && (
@@ -890,11 +899,77 @@ export function TabSettlement({
           <DialogContent>
             <DialogTitle>Record payment</DialogTitle>
             <DialogDescription className="mt-1">
-              {memberName(payment.fromMemberId)} → {memberName(payment.toMemberId)} ·{" "}
-              {payment.currency}. This records money already transferred.
+              This records money already transferred outside the app.
             </DialogDescription>
             <form onSubmit={savePayment} className="mt-5 space-y-4" aria-busy={paymentPending}>
               <fieldset disabled={paymentPending} className="space-y-4">
+                {payableCurrencies.length > 1 && (
+                  <div>
+                    <Label htmlFor="settlement-currency">Currency</Label>
+                    <Select
+                      id="settlement-currency"
+                      className="w-full font-numeric"
+                      value={payment.currency}
+                      onChange={(event) =>
+                        setPayment({ ...payment, ...paymentDraft(event.target.value) })
+                      }
+                    >
+                      {payableCurrencies.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="settlement-from">From</Label>
+                    <Select
+                      id="settlement-from"
+                      className="w-full"
+                      value={payment.fromMemberId}
+                      onChange={(event) =>
+                        setPayment({
+                          ...payment,
+                          ...paymentDraft(payment.currency, {
+                            fromMemberId: event.target.value as PaymentDraft["fromMemberId"],
+                            toMemberId: payment.toMemberId,
+                          }),
+                        })
+                      }
+                    >
+                      {payingParties(payment.currency).payers.map((member) => (
+                        <option key={member.memberId} value={member.memberId}>
+                          {member.name} · owes {currency(-member.balance, payment.currency)}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="settlement-to">To</Label>
+                    <Select
+                      id="settlement-to"
+                      className="w-full"
+                      value={payment.toMemberId}
+                      onChange={(event) =>
+                        setPayment({
+                          ...payment,
+                          ...paymentDraft(payment.currency, {
+                            fromMemberId: payment.fromMemberId,
+                            toMemberId: event.target.value as PaymentDraft["toMemberId"],
+                          }),
+                        })
+                      }
+                    >
+                      {payingParties(payment.currency).payees.map((member) => (
+                        <option key={member.memberId} value={member.memberId}>
+                          {member.name} · gets {currency(member.balance, payment.currency)}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
                 <div>
                   <Label htmlFor="settlement-amount">Amount ({payment.currency})</Label>
                   <Input
@@ -912,7 +987,8 @@ export function TabSettlement({
                     required
                   />
                   <p id="settlement-amount-help" className="mt-1 text-xs text-ink-soft">
-                    You can record a partial payment.
+                    Up to {currency(maxPayment(payment), payment.currency)}. You can record a
+                    partial payment.
                   </p>
                 </div>
                 <div>
