@@ -276,7 +276,7 @@ function ExpenseEditor() {
               : "saved-or-guest"
           }
           tabField={
-            isAuthenticated ? (
+            isAuthenticated && !stored && !search.tab ? (
               <ExpenseTabField
                 tabs={tabs}
                 value={stored ? (state.tab?.slug ?? "") : tabSlug}
@@ -295,11 +295,9 @@ function ExpenseEditor() {
           continueDisabled={isAuthenticated && !stored && !tabDraft}
           expenseName={state.name}
           description={
-            stored
-              ? "Edit the details of this expense. Nothing is saved until you're done."
-              : isAuthenticated
-                ? undefined
-                : "Saved only in this browser. Guest expenses stay separate from your account."
+            isAuthenticated
+              ? undefined
+              : "Saved only in this browser. Guest expenses stay separate from your account."
           }
           headerAction={
             stored ? (

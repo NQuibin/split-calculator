@@ -43,14 +43,14 @@ export function ExpenseLineItem({
 
   return (
     <li
-      className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center text-sm transition-colors hover:bg-wash ${isEditing ? "bg-wash" : "bg-field"}`}
+      className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center bleed-px text-sm transition-colors hover:bg-wash ${isEditing ? "bg-wash" : "bg-field"}`}
     >
       <div className="min-w-0">
         <button
           type="button"
           onClick={onEdit}
           aria-haspopup="dialog"
-          className="relative flex min-h-11 min-w-0 w-full flex-col justify-center px-3 py-2 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest sm:px-4"
+          className="relative flex min-h-11 min-w-0 w-full flex-col justify-center py-2 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
         >
           <p className="break-words text-ink">
             <span className="font-numeric text-ink-soft">{index + 1}.</span> {item.name}
@@ -74,7 +74,7 @@ export function ExpenseLineItem({
                 id={id}
                 name={personName(id)}
                 size="sm"
-                className="-ml-1 ring-2 ring-surface"
+                className="-ml-1 ring-2 ring-field"
               />
             ))}
           </span>
@@ -88,7 +88,7 @@ export function ExpenseLineItem({
         </button>
       </div>
 
-      <div className="relative z-10 flex items-center gap-0 pr-2 sm:pr-3">
+      <div className="relative z-10 flex items-center gap-0">
         <span className="font-numeric flex flex-wrap items-baseline justify-end gap-x-2 text-ink">
           {item.discount.value > 0 && (
             <>

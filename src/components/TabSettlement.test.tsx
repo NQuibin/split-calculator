@@ -51,8 +51,8 @@ test("renders each viewer currency once with its own balance", () => {
   expect(markup).toContain("Gets ");
   expect(markup).toContain("USD");
   expect(markup).toContain("Owes ");
-  expect(markup.match(/CA\$7\.34/g)).toHaveLength(2);
-  expect(markup.match(/\$0\.50/g)).toHaveLength(2);
+  expect(markup.match(/CA\$7\.34/g)).toHaveLength(1);
+  expect(markup.match(/\$0\.50/g)).toHaveLength(1);
 });
 
 test("uses currency bands for mixed settled and outstanding balances", () => {
@@ -173,9 +173,7 @@ test("consolidates mixed currencies into member blocks with currency-aware total
   expect(markup).toContain("CA$42.39");
   expect(markup).toContain("CA$42.40");
   expect(markup).toContain("$0.50");
-  expect(markup).toContain("Total spent");
-  expect(markup).toContain("CA$84.79");
-  expect(markup).toContain("$1.00");
+  expect(markup).not.toContain("Total spent");
   // Alex's settled CAD row is omitted only when it has no spend; the USD row
   // remains because it carries a non-zero balance.
   expect(markup.match(/font-numeric font-semibold text-ink">CAD</g)).toHaveLength(2);
@@ -287,9 +285,7 @@ test("shows what each member spent beside their balance, and totals the column",
   expect(markup).toContain("Spent");
   expect(markup).toContain("Balance");
   expect(markup).toContain("CA$42.39");
-  // The footer totals the spend column only - balances always net to zero.
-  expect(markup).toContain("Total spent");
-  expect(markup).toContain("CA$127.19");
+  expect(markup).not.toContain("Total spent");
   // Both ledgers still read on the same row.
   expect(markup).toContain("Gets ");
   expect(markup).toContain("Owes ");

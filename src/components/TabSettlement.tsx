@@ -151,8 +151,6 @@ function SingleCurrencySummaryList({
           : hasPaidFor
             ? balanceRowGrid.withPaidFor
             : balanceRowGrid.balanceOnly;
-        const totalSpent = members.reduce((sum, member) => sum + (member.share ?? 0), 0);
-
         return (
           <section key={group.currency} aria-label={`${group.currency} balances`} className="bleed">
             <GroupTitle as="h3" className={`${grid} bleed-px py-2 text-xs`}>
@@ -186,10 +184,8 @@ function SingleCurrencySummaryList({
                 // which reads better as "No expenses" than as a zero amount.
                 const spent = member.share ? currency(member.share, group.currency) : "No expenses";
                 return (
-                  // `bleed-px` matches the header above and the totals row
-                  // below, so all three share one track geometry - without it
-                  // the column labels and the total sit off the values they
-                  // describe, which is the whole point of the ledger layout.
+                  // `bleed-px` matches the header above, keeping each row's
+                  // values aligned with its column label.
                   <li
                     key={member.memberId}
                     className={`${grid} relative bleed-px py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
@@ -246,22 +242,6 @@ function SingleCurrencySummaryList({
                 );
               })}
             </ul>
-            {hasSpend && (
-              <div className={`${grid} bleed-px py-2 text-xs`}>
-                <span className="font-medium text-ink">Total spent</span>
-                {hasPaidFor && <span />}
-                <span className="hidden text-right @min-[29.5rem]:block">
-                  <span className="font-numeric font-semibold text-ink">
-                    {currency(totalSpent, group.currency)}
-                  </span>
-                </span>
-                <span className="text-right text-ink-soft">
-                  <span className="font-numeric font-semibold text-ink @min-[29.5rem]:hidden">
-                    {currency(totalSpent, group.currency)}
-                  </span>
-                </span>
-              </div>
-            )}
           </section>
         );
       })}
@@ -307,14 +287,6 @@ function ConsolidatedSummaryList({
       if (!member || ((member.share ?? 0) === 0 && member.balance === 0)) return [];
       return [{ group, member }];
     });
-  const totalCurrencies = data.currencies
-    .map((group) => {
-      const spent = group.members.reduce((sum, member) => sum + (member.share ?? 0), 0);
-      const outstanding = group.members.reduce((sum, member) => sum + Math.abs(member.balance), 0);
-      return { currency: group.currency, spent, outstanding };
-    })
-    .filter(({ spent, outstanding }) => spent !== 0 || outstanding !== 0);
-
   return (
     <div className="bleed">
       <div className={`${grid} hidden bleed-px py-2 @min-[29.5rem]:grid`}>
@@ -406,45 +378,6 @@ function ConsolidatedSummaryList({
           );
         })}
       </div>
-      {(hasSpend || totalCurrencies.length > 0) && (
-        <div className={`${grid} bleed-px py-2 text-xs`}>
-          <span className="font-medium text-ink">{hasSpend ? "Total spent" : "Totals"}</span>
-          {hasPaidFor && <span className="hidden @min-[29.5rem]:block" aria-hidden="true" />}
-          {hasSpend && (
-            <span className="hidden space-y-1 text-right @min-[29.5rem]:block">
-              {totalCurrencies.map(({ currency: code, spent }) =>
-                spent === 0 ? null : (
-                  <span key={code} className="block font-numeric font-semibold text-ink">
-                    {currency(spent, code)}
-                  </span>
-                ),
-              )}
-            </span>
-          )}
-          {!hasSpend && <span className="hidden @min-[29.5rem]:block" aria-hidden="true" />}
-          <span className="hidden text-right text-ink-soft @min-[29.5rem]:block">
-            {totalCurrencies.map(({ currency: code, outstanding }) =>
-              outstanding === 0 ? null : (
-                <span key={code} className="block font-numeric font-semibold text-ink">
-                  {currency(outstanding, code)}
-                </span>
-              ),
-            )}
-          </span>
-          <span className="space-y-1 text-right @min-[29.5rem]:hidden">
-            {(hasSpend
-              ? totalCurrencies.map(({ currency: code, spent }) => ({ code, amount: spent }))
-              : []
-            )
-              .filter(({ amount }) => amount !== 0)
-              .map(({ code, amount }) => (
-                <span key={code} className="block font-numeric font-semibold text-ink">
-                  {currency(amount, code)}
-                </span>
-              ))}
-          </span>
-        </div>
-      )}
     </div>
   );
 }

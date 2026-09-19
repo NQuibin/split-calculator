@@ -565,7 +565,7 @@ export function StageExpense({
       </header>
 
       <Panel bleedOnMobile className="card-inset">
-        <div className="mb-4 flex gap-2 border-b border-rule pb-4">
+        <div className="mb-4 flex gap-4 border-b border-rule pb-4">
           <ModeButton
             icon={Calculator}
             label="One total"
@@ -603,7 +603,7 @@ export function StageExpense({
                 Global discount, tax &amp; tip
               </GroupTitle>
               <div className="rate-inputs-container">
-                <div className="rate-inputs [&>div]:flex-wrap">
+                <div className="rate-inputs rate-inputs-global">
                   <RateInput
                     label="Discount"
                     icon={TicketPercent}
@@ -613,22 +613,24 @@ export function StageExpense({
                     }
                     fullWidth
                   />
-                  <RateInput
-                    label="Tax"
-                    icon={Percent}
-                    rate={globalAdjustments.tax}
-                    onChange={(tax) => onSetGlobalAdjustments({ ...globalAdjustments, tax })}
-                    fullWidth
-                  />
-                  <TipRateInput
-                    rate={globalAdjustments.tip}
-                    onChange={(tip) => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
-                    afterTax={globalAdjustments.tipAfterTax ?? false}
-                    onAfterTaxChange={(tipAfterTax) =>
-                      onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })
-                    }
-                    fullWidth
-                  />
+                  <div className="rate-inputs-tax-tip">
+                    <RateInput
+                      label="Tax"
+                      icon={Percent}
+                      rate={globalAdjustments.tax}
+                      onChange={(tax) => onSetGlobalAdjustments({ ...globalAdjustments, tax })}
+                      fullWidth
+                    />
+                    <TipRateInput
+                      rate={globalAdjustments.tip}
+                      onChange={(tip) => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
+                      afterTax={globalAdjustments.tipAfterTax ?? false}
+                      onAfterTaxChange={(tipAfterTax) =>
+                        onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })
+                      }
+                      fullWidth
+                    />
+                  </div>
                 </div>
               </div>
               <p className="mt-3 text-xs text-ink-soft">
@@ -677,7 +679,7 @@ export function StageExpense({
             </Dialog>
 
             {items.length > 0 && (
-              <ul className="mt-2 divide-y divide-rule overflow-hidden border border-edge/70 bg-field">
+              <ul className="bleed mt-5 divide-y divide-rule overflow-hidden border-y border-edge bg-field">
                 {items.map((item, i) => (
                   <ExpenseLineItem
                     key={item.id}

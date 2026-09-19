@@ -221,9 +221,39 @@ body {
   gap: 1rem;
 }
 
-.rate-inputs > :first-child {
+.rate-inputs:not(.rate-inputs-global) > :first-child {
   grid-column: 1 / -1;
   max-width: 50%;
+}
+
+/* Global adjustments share a row when the form is wide enough, then wrap each
+   control at a usable width as the form narrows. Item-level overrides keep the
+   compact two-row layout above. */
+.rate-inputs-global {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  width: 100%;
+  gap: 1rem;
+}
+
+.rate-inputs-global > .rate-input-row {
+  flex: 1 1 16rem;
+  min-width: min(100%, 16rem);
+}
+
+.rate-inputs-tax-tip {
+  display: flex;
+  flex: 2 1 calc(32rem + 1rem);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  min-width: min(100%, calc(32rem + 1rem));
+  gap: 1rem;
+}
+
+.rate-inputs-tax-tip > .rate-input-row {
+  flex: 1 1 16rem;
+  min-width: min(100%, 16rem);
 }
 
 /* Chevron motion.
