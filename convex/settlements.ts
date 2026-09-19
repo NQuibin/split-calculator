@@ -16,7 +16,12 @@ const currencyCodes = new Set(CURRENCIES.map((c) => c.code));
 type ReadCtx = QueryCtx | MutationCtx;
 type ExpenseView = "paid" | "upcoming" | "all";
 const expenseViewValidator = v.union(v.literal("paid"), v.literal("upcoming"), v.literal("all"));
-type MemberTotals = { paidCents: number; shareCents: number; transferredCents: number };
+type MemberTotals = {
+  paidCents: number;
+  paidForCount: number;
+  shareCents: number;
+  transferredCents: number;
+};
 type CurrencyTotals = Map<string, MemberTotals>;
 
 function isDate(value: string) {
@@ -71,7 +76,10 @@ async function findTab(ctx: ReadCtx, slug: string) {
 
 function blank(roster: Doc<"tabMembers">[]): CurrencyTotals {
   return new Map(
-    roster.map((seat) => [seat._id, { paidCents: 0, shareCents: 0, transferredCents: 0 }]),
+    roster.map((seat) => [
+      seat._id,
+      { paidCents: 0, paidForCount: 0, shareCents: 0, transferredCents: 0 },
+    ]),
   );
 }
 
@@ -161,6 +169,7 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
       });
       const payer = totals.get(expense.payerId)!;
       payer.paidCents = addCents(payer.paidCents, totalCents);
+      payer.paidForCount += 1;
       byCurrency.set(code, totals);
     }
 
@@ -198,6 +207,7 @@ const settlementSummary = v.object({
           memberId: v.id("tabMembers"),
           name: v.string(),
           paid: v.number(),
+          paidFor: v.number(),
           share: v.number(),
           balance: v.number(),
         }),
@@ -256,6 +266,7 @@ export const get = query({
                 memberId: person.id,
                 name: person.name,
                 paid: total.paidCents / 100,
+                paidFor: total.paidForCount,
                 share: total.shareCents / 100,
                 balance: net(total) / 100,
               };

@@ -56,7 +56,13 @@ export type SettlementSummaryData = {
      * without it; that renders as no spend column rather than a column of
      * blanks.
      */
-    members: { memberId: string; name: string; balance: number; share?: number }[];
+    members: {
+      memberId: string;
+      name: string;
+      balance: number;
+      share?: number;
+      paidFor?: number;
+    }[];
   }[];
 };
 
@@ -110,6 +116,10 @@ function BalanceValue({ balance, code }: { balance: number; code: string }) {
 const balanceRowGrid = {
   withSpend:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  withSpendAndPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_5rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  withPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_5rem_9.5rem] @min-[29.5rem]:gap-x-4",
   balanceOnly:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[29.5rem]:gap-x-4",
 };
@@ -132,7 +142,15 @@ function SingleCurrencySummaryList({
         // A response from before the consolidated query carries no `share`, so
         // the spend column is dropped wholesale rather than rendered blank.
         const hasSpend = members.some((member) => member.share !== undefined);
-        const grid = hasSpend ? balanceRowGrid.withSpend : balanceRowGrid.balanceOnly;
+        // `paidFor` is optional for legacy responses during a rolling deploy.
+        const hasPaidFor = members.some((member) => member.paidFor !== undefined);
+        const grid = hasSpend
+          ? hasPaidFor
+            ? balanceRowGrid.withSpendAndPaidFor
+            : balanceRowGrid.withSpend
+          : hasPaidFor
+            ? balanceRowGrid.withPaidFor
+            : balanceRowGrid.balanceOnly;
         const totalSpent = members.reduce((sum, member) => sum + (member.share ?? 0), 0);
 
         return (
@@ -144,6 +162,11 @@ function SingleCurrencySummaryList({
                   <span className="font-normal text-ink-soft"> · {currencyName}</span>
                 )}
               </span>
+              {hasPaidFor && (
+                <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+                  Paid for
+                </span>
+              )}
               {hasSpend && (
                 <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
                   Spent
@@ -195,6 +218,18 @@ function SingleCurrencySummaryList({
                         )}
                       </span>
                     </button>
+                    {hasPaidFor && (
+                      <span className="hidden text-right text-ink-soft @min-[29.5rem]:block">
+                        {member.paidFor ? (
+                          <>
+                            <span className="font-numeric">{member.paidFor}</span> expense
+                            {member.paidFor === 1 ? "" : "s"}
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </span>
+                    )}
                     {hasSpend && (
                       <span className="hidden text-right @min-[29.5rem]:block">
                         {member.share ? (
@@ -214,6 +249,7 @@ function SingleCurrencySummaryList({
             {hasSpend && (
               <div className={`${grid} bleed-px py-2 text-xs`}>
                 <span className="font-medium text-ink">Total spent</span>
+                {hasPaidFor && <span />}
                 <span className="hidden text-right @min-[29.5rem]:block">
                   <span className="font-numeric font-semibold text-ink">
                     {currency(totalSpent, group.currency)}
@@ -252,10 +288,19 @@ function ConsolidatedSummaryList({
     (a, b) =>
       Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
   );
-  const grid = balanceRowGrid.withSpend;
   const hasSpend = data.currencies.some((group) =>
     group.members.some((member) => member.share !== undefined),
   );
+  const hasPaidFor = data.currencies.some((group) =>
+    group.members.some((member) => member.paidFor !== undefined),
+  );
+  const grid = hasSpend
+    ? hasPaidFor
+      ? balanceRowGrid.withSpendAndPaidFor
+      : balanceRowGrid.withSpend
+    : hasPaidFor
+      ? balanceRowGrid.withPaidFor
+      : balanceRowGrid.balanceOnly;
   const rowsByCurrency = (memberId: string) =>
     data.currencies.flatMap((group) => {
       const member = group.members.find((row) => row.memberId === memberId);
@@ -273,14 +318,14 @@ function ConsolidatedSummaryList({
   return (
     <div className="bleed">
       <div className={`${grid} hidden bleed-px py-2 @min-[29.5rem]:grid`}>
-        {hasSpend && (
-          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:col-start-2 @min-[29.5rem]:block">
-            Spent
-          </span>
+        <span aria-hidden="true" />
+        {hasPaidFor && (
+          <span className="text-right text-xs font-medium uppercase text-ink-soft">Paid for</span>
         )}
-        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:col-start-3 @min-[29.5rem]:block">
-          Balance
-        </span>
+        {hasSpend && (
+          <span className="text-right text-xs font-medium uppercase text-ink-soft">Spent</span>
+        )}
+        <span className="text-right text-xs font-medium uppercase text-ink-soft">Balance</span>
       </div>
       {/* The column labels hide below the container breakpoint, so the top
           rule lives on the body rather than the header row. */}
@@ -329,6 +374,18 @@ function ConsolidatedSummaryList({
                           </span>
                         )}
                       </span>
+                      {hasPaidFor && (
+                        <span className="hidden text-right text-ink-soft @min-[29.5rem]:block">
+                          {currencyMember.paidFor ? (
+                            <>
+                              <span className="font-numeric">{currencyMember.paidFor}</span> expense
+                              {currencyMember.paidFor === 1 ? "" : "s"}
+                            </>
+                          ) : (
+                            "-"
+                          )}
+                        </span>
+                      )}
                       {hasSpend && (
                         <span className="hidden text-right @min-[29.5rem]:block">
                           {currencyMember.share ? (
@@ -352,6 +409,7 @@ function ConsolidatedSummaryList({
       {(hasSpend || totalCurrencies.length > 0) && (
         <div className={`${grid} bleed-px py-2 text-xs`}>
           <span className="font-medium text-ink">{hasSpend ? "Total spent" : "Totals"}</span>
+          {hasPaidFor && <span className="hidden @min-[29.5rem]:block" aria-hidden="true" />}
           {hasSpend && (
             <span className="hidden space-y-1 text-right @min-[29.5rem]:block">
               {totalCurrencies.map(({ currency: code, spent }) =>

@@ -147,15 +147,15 @@ test("consolidates mixed currencies into member blocks with currency-aware total
           {
             currency: "CAD",
             members: [
-              { memberId: "alex", name: "Alex", balance: 0, share: 42.39 },
-              { memberId: "bea", name: "Bea", balance: 0, share: 42.4 },
+              { memberId: "alex", name: "Alex", balance: 0, share: 42.39, paidFor: 1 },
+              { memberId: "bea", name: "Bea", balance: 0, share: 42.4, paidFor: 0 },
             ],
           },
           {
             currency: "USD",
             members: [
-              { memberId: "alex", name: "Alex", balance: 0.5, share: 0.5 },
-              { memberId: "bea", name: "Bea", balance: -0.5, share: 0 },
+              { memberId: "alex", name: "Alex", balance: 0.5, share: 0.5, paidFor: 0 },
+              { memberId: "bea", name: "Bea", balance: -0.5, share: 0, paidFor: 1 },
             ],
           },
         ],
@@ -164,6 +164,10 @@ test("consolidates mixed currencies into member blocks with currency-aware total
   );
 
   expect(markup).not.toContain(">Member<");
+  expect(markup).toContain("Paid for");
+  expect(markup.indexOf(">Paid for<")).toBeLessThan(markup.indexOf(">Spent<"));
+  expect(markup).toContain("1</span> expense");
+  expect(markup).toContain(">-</span>");
   expect(markup.match(/>Spent</g)).toHaveLength(1);
   expect(markup.match(/>Balance</g)).toHaveLength(1);
   expect(markup).toContain("CA$42.39");
@@ -312,6 +316,30 @@ test("a member with no share in a currency reads as no expenses, not zero", () =
 
   expect(markup).toContain("No expenses");
   expect(markup).not.toContain("$0.00");
+});
+
+test("shows paid-for counts before spent, with a dash for no paid expenses", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "USD",
+            members: [
+              { memberId: "alex", name: "Alex", balance: 1, share: 2, paidFor: 1 },
+              { memberId: "bea", name: "Bea", balance: -1, share: 0, paidFor: 0 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup.indexOf(">Paid for<")).toBeLessThan(markup.indexOf(">Spent<"));
+  expect(markup).toContain("1</span> expense");
+  expect(markup).toContain(">-</span>");
 });
 
 test("drops the spend column for a response that predates it", () => {
