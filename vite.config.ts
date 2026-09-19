@@ -5,15 +5,11 @@ import { fileURLToPath } from "node:url";
 import { BASE_PATH } from "./src/lib/basePath";
 
 export default defineConfig({
-  // The app is served under nquibin.dev via a rewrite, so every asset URL and
-  // every route has to carry this prefix.
+  // Ventura is served from venturago.app's root.
   base: `${BASE_PATH}/`,
   build: {
-    // `base` only rewrites the URLs written into index.html - it does not
-    // move the emitted files, and the nquibin.dev rewrite forwards to the
-    // prefixed path on the deployment itself. Nesting the output under the
-    // same prefix lines the two up: dist/projects/split-calculator/{index.html,
-    // assets/...} matches the URLs above, so Vercel serves each asset off disk.
+    // `base` only rewrites URLs written into index.html. Root hosting keeps
+    // emitted files directly under dist/.
     outDir: `dist${BASE_PATH}`,
     emptyOutDir: true,
   },

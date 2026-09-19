@@ -15,8 +15,7 @@ pnpm dev          # Vite dev server
 npx convex dev    # Convex backend (separate terminal)
 ```
 
-The app is served under a base path (`src/lib/basePath.ts`), so the dev URL is
-http://localhost:5173/projects/split-calculator/.
+The app is served from the domain root, so the dev URL is http://localhost:5173/.
 
 Local email authentication still requires a password, but can skip OTP by
 setting `AUTH_SKIP_OTP=true` on the **development Convex deployment**:
@@ -45,16 +44,12 @@ Set `AUTH_SKIP_OTP=false` to test the full password-plus-OTP flow locally.
 ## Deploying
 
 Deployed to Vercel as a static site (Framework Preset **Vite**, output
-directory `dist`), and reached through a rewrite from `nquibin.dev` that
-forwards `/projects/split-calculator/*` with the prefix intact.
+directory `dist`) at `venturago.app`.
 
-Two things make that work:
+Two things make deep links work:
 
-- **`vite.config.ts` nests the build under the base path**
-  (`outDir: dist/projects/split-calculator`). Vite's `base` only rewrites the
-  URLs inside `index.html`; it does not move the emitted files. Next's
-  `basePath` did both, so without this the HTML would ask for
-  `/projects/split-calculator/assets/…` while the files sat at `/assets/…`.
+- **`vite.config.ts` uses the root base path.** Build output stays directly in
+  `dist/`, matching URLs such as `/assets/…`.
 - **`vercel.json` provides the SPA fallback.** Vercel checks the filesystem
   before applying rewrites, so real assets are served directly and only
   unmatched app routes fall through to the shell. There are two entries

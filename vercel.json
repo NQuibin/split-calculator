@@ -2,12 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/projects/split-calculator",
-      "destination": "/projects/split-calculator/index.html"
+      "source": "/",
+      "destination": "/index.html"
     },
     {
-      "source": "/projects/split-calculator/:match*",
-      "destination": "/projects/split-calculator/index.html"
+      "source": "/:match*",
+      "destination": "/index.html"
     }
   ]
 }
