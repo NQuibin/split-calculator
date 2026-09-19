@@ -234,10 +234,12 @@ Every route renders exactly one `<Page>` (`ui/Page.tsx`). Never hand-write a
 `<main>` or copy a `pageClass` constant.
 
 ```tsx
-<Page>…</Page>                      {/* max-w-5xl — the default for every page */}
-<Page width="wide">…</Page>         {/* max-w-7xl — only a genuinely wide data grid */}
+<Page>…</Page>                      {/* max-w-5xl (1024px) — the default for every page */}
 <Page width="narrow" center>…</Page> {/* a centred single-purpose state */}
 ```
+
+Every page is capped at 1024px (`max-w-5xl`). Keep `width="narrow"` for
+single-purpose states that should be smaller; do not add wider page variants.
 
 `Page` owns the horizontal padding, the max width, the bottom safe-area inset
 and `id="main"` (the skip link's target). Loading and error states render the
@@ -730,11 +732,9 @@ Pick the breakpoint from the **width budget**, not from the name of the
 breakpoint. The content column is the viewport minus the 240px sidebar (from
 `lg`), the page gutter and the panel padding: `min(viewport - 240, page cap) -
 80`. Measured against the real shell, that is 688px at `md`, 704px at `lg` and
-960px at `xl`, capping at 1200px under `max-w-7xl` — a cap reached at ~1520px
-viewport, not at `xl`. `lg` buys only 16px over `md`, so a layout that doesn't
-fit at `md` usually doesn't fit at `lg` either. Keep ordinary pages, including
-the tab info page, on the shared `max-w-5xl` default; use `wide` only for a
-single genuinely wide data grid that cannot remain readable at that width.
+960px at `xl` before the shared page cap. Every page, including the tab info
+page, uses the shared 1024px (`max-w-5xl`) maximum; keep genuinely narrow states
+on `width="narrow"` and do not introduce wider page shells.
 
 A column of **right-aligned money** sizes to its content, never to a fixed
 width. A fixed track makes an unusually large amount overflow into the cell

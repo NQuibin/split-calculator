@@ -42,7 +42,8 @@ function SignInMenu() {
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
+  const [newPassword, setNewPassword] = useState("");
+  const [flow, setFlow] = useState<"signIn" | "signUp" | "reset">("signIn");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +52,7 @@ function SignInMenu() {
     setStep("email");
     setEmail("");
     setPassword("");
+    setNewPassword("");
     setFlow("signIn");
     setCode("");
     setError(null);
@@ -62,10 +64,11 @@ function SignInMenu() {
     setError(null);
     setSubmitting(true);
     try {
+      const requestedFlow = flow === "reset" ? "reset" : step === "code" ? "signIn" : flow;
       const result = await signIn("password", {
         email,
         password,
-        flow: step === "code" ? "signIn" : flow,
+        flow: requestedFlow,
       });
       if (result.signingIn) {
         setOpen(false);
@@ -76,7 +79,9 @@ function SignInMenu() {
       setStep("code");
     } catch {
       setError(
-        "Couldn't continue. Check your email and password. If you previously signed in with a code only, choose Create account to set a password.",
+        flow === "reset"
+          ? "We couldn't send a reset code. Try again in a moment."
+          : "Couldn't continue. Check your email and password. If you previously signed in with a code only, choose Create account to set a password.",
       );
     } finally {
       setSubmitting(false);
@@ -88,12 +93,21 @@ function SignInMenu() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await signIn("password", { email, password, code, flow: "verify" });
+      const result = await signIn(
+        "password",
+        flow === "reset"
+          ? { email, newPassword, code, flow: "reset-verification" }
+          : { email, password, code, flow: "verify" },
+      );
       if (!result.signingIn) throw new Error("Verification failed");
       resetForm();
       setOpen(false);
     } catch {
-      setError("That code isn't right, or it's expired. Try again or send a new one.");
+      setError(
+        flow === "reset"
+          ? "That code isn't right, has expired, or the password is invalid. Try again or send a new code."
+          : "That code isn't right, or it's expired. Try again or send a new one.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +129,13 @@ function SignInMenu() {
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <DialogTitle>{step === "email" ? "Sign in" : "Check your email"}</DialogTitle>
+          <DialogTitle>
+            {step === "email"
+              ? flow === "reset"
+                ? "Reset password"
+                : "Sign in"
+              : "Check your email"}
+          </DialogTitle>
           <DialogClose
             aria-label="Close sign in"
             render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
@@ -125,7 +145,11 @@ function SignInMenu() {
         </div>
         <DialogDescription className="mb-5">
           {step === "email" ? (
-            "Enter your email and password. If verification is required, we’ll email you a code. Sessions last up to 30 days."
+            flow === "reset" ? (
+              "Enter your email and we’ll send a code if an account exists for it."
+            ) : (
+              "Enter your email and password. If verification is required, we’ll email you a code. Sessions last up to 30 days."
+            )
           ) : (
             <>
               We sent a 6-digit code to <span className="font-medium text-ink">{email}</span>. It
@@ -167,36 +191,57 @@ function SignInMenu() {
                   icon={Mail}
                 />
               </div>
-              <div>
-                <Label htmlFor="signin-password">Password</Label>
-                <Input
-                  id="signin-password"
-                  type="password"
-                  required
-                  minLength={flow === "signUp" ? 8 : undefined}
-                  aria-label="Password"
-                  placeholder={flow === "signUp" ? "Password (at least 8 characters)" : "Password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={flow === "signUp" ? "new-password" : "current-password"}
-                  icon={KeyRound}
-                />
+              {flow !== "reset" && (
+                <div>
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    required
+                    minLength={flow === "signUp" ? 8 : undefined}
+                    aria-label="Password"
+                    placeholder={
+                      flow === "signUp" ? "Password (at least 8 characters)" : "Password"
+                    }
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={flow === "signUp" ? "new-password" : "current-password"}
+                    icon={KeyRound}
+                  />
+                </div>
+              )}
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {flow !== "reset" && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="xs"
+                    disabled={submitting}
+                    className="h-auto justify-start px-0 text-xs font-normal underline"
+                    onClick={() => {
+                      setFlow(flow === "signIn" ? "signUp" : "signIn");
+                      setError(null);
+                    }}
+                  >
+                    {flow === "signIn"
+                      ? "Create account / set your first password"
+                      : "Already have a password? Sign in"}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="link"
+                  size="xs"
+                  disabled={submitting}
+                  className="h-auto justify-start px-0 text-xs font-normal underline"
+                  onClick={() => {
+                    setFlow(flow === "reset" ? "signIn" : "reset");
+                    setError(null);
+                  }}
+                >
+                  {flow === "reset" ? "Back to sign in" : "Forgot password?"}
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="link"
-                size="xs"
-                disabled={submitting}
-                className="h-auto justify-start px-0 text-xs font-normal underline"
-                onClick={() => {
-                  setFlow(flow === "signIn" ? "signUp" : "signIn");
-                  setError(null);
-                }}
-              >
-                {flow === "signIn"
-                  ? "Create account / set your first password"
-                  : "Already have a password? Sign in"}
-              </Button>
               {error && (
                 <p role="alert" className="text-xs text-margin-red-ink">
                   {error}
@@ -209,7 +254,13 @@ function SignInMenu() {
                 aria-busy={submitting}
                 className="w-full"
               >
-                {submitting ? "Continuing…" : flow === "signUp" ? "Create account" : "Continue"}
+                {submitting
+                  ? "Continuing…"
+                  : flow === "signUp"
+                    ? "Create account"
+                    : flow === "reset"
+                      ? "Send reset code"
+                      : "Continue"}
               </Button>
             </form>
           </>
@@ -233,15 +284,33 @@ function SignInMenu() {
               <p id="signin-code-help" className="text-xs text-ink-soft">
                 Enter the 6-digit code from your email.
               </p>
+              {flow === "reset" && (
+                <div>
+                  <Label htmlFor="reset-password">New password</Label>
+                  <Input
+                    id="reset-password"
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="New password (at least 8 characters)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
+                    icon={KeyRound}
+                  />
+                </div>
+              )}
               {error && <p className="text-xs text-margin-red-ink">{error}</p>}
               <Button
                 type="submit"
                 size="lg"
-                disabled={submitting || code.length < 6}
+                disabled={
+                  submitting || code.length < 6 || (flow === "reset" && newPassword.length < 8)
+                }
                 aria-busy={submitting}
                 className="w-full"
               >
-                {submitting ? "Verifying…" : "Sign in"}
+                {submitting ? "Verifying…" : flow === "reset" ? "Reset password" : "Sign in"}
               </Button>
             </form>
 

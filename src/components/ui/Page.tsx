@@ -12,10 +12,8 @@ import { mobileRaisedSurfaceClass } from "./mobileRaisedSurface";
  * indicator on a notched phone (DESIGN.md § 6).
  */
 const widths = {
-  /** The default. Directories, settings, an expense. */
+  /** The standard width for every page: 1024px. */
   default: "max-w-5xl",
-  /** The tab's expense grid, which needs the extra columns. */
-  wide: "max-w-7xl",
   /** A single-purpose centred state: access errors, invites, empty shells. */
   narrow: "max-w-lg",
 } as const;

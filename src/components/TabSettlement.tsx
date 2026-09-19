@@ -871,12 +871,17 @@ export function TabSettlement({
                     <MemberAvatar
                       id={selectedBreakdown.memberId}
                       name={selectedBreakdown.name}
-                      size="lg"
+                      size="sm"
                     />
                   )}
                   <div className="min-w-0">
-                    <DialogTitle>{selectedMember?.name ?? "Member breakdown"}</DialogTitle>
-                    <DialogDescription className="mt-1">
+                    <DialogTitle className="sr-only">
+                      {selectedMember?.name ?? "Member breakdown"}
+                    </DialogTitle>
+                    <p className="break-words text-sm font-medium text-ink">
+                      {selectedMember?.name ?? "Member breakdown"}
+                    </p>
+                    <DialogDescription className="mt-1 text-xs">
                       {selectedBreakdown
                         ? `${selectedBreakdown.expenseCount} ${selectedBreakdown.expenseCount === 1 ? "expense" : "expenses"} · ${selectedMember?.currency}`
                         : `${selectedMember?.currency ?? ""} expense breakdown`}

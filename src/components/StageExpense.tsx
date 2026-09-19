@@ -498,7 +498,7 @@ export function StageExpense({
           {adjustmentsOpen && (
             <>
               <div className="rate-inputs-container">
-                <div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
+                <div className="rate-inputs [&>div]:flex-wrap">
                   <RateInput
                     label="Discount"
                     icon={TicketPercent}
@@ -603,7 +603,7 @@ export function StageExpense({
                 Global discount, tax &amp; tip
               </GroupTitle>
               <div className="rate-inputs-container">
-                <div className="rate-inputs flex flex-wrap gap-4 [&>div]:flex-wrap">
+                <div className="rate-inputs [&>div]:flex-wrap">
                   <RateInput
                     label="Discount"
                     icon={TicketPercent}
@@ -611,12 +611,14 @@ export function StageExpense({
                     onChange={(discount) =>
                       onSetGlobalAdjustments({ ...globalAdjustments, discount })
                     }
+                    fullWidth
                   />
                   <RateInput
                     label="Tax"
                     icon={Percent}
                     rate={globalAdjustments.tax}
                     onChange={(tax) => onSetGlobalAdjustments({ ...globalAdjustments, tax })}
+                    fullWidth
                   />
                   <TipRateInput
                     rate={globalAdjustments.tip}
@@ -625,6 +627,7 @@ export function StageExpense({
                     onAfterTaxChange={(tipAfterTax) =>
                       onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })
                     }
+                    fullWidth
                   />
                 </div>
               </div>

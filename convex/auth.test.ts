@@ -98,3 +98,63 @@ test("OTP bypass requires explicit server opt-in and a loopback site URL", () =>
     expect(skipOtpForLocalDevelopment()).toBe(false);
   }
 });
+
+test("password reset uses an email code and invalidates prior sessions", async () => {
+  const keys = await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign", "verify"],
+  );
+  const key = new Uint8Array(await crypto.subtle.exportKey("pkcs8", keys.privateKey));
+  vi.stubEnv(
+    "JWT_PRIVATE_KEY",
+    `-----BEGIN PRIVATE KEY-----\n${btoa(String.fromCharCode(...key))}\n-----END PRIVATE KEY-----`,
+  );
+  vi.stubEnv("CONVEX_SITE_URL", "https://example.convex.site");
+  vi.stubEnv("RESEND_API_KEY", "test");
+  vi.stubEnv("SITE_URL", "http://localhost:5173");
+  vi.stubEnv("AUTH_SKIP_OTP", "true");
+  let code = "";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url, options) => {
+      const body = JSON.parse(options.body);
+      code = body.subject.match(/^\d{6}/)[0];
+      return new Response("{}", { status: 200 });
+    }),
+  );
+
+  const t = convexTest(schema, modules);
+  const signIn = (params: Record<string, string>, provider = "password") =>
+    t.action(api.auth.signIn, { provider, params });
+  const credentials = { email: "reset@example.com", password: "old-password" };
+  expect((await signIn({ ...credentials, flow: "signUp" })).tokens).toBeTruthy();
+
+  vi.stubEnv("AUTH_SKIP_OTP", "false");
+  expect((await signIn({ email: credentials.email, flow: "reset" })).tokens).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(
+    (
+      await signIn({
+        email: credentials.email,
+        newPassword: "new-password",
+        code,
+        flow: "reset-verification",
+      })
+    ).tokens,
+  ).toBeTruthy();
+  expect(await t.run((ctx) => ctx.db.query("authSessions").collect())).toHaveLength(1);
+
+  vi.stubEnv("AUTH_SKIP_OTP", "true");
+  await expect(signIn({ ...credentials, flow: "signIn" })).rejects.toThrow();
+  expect(
+    (await signIn({ email: credentials.email, password: "new-password", flow: "signIn" })).tokens,
+  ).toBeTruthy();
+  expect((await signIn({ email: "unknown@example.com", flow: "reset" })).tokens).toBeNull();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});

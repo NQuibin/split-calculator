@@ -208,26 +208,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Keep rate controls together when a form column is too narrow for all three
-   compact groups. The container threshold is based on the available form
-   width, so this also handles tablet layouts with a sidebar instead of
-   relying on the viewport breakpoint. */
+/* Keep adjustment controls compact and predictable at every form width:
+   discount gets its own half-width row, while tax and tip share the row below. */
 .rate-inputs-container {
   container-type: inline-size;
 }
 
 .rate-inputs {
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 1rem;
 }
 
-@container (min-width: 44rem) {
-  .rate-inputs {
-    flex-direction: row;
-    /* The tip group carries an "after tax" toggle under its field, so the row
-       is taller than a bare control - line the controls up along the top
-       rather than centring them against that extra height. */
-    align-items: flex-start;
-  }
+.rate-inputs > :first-child {
+  grid-column: 1 / -1;
+  max-width: 50%;
 }
 
 /* Chevron motion.
