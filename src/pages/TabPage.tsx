@@ -33,7 +33,8 @@ import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/B
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
-import { computeExpenseBalances, splitParticipants } from "@/lib/settlements";
+import { TabSummaryCards } from "@/components/TabSummaryCards";
+import { computeExpenseBalances } from "@/lib/settlements";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -162,6 +163,11 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   // shell intentionally gives every page the same readable max width.
   const tabContent = (
     <div className="grid gap-6">
+      <TabSummaryCards
+        expenses={expenses}
+        members={tab.members}
+        defaultCurrency={tab.defaultCurrency}
+      />
       <TabSettlement
         slug={slug}
         members={tab.members}
@@ -748,8 +754,8 @@ function ExpenseActions({
   );
 }
 
-// The expense row's own layout. Rows are self-describing - there is no header
-// row naming columns - but the money still has to line up down the list.
+// The expense row's own layout. On larger screens, a header row names the
+// columns while the money still has to line up down the list.
 // Reading order is date / name / who's in the split / amount and who paid it /
 // your share, then the row's actions menu, which is a sibling of the row
 // trigger rather than a child - a button can't nest inside a button (see
@@ -776,11 +782,9 @@ function ExpenseActions({
 // content collectively, and every row's line positions are then identical by
 // construction, not by coincidence.
 //
-// Two stages. Below `md` there is only room for name + amount on the first
-// line, so the date and your share drop to a second one, and there's no room
-// for who's in the split at all. From `md` up it's a single, subgridded line -
-// date, name, who's in the split, amount and who paid it, your share, the
-// menu.
+// Two stages. Below `md`, the row uses three areas: date at left, expense and
+// payer details in the middle, and total/balance at right. From `md` up it is
+// a single, subgridded line - date, name, payer, total, spent, balance, menu.
 //
 // The avatars column's own *track* stays the same (`max-content`) at both
 // desktop tiers; only what's rendered inside it changes at `lg` (see
@@ -825,8 +829,8 @@ function expenseListGridClass(withSettlement: boolean) {
   // the build. No warning, no type error: the class just isn't there, and the
   // column collapses to one giant track.
   const list = withSettlement
-    ? "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)_minmax(6.75rem,max-content)]"
-    : "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_max-content_fit-content(11rem)]";
+    ? "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]"
+    : "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)]";
   return {
     list,
     // `gap-x-4` carries through from its base declaration (mobile and `md`)
@@ -836,70 +840,27 @@ function expenseListGridClass(withSettlement: boolean) {
     // one (it needs `gap-x-4` unconditionally for its own independent mobile
     // grid), so its own value has to move in lockstep with the list's or the
     // two silently mismatch.
-    row: "grid grid-cols-[minmax(0,1fr)_fit-content(9.5rem)] items-center gap-x-4 gap-y-2 bleed-px @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[56rem]:gap-x-6",
+    row: "grid grid-cols-[auto_minmax(0,1fr)_fit-content(9.5rem)] items-start gap-x-4 gap-y-2 bleed-px @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[40rem]:items-center @min-[56rem]:gap-x-6",
   };
 }
 
-/**
- * Who this expense's split is between - rendered from a list the caller has
- * already narrowed to people who actually owe or get money back on it (see
- * `splitParticipants` below), not raw `expense.people`: someone can be added
- * to an expense as a split candidate and end up with no items assigned to
- * them, in which case they aren't really "in" this split at all. Capped at
- * four avatars plus a "+N" badge so a large group tab can't blow out the row;
- * the cap is what keeps the column's `max-content` track bounded, not a fixed
- * width on the track itself.
- *
- * Two variants render side by side in the row (each toggled by its own
- * `hidden`/breakpoint classes, never both visible at once) because `md`'s
- * width budget only has room for the compact one:
- *
- * - `stacked` - overlapping circles (`-space-x-1.5`, a `ring-field` to cut
- *   each one out from its neighbour), the same idiom as the "Manage N
- *   members" trigger atop the tab page. Used at `md`, where there's row for
- *   *who* but not for spreading them out.
- * - `spaced` - the individual circles from the `lg` design, gap between them
- *   instead of overlap. Used from `lg`, where the wider column budget affords
- *   it and overlap would only be worth it if space were still tight.
- *
- * The ring colour tracks the ground it sits on, not the header's - `ring-field`
- * here, matching the list's own resting background, vs. the header stack's
- * `ring-paper`. Overflow shows as plain text either way, not `aria-hidden`:
- * unlike the header stack, there's no adjacent "N members" caption carrying
- * that count for a screen reader, so hiding it would just drop the number.
- */
-function ExpenseParticipants({
-  people,
-  variant,
-  className = "",
+/** The payer identity shown in the desktop payer column. */
+function ExpensePayer({
+  payer,
+  upcoming,
 }: {
-  people: { id: string; name: string }[];
-  variant: "stacked" | "spaced";
-  className?: string;
+  payer: { id: string; name: string } | undefined;
+  upcoming: boolean;
 }) {
-  if (!people.length) return null;
-  const shown = people.slice(0, 4);
-  const overflow = people.length - shown.length;
-  const stacked = variant === "stacked";
+  if (!payer) {
+    return (
+      <span className="text-xs text-ink-soft">{upcoming ? "Not paid yet" : "Payer needed"}</span>
+    );
+  }
   return (
-    <span className={`${stacked ? "flex -space-x-1.5" : "flex items-center gap-1.5"} ${className}`}>
-      {shown.map((person) => (
-        <MemberAvatar
-          key={person.id}
-          id={person.id}
-          name={person.name}
-          size="sm"
-          className={stacked ? "ring-2 ring-field" : undefined}
-        />
-      ))}
-      {overflow > 0 &&
-        (stacked ? (
-          <span className="relative inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface text-[10px] font-semibold ring-2 ring-field">
-            +{overflow}
-          </span>
-        ) : (
-          <span className="text-xs text-ink-soft">+{overflow}</span>
-        ))}
+    <span className="flex min-w-0 items-center gap-3">
+      <MemberAvatar id={payer.id} name={payer.name} size="md" />
+      <span className="truncate text-sm text-ink-soft">{payer.name}</span>
     </span>
   );
 }
@@ -910,43 +871,39 @@ function ExpenseDate({ date }: { date: string | undefined }) {
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
       <UpcomingExpenseIcon date={date} />
-      {date && short ? <time dateTime={date}>{short}</time> : "No date"}
+      {date && short ? (
+        <time dateTime={date} className="flex flex-col leading-tight">
+          <span className="text-sm">{short}</span>
+          <span className="text-xs">{date.slice(0, 4)}</span>
+        </time>
+      ) : (
+        "No date"
+      )}
     </span>
   );
 }
 
-/** Who paid, phrased so it reads as a fact rather than a bare name. */
-function payerCaption(payer: { name: string } | undefined, upcoming: boolean) {
-  if (payer) return upcoming ? `${payer.name} pays` : `${payer.name} paid`;
-  return upcoming ? "Not paid yet" : "Payer needed";
-}
-
 /**
- * The amount and who paid it, as one block - they answer the same question and
- * were being read apart when the payer had a column of its own. The plain
- * currency code came off this cell with the payer going on: the formatted
- * amount already carries its symbol, so "CAD" under "CA$100.00" only repeated
- * it. The conversion note stays, because that one does say something new.
+ * The expense total. Its formatted value already carries a currency symbol;
+ * the conversion note only appears when it adds information.
  */
 function ExpenseAmount({
   total,
   code,
   native,
-  payer,
   upcoming,
 }: {
   total: number;
   code: string;
   /** The original amount, when a saved exchange rate converted this expense. */
   native?: { amount: number; code: string };
-  payer: { name: string } | undefined;
   upcoming: boolean;
 }) {
   return (
     <>
       <span className="block font-numeric text-sm font-semibold">{currency(total, code)}</span>
-      <span className="mt-0.5 block truncate text-xs text-ink-soft">
-        {payerCaption(payer, upcoming)}
+      <span className="mt-0.5 block text-xs text-ink-soft @min-[40rem]:hidden">
+        {upcoming ? "Total planned" : "Total"}
       </span>
       {native && (
         <span className="block text-xs text-ink-soft">
@@ -980,12 +937,20 @@ function ViewerSettlement({
   return (
     <>
       <span
-        className={`block font-numeric text-sm font-semibold ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
+        className={`hidden text-sm font-semibold @min-[40rem]:block ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
+      >
+        {owed ? "Owes" : "Gets"}{" "}
+        <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
+      </span>
+      <span
+        className={`block font-numeric text-sm font-semibold @min-[40rem]:hidden ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
       >
         {owed ? "\u2212" : "+"}
         {currency(Math.abs(balance), code)}
       </span>
-      <span className="block text-xs text-ink-soft">{owed ? "You owe" : "You get back"}</span>
+      <span className="block text-xs text-ink-soft @min-[40rem]:hidden">
+        {owed ? "You owe" : "You get"}
+      </span>
     </>
   );
 }
@@ -1037,7 +1002,7 @@ function ExpenseList({
       {/* A row list with no header or footer is still a table body (DESIGN.md
           "Data tables"): the field ground between two `--edge` rules, open at
           the sides. */}
-      <div className="bleed overflow-hidden border-y border-edge bg-field">
+      <div className="bleed overflow-hidden border-y border-edge bg-field @min-[40rem]:border-t-0">
         {!filtered.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length
@@ -1048,6 +1013,18 @@ function ExpenseList({
           </p>
         ) : (
           <ul className={listGrid}>
+            <li
+              className={`${rowGrid} hidden @min-[40rem]:grid border-b border-edge bg-surface py-2 text-xs font-medium uppercase text-ink-soft`}
+            >
+              <span className="@min-[40rem]:col-start-1">Date</span>
+              <span className="@min-[40rem]:col-start-2">Expense</span>
+              <span className="@min-[40rem]:col-start-3">Paid by</span>
+              <span className="text-right @min-[40rem]:col-start-4">Total</span>
+              <span className="text-right @min-[40rem]:col-start-5">Spent</span>
+              {showSettlement && (
+                <span className="text-right @min-[40rem]:col-start-6">Balance</span>
+              )}
+            </li>
             {filtered.map((expense) => {
               const rowSplit = computeSplit(
                 expense.people,
@@ -1059,9 +1036,9 @@ function ExpenseList({
               const viewerBalance = !balances.length
                 ? null
                 : balances.find((row) => viewerIds.has(row.memberId))?.balance;
+              const viewerSpent = rowSplit.people.find((row) => viewerIds.has(row.personId))?.total;
               const payer = payerFor(expense.payerId);
               const upcoming = isUpcoming(expense.date);
-              const participants = splitParticipants(expense.people, balances);
               return (
                 // The row itself is the grid/subgrid item now - not a wrapping div -
                 // so `divide-y` on the list keeps drawing real borders between real
@@ -1079,25 +1056,33 @@ function ExpenseList({
                     onClick={() => {
                       setSelectedSlug(expense.slug);
                     }}
-                    className="min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[40rem]:col-start-2"
+                    className="col-start-2 row-start-1 min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[40rem]:col-start-2"
                   >
-                    {expense.name ?? "Untitled expense"}
+                    <span className="text-sm">{expense.name ?? "Untitled expense"}</span>
                   </button>
                   {/* Not interactive, so it sits under the row-link overlay like any
                       other plain cell - no `z-10` needed. */}
-                  <span className="hidden @min-[40rem]:col-start-3 @min-[40rem]:block @min-[40rem]:justify-self-center">
-                    <ExpenseParticipants
-                      people={participants}
-                      variant="stacked"
-                      className="@min-[56rem]:hidden"
-                    />
-                    <ExpenseParticipants
-                      people={participants}
-                      variant="spaced"
-                      className="hidden @min-[56rem]:flex"
-                    />
+                  <span className="hidden min-w-0 @min-[40rem]:col-start-3 @min-[40rem]:block">
+                    <ExpensePayer payer={payer} upcoming={upcoming} />
                   </span>
-                  <span className="min-w-0 text-right @min-[40rem]:col-start-4">
+                  <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-3 @min-[40rem]:hidden">
+                    {payer ? <MemberAvatar id={payer.id} name={payer.name} size="md" /> : null}
+                    <span className="min-w-0">
+                      <span className="block text-xs text-ink-soft">
+                        {payer
+                          ? upcoming
+                            ? "Pays"
+                            : "Paid by"
+                          : upcoming
+                            ? "Not paid yet"
+                            : "Payer needed"}
+                      </span>
+                      {payer && (
+                        <span className="block break-words text-sm text-ink">{payer.name}</span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="col-start-3 row-start-1 min-w-0 self-start text-right @min-[40rem]:col-start-4 @min-[40rem]:row-auto @min-[40rem]:self-auto">
                     <ExpenseAmount
                       total={rowSplit.grandTotal * rate}
                       code={expense.settlementCurrency}
@@ -1106,17 +1091,21 @@ function ExpenseList({
                           ? { amount: rowSplit.grandTotal, code: expense.currency }
                           : undefined
                       }
-                      payer={payer}
                       upcoming={upcoming}
                     />
                   </span>
+                  <span className="hidden min-w-0 text-right font-numeric text-sm @min-[40rem]:col-start-5 @min-[40rem]:block">
+                    {typeof viewerSpent === "number"
+                      ? currency(viewerSpent * rate, expense.settlementCurrency)
+                      : "-"}
+                  </span>
                   {/* One date element for both layouts: the second row below `md`,
                       its own leading column from `md` up. */}
-                  <span className="col-start-1 text-xs text-ink-soft @min-[40rem]:col-start-1 @min-[40rem]:row-start-1 @min-[40rem]:text-sm">
+                  <span className="col-start-1 row-start-1 row-span-2 self-start text-xs text-ink-soft @min-[40rem]:col-start-1 @min-[40rem]:row-start-1 @min-[40rem]:row-span-1 @min-[40rem]:text-sm">
                     <ExpenseDate date={expense.date} />
                   </span>
                   {showSettlement && (
-                    <span className="col-start-2 text-right @min-[40rem]:col-start-5">
+                    <span className="col-start-3 row-start-2 min-w-0 text-right @min-[40rem]:col-start-6 @min-[40rem]:row-auto">
                       <ViewerSettlement
                         balance={
                           typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance

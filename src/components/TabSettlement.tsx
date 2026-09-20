@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Banknote, ChevronRight, MoveDown, MoveUp, RotateCcw, Scale, X } from "lucide-react";
+import { Banknote, ChevronRight, RotateCcw, Scale, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -79,23 +79,10 @@ function BalanceLabel({ balance, code }: { balance: number; code: string }) {
   );
 }
 
-function BalanceDirection({ balance }: { balance: number }) {
-  if (balance === 0) return null;
-  const DirectionIcon = balance > 0 ? MoveUp : MoveDown;
-  return (
-    <DirectionIcon
-      aria-hidden="true"
-      className={`h-5 w-5 shrink-0 ${balanceColor(balance)}`}
-      strokeWidth={2.5}
-    />
-  );
-}
-
 function BalanceValue({ balance, code }: { balance: number; code: string }) {
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span className="inline-flex flex-wrap items-center font-semibold">
       <BalanceLabel balance={balance} code={code} />
-      <BalanceDirection balance={balance} />
     </span>
   );
 }
@@ -196,7 +183,7 @@ function SingleCurrencySummaryList({
                       onClick={() => onMemberClick?.(member.memberId, group.currency)}
                       className="flex min-w-0 items-center gap-3 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
                     >
-                      <MemberAvatar id={member.memberId} name={member.name} size="sm" />
+                      <MemberAvatar id={member.memberId} name={member.name} size="md" />
                       <span className="min-w-0 break-words font-medium">
                         {member.name}
                         {isViewer && <span className="text-ink-soft"> (you)</span>}
@@ -309,7 +296,7 @@ function ConsolidatedSummaryList({
             <div key={member.memberId}>
               <div className={`${grid} bg-surface bleed-px py-3`}>
                 <span className="flex min-w-0 items-center gap-3">
-                  <MemberAvatar id={member.memberId} name={member.name} size="sm" />
+                  <MemberAvatar id={member.memberId} name={member.name} size="md" />
                   <span className="min-w-0 break-words font-medium">
                     {member.name}
                     {isViewer && <span className="text-ink-soft"> (you)</span>}
