@@ -168,7 +168,9 @@ test("consolidates mixed currencies into member blocks with currency-aware total
   expect(markup.indexOf(">Paid for<")).toBeLessThan(markup.indexOf(">Spent<"));
   expect(markup).toContain("1</span> expense");
   expect(markup).toContain(">-</span>");
-  expect(markup.match(/>Spent</g)).toHaveLength(1);
+  expect(markup).toContain(">Spent<");
+  expect(markup).toContain(">You get<");
+  expect(markup).toContain(">You owe<");
   expect(markup.match(/>Balance</g)).toHaveLength(1);
   expect(markup).toContain("CA$42.39");
   expect(markup).toContain("CA$42.40");
@@ -336,6 +338,55 @@ test("shows paid-for counts before spent, with a dash for no paid expenses", () 
   expect(markup.indexOf(">Paid for<")).toBeLessThan(markup.indexOf(">Spent<"));
   expect(markup).toContain("1</span> expense");
   expect(markup).toContain(">-</span>");
+});
+
+test("shows included-in counts before paid-for counts", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "USD",
+            members: [
+              { memberId: "alex", name: "Alex", balance: 1, share: 2, includedIn: 2, paidFor: 1 },
+              { memberId: "bea", name: "Bea", balance: -1, share: 0, includedIn: 0, paidFor: 0 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup.indexOf(">Included in<")).toBeLessThan(markup.indexOf(">Paid for<"));
+  expect(markup).toContain("2</span> expenses");
+  expect(markup).toContain(">-</span>");
+});
+
+test("shows mobile member counts, including zero counts", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "USD",
+            members: [
+              { memberId: "alex", name: "Alex", balance: 1, includedIn: 2, paidFor: 1 },
+              { memberId: "bea", name: "Bea", balance: -1, includedIn: 0, paidFor: 0 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup).toContain("Included in 2 expenses");
+  expect(markup).toContain("Paid for 1 expense");
+  expect(markup).toContain("Included in 0 expenses");
+  expect(markup).toContain("Paid for 0 expenses");
 });
 
 test("drops the spend column for a response that predates it", () => {

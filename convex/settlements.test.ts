@@ -278,6 +278,24 @@ test("expense views separate expected future balances from paid balances", async
   ]);
 });
 
+test("included expense counts follow each selected expense view", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b"]);
+  await expense(owner, members, members[0].id, "USD", ["b", "c"], 90, "future");
+  const future = (await owner.query(api.expenses.get, { slug: "future" }))!;
+  await owner.mutation(api.expenses.save, {
+    slug: "future",
+    state: { ...toExpenseStateArgs(future), date: "2026-09-13" },
+  });
+
+  const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  expect(result.paid.currencies[0].members.map((member) => member.includedIn)).toEqual([1, 1, 0]);
+  expect(result.upcoming.currencies[0].members.map((member) => member.includedIn)).toEqual([
+    0, 1, 1,
+  ]);
+  expect(result.all.currencies[0].members.map((member) => member.includedIn)).toEqual([1, 2, 1]);
+});
+
 test("view-scoped payments affect the selected future balances and remain in every history", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", undefined, 120);

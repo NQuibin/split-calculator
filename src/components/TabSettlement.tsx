@@ -62,6 +62,7 @@ export type SettlementSummaryData = {
       balance: number;
       share?: number;
       paidFor?: number;
+      includedIn?: number;
     }[];
   }[];
 };
@@ -87,6 +88,61 @@ function BalanceValue({ balance, code }: { balance: number; code: string }) {
   );
 }
 
+function MobileBalanceValue({
+  balance,
+  code,
+  spent,
+}: {
+  balance: number;
+  code: string;
+  spent?: string;
+}) {
+  const signedBalance =
+    balance > 0
+      ? `+${currency(balance, code)}`
+      : balance < 0
+        ? `-${currency(Math.abs(balance), code)}`
+        : "-";
+
+  return (
+    <span className="flex flex-col items-end text-right">
+      {spent !== undefined && (
+        <>
+          <span className="font-numeric text-sm font-semibold text-ink">{spent}</span>
+          <span className="text-xs text-ink-soft">Spent</span>
+        </>
+      )}
+      <span
+        className={`${balanceColor(balance)} ${spent !== undefined ? "mt-2" : ""} font-numeric text-sm font-semibold`}
+      >
+        {balance === 0 ? "Settled" : signedBalance}
+      </span>
+      {balance !== 0 && (
+        <span className="text-xs text-ink-soft">{balance > 0 ? "You get" : "You owe"}</span>
+      )}
+    </span>
+  );
+}
+
+function MobileMemberCounts({
+  includedIn = 0,
+  paidFor = 0,
+}: {
+  includedIn?: number;
+  paidFor?: number;
+}) {
+  return (
+    <span className="col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
+      <span>
+        Included in {includedIn} expense{includedIn === 1 ? "" : "s"}
+      </span>
+      <span className="block">
+        Paid for {paidFor} expense{paidFor === 1 ? "" : "s"}
+      </span>
+    </span>
+  );
+}
+
 /**
  * One template for the header, the rows and the totals footer, so the two money
  * columns line up down the whole currency group. Fixed tracks are enough here
@@ -105,8 +161,16 @@ const balanceRowGrid = {
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
   withSpendAndPaidFor:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_5rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  withSpendAndIncludedIn:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  withSpendAndIncludedInAndPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
   withPaidFor:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_5rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  withIncludedIn:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_9.5rem] @min-[29.5rem]:gap-x-4",
+  withIncludedInAndPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_9.5rem] @min-[29.5rem]:gap-x-4",
   balanceOnly:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[29.5rem]:gap-x-4",
 };
@@ -131,13 +195,22 @@ function SingleCurrencySummaryList({
         const hasSpend = members.some((member) => member.share !== undefined);
         // `paidFor` is optional for legacy responses during a rolling deploy.
         const hasPaidFor = members.some((member) => member.paidFor !== undefined);
+        const hasIncludedIn = members.some((member) => member.includedIn !== undefined);
         const grid = hasSpend
-          ? hasPaidFor
-            ? balanceRowGrid.withSpendAndPaidFor
-            : balanceRowGrid.withSpend
-          : hasPaidFor
-            ? balanceRowGrid.withPaidFor
-            : balanceRowGrid.balanceOnly;
+          ? hasIncludedIn
+            ? hasPaidFor
+              ? balanceRowGrid.withSpendAndIncludedInAndPaidFor
+              : balanceRowGrid.withSpendAndIncludedIn
+            : hasPaidFor
+              ? balanceRowGrid.withSpendAndPaidFor
+              : balanceRowGrid.withSpend
+          : hasIncludedIn
+            ? hasPaidFor
+              ? balanceRowGrid.withIncludedInAndPaidFor
+              : balanceRowGrid.withIncludedIn
+            : hasPaidFor
+              ? balanceRowGrid.withPaidFor
+              : balanceRowGrid.balanceOnly;
         return (
           <section key={group.currency} aria-label={`${group.currency} balances`} className="bleed">
             <GroupTitle as="h3" className={`${grid} bleed-px py-2 text-xs`}>
@@ -147,8 +220,13 @@ function SingleCurrencySummaryList({
                   <span className="font-normal text-ink-soft"> · {currencyName}</span>
                 )}
               </span>
+              {hasIncludedIn && (
+                <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+                  Included in
+                </span>
+              )}
               {hasPaidFor && (
-                <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+                <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
                   Paid for
                 </span>
               )}
@@ -187,22 +265,22 @@ function SingleCurrencySummaryList({
                       <span className="min-w-0 break-words font-medium">
                         {member.name}
                         {isViewer && <span className="text-ink-soft"> (you)</span>}
-                        {hasSpend && (
-                          <span className="mt-1 block text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
-                            {member.share ? (
-                              <>
-                                Spent{" "}
-                                <span className="font-numeric font-semibold text-ink">{spent}</span>
-                              </>
-                            ) : (
-                              spent
-                            )}
-                          </span>
-                        )}
                       </span>
                     </button>
+                    {hasIncludedIn && (
+                      <span className="hidden text-ink-soft @min-[29.5rem]:block">
+                        {member.includedIn ? (
+                          <>
+                            <span className="font-numeric">{member.includedIn}</span> expense
+                            {member.includedIn === 1 ? "" : "s"}
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </span>
+                    )}
                     {hasPaidFor && (
-                      <span className="hidden text-right text-ink-soft @min-[29.5rem]:block">
+                      <span className="hidden text-ink-soft @min-[29.5rem]:block">
                         {member.paidFor ? (
                           <>
                             <span className="font-numeric">{member.paidFor}</span> expense
@@ -222,9 +300,21 @@ function SingleCurrencySummaryList({
                         )}
                       </span>
                     )}
-                    <span className="flex justify-end">
+                    {hasSpend && (
+                      <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
+                        <MobileBalanceValue
+                          balance={member.balance}
+                          code={group.currency}
+                          spent={member.share ? spent : "-"}
+                        />
+                      </span>
+                    )}
+                    <span
+                      className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
+                    >
                       <BalanceValue balance={member.balance} code={group.currency} />
                     </span>
+                    <MobileMemberCounts includedIn={member.includedIn} paidFor={member.paidFor} />
                   </li>
                 );
               })}
@@ -243,11 +333,23 @@ function ConsolidatedSummaryList({
   data: SettlementSummaryData;
   onMemberClick?: (memberId: string, currencyCode: string) => void;
 }) {
-  const members = new Map<string, { memberId: string; name: string }>();
+  const members = new Map<
+    string,
+    { memberId: string; name: string; includedIn: number; paidFor: number }
+  >();
   for (const group of data.currencies) {
     for (const member of group.members) {
-      if (!members.has(member.memberId)) {
-        members.set(member.memberId, { memberId: member.memberId, name: member.name });
+      const existing = members.get(member.memberId);
+      if (existing) {
+        existing.includedIn += member.includedIn ?? 0;
+        existing.paidFor += member.paidFor ?? 0;
+      } else {
+        members.set(member.memberId, {
+          memberId: member.memberId,
+          name: member.name,
+          includedIn: member.includedIn ?? 0,
+          paidFor: member.paidFor ?? 0,
+        });
       }
     }
   }
@@ -261,13 +363,24 @@ function ConsolidatedSummaryList({
   const hasPaidFor = data.currencies.some((group) =>
     group.members.some((member) => member.paidFor !== undefined),
   );
+  const hasIncludedIn = data.currencies.some((group) =>
+    group.members.some((member) => member.includedIn !== undefined),
+  );
   const grid = hasSpend
-    ? hasPaidFor
-      ? balanceRowGrid.withSpendAndPaidFor
-      : balanceRowGrid.withSpend
-    : hasPaidFor
-      ? balanceRowGrid.withPaidFor
-      : balanceRowGrid.balanceOnly;
+    ? hasIncludedIn
+      ? hasPaidFor
+        ? balanceRowGrid.withSpendAndIncludedInAndPaidFor
+        : balanceRowGrid.withSpendAndIncludedIn
+      : hasPaidFor
+        ? balanceRowGrid.withSpendAndPaidFor
+        : balanceRowGrid.withSpend
+    : hasIncludedIn
+      ? hasPaidFor
+        ? balanceRowGrid.withIncludedInAndPaidFor
+        : balanceRowGrid.withIncludedIn
+      : hasPaidFor
+        ? balanceRowGrid.withPaidFor
+        : balanceRowGrid.balanceOnly;
   const rowsByCurrency = (memberId: string) =>
     data.currencies.flatMap((group) => {
       const member = group.members.find((row) => row.memberId === memberId);
@@ -278,8 +391,11 @@ function ConsolidatedSummaryList({
     <div className="bleed">
       <div className={`${grid} hidden bleed-px py-2 @min-[29.5rem]:grid`}>
         <span aria-hidden="true" />
+        {hasIncludedIn && (
+          <span className="text-xs font-medium uppercase text-ink-soft">Included in</span>
+        )}
         {hasPaidFor && (
-          <span className="text-right text-xs font-medium uppercase text-ink-soft">Paid for</span>
+          <span className="text-xs font-medium uppercase text-ink-soft">Paid for</span>
         )}
         {hasSpend && (
           <span className="text-right text-xs font-medium uppercase text-ink-soft">Spent</span>
@@ -302,6 +418,7 @@ function ConsolidatedSummaryList({
                     {isViewer && <span className="text-ink-soft"> (you)</span>}
                   </span>
                 </span>
+                <MobileMemberCounts includedIn={member.includedIn} paidFor={member.paidFor} />
               </div>
               <div className="divide-y divide-rule">
                 {rows.map(({ group, member: currencyMember }) => {
@@ -320,21 +437,22 @@ function ConsolidatedSummaryList({
                         <span className="font-numeric font-semibold text-ink">
                           {group.currency}
                         </span>
-                        {hasSpend && (
-                          <span className="mt-1 block @min-[29.5rem]:hidden">
-                            {currencyMember.share ? (
-                              <>
-                                Spent{" "}
-                                <span className="font-numeric font-semibold text-ink">{spent}</span>
-                              </>
-                            ) : (
-                              spent
-                            )}
-                          </span>
-                        )}
                       </span>
+                      {hasIncludedIn && (
+                        <span className="hidden text-ink-soft @min-[29.5rem]:block">
+                          {currencyMember.includedIn ? (
+                            <>
+                              <span className="font-numeric">{currencyMember.includedIn}</span>{" "}
+                              expense
+                              {currencyMember.includedIn === 1 ? "" : "s"}
+                            </>
+                          ) : (
+                            "-"
+                          )}
+                        </span>
+                      )}
                       {hasPaidFor && (
-                        <span className="hidden text-right text-ink-soft @min-[29.5rem]:block">
+                        <span className="hidden text-ink-soft @min-[29.5rem]:block">
                           {currencyMember.paidFor ? (
                             <>
                               <span className="font-numeric">{currencyMember.paidFor}</span> expense
@@ -354,7 +472,18 @@ function ConsolidatedSummaryList({
                           )}
                         </span>
                       )}
-                      <span className="flex justify-end">
+                      {hasSpend && (
+                        <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
+                          <MobileBalanceValue
+                            balance={currencyMember.balance}
+                            code={group.currency}
+                            spent={currencyMember.share ? spent : "-"}
+                          />
+                        </span>
+                      )}
+                      <span
+                        className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
+                      >
                         <BalanceValue balance={currencyMember.balance} code={group.currency} />
                       </span>
                     </button>

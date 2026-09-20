@@ -19,6 +19,7 @@ const expenseViewValidator = v.union(v.literal("paid"), v.literal("upcoming"), v
 type MemberTotals = {
   paidCents: number;
   paidForCount: number;
+  includedInCount: number;
   shareCents: number;
   transferredCents: number;
 };
@@ -78,7 +79,13 @@ function blank(roster: Doc<"tabMembers">[]): CurrencyTotals {
   return new Map(
     roster.map((seat) => [
       seat._id,
-      { paidCents: 0, paidForCount: 0, shareCents: 0, transferredCents: 0 },
+      {
+        paidCents: 0,
+        paidForCount: 0,
+        includedInCount: 0,
+        shareCents: 0,
+        transferredCents: 0,
+      },
     ]),
   );
 }
@@ -166,6 +173,7 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
       shares.forEach((share, index) => {
         const member = totals.get(share.personId)!;
         member.shareCents = addCents(member.shareCents, shareAmounts[index]);
+        if (shareAmounts[index] !== 0) member.includedInCount += 1;
       });
       const payer = totals.get(expense.payerId)!;
       payer.paidCents = addCents(payer.paidCents, totalCents);
@@ -208,6 +216,7 @@ const settlementSummary = v.object({
           name: v.string(),
           paid: v.number(),
           paidFor: v.number(),
+          includedIn: v.number(),
           share: v.number(),
           balance: v.number(),
         }),
@@ -267,6 +276,7 @@ export const get = query({
                 name: person.name,
                 paid: total.paidCents / 100,
                 paidFor: total.paidForCount,
+                includedIn: total.includedInCount,
                 share: total.shareCents / 100,
                 balance: net(total) / 100,
               };
