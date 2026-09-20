@@ -30,7 +30,7 @@ function SummaryCard({ label, icon: Icon, amounts, className }: SummaryCardProps
         {amounts ? (
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             {amounts.map(({ code, value }) => (
-              <span key={code} className="font-numeric text-lg font-semibold text-ink">
+              <span key={code} className="font-numeric text-base font-semibold text-ink">
                 {currency(value, code)}
               </span>
             ))}
@@ -90,13 +90,13 @@ export function TabSummaryCards({
         label="Tab total"
         icon={ReceiptText}
         amounts={amounts}
-        className="-ml-5 sm:ml-0"
+        className="-ml-5 rounded-l-none sm:ml-0 sm:rounded-xl"
       />
       <SummaryCard
         label="You spent"
         icon={Wallet}
         amounts={viewerAmounts}
-        className="-mr-5 sm:mr-0"
+        className="-mr-5 rounded-r-none sm:mr-0 sm:rounded-xl"
       />
     </section>
   );

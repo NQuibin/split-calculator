@@ -5,6 +5,12 @@ import wordmark from "@/assets/wordmark.svg";
 import { Button } from "@/components/ui/Button";
 import { SidebarAccount } from "@/components/SidebarAccount";
 
+function getIsMobileViewport() {
+  return typeof window === "undefined" || typeof window.matchMedia !== "function"
+    ? true
+    : window.matchMedia("(max-width: 1023px)").matches;
+}
+
 function isActive(pathname: string | null, href: string): boolean {
   return pathname === href || (pathname?.startsWith(`${href}/`) ?? false);
 }
@@ -12,8 +18,36 @@ function isActive(pathname: string | null, href: string): boolean {
 export function Sidebar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(getIsMobileViewport);
+  const [drawerHidden, setDrawerHidden] = useState(getIsMobileViewport);
   const openButton = useRef<HTMLButtonElement>(null);
   const drawer = useRef<HTMLElement>(null);
+
+  const openDrawer = () => {
+    setDrawerHidden(false);
+    // The first frame paints the drawer off-canvas; the second supplies the
+    // destination transform. One frame is not enough because rAF runs before
+    // paint, so the browser would otherwise see only the final position.
+    requestAnimationFrame(() => requestAnimationFrame(() => setMobileOpen(true)));
+  };
+
+  const closeDrawer = () => setMobileOpen(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 1023px)");
+    const updateViewport = () => setIsMobileViewport(media.matches);
+    media.addEventListener("change", updateViewport);
+    return () => media.removeEventListener("change", updateViewport);
+  }, []);
+
+  // Keep the panel mounted until its slide-out has finished. `inert` keeps
+  // the closing panel out of the tab order while it animates.
+  useEffect(() => {
+    if (mobileOpen || drawerHidden) return;
+    const timer = window.setTimeout(() => setDrawerHidden(true), 200);
+    return () => window.clearTimeout(timer);
+  }, [mobileOpen, drawerHidden]);
 
   // Moving focus into the drawer is what makes it usable from a keyboard at
   // all; putting it back on the trigger afterwards is what stops focus from
@@ -48,7 +82,7 @@ export function Sidebar() {
           variant="ghost"
           size="icon-touch"
           ref={openButton}
-          onClick={() => setMobileOpen(true)}
+          onClick={openDrawer}
           aria-label="Open menu"
           aria-controls="app-nav"
           aria-expanded={mobileOpen}
@@ -58,13 +92,11 @@ export function Sidebar() {
         </Button>
       </div>
 
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-ink/30 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      <div
+        className={`fixed inset-0 z-40 bg-ink/30 transition-opacity duration-200 ease-in-out lg:hidden ${mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+        onClick={closeDrawer}
+        aria-hidden="true"
+      />
 
       {/* `invisible` (not just translated off-screen) is what takes the closed
           drawer's links out of the tab order; it's part of the transition so
@@ -73,11 +105,17 @@ export function Sidebar() {
       <aside
         id="app-nav"
         ref={drawer}
+        inert={isMobileViewport && (drawerHidden || !mobileOpen) ? true : undefined}
+        aria-hidden={isMobileViewport && (drawerHidden || !mobileOpen) ? true : undefined}
         onKeyDown={(event) => {
-          if (event.key === "Escape") setMobileOpen(false);
+          if (event.key === "Escape") closeDrawer();
         }}
-        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r border-rule/60 bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-[transform,visibility] duration-200 ease-in-out lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:visible lg:translate-x-0 lg:pt-0 ${
-          mobileOpen ? "visible translate-x-0" : "invisible -translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r border-rule/60 bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-[translate,visibility] duration-200 ease-in-out lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:visible lg:translate-x-0 lg:pt-0 ${
+          mobileOpen
+            ? "visible translate-x-0"
+            : drawerHidden
+              ? "invisible -translate-x-full"
+              : "visible -translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between px-6 pt-7 pb-6">
@@ -86,7 +124,7 @@ export function Sidebar() {
             type="button"
             variant="ghost"
             size="icon-touch"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeDrawer}
             aria-label="Close menu"
             className="-mr-2 text-ink-soft lg:hidden"
           >
@@ -125,7 +163,7 @@ export function Sidebar() {
               key={href}
               to={href}
               aria-current={active ? "page" : undefined}
-              onClick={() => setMobileOpen(false)}
+              onClick={closeDrawer}
               className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${active ? "bg-rule/30 font-semibold text-forest" : "text-ink-soft hover:bg-wash"}`}
             >
               <Icon

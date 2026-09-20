@@ -127,12 +127,16 @@ function MobileBalanceValue({
 function MobileMemberCounts({
   includedIn = 0,
   paidFor = 0,
+  className,
 }: {
   includedIn?: number;
   paidFor?: number;
+  className?: string;
 }) {
   return (
-    <span className="col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
+    <span
+      className={`col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[29.5rem]:hidden ${className ?? ""}`}
+    >
       <span>
         Included in {includedIn} expense{includedIn === 1 ? "" : "s"}
       </span>
@@ -418,7 +422,11 @@ function ConsolidatedSummaryList({
                     {isViewer && <span className="text-ink-soft"> (you)</span>}
                   </span>
                 </span>
-                <MobileMemberCounts includedIn={member.includedIn} paidFor={member.paidFor} />
+                <MobileMemberCounts
+                  includedIn={member.includedIn}
+                  paidFor={member.paidFor}
+                  className="mt-2"
+                />
               </div>
               <div className="divide-y divide-rule">
                 {rows.map(({ group, member: currencyMember }) => {
@@ -434,7 +442,7 @@ function ConsolidatedSummaryList({
                       className={`${grid} relative w-full bleed-px py-3 text-left transition-colors hover:bg-wash focus-visible:outline-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest`}
                     >
                       <span className="min-w-0 break-words text-xs text-ink-soft">
-                        <span className="font-numeric font-semibold text-ink">
+                        <span className="font-numeric text-sm font-semibold text-ink">
                           {group.currency}
                         </span>
                       </span>

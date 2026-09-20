@@ -1056,7 +1056,7 @@ function ExpenseList({
                     onClick={() => {
                       setSelectedSlug(expense.slug);
                     }}
-                    className="col-start-2 row-start-1 min-w-0 break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[40rem]:col-start-2"
+                    className="col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[40rem]:col-start-2 @min-[40rem]:self-auto"
                   >
                     <span className="text-sm">{expense.name ?? "Untitled expense"}</span>
                   </button>

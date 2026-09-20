@@ -178,8 +178,8 @@ test("consolidates mixed currencies into member blocks with currency-aware total
   expect(markup).not.toContain("Total spent");
   // Alex's settled CAD row is omitted only when it has no spend; the USD row
   // remains because it carries a non-zero balance.
-  expect(markup.match(/font-numeric font-semibold text-ink">CAD</g)).toHaveLength(2);
-  expect(markup.match(/font-numeric font-semibold text-ink">USD</g)).toHaveLength(2);
+  expect(markup.match(/font-numeric text-sm font-semibold text-ink">CAD</g)).toHaveLength(2);
+  expect(markup.match(/font-numeric text-sm font-semibold text-ink">USD</g)).toHaveLength(2);
 });
 
 test("omits zero-only currency rows and keeps sparse nonzero rows", () => {
