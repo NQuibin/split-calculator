@@ -2,8 +2,9 @@ import { ReceiptText, Wallet } from "lucide-react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
-import { currency } from "@/lib/format";
+import { currency, isUpcoming } from "@/lib/format";
 import { computeSplit } from "@/lib/calculations";
+import type { ExpenseView } from "@/components/ExpenseViewTabs";
 import type { TabExpenseSummary, TabMemberSummary } from "@/lib/tabSync";
 import { Panel } from "@/components/ui/Page";
 
@@ -48,27 +49,37 @@ export function TabSummaryCards({
   expenses,
   members,
   defaultCurrency,
+  expenseView,
 }: {
   expenses: TabExpenseSummary[];
   members: TabMemberSummary[];
   defaultCurrency: string;
+  expenseView: ExpenseView;
 }) {
   const viewer = useQuery(api.users.viewer);
   const viewerMember = viewer
     ? members.find((member) => member.resolvedId === viewer._id)
     : undefined;
   const viewerIds = new Set(viewerMember ? [viewerMember.id, viewerMember.resolvedId] : []);
+  const hasUpcoming = expenses.some((expense) => isUpcoming(expense.date));
+  const activeView = hasUpcoming ? expenseView : "paid";
+  const visibleExpenses = expenses.filter(
+    (expense) =>
+      activeView === "all" ||
+      (activeView === "upcoming" ? isUpcoming(expense.date) : !isUpcoming(expense.date)),
+  );
   const totals = new Map<string, number>();
   const viewerTotals = new Map<string, number>();
-  for (const expense of expenses) {
-    const total = computeSplit(expense.people, expense.items, expense.globalAdjustments).grandTotal;
+  for (const expense of visibleExpenses) {
+    const split = computeSplit(expense.people, expense.items, expense.globalAdjustments);
     const rate = expense.exchangeRate?.rate ?? 1;
-    const amount = total * rate;
+    const amount = split.grandTotal * rate;
     totals.set(expense.settlementCurrency, (totals.get(expense.settlementCurrency) ?? 0) + amount);
-    if (expense.payerId && viewerIds.has(expense.payerId)) {
+    const viewerShare = split.people.find((person) => viewerIds.has(person.personId));
+    if (viewerShare) {
       viewerTotals.set(
         expense.settlementCurrency,
-        (viewerTotals.get(expense.settlementCurrency) ?? 0) + amount,
+        (viewerTotals.get(expense.settlementCurrency) ?? 0) + viewerShare.total * rate,
       );
     }
   }

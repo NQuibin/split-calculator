@@ -167,6 +167,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         expenses={expenses}
         members={tab.members}
         defaultCurrency={tab.defaultCurrency}
+        expenseView={hasUpcoming ? expenseView : "paid"}
       />
       <TabSettlement
         slug={slug}
@@ -829,8 +830,8 @@ function expenseListGridClass(withSettlement: boolean) {
   // the build. No warning, no type error: the class just isn't there, and the
   // column collapses to one giant track.
   const list = withSettlement
-    ? "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]"
-    : "divide-y divide-rule/70 @min-[40rem]:grid @min-[40rem]:gap-x-4 @min-[40rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)]";
+    ? "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]"
+    : "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)]";
   return {
     list,
     // `gap-x-4` carries through from its base declaration (mobile and `md`)
@@ -840,7 +841,7 @@ function expenseListGridClass(withSettlement: boolean) {
     // one (it needs `gap-x-4` unconditionally for its own independent mobile
     // grid), so its own value has to move in lockstep with the list's or the
     // two silently mismatch.
-    row: "grid grid-cols-[auto_minmax(0,1fr)_fit-content(9.5rem)] items-start gap-x-4 gap-y-2 bleed-px @min-[40rem]:grid-cols-subgrid @min-[40rem]:col-span-full @min-[40rem]:items-center @min-[56rem]:gap-x-6",
+    row: "grid grid-cols-[auto_minmax(0,1fr)_fit-content(9.5rem)] items-start gap-x-4 gap-y-2 bleed-px @min-[38rem]:grid-cols-subgrid @min-[38rem]:col-span-full @min-[38rem]:items-center @min-[56rem]:gap-x-6",
   };
 }
 
@@ -902,7 +903,7 @@ function ExpenseAmount({
   return (
     <>
       <span className="block font-numeric text-sm font-semibold">{currency(total, code)}</span>
-      <span className="mt-0.5 block text-xs text-ink-soft @min-[40rem]:hidden">
+      <span className="mt-0.5 block text-xs text-ink-soft @min-[38rem]:hidden">
         {upcoming ? "Total planned" : "Total"}
       </span>
       {native && (
@@ -937,18 +938,18 @@ function ViewerSettlement({
   return (
     <>
       <span
-        className={`hidden text-sm font-semibold @min-[40rem]:block ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
+        className={`hidden text-sm font-semibold @min-[38rem]:block ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
       >
         {owed ? "Owes" : "Gets"}{" "}
         <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
       </span>
       <span
-        className={`block font-numeric text-sm font-semibold @min-[40rem]:hidden ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
+        className={`block font-numeric text-sm font-semibold @min-[38rem]:hidden ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
       >
         {owed ? "\u2212" : "+"}
         {currency(Math.abs(balance), code)}
       </span>
-      <span className="block text-xs text-ink-soft @min-[40rem]:hidden">
+      <span className="block text-xs text-ink-soft @min-[38rem]:hidden">
         {owed ? "You owe" : "You get"}
       </span>
     </>
@@ -1002,7 +1003,7 @@ function ExpenseList({
       {/* A row list with no header or footer is still a table body (DESIGN.md
           "Data tables"): the field ground between two `--edge` rules, open at
           the sides. */}
-      <div className="bleed overflow-hidden border-y border-edge bg-field @min-[40rem]:border-t-0">
+      <div className="bleed overflow-hidden border-y border-edge bg-field @min-[38rem]:border-t-0">
         {!filtered.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length
@@ -1014,15 +1015,15 @@ function ExpenseList({
         ) : (
           <ul className={listGrid}>
             <li
-              className={`${rowGrid} hidden @min-[40rem]:grid border-b border-edge bg-surface py-2 text-xs font-medium uppercase text-ink-soft`}
+              className={`${rowGrid} hidden @min-[38rem]:grid border-b border-edge bg-surface py-2 text-xs font-medium uppercase text-ink-soft`}
             >
-              <span className="@min-[40rem]:col-start-1">Date</span>
-              <span className="@min-[40rem]:col-start-2">Expense</span>
-              <span className="@min-[40rem]:col-start-3">Paid by</span>
-              <span className="text-right @min-[40rem]:col-start-4">Total</span>
-              <span className="text-right @min-[40rem]:col-start-5">Spent</span>
+              <span className="@min-[38rem]:col-start-1">Date</span>
+              <span className="@min-[38rem]:col-start-2">Expense</span>
+              <span className="@min-[38rem]:col-start-3">Paid by</span>
+              <span className="text-right @min-[38rem]:col-start-4">Total</span>
+              <span className="text-right @min-[38rem]:col-start-5">Spent</span>
               {showSettlement && (
-                <span className="text-right @min-[40rem]:col-start-6">Balance</span>
+                <span className="text-right @min-[38rem]:col-start-6">Balance</span>
               )}
             </li>
             {filtered.map((expense) => {
@@ -1056,16 +1057,16 @@ function ExpenseList({
                     onClick={() => {
                       setSelectedSlug(expense.slug);
                     }}
-                    className="col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[40rem]:col-start-2 @min-[40rem]:self-auto"
+                    className="col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[38rem]:col-start-2 @min-[38rem]:self-auto"
                   >
                     <span className="text-sm">{expense.name ?? "Untitled expense"}</span>
                   </button>
                   {/* Not interactive, so it sits under the row-link overlay like any
                       other plain cell - no `z-10` needed. */}
-                  <span className="hidden min-w-0 @min-[40rem]:col-start-3 @min-[40rem]:block">
+                  <span className="hidden min-w-0 @min-[38rem]:col-start-3 @min-[38rem]:block">
                     <ExpensePayer payer={payer} upcoming={upcoming} />
                   </span>
-                  <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-3 @min-[40rem]:hidden">
+                  <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-3 @min-[38rem]:hidden">
                     {payer ? <MemberAvatar id={payer.id} name={payer.name} size="md" /> : null}
                     <span className="min-w-0">
                       <span className="block text-xs text-ink-soft">
@@ -1082,7 +1083,7 @@ function ExpenseList({
                       )}
                     </span>
                   </span>
-                  <span className="col-start-3 row-start-1 min-w-0 self-start text-right @min-[40rem]:col-start-4 @min-[40rem]:row-auto @min-[40rem]:self-auto">
+                  <span className="col-start-3 row-start-1 min-w-0 self-start text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto @min-[38rem]:self-auto">
                     <ExpenseAmount
                       total={rowSplit.grandTotal * rate}
                       code={expense.settlementCurrency}
@@ -1094,18 +1095,18 @@ function ExpenseList({
                       upcoming={upcoming}
                     />
                   </span>
-                  <span className="hidden min-w-0 text-right font-numeric text-sm @min-[40rem]:col-start-5 @min-[40rem]:block">
+                  <span className="hidden min-w-0 text-right font-numeric text-sm @min-[38rem]:col-start-5 @min-[38rem]:block">
                     {typeof viewerSpent === "number"
                       ? currency(viewerSpent * rate, expense.settlementCurrency)
                       : "-"}
                   </span>
                   {/* One date element for both layouts: the second row below `md`,
                       its own leading column from `md` up. */}
-                  <span className="col-start-1 row-start-1 row-span-2 self-start text-xs text-ink-soft @min-[40rem]:col-start-1 @min-[40rem]:row-start-1 @min-[40rem]:row-span-1 @min-[40rem]:text-sm">
+                  <span className="col-start-1 row-start-1 row-span-2 self-start text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:row-span-1 @min-[38rem]:text-sm">
                     <ExpenseDate date={expense.date} />
                   </span>
                   {showSettlement && (
-                    <span className="col-start-3 row-start-2 min-w-0 text-right @min-[40rem]:col-start-6 @min-[40rem]:row-auto">
+                    <span className="col-start-3 row-start-2 min-w-0 text-right @min-[38rem]:col-start-6 @min-[38rem]:row-auto">
                       <ViewerSettlement
                         balance={
                           typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
