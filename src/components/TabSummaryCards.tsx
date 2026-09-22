@@ -2,7 +2,8 @@ import { ReceiptText, Wallet } from "lucide-react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
-import { currency, isUpcoming } from "@/lib/format";
+import { isUpcoming } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { computeSplit } from "@/lib/calculations";
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
 import type { TabExpenseSummary, TabMemberSummary } from "@/lib/tabSync";
@@ -16,6 +17,7 @@ type SummaryCardProps = {
 };
 
 function SummaryCard({ label, icon: Icon, amounts, className }: SummaryCardProps) {
+  const { currency } = useLocaleFormatters();
   return (
     <Panel
       bleedOnMobile={false}

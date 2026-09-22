@@ -1,9 +1,11 @@
-export function currency(n: number, code: string = "USD"): string {
+import { DEFAULT_LOCALE } from "./locale";
+
+export function currency(n: number, code: string = "USD", locale = DEFAULT_LOCALE): string {
   if (!Number.isFinite(n)) return "-";
   try {
-    return n.toLocaleString("en-US", { style: "currency", currency: code });
+    return n.toLocaleString(locale, { style: "currency", currency: code });
   } catch {
-    return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+    return n.toLocaleString(locale, { style: "currency", currency: "USD" });
   }
 }
 
@@ -20,21 +22,27 @@ export function todayISODate(): string {
 
 // How an expense's date reads everywhere it's listed, e.g. "Mar 3, 2027".
 // Undefined when there's no date, so callers can fall back to their own copy.
-export function formatExpenseDate(iso: string | undefined): string | undefined {
-  return (iso ? parseISODate(iso) : undefined)?.toLocaleDateString("en-US", {
+export function formatExpenseDate(
+  iso: string | undefined,
+  locale = DEFAULT_LOCALE,
+): string | undefined {
+  return (iso ? parseISODate(iso) : undefined)?.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 }
 
-// The compact form for a dense list column, e.g. "Mar 3". The year is dropped
+// The compact form for a dense list column, e.g. "Mar 03". The year is dropped
 // so the column stays narrow, which means the full date has to survive
 // somewhere - always pair this with a `<time dateTime>` carrying the ISO value.
-export function formatExpenseDateShort(iso: string | undefined): string | undefined {
-  return (iso ? parseISODate(iso) : undefined)?.toLocaleDateString("en-US", {
+export function formatExpenseDateShort(
+  iso: string | undefined,
+  locale = DEFAULT_LOCALE,
+): string | undefined {
+  return (iso ? parseISODate(iso) : undefined)?.toLocaleDateString(locale, {
     month: "short",
-    day: "numeric",
+    day: "2-digit",
   });
 }
 

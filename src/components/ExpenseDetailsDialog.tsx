@@ -7,7 +7,8 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { Input, Label } from "@/components/ui/Input";
 import { GroupTitle } from "@/components/ui/Typography";
 import { computeSplit } from "@/lib/calculations";
-import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
+import { isUpcoming } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTabActions, type TabExpenseSummary } from "@/lib/tabSync";
 import { useState } from "react";
 
@@ -32,6 +33,7 @@ export function ExpenseDetailsDialog({
   members: Member[];
   onDelete?: (slug: string) => void;
 }) {
+  const { currency, formatExpenseDate } = useLocaleFormatters();
   const split = expense
     ? computeSplit(expense.people, expense.items, expense.globalAdjustments)
     : null;
@@ -236,6 +238,7 @@ function ExchangeRateForm({
   target: string;
   canEdit: boolean;
 }) {
+  const { currency } = useLocaleFormatters();
   const { setExpenseExchangeRate } = useTabActions();
   const [value, setValue] = useState(expense.exchangeRate?.rate.toString() ?? "");
   const [expanded, setExpanded] = useState(false);

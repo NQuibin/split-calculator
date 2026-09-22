@@ -29,7 +29,7 @@ export function UpcomingExpenseLegend() {
   return (
     <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-soft">
       <ClockArrowUp aria-hidden="true" className={iconClass} strokeWidth={2.25} />
-      Upcoming &middot; not charged yet
+      Not yet charged
     </p>
   );
 }

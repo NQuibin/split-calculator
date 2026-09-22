@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
-import { currency, formatExpenseDateShort, isUpcoming } from "@/lib/format";
+import { isUpcoming } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
@@ -868,10 +869,11 @@ function ExpensePayer({
 
 /** An expense's date as "Mar 3", with the full date kept in `dateTime`. */
 function ExpenseDate({ date }: { date: string | undefined }) {
+  const { formatExpenseDateShort } = useLocaleFormatters();
   const short = formatExpenseDateShort(date);
+  const upcoming = isUpcoming(date);
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      <UpcomingExpenseIcon date={date} />
+    <span className="inline-flex flex-col items-start whitespace-nowrap">
       {date && short ? (
         <time dateTime={date} className="flex flex-col leading-tight">
           <span className="text-sm">{short}</span>
@@ -879,6 +881,11 @@ function ExpenseDate({ date }: { date: string | undefined }) {
         </time>
       ) : (
         "No date"
+      )}
+      {upcoming && (
+        <span className="mt-1">
+          <UpcomingExpenseIcon date={date} />
+        </span>
       )}
     </span>
   );
@@ -900,9 +907,10 @@ function ExpenseAmount({
   native?: { amount: number; code: string };
   upcoming: boolean;
 }) {
+  const { currency } = useLocaleFormatters();
   return (
     <>
-      <span className="block font-numeric text-sm font-semibold">{currency(total, code)}</span>
+      <span className="block font-numeric text-sm">{currency(total, code)}</span>
       <span className="mt-0.5 block text-xs text-ink-soft @min-[38rem]:hidden">
         {upcoming ? "Total planned" : "Total"}
       </span>
@@ -930,6 +938,7 @@ function ViewerSettlement({
   code: string;
   projected: boolean;
 }) {
+  const { currency } = useLocaleFormatters();
   if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
   if (balance === undefined) return <span className="text-xs text-ink-soft">Not in split</span>;
   if (balance === 0)
@@ -971,6 +980,7 @@ function ExpenseList({
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
 }) {
+  const { currency } = useLocaleFormatters();
   const { remove } = useExpenseActions();
   const viewer = useQuery(api.users.viewer);
   const [search, setSearch] = useState("");
@@ -1059,7 +1069,7 @@ function ExpenseList({
                     }}
                     className="col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[38rem]:col-start-2 @min-[38rem]:self-auto"
                   >
-                    <span className="text-sm">{expense.name ?? "Untitled expense"}</span>
+                    <span className="block text-sm">{expense.name ?? "Untitled expense"}</span>
                   </button>
                   {/* Not interactive, so it sits under the row-link overlay like any
                       other plain cell - no `z-10` needed. */}
@@ -1069,17 +1079,15 @@ function ExpenseList({
                   <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-3 @min-[38rem]:hidden">
                     {payer ? <MemberAvatar id={payer.id} name={payer.name} size="md" /> : null}
                     <span className="min-w-0">
-                      <span className="block text-xs text-ink-soft">
-                        {payer
-                          ? upcoming
-                            ? "Pays"
-                            : "Paid by"
-                          : upcoming
-                            ? "Not paid yet"
-                            : "Payer needed"}
-                      </span>
+                      {!payer && (
+                        <span className="block text-xs text-ink-soft">
+                          {upcoming ? "Not paid yet" : "Payer needed"}
+                        </span>
+                      )}
                       {payer && (
-                        <span className="block break-words text-sm text-ink">{payer.name}</span>
+                        <span className="block break-words text-xs text-ink-soft">
+                          Paid by <span className="text-sm text-ink">{payer.name}</span>
+                        </span>
                       )}
                     </span>
                   </span>
@@ -1095,14 +1103,14 @@ function ExpenseList({
                       upcoming={upcoming}
                     />
                   </span>
-                  <span className="hidden min-w-0 text-right font-numeric text-sm @min-[38rem]:col-start-5 @min-[38rem]:block">
+                  <span className="hidden min-w-0 text-right font-numeric text-sm font-semibold @min-[38rem]:col-start-5 @min-[38rem]:block">
                     {typeof viewerSpent === "number"
                       ? currency(viewerSpent * rate, expense.settlementCurrency)
                       : "-"}
                   </span>
                   {/* One date element for both layouts: the second row below `md`,
                       its own leading column from `md` up. */}
-                  <span className="col-start-1 row-start-1 row-span-2 self-start text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:row-span-1 @min-[38rem]:text-sm">
+                  <span className="col-start-1 row-start-1 row-span-2 self-center text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:row-span-1 @min-[38rem]:text-sm">
                     <ExpenseDate date={expense.date} />
                   </span>
                   {showSettlement && (

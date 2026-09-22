@@ -2,10 +2,15 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/ui/Button";
 import { Asterisk, Pencil, Trash2 } from "lucide-react";
 import { discountAmount } from "@/lib/calculations";
-import { currency } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import type { Person, ExpenseItem, RateSetting } from "@/lib/types";
 
-function formatRate(label: string, rate: RateSetting, code: string): string {
+function formatRate(
+  label: string,
+  rate: RateSetting,
+  code: string,
+  currency: (amount: number, currency?: string) => string,
+): string {
   return rate.mode === "percent"
     ? `${label} ${rate.value}%`
     : `${label} ${currency(rate.value, code)}`;
@@ -32,13 +37,14 @@ export function ExpenseLineItem({
   onEdit,
   onRemove,
 }: ExpenseLineItemProps) {
+  const { currency } = useLocaleFormatters();
   function personName(id: string): string {
     return people.find((p) => p.id === id)?.name ?? "?";
   }
 
   const rateLabels = [
-    item.tax.value > 0 ? formatRate("Tax", item.tax, currencyCode) : null,
-    item.tip.value > 0 ? formatRate("Tip", item.tip, currencyCode) : null,
+    item.tax.value > 0 ? formatRate("Tax", item.tax, currencyCode, currency) : null,
+    item.tip.value > 0 ? formatRate("Tip", item.tip, currencyCode, currency) : null,
   ].filter((s): s is string => s !== null);
 
   return (

@@ -23,7 +23,8 @@ import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
 import { CURRENCIES } from "@/lib/currencies";
-import { currency, formatExpenseDate, todayISODate } from "@/lib/format";
+import { todayISODate } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTabBreakdown, type TabExpenseSummary } from "@/lib/tabSync";
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
 
@@ -72,6 +73,7 @@ function balanceColor(balance: number) {
 }
 
 function BalanceLabel({ balance, code }: { balance: number; code: string }) {
+  const { currency } = useLocaleFormatters();
   return (
     <span className={`${balanceColor(balance)} whitespace-nowrap`}>
       {balance === 0 ? "Settled" : balance > 0 ? "Gets " : "Owes "}
@@ -97,6 +99,7 @@ function MobileBalanceValue({
   code: string;
   spent?: string;
 }) {
+  const { currency } = useLocaleFormatters();
   const signedBalance =
     balance > 0
       ? `+${currency(balance, code)}`
@@ -186,6 +189,7 @@ function SingleCurrencySummaryList({
   data: SettlementSummaryData;
   onMemberClick?: (memberId: string, currencyCode: string) => void;
 }) {
+  const { currency } = useLocaleFormatters();
   return (
     <div className="space-y-5">
       {data.currencies.map((group) => {
@@ -337,6 +341,7 @@ function ConsolidatedSummaryList({
   data: SettlementSummaryData;
   onMemberClick?: (memberId: string, currencyCode: string) => void;
 }) {
+  const { currency } = useLocaleFormatters();
   const members = new Map<
     string,
     { memberId: string; name: string; includedIn: number; paidFor: number }
@@ -565,6 +570,7 @@ export function TabSettlement({
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
 }) {
+  const { currency, formatExpenseDate } = useLocaleFormatters();
   const [day, setDay] = useState(todayISODate);
   const [open, setOpen] = useState(false);
   const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
@@ -928,7 +934,7 @@ export function TabSettlement({
                     <MemberAvatar
                       id={selectedBreakdown.memberId}
                       name={selectedBreakdown.name}
-                      size="sm"
+                      size="md"
                     />
                   )}
                   <div className="min-w-0">

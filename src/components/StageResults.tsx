@@ -18,7 +18,8 @@ import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { Button } from "@/components/ui/Button";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { computeSplit } from "@/lib/calculations";
-import { currency, isUpcoming } from "@/lib/format";
+import { isUpcoming } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { encodeSharePayload } from "@/lib/shareLink";
 import type { Person, ExpenseImage, ExpenseItem } from "@/lib/types";
 import { PageDescription, PageTitle } from "@/components/ui/Typography";
@@ -42,6 +43,7 @@ function DisclosureLine({
   taxAmount = 0,
   tipAmount = 0,
 }: DisclosureLineProps) {
+  const { currency } = useLocaleFormatters();
   const [open, setOpen] = useState(false);
   const hasBreakdown = discountAmount > 0 || taxAmount > 0 || tipAmount > 0;
 
@@ -147,6 +149,7 @@ export function StageResults({
   shareSlug,
   navigating = false,
 }: StageResultsProps) {
+  const { currency } = useLocaleFormatters();
   const [copied, setCopied] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const result = useMemo(

@@ -38,8 +38,8 @@ import { Panel } from "@/components/ui/Page";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
 import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
-import { currency } from "@/lib/format";
 import { isUpcoming } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import type {
   ExpenseAdjustments,
   Person,
@@ -145,6 +145,7 @@ export function StageExpense({
   continueLabel,
   onContinue,
 }: StageExpenseProps) {
+  const { currency } = useLocaleFormatters();
   const allIds = useMemo(() => people.map((p) => p.id), [people]);
 
   // Canadian bills tip on the taxed subtotal, so a CAD expense starts with
@@ -935,6 +936,7 @@ function SimpleTotalForm({
   onSave: (item: ExpenseItem) => void;
   onRemove: (id: string) => void;
 }) {
+  const { currency } = useLocaleFormatters();
   // A one-total item has no name of its own - it's always named after the
   // expense - so this form only needs to capture the amount.
   const [cost, setCost] = useState(item ? String(item.cost) : "");

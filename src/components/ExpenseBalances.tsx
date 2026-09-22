@@ -1,7 +1,7 @@
 import { AlertCircle, MoveDown, MoveUp } from "lucide-react";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { GroupTitle } from "@/components/ui/Typography";
-import { currency as formatCurrency } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { computeExpenseBalances } from "@/lib/settlements";
 import type { Person } from "@/lib/types";
 import type { SplitResult } from "@/lib/calculations";
@@ -23,6 +23,7 @@ export function ExpenseBalances({
   unallocated?: boolean;
   headingLevel?: "h2" | "h3";
 }) {
+  const { currency: formatCurrency } = useLocaleFormatters();
   if (!Number.isFinite(split.grandTotal) || split.grandTotal <= 0) {
     return <p className="mt-5 text-sm text-ink-soft">Add an amount to see balances.</p>;
   }

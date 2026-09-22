@@ -13,7 +13,8 @@ import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/Upcomin
 import { useExpenseList } from "@/lib/expenseSync";
 import { computeSplit } from "@/lib/calculations";
 import { computeExpenseBalances, splitParticipants } from "@/lib/settlements";
-import { currency, formatExpenseDate, isUpcoming } from "@/lib/format";
+import { isUpcoming } from "@/lib/format";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { EmptyState, Page } from "@/components/ui/Page";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
@@ -98,6 +99,7 @@ export function TabsDirectory() {
 // Purely presentational - every field arrives with the tab from
 // `listWithSummary`, so a row never loads anything of its own.
 function TabDirectoryRow({ tab }: { tab: TabRow }) {
+  const { currency } = useLocaleFormatters();
   return (
     <li>
       <Link to="/t/$slug" params={{ slug: tab.slug }} className={directoryRowClass}>
@@ -138,6 +140,7 @@ function TabDirectoryRow({ tab }: { tab: TabRow }) {
 }
 
 export function ExpensesDirectory() {
+  const { currency, formatExpenseDate } = useLocaleFormatters();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { data: remoteRows } = useQuery(
     convexQuery(api.expenses.directory, isAuthenticated ? {} : "skip"),
