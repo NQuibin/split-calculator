@@ -100,7 +100,7 @@ Do not spawn subagents for trivial or tightly sequential work such as:
 - simple formatting or renaming
 - a small fix where delegation overhead would exceed the work itself
 
-The root Astra agent owns:
+The root Sol 5.6 agent owns:
 - architecture
 - planning
 - decomposition
@@ -146,17 +146,17 @@ Escalate a worker from Luna to Terra when:
 - Luna has failed twice
 - implementation requires an important local design decision
 
-Use another Astra worker only for genuinely difficult independent reasoning.
+Use another Sol 5.6 worker only for genuinely difficult independent reasoning.
 
 Protect root-agent context. Workers should return concise conclusions,
 files changed, tests run, results, and remaining uncertainty.
 
-The root Astra agent must review and integrate delegated work before declaring
+The root Sol 5.6 agent must review and integrate delegated work before declaring
 the task complete.
 
 Optimize for cost-adjusted correctness:
 
-Astra plans  
+Sol 5.6 plans  
 → Luna implements  
 → Terra handles difficult exceptions  
-→ Astra reviews
+→ Sol 5.6 reviews
