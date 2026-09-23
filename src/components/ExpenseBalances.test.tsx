@@ -28,21 +28,21 @@ const render = (props: Partial<Parameters<typeof ExpenseBalances>[0]> = {}) =>
 
 test("the expense form distinguishes money paid from each share and net debt", () => {
   const html = render();
-  expect(html).toContain("Gets $80.00");
-  expect(html.match(/Owes \$40.00/g)).toHaveLength(2);
+  expect(html).toContain("You get $80.00");
+  expect(html.match(/You owe \$40.00/g)).toHaveLength(2);
   expect(html).not.toContain("Suggested transfers");
 });
 
 test("payer outside split receives the full expense back", () => {
   const html = render({ split: computeSplit(people, [{ ...item, splitWith: ["p2", "p3"] }]) });
-  expect(html).toContain("Gets $120.00");
-  expect(html.match(/Owes \$60.00/g)).toHaveLength(2);
+  expect(html).toContain("You get $120.00");
+  expect(html.match(/You owe \$60.00/g)).toHaveLength(2);
 });
 
 test("missing payer and unallocated items do not show invented debts", () => {
   const missing = render({ payerId: undefined });
   expect(missing).toContain("Choose a payer");
-  expect(missing).not.toContain("Gets");
+  expect(missing).not.toContain("You get");
   const unallocated = render({ unallocated: true });
   expect(unallocated).toContain("Choose at least one person");
 });
@@ -52,7 +52,7 @@ test("upcoming expenses are clearly projected and a zero balance is settled", ()
   const settled = render({ split: computeSplit(people, [{ ...item, splitWith: ["nikki"] }]) });
   expect(settled).toContain("Settled");
   expect(settled).toContain('text-right text-ink"><span class="inline-flex');
-  expect(settled).not.toContain("Gets");
+  expect(settled).not.toContain("You get");
 
   const upcoming = render({
     projected: true,

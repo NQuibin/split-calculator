@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/Dialog";
 import { FieldError, Input, Label, Select, Textarea } from "@/components/ui/Input";
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { TabMemberBreakdown } from "@/components/TabMemberBreakdown";
+import { TabMemberBreakdown, type TabMemberSettlement } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
@@ -61,9 +61,16 @@ export type SettlementSummaryData = {
       memberId: string;
       name: string;
       balance: number;
+      /** Direct net balance with the logged-in member; positive means they owe the viewer. */
+      balanceWithViewer?: number;
       share?: number;
       paidFor?: number;
       includedIn?: number;
+    }[];
+    suggestions?: {
+      fromMemberId: string;
+      toMemberId: string;
+      amount: number;
     }[];
   }[];
 };
@@ -72,39 +79,194 @@ function balanceColor(balance: number) {
   return balance > 0 ? "text-ledger-green" : balance < 0 ? "text-margin-red-ink" : "text-ink";
 }
 
-function BalanceLabel({ balance, code }: { balance: number; code: string }) {
+type BalanceDirection = "you-get" | "you-owe" | "owes-you" | "gets" | "owes";
+
+type BalanceDisplay = {
+  balance: number;
+  direction: BalanceDirection | null;
+};
+
+function balanceDirection({
+  balance,
+  memberId,
+  viewerMemberId,
+  suggestions,
+}: {
+  balance: number;
+  memberId?: string;
+  viewerMemberId?: string | null;
+  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
+}): BalanceDirection | null {
+  if (balance === 0) return null;
+  if (memberId && memberId === viewerMemberId) return balance > 0 ? "you-get" : "you-owe";
+  const directSuggestion = suggestions?.find(
+    (suggestion) =>
+      (suggestion.fromMemberId === memberId && suggestion.toMemberId === viewerMemberId) ||
+      (suggestion.fromMemberId === viewerMemberId && suggestion.toMemberId === memberId),
+  );
+  if (directSuggestion) {
+    return directSuggestion.fromMemberId === memberId ? "owes-you" : "you-owe";
+  }
+  return balance > 0 ? "gets" : "owes";
+}
+
+function balanceDisplay({
+  balance,
+  balanceWithViewer,
+  memberId,
+  viewerMemberId,
+  suggestions,
+}: {
+  balance: number;
+  balanceWithViewer?: number;
+  memberId?: string;
+  viewerMemberId?: string | null;
+  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
+}): BalanceDisplay {
+  // The viewer's row is the only aggregate balance. Every other row is about
+  // the direct relationship with the viewer, so unrelated settlement edges
+  // must not leak into its amount or direction.
+  if (!memberId || memberId === viewerMemberId || !viewerMemberId) {
+    return {
+      balance,
+      direction: balanceDirection({ balance, memberId, viewerMemberId, suggestions }),
+    };
+  }
+
+  // The consolidated response provides the exact direct relationship. Keep
+  // the suggestion fallback below for clients during the rolling deployment.
+  if (balanceWithViewer !== undefined) {
+    return {
+      balance: balanceWithViewer,
+      direction: balanceWithViewer > 0 ? "owes-you" : balanceWithViewer < 0 ? "you-owe" : null,
+    };
+  }
+
+  const directSuggestion = suggestions?.find(
+    (suggestion) =>
+      (suggestion.fromMemberId === memberId && suggestion.toMemberId === viewerMemberId) ||
+      (suggestion.fromMemberId === viewerMemberId && suggestion.toMemberId === memberId),
+  );
+  if (!directSuggestion || directSuggestion.amount === 0) {
+    return { balance: 0, direction: null };
+  }
+
+  const owesViewer = directSuggestion.fromMemberId === memberId;
+  return {
+    balance: owesViewer ? directSuggestion.amount : -directSuggestion.amount,
+    direction: owesViewer ? "owes-you" : "you-owe",
+  };
+}
+
+function directionLabel(direction: BalanceDirection | null) {
+  switch (direction) {
+    case "you-get":
+      return "You get";
+    case "you-owe":
+      return "You owe";
+    case "owes-you":
+      return "Owes you";
+    case "gets":
+      return "Gets";
+    case "owes":
+      return "Owes";
+    default:
+      return "Settled";
+  }
+}
+
+function BalanceLabel({
+  balance,
+  balanceWithViewer,
+  code,
+  memberId,
+  viewerMemberId,
+  suggestions,
+}: {
+  balance: number;
+  balanceWithViewer?: number;
+  code: string;
+  memberId?: string;
+  viewerMemberId?: string | null;
+  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
+}) {
   const { currency } = useLocaleFormatters();
+  const display = balanceDisplay({
+    balance,
+    balanceWithViewer,
+    memberId,
+    viewerMemberId,
+    suggestions,
+  });
   return (
-    <span className={`${balanceColor(balance)} whitespace-nowrap`}>
-      {balance === 0 ? "Settled" : balance > 0 ? "Gets " : "Owes "}
-      {balance !== 0 && <span className="font-numeric">{currency(Math.abs(balance), code)}</span>}
+    <span className={`${balanceColor(display.balance)} whitespace-nowrap`}>
+      {directionLabel(display.direction)}{" "}
+      {display.balance !== 0 && (
+        <span className="font-numeric">{currency(Math.abs(display.balance), code)}</span>
+      )}
     </span>
   );
 }
 
-function BalanceValue({ balance, code }: { balance: number; code: string }) {
+function BalanceValue({
+  balance,
+  balanceWithViewer,
+  code,
+  memberId,
+  viewerMemberId,
+  suggestions,
+}: {
+  balance: number;
+  balanceWithViewer?: number;
+  code: string;
+  memberId?: string;
+  viewerMemberId?: string | null;
+  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
+}) {
   return (
     <span className="inline-flex flex-wrap items-center font-semibold">
-      <BalanceLabel balance={balance} code={code} />
+      <BalanceLabel
+        balance={balance}
+        balanceWithViewer={balanceWithViewer}
+        code={code}
+        memberId={memberId}
+        viewerMemberId={viewerMemberId}
+        suggestions={suggestions}
+      />
     </span>
   );
 }
 
 function MobileBalanceValue({
   balance,
+  balanceWithViewer,
   code,
   spent,
+  memberId,
+  viewerMemberId,
+  suggestions,
 }: {
   balance: number;
+  balanceWithViewer?: number;
   code: string;
   spent?: string;
+  memberId?: string;
+  viewerMemberId?: string | null;
+  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
 }) {
   const { currency } = useLocaleFormatters();
+  const display = balanceDisplay({
+    balance,
+    balanceWithViewer,
+    memberId,
+    viewerMemberId,
+    suggestions,
+  });
   const signedBalance =
-    balance > 0
-      ? `+${currency(balance, code)}`
-      : balance < 0
-        ? `-${currency(Math.abs(balance), code)}`
+    display.balance > 0
+      ? `+${currency(display.balance, code)}`
+      : display.balance < 0
+        ? `-${currency(Math.abs(display.balance), code)}`
         : "-";
 
   return (
@@ -116,12 +278,12 @@ function MobileBalanceValue({
         </>
       )}
       <span
-        className={`${balanceColor(balance)} ${spent !== undefined ? "mt-2" : ""} font-numeric text-sm font-semibold`}
+        className={`${balanceColor(display.balance)} ${spent !== undefined ? "mt-2" : ""} font-numeric text-sm font-semibold`}
       >
-        {balance === 0 ? "Settled" : signedBalance}
+        {display.balance === 0 ? "Settled" : signedBalance}
       </span>
-      {balance !== 0 && (
-        <span className="text-xs text-ink-soft">{balance > 0 ? "You get" : "You owe"}</span>
+      {display.balance !== 0 && (
+        <span className="text-xs text-ink-soft">{directionLabel(display.direction)}</span>
       )}
     </span>
   );
@@ -312,15 +474,26 @@ function SingleCurrencySummaryList({
                       <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
                         <MobileBalanceValue
                           balance={member.balance}
+                          balanceWithViewer={member.balanceWithViewer}
                           code={group.currency}
                           spent={member.share ? spent : "-"}
+                          memberId={member.memberId}
+                          viewerMemberId={data.viewerMemberId}
+                          suggestions={group.suggestions}
                         />
                       </span>
                     )}
                     <span
                       className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
                     >
-                      <BalanceValue balance={member.balance} code={group.currency} />
+                      <BalanceValue
+                        balance={member.balance}
+                        balanceWithViewer={member.balanceWithViewer}
+                        code={group.currency}
+                        memberId={member.memberId}
+                        viewerMemberId={data.viewerMemberId}
+                        suggestions={group.suggestions}
+                      />
                     </span>
                     <MobileMemberCounts includedIn={member.includedIn} paidFor={member.paidFor} />
                   </li>
@@ -489,15 +662,26 @@ function ConsolidatedSummaryList({
                         <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
                           <MobileBalanceValue
                             balance={currencyMember.balance}
+                            balanceWithViewer={currencyMember.balanceWithViewer}
                             code={group.currency}
                             spent={currencyMember.share ? spent : "-"}
+                            memberId={currencyMember.memberId}
+                            viewerMemberId={data.viewerMemberId}
+                            suggestions={group.suggestions}
                           />
                         </span>
                       )}
                       <span
                         className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
                       >
-                        <BalanceValue balance={currencyMember.balance} code={group.currency} />
+                        <BalanceValue
+                          balance={currencyMember.balance}
+                          balanceWithViewer={currencyMember.balanceWithViewer}
+                          code={group.currency}
+                          memberId={currencyMember.memberId}
+                          viewerMemberId={data.viewerMemberId}
+                          suggestions={group.suggestions}
+                        />
                       </span>
                     </button>
                   );
@@ -736,6 +920,31 @@ export function TabSettlement({
         .find((group) => group.currency === selectedMember.currency)
         ?.members.find((member) => member.memberId === selectedMember.memberId)
     : undefined;
+  const selectedSettlements: TabMemberSettlement[] = selectedMember
+    ? (
+        data.currencies.find((group) => group.currency === selectedMember.currency)?.suggestions ??
+        []
+      )
+        .filter(
+          (suggestion) =>
+            suggestion.fromMemberId === selectedMember.memberId ||
+            suggestion.toMemberId === selectedMember.memberId,
+        )
+        .map((suggestion) => {
+          const group = data.currencies.find(
+            (currencyGroup) => currencyGroup.currency === selectedMember.currency,
+          );
+          return {
+            ...suggestion,
+            fromName:
+              group?.members.find((member) => member.memberId === suggestion.fromMemberId)?.name ??
+              memberName(suggestion.fromMemberId),
+            toName:
+              group?.members.find((member) => member.memberId === suggestion.toMemberId)?.name ??
+              memberName(suggestion.toMemberId),
+          };
+        })
+    : [];
   const selectedExpense = expenses.find((expense) => expense.slug === selectedExpenseSlug);
   return (
     <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
@@ -850,7 +1059,13 @@ export function TabSettlement({
                                 className="flex flex-wrap justify-between gap-3 px-3 py-3 text-sm"
                               >
                                 <span className="min-w-0 break-words">{member.name}</span>
-                                <BalanceValue balance={member.balance} code={group.currency} />
+                                <BalanceValue
+                                  balance={member.balance}
+                                  code={group.currency}
+                                  memberId={member.memberId}
+                                  viewerMemberId={viewData.viewerMemberId}
+                                  suggestions={group.suggestions}
+                                />
                               </li>
                             ))}
                           </ul>
@@ -970,6 +1185,8 @@ export function TabSettlement({
                 member={selectedBreakdown}
                 currencyCode={selectedMember.currency}
                 variant="modal"
+                settlements={selectedSettlements}
+                viewerMemberId={data.viewerMemberId}
                 onExpenseClick={(expenseSlug) => {
                   setMemberBreakdownOpen(false);
                   setSelectedExpenseSlug(expenseSlug);

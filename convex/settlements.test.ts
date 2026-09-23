@@ -340,6 +340,40 @@ test("view-scoped payments affect the selected future balances and remain in eve
   expect(result.upcoming.history.map((payment) => payment.view)).toEqual(["upcoming", "paid"]);
 });
 
+test("returns direct viewer balances without transitive third-party netting", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", undefined, 9, "viewer-one");
+  await expense(owner, members, members[0].id, "USD", undefined, 9, "viewer-two");
+  await expense(owner, members, members[1].id, "USD", ["b", "c"], 6, "p2-pays");
+
+  let result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  const currency = result.paid.currencies[0];
+  expect(currency.members.map((member) => [member.balance, member.balanceWithViewer])).toEqual([
+    [12, 12],
+    [-3, 6],
+    [-9, 6],
+  ]);
+
+  await owner.mutation(api.settlements.record, {
+    slug: "trip",
+    fromMemberId: members[1].id,
+    toMemberId: members[0].id,
+    amount: 2,
+    currency: "USD",
+    date: TODAY,
+    requestId: "p2-pays-viewer",
+    asOfDate: TODAY,
+  });
+  result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  expect(
+    result.paid.currencies[0].members.map((member) => [member.balance, member.balanceWithViewer]),
+  ).toEqual([
+    [10, 10],
+    [-1, 4],
+    [-9, 6],
+  ]);
+});
+
 test("claiming a payer preserves balances and gives the claimant read-only access", async () => {
   const { t, owner, outsider, members } = await setup();
   await expense(owner, members, "c", "USD", ["a", "b"]);

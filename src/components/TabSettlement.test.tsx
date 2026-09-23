@@ -48,9 +48,9 @@ const viewerData: SettlementSummaryData = {
 test("renders each viewer currency once with its own balance", () => {
   const markup = renderMarkup(createElement(SettlementSummary, { data: viewerData }));
   expect(markup).toContain("CAD");
-  expect(markup).toContain("Gets ");
+  expect(markup).toContain("You get ");
   expect(markup).toContain("USD");
-  expect(markup).toContain("Owes ");
+  expect(markup).toContain("You owe ");
   expect(markup.match(/CA\$7\.34/g)).toHaveLength(1);
   expect(markup.match(/\$0\.50/g)).toHaveLength(1);
 });
@@ -72,7 +72,7 @@ test("uses currency bands for mixed settled and outstanding balances", () => {
   expect(markup).not.toContain(">Member<");
   expect(markup).not.toContain('aria-label="CAD balances"');
   expect(markup).not.toContain('aria-label="USD balances"');
-  expect(markup).toContain("Gets ");
+  expect(markup).toContain("You get ");
   expect(markup).not.toContain("text-lg font-semibold");
 });
 
@@ -85,6 +85,10 @@ test("shows every member while putting the viewer first", () => {
         currencies: [
           {
             currency: "USD",
+            suggestions: [
+              { fromMemberId: "bea", toMemberId: "alex", amount: 5 },
+              { fromMemberId: "cam", toMemberId: "alex", amount: 5 },
+            ],
             members: [
               { memberId: "bea", name: "Bea", balance: -5 },
               { memberId: "alex", name: "Alex", balance: 10 },
@@ -99,8 +103,90 @@ test("shows every member while putting the viewer first", () => {
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Cam"));
   expect(markup).toContain("> (you)</span>");
-  expect(markup).toContain("Gets ");
-  expect(markup.match(/Owes /g)).toHaveLength(2);
+  expect(markup).toContain("You get ");
+  expect(markup).toContain("Owes you ");
+  expect(markup).not.toContain("You owe ");
+});
+
+test("shows each non-viewer balance only against the logged-in member", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "nikki",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "USD",
+            suggestions: [
+              { fromMemberId: "p3", toMemberId: "nikki", amount: 3 },
+              { fromMemberId: "p3", toMemberId: "p2", amount: 3 },
+            ],
+            members: [
+              { memberId: "nikki", name: "Nikki Q", balance: 3 },
+              { memberId: "p2", name: "P2", balance: 3 },
+              { memberId: "p3", name: "P3", balance: -6 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup).toContain("Owes you ");
+  expect(markup).toContain("$3.00");
+  expect(markup).toContain("P2");
+  expect(markup).toContain("Settled");
+  expect(markup).not.toContain("Owes you $6.00");
+});
+
+test("uses direct viewer balances for every non-viewer row", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "nikki",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "USD",
+            members: [
+              { memberId: "nikki", name: "Nikki Q", balance: 12, balanceWithViewer: 12 },
+              { memberId: "p2", name: "P2", balance: -3, balanceWithViewer: 6 },
+              { memberId: "p3", name: "P3", balance: -9, balanceWithViewer: 6 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup).toMatch(/You get <span[^>]*>\$12\.00<\/span>/);
+  expect(markup.match(/Owes you <span[^>]*>\$6\.00<\/span>/g)).toHaveLength(2);
+  expect(markup).not.toContain("$3.00");
+  expect(markup).not.toContain("$9.00");
+});
+
+test("says You owe only when the viewer owes overall", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "USD",
+            suggestions: [{ fromMemberId: "alex", toMemberId: "bea", amount: 10 }],
+            members: [
+              { memberId: "alex", name: "Alex", balance: -10 },
+              { memberId: "bea", name: "Bea", balance: 10 },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(markup).toContain("You owe ");
+  expect(markup).not.toContain("You get ");
 });
 
 test("renders all members in each currency band", () => {
@@ -170,7 +256,7 @@ test("consolidates mixed currencies into member blocks with currency-aware total
   expect(markup).toContain(">-</span>");
   expect(markup).toContain(">Spent<");
   expect(markup).toContain(">You get<");
-  expect(markup).toContain(">You owe<");
+  expect(markup).not.toContain(">You owe<");
   expect(markup.match(/>Balance</g)).toHaveLength(1);
   expect(markup).toContain("CA$42.39");
   expect(markup).toContain("CA$42.40");
@@ -288,9 +374,9 @@ test("shows what each member spent beside their balance, and totals the column",
   expect(markup).toContain("Balance");
   expect(markup).toContain("CA$42.39");
   expect(markup).not.toContain("Total spent");
-  // Both ledgers still read on the same row.
-  expect(markup).toContain("Gets ");
-  expect(markup).toContain("Owes ");
+  // Without a direct suggestion, a non-viewer row is settled with the viewer.
+  expect(markup).toContain("Settled");
+  expect(markup).not.toContain("You owe ");
 });
 
 test("a member with no share in a currency reads as no expenses, not zero", () => {
@@ -396,5 +482,5 @@ test("drops the spend column for a response that predates it", () => {
 
   expect(markup).not.toContain("Total spent");
   expect(markup).not.toContain(">Spent<");
-  expect(markup).toContain("Gets ");
+  expect(markup).toContain("You get ");
 });

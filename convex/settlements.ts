@@ -22,6 +22,8 @@ type MemberTotals = {
   includedInCount: number;
   shareCents: number;
   transferredCents: number;
+  /** Direct debt edges, keyed by debtor member id, then creditor member id. */
+  directDebts: Map<string, number>;
 };
 type CurrencyTotals = Map<string, MemberTotals>;
 
@@ -85,6 +87,7 @@ function blank(roster: Doc<"tabMembers">[]): CurrencyTotals {
         includedInCount: 0,
         shareCents: 0,
         transferredCents: 0,
+        directDebts: new Map(),
       },
     ]),
   );
@@ -92,6 +95,29 @@ function blank(roster: Doc<"tabMembers">[]): CurrencyTotals {
 
 function net(totals: MemberTotals) {
   return addCents(addCents(totals.paidCents, -totals.shareCents), totals.transferredCents);
+}
+
+function addDirectDebt(
+  totals: CurrencyTotals,
+  fromMemberId: string,
+  toMemberId: string,
+  amount: number,
+) {
+  if (fromMemberId === toMemberId || amount === 0) return;
+  const debtor = totals.get(fromMemberId);
+  if (!debtor) throw new Error("A settlement references a missing member");
+  const current = debtor.directDebts.get(toMemberId) ?? 0;
+  debtor.directDebts.set(toMemberId, addCents(current, amount));
+}
+
+/** Positive means the member owes the viewer; negative means the viewer owes them. */
+function directBalanceWithViewer(totals: CurrencyTotals, memberId: string, viewerMemberId: string) {
+  const member = totals.get(memberId);
+  const viewer = totals.get(viewerMemberId);
+  if (!member || !viewer) throw new Error("A settlement references a missing member");
+  const memberOwesViewer = member.directDebts.get(viewerMemberId) ?? 0;
+  const viewerOwesMember = viewer.directDebts.get(memberId) ?? 0;
+  return addCents(memberOwesViewer, -viewerOwesMember);
 }
 
 /** Read one coherent ledger snapshot, shared by the query and payment mutation. */
@@ -174,6 +200,7 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
         const member = totals.get(share.personId)!;
         member.shareCents = addCents(member.shareCents, shareAmounts[index]);
         if (shareAmounts[index] !== 0) member.includedInCount += 1;
+        addDirectDebt(totals, share.personId, expense.payerId, shareAmounts[index]);
       });
       const payer = totals.get(expense.payerId)!;
       payer.paidCents = addCents(payer.paidCents, totalCents);
@@ -199,6 +226,9 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
       const recipient = totals.get(payment.toMemberId)!;
       sender.transferredCents = addCents(sender.transferredCents, payment.amountCents);
       recipient.transferredCents = addCents(recipient.transferredCents, -payment.amountCents);
+      // A payment reduces the direct debt edge from sender to recipient. A
+      // negative edge represents an overpayment in the opposite direction.
+      addDirectDebt(totals, payment.fromMemberId, payment.toMemberId, -payment.amountCents);
       byCurrency.set(payment.currency, totals);
     }
     views[expenseView] = { byCurrency, missingPayers };
@@ -219,6 +249,7 @@ const settlementSummary = v.object({
           includedIn: v.number(),
           share: v.number(),
           balance: v.number(),
+          balanceWithViewer: v.number(),
         }),
       ),
       suggestions: v.array(
@@ -263,6 +294,7 @@ export const get = query({
     if (!tab) return null;
     const viewer = await requireTabViewer(ctx, tab);
     const { roster, people, views, payments } = await readBalances(ctx, tab, asOfDate);
+    const viewerMemberId = roster.find((seat) => seat.userId === viewer)?._id ?? null;
     const format = (expenseView: ExpenseView) => {
       const { byCurrency, missingPayers } = views[expenseView];
       return {
@@ -279,6 +311,10 @@ export const get = query({
                 includedIn: total.includedInCount,
                 share: total.shareCents / 100,
                 balance: net(total) / 100,
+                balanceWithViewer:
+                  viewerMemberId === null || viewerMemberId === person.id
+                    ? net(total) / 100
+                    : directBalanceWithViewer(totals, person.id, viewerMemberId) / 100,
               };
             });
             return {
@@ -306,7 +342,7 @@ export const get = query({
             reversed: payment.reversedAt !== undefined,
             view: payment.view,
           })),
-        viewerMemberId: roster.find((seat) => seat.userId === viewer)?._id ?? null,
+        viewerMemberId,
       };
     };
     return { paid: format("paid"), upcoming: format("upcoming"), all: format("all") };

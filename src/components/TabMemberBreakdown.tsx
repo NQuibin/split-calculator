@@ -1,18 +1,31 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
+import { GroupTitle } from "@/components/ui/Typography";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import type { TabBreakdownMember } from "@/lib/tabSync";
+
+export type TabMemberSettlement = {
+  fromMemberId: string;
+  fromName: string;
+  toMemberId: string;
+  toName: string;
+  amount: number;
+};
 
 export function TabMemberBreakdown({
   member,
   currencyCode,
   variant = "card",
   onExpenseClick,
+  settlements,
+  viewerMemberId,
 }: {
   member: TabBreakdownMember;
   currencyCode: string;
   variant?: "card" | "modal";
   onExpenseClick?: (expenseSlug: string) => void;
+  settlements?: TabMemberSettlement[];
+  viewerMemberId?: string | null;
 }) {
   const { currency, formatExpenseDate, formatExpenseDateShort } = useLocaleFormatters();
   const modal = variant === "modal";
@@ -39,6 +52,50 @@ export function TabMemberBreakdown({
             </div>
           </div>
         </header>
+      )}
+
+      {modal && (
+        <section className="border-b border-rule pb-5" aria-label="Settlement breakdown">
+          <GroupTitle as="h2" className="bleed-px">
+            Settlement breakdown
+          </GroupTitle>
+          {settlements && settlements.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm text-ink">
+              {settlements.map((settlement) => {
+                const viewerOwes = settlement.fromMemberId === viewerMemberId;
+                const viewerIsOwed = settlement.toMemberId === viewerMemberId;
+                const amountTone = viewerOwes
+                  ? "text-margin-red-ink"
+                  : viewerIsOwed
+                    ? "text-ledger-green"
+                    : "text-ink";
+                return (
+                  <li
+                    key={`${settlement.fromMemberId}-${settlement.toMemberId}`}
+                    className="min-w-0 break-words bleed-px"
+                  >
+                    {viewerOwes ? (
+                      <>You</>
+                    ) : (
+                      <span className="font-semibold text-ink">{settlement.fromName}</span>
+                    )}
+                    {viewerOwes ? " owe " : " owes "}
+                    {viewerIsOwed ? (
+                      <>you</>
+                    ) : (
+                      <span className="font-semibold text-ink">{settlement.toName}</span>
+                    )}{" "}
+                    <span className={`font-numeric font-semibold ${amountTone}`}>
+                      {currency(settlement.amount, currencyCode)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="bleed-px mt-3 text-sm text-ink-soft">Settled up with everyone.</p>
+          )}
+        </section>
       )}
 
       {member.expenses.length === 0 ? (

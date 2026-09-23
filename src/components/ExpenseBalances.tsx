@@ -90,9 +90,9 @@ export function ExpenseBalances({
                 >
                   <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                     {row.balance > 0
-                      ? `Gets ${formatCurrency(row.balance, currency)}`
+                      ? `You get ${formatCurrency(row.balance, currency)}`
                       : row.balance < 0
-                        ? `Owes ${formatCurrency(Math.abs(row.balance), currency)}`
+                        ? `You owe ${formatCurrency(Math.abs(row.balance), currency)}`
                         : projected
                           ? "Not due"
                           : "Settled"}

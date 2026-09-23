@@ -35,7 +35,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { TabSummaryCards } from "@/components/TabSummaryCards";
-import { computeExpenseBalances } from "@/lib/settlements";
+import { computeExpenseBalances, viewerBalanceLabel } from "@/lib/settlements";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -944,13 +944,13 @@ function ViewerSettlement({
   if (balance === 0)
     return <span className="text-sm text-ink">{projected ? "Not due" : "Settled"}</span>;
   const owed = balance < 0;
+  const balanceLabel = viewerBalanceLabel(balance);
   return (
     <>
       <span
         className={`hidden text-sm font-semibold @min-[38rem]:block ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
       >
-        {owed ? "Owes" : "Gets"}{" "}
-        <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
+        {balanceLabel} <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
       </span>
       <span
         className={`block font-numeric text-sm font-semibold @min-[38rem]:hidden ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
@@ -958,9 +958,7 @@ function ViewerSettlement({
         {owed ? "\u2212" : "+"}
         {currency(Math.abs(balance), code)}
       </span>
-      <span className="block text-xs text-ink-soft @min-[38rem]:hidden">
-        {owed ? "You owe" : "You get"}
-      </span>
+      <span className="block text-xs text-ink-soft @min-[38rem]:hidden">{balanceLabel}</span>
     </>
   );
 }
