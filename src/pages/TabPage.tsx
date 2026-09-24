@@ -5,7 +5,18 @@ import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
-import { Check, X, Coins, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
+import {
+  BanknoteCheck,
+  Check,
+  X,
+  Coins,
+  Link2,
+  Pencil,
+  Plus,
+  Receipt,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
@@ -785,10 +796,10 @@ function ExpenseActions({
 // construction, not by coincidence.
 //
 // Two stages. Below `md`, the row uses three areas: date at left, expense and
-// payer-plus-total details in the middle. When the viewer paid a shared
-// expense, their own spend sits at the top right; their balance stays below.
+// payer-plus-total details in the middle, with spend and balance at right.
 // From `md` up it is a single, subgridded line - date, name, payer, total,
-// spent, balance, menu.
+// balance, menu; a shared expense paid by the viewer stacks reimbursement and
+// share within that balance cell.
 //
 // The avatars column's own *track* stays the same (`max-content`) at both
 // desktop tiers; only what's rendered inside it changes at `lg` (see
@@ -833,8 +844,8 @@ function expenseListGridClass(withSettlement: boolean) {
   // the build. No warning, no type error: the class just isn't there, and the
   // column collapses to one giant track.
   const list = withSettlement
-    ? "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]"
-    : "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_fit-content(11rem)]";
+    ? "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]"
+    : "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)]";
   return {
     list,
     // `gap-x-4` carries through from its base declaration (mobile and `md`)
@@ -900,14 +911,11 @@ function ExpenseDate({ date }: { date: string | undefined }) {
 function ExpenseAmount({
   total,
   code,
-  native,
   upcoming,
   compact = false,
 }: {
   total: number;
   code: string;
-  /** The original amount, when a saved exchange rate converted this expense. */
-  native?: { amount: number; code: string };
   upcoming: boolean;
   compact?: boolean;
 }) {
@@ -920,11 +928,6 @@ function ExpenseAmount({
       {!compact && (
         <span className="mt-0.5 block text-xs text-ink-soft @min-[38rem]:hidden">
           {upcoming ? "Total planned" : "Total"}
-        </span>
-      )}
-      {native && (
-        <span className="block text-xs text-ink-soft">
-          {currency(native.amount, native.code)} · converted
         </span>
       )}
     </>
@@ -950,7 +953,14 @@ function ViewerSettlement({
   if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
   if (balance === undefined) return <span className="text-xs text-ink-soft">Not in split</span>;
   if (balance === 0)
-    return <span className="text-sm text-ink">{projected ? "Not due" : "Settled"}</span>;
+    return projected ? (
+      <span className="text-sm text-ink">Not due</span>
+    ) : (
+      <span className="inline-flex shrink-0 flex-col items-center text-ledger-green">
+        <BanknoteCheck aria-hidden="true" className="h-8 w-8" strokeWidth={2.25} />
+        <span className="text-xs text-ink-soft">Settled</span>
+      </span>
+    );
   const owed = balance < 0;
   const balanceLabel = viewerBalanceLabel(balance);
   return (
@@ -1037,9 +1047,8 @@ function ExpenseList({
               <span className="@min-[38rem]:col-start-2">Expense</span>
               <span className="@min-[38rem]:col-start-3">Paid by</span>
               <span className="text-right @min-[38rem]:col-start-4">Total</span>
-              <span className="text-right @min-[38rem]:col-start-5">Spent</span>
               {showSettlement && (
-                <span className="text-right @min-[38rem]:col-start-6">Balance</span>
+                <span className="text-right @min-[38rem]:col-start-5">Balance</span>
               )}
             </li>
             {filtered.map((expense) => {
@@ -1059,10 +1068,11 @@ function ExpenseList({
               const participantCount = rowSplit.people.filter(
                 (person) => person.lines.length > 0,
               ).length;
-              const showMobileViewerSpent =
+              const showViewerSpent =
                 Boolean(expense.payerId && viewerIds.has(expense.payerId)) &&
                 participantCount > 1 &&
-                typeof viewerSpent === "number";
+                typeof viewerSpent === "number" &&
+                typeof viewerBalance === "number";
               return (
                 // The row itself is the grid/subgrid item now - not a wrapping div -
                 // so `divide-y` on the list keeps drawing real borders between real
@@ -1106,11 +1116,6 @@ function ExpenseList({
                     <ExpenseAmount
                       total={rowSplit.grandTotal * rate}
                       code={expense.settlementCurrency}
-                      native={
-                        expense.exchangeRate
-                          ? { amount: rowSplit.grandTotal, code: expense.currency }
-                          : undefined
-                      }
                       upcoming={upcoming}
                       compact
                     />
@@ -1119,15 +1124,10 @@ function ExpenseList({
                     <ExpenseAmount
                       total={rowSplit.grandTotal * rate}
                       code={expense.settlementCurrency}
-                      native={
-                        expense.exchangeRate
-                          ? { amount: rowSplit.grandTotal, code: expense.currency }
-                          : undefined
-                      }
                       upcoming={upcoming}
                     />
                   </span>
-                  {showMobileViewerSpent && (
+                  {showViewerSpent && (
                     <span className="col-start-3 row-start-1 min-w-0 text-right @min-[38rem]:hidden">
                       <span className="block text-xs text-ink-soft">You spent</span>
                       <span className="block font-numeric text-sm font-semibold">
@@ -1135,11 +1135,6 @@ function ExpenseList({
                       </span>
                     </span>
                   )}
-                  <span className="hidden min-w-0 text-right font-numeric text-sm font-semibold @min-[38rem]:col-start-5 @min-[38rem]:block">
-                    {typeof viewerSpent === "number"
-                      ? currency(viewerSpent * rate, expense.settlementCurrency)
-                      : "-"}
-                  </span>
                   {/* One date element for both layouts: the second row below `md`,
                       its own leading column from `md` up. */}
                   <span className="col-start-1 row-start-1 row-span-2 self-center text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:row-span-1 @min-[38rem]:text-sm">
@@ -1147,15 +1142,33 @@ function ExpenseList({
                   </span>
                   {showSettlement && (
                     <span
-                      className={`col-start-3 min-w-0 text-right @min-[38rem]:col-start-6 @min-[38rem]:row-auto ${showMobileViewerSpent ? "row-start-2" : "row-start-1 row-span-2 self-center"}`}
+                      className={`col-start-3 min-w-0 text-right @min-[38rem]:col-start-5 @min-[38rem]:row-auto @min-[38rem]:self-center ${showViewerSpent ? "row-start-2" : "row-start-1 row-span-2 self-center"}`}
                     >
-                      <ViewerSettlement
-                        balance={
-                          typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
-                        }
-                        code={expense.settlementCurrency}
-                        projected={upcoming}
-                      />
+                      {showViewerSpent && (
+                        <span className="hidden @min-[38rem]:block">
+                          <span className="block text-sm text-ink-soft">
+                            You spent{" "}
+                            <span className="font-numeric font-semibold text-ink">
+                              {currency(viewerSpent * rate, expense.settlementCurrency)}
+                            </span>
+                          </span>
+                          <span className="block text-sm font-semibold text-ledger-green">
+                            You get{" "}
+                            <span className="font-numeric">
+                              {currency(Math.abs(viewerBalance * rate), expense.settlementCurrency)}
+                            </span>
+                          </span>
+                        </span>
+                      )}
+                      <span className={showViewerSpent ? "block @min-[38rem]:hidden" : "block"}>
+                        <ViewerSettlement
+                          balance={
+                            typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
+                          }
+                          code={expense.settlementCurrency}
+                          projected={upcoming}
+                        />
+                      </span>
                     </span>
                   )}
                 </li>
