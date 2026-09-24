@@ -59,6 +59,8 @@ export interface TabBreakdownExpenseLine {
   expenseName: string;
   date: string;
   fairShare: number;
+  /** Net amount this member gets back (positive) or owes (negative); null when payer is unresolved. */
+  balance: number | null;
   payerId?: string;
   payerName: string;
   total: number;
@@ -90,8 +92,15 @@ export interface TabBreakdown {
 }
 
 /** undefined while loading, null if the tab doesn't exist. */
-export function useTabBreakdown(slug: string): TabBreakdown | null | undefined {
-  return useQuery(api.tabs.breakdown, slug ? { slug } : "skip");
+export function useTabBreakdown(
+  slug: string,
+  view: "paid" | "upcoming" | "all" = "all",
+  asOfDate?: string,
+): TabBreakdown | null | undefined {
+  return useQuery(
+    api.tabs.breakdown,
+    slug ? { slug, view, ...(asOfDate ? { asOfDate } : {}) } : "skip",
+  );
 }
 
 export interface TabExpenseSummary {

@@ -21,6 +21,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { TabMemberBreakdown, type TabMemberSettlement } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
+import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
 import { CURRENCIES } from "@/lib/currencies";
 import { todayISODate } from "@/lib/format";
@@ -199,7 +200,7 @@ function BalanceLabel({
     suggestions,
   });
   return (
-    <span className={`${balanceColor(display.balance)} whitespace-nowrap`}>
+    <span className={`${balanceColor(display.balance)} break-words`}>
       {directionLabel(display.direction)}{" "}
       {display.balance !== 0 && (
         <span className="font-numeric">{currency(Math.abs(display.balance), code)}</span>
@@ -273,17 +274,21 @@ function MobileBalanceValue({
     <span className="flex flex-col items-end text-right">
       {spent !== undefined && (
         <>
-          <span className="font-numeric text-sm font-semibold text-ink">{spent}</span>
           <span className="text-xs text-ink-soft">Spent</span>
+          <span className="font-numeric text-sm font-semibold text-ink">{spent}</span>
         </>
       )}
-      <span
-        className={`${balanceColor(display.balance)} ${spent !== undefined ? "mt-2" : ""} font-numeric text-sm font-semibold`}
-      >
-        {display.balance === 0 ? "Settled" : signedBalance}
-      </span>
-      {display.balance !== 0 && (
-        <span className="text-xs text-ink-soft">{directionLabel(display.direction)}</span>
+      {display.balance === 0 ? (
+        <span className={`${spent !== undefined ? "mt-2" : ""} text-sm text-ink`}>Settled</span>
+      ) : (
+        <>
+          <span className={`${spent !== undefined ? "mt-2" : ""} text-xs text-ink-soft`}>
+            {directionLabel(display.direction)}
+          </span>
+          <span className={`${balanceColor(display.balance)} font-numeric text-sm font-semibold`}>
+            {signedBalance}
+          </span>
+        </>
       )}
     </span>
   );
@@ -292,16 +297,12 @@ function MobileBalanceValue({
 function MobileMemberCounts({
   includedIn = 0,
   paidFor = 0,
-  className,
 }: {
   includedIn?: number;
   paidFor?: number;
-  className?: string;
 }) {
   return (
-    <span
-      className={`col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[29.5rem]:hidden ${className ?? ""}`}
-    >
+    <span className="col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
       <span>
         Included in {includedIn} expense{includedIn === 1 ? "" : "s"}
       </span>
@@ -312,19 +313,344 @@ function MobileMemberCounts({
   );
 }
 
-/**
- * One template for the header, the rows and the totals footer, so the two money
- * columns line up down the whole currency group. Fixed tracks are enough here
- * (unlike the expense list, which needed a subgrid): every cell in these
- * columns is a bounded money string, so no row can size a track differently
- * from its neighbours.
- *
- * Below `sm` there's only room for member + balance, so spend drops to a
- * sub-line under the name and the column labels go with it. Each variant is a
- * complete literal string rather than a prefix glued to an interpolated
- * value - Tailwind's scanner only sees class names that appear intact in the
- * source (DESIGN.md § 6).
- */
+function ViewerBalanceCard({
+  member,
+  currencyCode,
+  hasSpend,
+  hasPaidFor,
+  hasIncludedIn,
+  suggestions,
+  onClick,
+}: {
+  member: SettlementSummaryData["currencies"][number]["members"][number];
+  currencyCode: string;
+  hasSpend: boolean;
+  hasPaidFor: boolean;
+  hasIncludedIn: boolean;
+  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
+  onClick?: () => void;
+}) {
+  const { currency } = useLocaleFormatters();
+  const spent = member.share ? currency(member.share, currencyCode) : "No expenses";
+  const metrics = [
+    hasIncludedIn && (
+      <span
+        key="included"
+        className="min-w-0 pl-4 @min-[29.5rem]:border-l @min-[29.5rem]:border-rule"
+      >
+        <span className="block text-sm text-ink-soft">Included in</span>
+        <span className="break-words font-display text-lg font-semibold text-ink">
+          <span className="font-numeric">{member.includedIn ?? 0}</span> expense
+          {(member.includedIn ?? 0) === 1 ? "" : "s"}
+        </span>
+      </span>
+    ),
+    hasPaidFor && (
+      <span key="paid" className="min-w-0 border-l border-rule pl-4">
+        <span className="block text-sm text-ink-soft">Paid for</span>
+        <span className="break-words font-display text-lg font-semibold text-ink">
+          <span className="font-numeric">{member.paidFor ?? 0}</span> expense
+          {(member.paidFor ?? 0) === 1 ? "" : "s"}
+        </span>
+      </span>
+    ),
+    hasSpend && (
+      <span key="spent" className="min-w-0 pl-4 @min-[29.5rem]:border-l @min-[29.5rem]:border-rule">
+        <span className="block text-sm text-ink-soft">Total spent</span>
+        <span className="break-words font-numeric text-lg font-semibold text-ink">{spent}</span>
+      </span>
+    ),
+    <span key="balance" className="min-w-0 border-l border-rule pl-4 @min-[29.5rem]:border-rule">
+      <span className="block text-sm text-ink-soft">Your balance</span>
+      <span className="break-words font-display text-lg font-semibold">
+        <BalanceLabel
+          balance={member.balance}
+          balanceWithViewer={member.balanceWithViewer}
+          code={currencyCode}
+          memberId={member.memberId}
+          viewerMemberId={member.memberId}
+          suggestions={suggestions}
+        />
+      </span>
+    </span>,
+  ].filter(Boolean);
+
+  return (
+    <div className={mobileRaisedSurfaceClass}>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-label={`View ${member.name}'s ${currencyCode} balance breakdown`}
+        onClick={onClick}
+        className="relative grid w-full grid-cols-2 gap-x-4 gap-y-4 rounded-none border-y-2 border-forest bg-field px-4 py-4 text-left transition-colors hover:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest @min-[29.5rem]:grid-cols-[minmax(0,1.15fr)_repeat(4,minmax(0,1fr))] @min-[29.5rem]:items-center @min-[29.5rem]:gap-0"
+      >
+        <span className="col-span-2 flex min-w-0 items-center gap-3 @min-[29.5rem]:col-span-1 @min-[29.5rem]:pr-4">
+          <MemberAvatar id={member.memberId} name={member.name} size="lg" />
+          <span className="min-w-0 break-words">
+            <span className="block text-sm font-normal text-ink-soft">You</span>
+            <span className="block font-display text-2xl font-semibold text-ink">
+              {member.name}
+            </span>
+          </span>
+        </span>
+        {metrics.map((metric) => metric)}
+      </button>
+    </div>
+  );
+}
+
+const viewerCurrencyRowGrid = {
+  withSpendAndIncludedInAndPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(5.5rem,1fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  withSpendAndPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  withSpendAndIncludedIn:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  withSpend:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  withIncludedInAndPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(5.5rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  withPaidFor:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  withIncludedIn:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+  balanceOnly:
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+} as const;
+
+type ViewerCurrencyRowGrid = keyof typeof viewerCurrencyRowGrid;
+
+function viewerCurrencyRowGridFor({
+  hasSpend,
+  hasPaidFor,
+  hasIncludedIn,
+}: {
+  hasSpend: boolean;
+  hasPaidFor: boolean;
+  hasIncludedIn: boolean;
+}): ViewerCurrencyRowGrid {
+  if (hasSpend) {
+    if (hasIncludedIn) {
+      return hasPaidFor ? "withSpendAndIncludedInAndPaidFor" : "withSpendAndIncludedIn";
+    }
+    return hasPaidFor ? "withSpendAndPaidFor" : "withSpend";
+  }
+  if (hasIncludedIn) return hasPaidFor ? "withIncludedInAndPaidFor" : "withIncludedIn";
+  return hasPaidFor ? "withPaidFor" : "balanceOnly";
+}
+
+function MemberCurrencyRow({
+  group,
+  member,
+  hasSpend,
+  hasPaidFor,
+  hasIncludedIn,
+  viewerMemberId,
+  onClick,
+}: {
+  group: SettlementSummaryData["currencies"][number];
+  member: SettlementSummaryData["currencies"][number]["members"][number];
+  hasSpend: boolean;
+  hasPaidFor: boolean;
+  hasIncludedIn: boolean;
+  viewerMemberId: string;
+  onClick?: () => void;
+}) {
+  const { currency } = useLocaleFormatters();
+  const currencyName = CURRENCIES.find((option) => option.code === group.currency)?.name;
+  const spent = member.share ? currency(member.share, group.currency) : "No expenses";
+  const grid =
+    viewerCurrencyRowGrid[
+      viewerCurrencyRowGridFor({
+        hasSpend,
+        hasPaidFor,
+        hasIncludedIn,
+      })
+    ];
+
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      aria-label={`View ${member.name}'s ${group.currency} balance breakdown`}
+      onClick={onClick}
+      className={`${grid} min-h-11 w-full px-4 py-3 text-left transition-colors hover:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest`}
+    >
+      <span className="min-w-0 break-words text-sm">
+        <span className="font-numeric font-semibold text-ink">{group.currency}</span>
+        {currencyName && <span className="text-ink-soft"> · {currencyName}</span>}
+      </span>
+      {(hasIncludedIn || hasPaidFor || hasSpend) && (
+        <span className="col-start-1 row-start-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-ink-soft @min-[29.5rem]:contents">
+          {hasIncludedIn && (
+            <span className="break-words">
+              <span className="font-numeric">{member.includedIn ?? 0}</span> expense
+              {(member.includedIn ?? 0) === 1 ? "" : "s"}
+            </span>
+          )}
+          {hasPaidFor && (
+            <span className="break-words">
+              <span className="font-numeric">{member.paidFor ?? 0}</span> expense
+              {(member.paidFor ?? 0) === 1 ? "" : "s"}
+            </span>
+          )}
+          {hasSpend && (
+            <span className="break-words font-numeric font-semibold text-ink">{spent}</span>
+          )}
+        </span>
+      )}
+      <span className="min-w-0 break-words col-start-2 row-span-2 row-start-1 justify-self-end text-right font-semibold @min-[29.5rem]:col-auto @min-[29.5rem]:row-span-1 @min-[29.5rem]:row-start-auto">
+        <BalanceLabel
+          balance={member.balance}
+          balanceWithViewer={member.balanceWithViewer}
+          code={group.currency}
+          memberId={member.memberId}
+          viewerMemberId={viewerMemberId}
+          suggestions={group.suggestions}
+        />
+      </span>
+    </button>
+  );
+}
+
+function MultiCurrencyMemberBalanceCard({
+  groups,
+  memberId,
+  viewerMemberId,
+  onMemberClick,
+  isViewer = false,
+}: {
+  groups: SettlementSummaryData["currencies"];
+  memberId: string;
+  viewerMemberId: string;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+  isViewer?: boolean;
+}) {
+  const member = groups[0]?.members.find((candidate) => candidate.memberId === memberId);
+  if (!member) return null;
+  const hasSpend = groups.some((group) =>
+    group.members.some((member) => member.share !== undefined),
+  );
+  const hasPaidFor = groups.some((group) =>
+    group.members.some((member) => member.paidFor !== undefined),
+  );
+  const hasIncludedIn = groups.some((group) =>
+    group.members.some((member) => member.includedIn !== undefined),
+  );
+  const grid =
+    viewerCurrencyRowGrid[viewerCurrencyRowGridFor({ hasSpend, hasPaidFor, hasIncludedIn })];
+
+  return (
+    <section
+      aria-label={`${member.name} balances`}
+      className={isViewer ? mobileRaisedSurfaceClass : undefined}
+    >
+      <div
+        className={`overflow-hidden rounded-none ${isViewer ? "border-y-2 border-forest" : ""} bg-field`}
+      >
+        <div className="grid @min-[29.5rem]:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)]">
+          <div className="flex min-w-0 items-center gap-3 px-4 py-4 @min-[29.5rem]:row-span-full @min-[29.5rem]:border-r @min-[29.5rem]:border-rule">
+            <MemberAvatar id={member.memberId} name={member.name} size={isViewer ? "lg" : "md"} />
+            <span className="min-w-0 break-words">
+              {isViewer && <span className="block text-sm font-normal text-ink-soft">You</span>}
+              <span
+                className={
+                  isViewer
+                    ? "block font-display text-2xl font-semibold text-ink"
+                    : "block text-sm font-medium text-ink"
+                }
+              >
+                {member.name}
+              </span>
+            </span>
+          </div>
+          <div className="@min-[29.5rem]:col-start-2">
+            <div
+              className={`${grid} hidden border-b border-rule px-4 py-2 text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:grid`}
+            >
+              <span aria-hidden="true" />
+              {hasIncludedIn && <span>Included in</span>}
+              {hasPaidFor && <span>Paid for</span>}
+              {hasSpend && <span className="text-right">Spent</span>}
+              <span className="text-right">Balance</span>
+            </div>
+            <div className="divide-y divide-rule">
+              {groups.map((group) => {
+                const groupMember = group.members.find(
+                  (candidate) => candidate.memberId === memberId,
+                );
+                if (!groupMember) return null;
+                return (
+                  <MemberCurrencyRow
+                    key={group.currency}
+                    group={group}
+                    member={groupMember}
+                    hasSpend={hasSpend}
+                    hasPaidFor={hasPaidFor}
+                    hasIncludedIn={hasIncludedIn}
+                    viewerMemberId={viewerMemberId}
+                    onClick={() => onMemberClick?.(memberId, group.currency)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ViewerBalanceCards({
+  data,
+  onMemberClick,
+  bleed = false,
+}: {
+  data: SettlementSummaryData;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+  bleed?: boolean;
+}) {
+  if (!data.viewerMemberId) return null;
+
+  const groups = data.currencies.filter((group) =>
+    group.members.some((member) => member.memberId === data.viewerMemberId),
+  );
+  const className = bleed ? "bleed mb-4 space-y-5 [&>*]:mx-0" : "space-y-5";
+
+  if (groups.length > 1) {
+    return (
+      <div className={className}>
+        <MultiCurrencyMemberBalanceCard
+          groups={groups}
+          memberId={data.viewerMemberId}
+          viewerMemberId={data.viewerMemberId}
+          onMemberClick={onMemberClick}
+          isViewer
+        />
+      </div>
+    );
+  }
+
+  const cards = groups.flatMap((group) => {
+    const viewer = group.members.find((member) => member.memberId === data.viewerMemberId);
+    if (!viewer) return [];
+    return [
+      <ViewerBalanceCard
+        key={group.currency}
+        member={viewer}
+        currencyCode={group.currency}
+        hasSpend={group.members.some((member) => member.share !== undefined)}
+        hasPaidFor={group.members.some((member) => member.paidFor !== undefined)}
+        hasIncludedIn={group.members.some((member) => member.includedIn !== undefined)}
+        suggestions={group.suggestions}
+        onClick={() => onMemberClick?.(viewer.memberId, group.currency)}
+      />,
+    ];
+  });
+
+  return cards.length > 0 ? <div className={className}>{cards}</div> : null;
+}
+
 const balanceRowGrid = {
   withSpend:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
@@ -342,7 +668,7 @@ const balanceRowGrid = {
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_9.5rem] @min-[29.5rem]:gap-x-4",
   balanceOnly:
     "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[29.5rem]:gap-x-4",
-};
+} as const;
 
 function SingleCurrencySummaryList({
   data,
@@ -352,369 +678,176 @@ function SingleCurrencySummaryList({
   onMemberClick?: (memberId: string, currencyCode: string) => void;
 }) {
   const { currency } = useLocaleFormatters();
+  const group = data.currencies[0];
+  if (!group) return null;
+
+  const currencyName = CURRENCIES.find((option) => option.code === group.currency)?.name;
+  const members = group.members.filter((member) => member.memberId !== data.viewerMemberId);
+  const hasSpend = members.some((member) => member.share !== undefined);
+  const hasPaidFor = members.some((member) => member.paidFor !== undefined);
+  const hasIncludedIn = members.some((member) => member.includedIn !== undefined);
+  const grid = balanceRowGrid[viewerCurrencyRowGridFor({ hasSpend, hasPaidFor, hasIncludedIn })];
+
   return (
-    <div className="space-y-5">
-      {data.currencies.map((group) => {
-        const currencyName = CURRENCIES.find((option) => option.code === group.currency)?.name;
-        const members = [...group.members].sort(
-          (a, b) =>
-            Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
-        );
-        // A response from before the consolidated query carries no `share`, so
-        // the spend column is dropped wholesale rather than rendered blank.
-        const hasSpend = members.some((member) => member.share !== undefined);
-        // `paidFor` is optional for legacy responses during a rolling deploy.
-        const hasPaidFor = members.some((member) => member.paidFor !== undefined);
-        const hasIncludedIn = members.some((member) => member.includedIn !== undefined);
-        const grid = hasSpend
-          ? hasIncludedIn
-            ? hasPaidFor
-              ? balanceRowGrid.withSpendAndIncludedInAndPaidFor
-              : balanceRowGrid.withSpendAndIncludedIn
-            : hasPaidFor
-              ? balanceRowGrid.withSpendAndPaidFor
-              : balanceRowGrid.withSpend
-          : hasIncludedIn
-            ? hasPaidFor
-              ? balanceRowGrid.withIncludedInAndPaidFor
-              : balanceRowGrid.withIncludedIn
-            : hasPaidFor
-              ? balanceRowGrid.withPaidFor
-              : balanceRowGrid.balanceOnly;
-        return (
-          <section key={group.currency} aria-label={`${group.currency} balances`} className="bleed">
-            <GroupTitle as="h3" className={`${grid} bleed-px py-2 text-xs`}>
-              <span className="min-w-0">
-                <span className="font-numeric">{group.currency}</span>
-                {currencyName && (
-                  <span className="font-normal text-ink-soft"> · {currencyName}</span>
-                )}
-              </span>
+    <section aria-label={`${group.currency} balances`} className="bleed space-y-3">
+      <GroupTitle as="h3" className={`${grid} bleed-px py-2 text-xs`}>
+        <span className="min-w-0">
+          <span className="font-numeric">{group.currency}</span>
+          {currencyName && <span className="font-normal text-ink-soft"> · {currencyName}</span>}
+        </span>
+        {hasIncludedIn && (
+          <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+            Included in
+          </span>
+        )}
+        {hasPaidFor && (
+          <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+            Paid for
+          </span>
+        )}
+        {hasSpend && (
+          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+            Spent
+          </span>
+        )}
+        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+          Balance
+        </span>
+      </GroupTitle>
+      <ul className="divide-y divide-rule border-y border-edge bg-field">
+        {members.map((member) => {
+          const spent = member.share ? currency(member.share, group.currency) : "No expenses";
+          return (
+            <li
+              key={member.memberId}
+              className={`${grid} relative bleed-px py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
+            >
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => onMemberClick?.(member.memberId, group.currency)}
+                className="flex min-w-0 items-center gap-3 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
+              >
+                <MemberAvatar id={member.memberId} name={member.name} size="md" />
+                <span className="min-w-0 break-words font-medium">{member.name}</span>
+              </button>
               {hasIncludedIn && (
-                <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
-                  Included in
+                <span className="hidden text-ink-soft @min-[29.5rem]:block">
+                  {member.includedIn ? (
+                    <>
+                      <span className="font-numeric">{member.includedIn}</span> expense
+                      {member.includedIn === 1 ? "" : "s"}
+                    </>
+                  ) : (
+                    "-"
+                  )}
                 </span>
               )}
               {hasPaidFor && (
-                <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
-                  Paid for
+                <span className="hidden text-ink-soft @min-[29.5rem]:block">
+                  {member.paidFor ? (
+                    <>
+                      <span className="font-numeric">{member.paidFor}</span> expense
+                      {member.paidFor === 1 ? "" : "s"}
+                    </>
+                  ) : (
+                    "-"
+                  )}
                 </span>
               )}
               {hasSpend && (
-                <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
-                  Spent
+                <span className="hidden text-right @min-[29.5rem]:block">
+                  {member.share ? (
+                    <span className="font-numeric font-semibold text-ink">{spent}</span>
+                  ) : (
+                    <span className="text-xs text-ink-soft">{spent}</span>
+                  )}
                 </span>
               )}
-              <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
-                Balance
+              {hasSpend && (
+                <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
+                  <MobileBalanceValue
+                    balance={member.balance}
+                    balanceWithViewer={member.balanceWithViewer}
+                    code={group.currency}
+                    spent={member.share ? spent : "-"}
+                    memberId={member.memberId}
+                    viewerMemberId={data.viewerMemberId}
+                    suggestions={group.suggestions}
+                  />
+                </span>
+              )}
+              <span
+                className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
+              >
+                <BalanceValue
+                  balance={member.balance}
+                  balanceWithViewer={member.balanceWithViewer}
+                  code={group.currency}
+                  memberId={member.memberId}
+                  viewerMemberId={data.viewerMemberId}
+                  suggestions={group.suggestions}
+                />
               </span>
-            </GroupTitle>
-            {/* The body owns both rules, so the table closes top and bottom
-                whether or not a header or totals row renders around it - see
-                DESIGN.md "Data tables". */}
-            <ul className="divide-y divide-rule border-y border-edge bg-field">
-              {members.map((member) => {
-                const isViewer = member.memberId === data.viewerMemberId;
-                // A member with no share in this currency spent nothing in it,
-                // which reads better as "No expenses" than as a zero amount.
-                const spent = member.share ? currency(member.share, group.currency) : "No expenses";
-                return (
-                  // `bleed-px` matches the header above, keeping each row's
-                  // values aligned with its column label.
-                  <li
-                    key={member.memberId}
-                    className={`${grid} relative bleed-px py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
-                  >
-                    <button
-                      type="button"
-                      aria-haspopup="dialog"
-                      onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                      className="flex min-w-0 items-center gap-3 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
-                    >
-                      <MemberAvatar id={member.memberId} name={member.name} size="md" />
-                      <span className="min-w-0 break-words font-medium">
-                        {member.name}
-                        {isViewer && <span className="text-ink-soft"> (you)</span>}
-                      </span>
-                    </button>
-                    {hasIncludedIn && (
-                      <span className="hidden text-ink-soft @min-[29.5rem]:block">
-                        {member.includedIn ? (
-                          <>
-                            <span className="font-numeric">{member.includedIn}</span> expense
-                            {member.includedIn === 1 ? "" : "s"}
-                          </>
-                        ) : (
-                          "-"
-                        )}
-                      </span>
-                    )}
-                    {hasPaidFor && (
-                      <span className="hidden text-ink-soft @min-[29.5rem]:block">
-                        {member.paidFor ? (
-                          <>
-                            <span className="font-numeric">{member.paidFor}</span> expense
-                            {member.paidFor === 1 ? "" : "s"}
-                          </>
-                        ) : (
-                          "-"
-                        )}
-                      </span>
-                    )}
-                    {hasSpend && (
-                      <span className="hidden text-right @min-[29.5rem]:block">
-                        {member.share ? (
-                          <span className="font-numeric font-semibold text-ink">{spent}</span>
-                        ) : (
-                          <span className="text-xs text-ink-soft">{spent}</span>
-                        )}
-                      </span>
-                    )}
-                    {hasSpend && (
-                      <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
-                        <MobileBalanceValue
-                          balance={member.balance}
-                          balanceWithViewer={member.balanceWithViewer}
-                          code={group.currency}
-                          spent={member.share ? spent : "-"}
-                          memberId={member.memberId}
-                          viewerMemberId={data.viewerMemberId}
-                          suggestions={group.suggestions}
-                        />
-                      </span>
-                    )}
-                    <span
-                      className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
-                    >
-                      <BalanceValue
-                        balance={member.balance}
-                        balanceWithViewer={member.balanceWithViewer}
-                        code={group.currency}
-                        memberId={member.memberId}
-                        viewerMemberId={data.viewerMemberId}
-                        suggestions={group.suggestions}
-                      />
-                    </span>
-                    <MobileMemberCounts includedIn={member.includedIn} paidFor={member.paidFor} />
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+              <MobileMemberCounts includedIn={member.includedIn} paidFor={member.paidFor} />
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function MemberSummaryList({
+  data,
+  onMemberClick,
+}: {
+  data: SettlementSummaryData;
+  onMemberClick?: (memberId: string, currencyCode: string) => void;
+}) {
+  if (data.currencies.length === 1) {
+    return <SingleCurrencySummaryList data={data} onMemberClick={onMemberClick} />;
+  }
+  if (!data.viewerMemberId) return null;
+
+  const memberIds = [
+    ...new Set(
+      data.currencies.flatMap((group) =>
+        group.members
+          .filter((member) => member.memberId !== data.viewerMemberId)
+          .map((member) => member.memberId),
+      ),
+    ),
+  ];
+
+  return (
+    <div className="bleed divide-y divide-edge border-y border-edge">
+      {memberIds.map((memberId) => {
+        const groups = data.currencies.filter((group) =>
+          group.members.some((member) => member.memberId === memberId),
+        );
+        return (
+          <MultiCurrencyMemberBalanceCard
+            key={memberId}
+            groups={groups}
+            memberId={memberId}
+            viewerMemberId={data.viewerMemberId!}
+            onMemberClick={onMemberClick}
+          />
         );
       })}
     </div>
   );
 }
 
-function ConsolidatedSummaryList({
-  data,
-  onMemberClick,
-}: {
-  data: SettlementSummaryData;
-  onMemberClick?: (memberId: string, currencyCode: string) => void;
-}) {
-  const { currency } = useLocaleFormatters();
-  const members = new Map<
-    string,
-    { memberId: string; name: string; includedIn: number; paidFor: number }
-  >();
-  for (const group of data.currencies) {
-    for (const member of group.members) {
-      const existing = members.get(member.memberId);
-      if (existing) {
-        existing.includedIn += member.includedIn ?? 0;
-        existing.paidFor += member.paidFor ?? 0;
-      } else {
-        members.set(member.memberId, {
-          memberId: member.memberId,
-          name: member.name,
-          includedIn: member.includedIn ?? 0,
-          paidFor: member.paidFor ?? 0,
-        });
-      }
-    }
-  }
-  const orderedMembers = [...members.values()].sort(
-    (a, b) =>
-      Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
-  );
-  const hasSpend = data.currencies.some((group) =>
-    group.members.some((member) => member.share !== undefined),
-  );
-  const hasPaidFor = data.currencies.some((group) =>
-    group.members.some((member) => member.paidFor !== undefined),
-  );
-  const hasIncludedIn = data.currencies.some((group) =>
-    group.members.some((member) => member.includedIn !== undefined),
-  );
-  const grid = hasSpend
-    ? hasIncludedIn
-      ? hasPaidFor
-        ? balanceRowGrid.withSpendAndIncludedInAndPaidFor
-        : balanceRowGrid.withSpendAndIncludedIn
-      : hasPaidFor
-        ? balanceRowGrid.withSpendAndPaidFor
-        : balanceRowGrid.withSpend
-    : hasIncludedIn
-      ? hasPaidFor
-        ? balanceRowGrid.withIncludedInAndPaidFor
-        : balanceRowGrid.withIncludedIn
-      : hasPaidFor
-        ? balanceRowGrid.withPaidFor
-        : balanceRowGrid.balanceOnly;
-  const rowsByCurrency = (memberId: string) =>
-    data.currencies.flatMap((group) => {
-      const member = group.members.find((row) => row.memberId === memberId);
-      if (!member || ((member.share ?? 0) === 0 && member.balance === 0)) return [];
-      return [{ group, member }];
-    });
-  return (
-    <div className="bleed">
-      <div className={`${grid} hidden bleed-px py-2 @min-[29.5rem]:grid`}>
-        <span aria-hidden="true" />
-        {hasIncludedIn && (
-          <span className="text-xs font-medium uppercase text-ink-soft">Included in</span>
-        )}
-        {hasPaidFor && (
-          <span className="text-xs font-medium uppercase text-ink-soft">Paid for</span>
-        )}
-        {hasSpend && (
-          <span className="text-right text-xs font-medium uppercase text-ink-soft">Spent</span>
-        )}
-        <span className="text-right text-xs font-medium uppercase text-ink-soft">Balance</span>
-      </div>
-      {/* The column labels hide below the container breakpoint, so the top
-          rule lives on the body rather than the header row. */}
-      <div className="divide-y divide-rule border-y border-edge bg-field">
-        {orderedMembers.map((member) => {
-          const isViewer = member.memberId === data.viewerMemberId;
-          const rows = rowsByCurrency(member.memberId);
-          return (
-            <div key={member.memberId}>
-              <div className={`${grid} bg-surface bleed-px py-3`}>
-                <span className="flex min-w-0 items-center gap-3">
-                  <MemberAvatar id={member.memberId} name={member.name} size="md" />
-                  <span className="min-w-0 break-words font-medium">
-                    {member.name}
-                    {isViewer && <span className="text-ink-soft"> (you)</span>}
-                  </span>
-                </span>
-                <MobileMemberCounts
-                  includedIn={member.includedIn}
-                  paidFor={member.paidFor}
-                  className="mt-2"
-                />
-              </div>
-              <div className="divide-y divide-rule">
-                {rows.map(({ group, member: currencyMember }) => {
-                  const spent = currencyMember.share
-                    ? currency(currencyMember.share, group.currency)
-                    : "No expenses";
-                  return (
-                    <button
-                      key={group.currency}
-                      type="button"
-                      aria-haspopup="dialog"
-                      onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                      className={`${grid} relative w-full bleed-px py-3 text-left transition-colors hover:bg-wash focus-visible:outline-none focus-visible:after:absolute focus-visible:after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest`}
-                    >
-                      <span className="min-w-0 break-words text-xs text-ink-soft">
-                        <span className="font-numeric text-sm font-semibold text-ink">
-                          {group.currency}
-                        </span>
-                      </span>
-                      {hasIncludedIn && (
-                        <span className="hidden text-ink-soft @min-[29.5rem]:block">
-                          {currencyMember.includedIn ? (
-                            <>
-                              <span className="font-numeric">{currencyMember.includedIn}</span>{" "}
-                              expense
-                              {currencyMember.includedIn === 1 ? "" : "s"}
-                            </>
-                          ) : (
-                            "-"
-                          )}
-                        </span>
-                      )}
-                      {hasPaidFor && (
-                        <span className="hidden text-ink-soft @min-[29.5rem]:block">
-                          {currencyMember.paidFor ? (
-                            <>
-                              <span className="font-numeric">{currencyMember.paidFor}</span> expense
-                              {currencyMember.paidFor === 1 ? "" : "s"}
-                            </>
-                          ) : (
-                            "-"
-                          )}
-                        </span>
-                      )}
-                      {hasSpend && (
-                        <span className="hidden text-right @min-[29.5rem]:block">
-                          {currencyMember.share ? (
-                            <span className="font-numeric font-semibold text-ink">{spent}</span>
-                          ) : (
-                            <span className="text-xs text-ink-soft">{spent}</span>
-                          )}
-                        </span>
-                      )}
-                      {hasSpend && (
-                        <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
-                          <MobileBalanceValue
-                            balance={currencyMember.balance}
-                            balanceWithViewer={currencyMember.balanceWithViewer}
-                            code={group.currency}
-                            spent={currencyMember.share ? spent : "-"}
-                            memberId={currencyMember.memberId}
-                            viewerMemberId={data.viewerMemberId}
-                            suggestions={group.suggestions}
-                          />
-                        </span>
-                      )}
-                      <span
-                        className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
-                      >
-                        <BalanceValue
-                          balance={currencyMember.balance}
-                          balanceWithViewer={currencyMember.balanceWithViewer}
-                          code={group.currency}
-                          memberId={currencyMember.memberId}
-                          viewerMemberId={data.viewerMemberId}
-                          suggestions={group.suggestions}
-                        />
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SettlementSummaryList({
-  data,
-  onMemberClick,
-}: {
-  data: SettlementSummaryData;
-  onMemberClick?: (memberId: string, currencyCode: string) => void;
-}) {
-  return data.currencies.length > 1 ? (
-    <ConsolidatedSummaryList data={data} onMemberClick={onMemberClick} />
-  ) : (
-    <SingleCurrencySummaryList data={data} onMemberClick={onMemberClick} />
-  );
-}
-
 export function SettlementSummary({
   data,
   onMemberClick,
+  renderViewerCards = true,
 }: {
   data: SettlementSummaryData;
   onMemberClick?: (memberId: string, currencyCode: string) => void;
+  renderViewerCards?: boolean;
 }) {
   return (
     <div className="space-y-2 text-sm" aria-live="polite">
@@ -733,7 +866,10 @@ export function SettlementSummary({
             : "No outstanding balances."}
         </p>
       ) : (
-        <SettlementSummaryList data={data} onMemberClick={onMemberClick} />
+        <>
+          {renderViewerCards && <ViewerBalanceCards data={data} onMemberClick={onMemberClick} />}
+          <MemberSummaryList data={data} onMemberClick={onMemberClick} />
+        </>
       )}
     </div>
   );
@@ -779,7 +915,7 @@ export function TabSettlement({
     | SettlementQueryResponse
     | null
     | undefined;
-  const breakdown = useTabBreakdown(slug);
+  const breakdown = useTabBreakdown(slug, expenseView, day);
   const record = useMutation(api.settlements.record);
   const reverse = useMutation(api.settlements.reverse);
 
@@ -946,446 +1082,455 @@ export function TabSettlement({
         })
     : [];
   const selectedExpense = expenses.find((expense) => expense.slug === selectedExpenseSlug);
+  function openMemberBreakdown(memberId: string, currencyCode: string) {
+    const member = data.currencies
+      .find((group) => group.currency === currencyCode)
+      ?.members.find((row) => row.memberId === memberId);
+    if (member) {
+      setSelectedMember({ memberId, currency: currencyCode, name: member.name });
+      setMemberBreakdownOpen(true);
+    }
+  }
   return (
-    <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
-      <Dialog open={open} onOpenChange={setOpen}>
-        {/* View payments is `secondary` and Breakdown stays a link (DESIGN.md
+    <div className="@container space-y-5">
+      <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
+        <Dialog open={open} onOpenChange={setOpen}>
+          {/* View payments is `secondary` and Breakdown stays a link (DESIGN.md
             § 5). On a phone, Breakdown shares the title row while the wider
             View payments action takes the row below. */}
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <SectionTitle className="flex items-center gap-2">
-            <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
-            Balances
-          </SectionTitle>
-          {data.currencies.length > 0 && (
-            <Link
-              to="/t/$slug/breakdown"
-              params={{ slug }}
-              className="group ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:hidden"
-            >
-              Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
-            </Link>
-          )}
-          <div className="ml-auto flex w-full items-center gap-3 sm:w-auto">
-            <DialogTrigger
-              render={<Button variant="secondary" size="touch" className="w-full sm:w-auto" />}
-            >
-              View payments
-            </DialogTrigger>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <SectionTitle className="flex items-center gap-2">
+              <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
+              Balances
+            </SectionTitle>
             {data.currencies.length > 0 && (
               <Link
                 to="/t/$slug/breakdown"
                 params={{ slug }}
-                className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:inline-flex"
+                className="group ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:hidden"
               >
                 Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
               </Link>
             )}
+            <div className="ml-auto flex w-full items-center gap-3 sm:w-auto">
+              <DialogTrigger
+                render={<Button variant="secondary" size="touch" className="w-full sm:w-auto" />}
+              >
+                View payments
+              </DialogTrigger>
+              {data.currencies.length > 0 && (
+                <Link
+                  to="/t/$slug/breakdown"
+                  params={{ slug }}
+                  className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:inline-flex"
+                >
+                  Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
-        <SettlementSummary
-          data={data}
-          onMemberClick={(memberId, currencyCode) => {
-            const member = data.currencies
-              .find((group) => group.currency === currencyCode)
-              ?.members.find((row) => row.memberId === memberId);
-            if (member) {
-              setSelectedMember({ memberId, currency: currencyCode, name: member.name });
-              setMemberBreakdownOpen(true);
+          <ViewerBalanceCards data={data} onMemberClick={openMemberBreakdown} bleed />
+          <SettlementSummary
+            data={data}
+            onMemberClick={openMemberBreakdown}
+            renderViewerCards={false}
+          />
+          <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
+            <header className="sticky top-0 z-10 shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <DialogTitle>Settle up ({viewLabel})</DialogTitle>
+                  <DialogDescription className="mt-1">{modalDescription}</DialogDescription>
+                </div>
+                <DialogClose
+                  aria-label="Close settlement"
+                  render={<Button variant="ghost" size="icon-touch" />}
+                >
+                  <X aria-hidden="true" />
+                </DialogClose>
+              </div>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
+              <div className="space-y-6">
+                {settlementViews.map(({ title, data: viewData, paymentExpenseView }) => (
+                  <section key={paymentExpenseView} aria-label={title ?? "Settlement balances"}>
+                    {title && <GroupTitle as="h3">{title}</GroupTitle>}
+                    {viewData.missingPayers.length > 0 && (
+                      <div className="mt-3 rounded-md border border-rule bg-field p-3 text-sm">
+                        <p className="text-margin-red-ink">
+                          These expenses are excluded until a payer is assigned:
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                          {viewData.missingPayers.map((expense) => (
+                            <li key={expense.slug} className="break-words">
+                              {isOwner ? (
+                                <Button
+                                  variant="link"
+                                  size="touch"
+                                  nativeButton={false}
+                                  className="h-auto whitespace-normal px-0 text-left"
+                                  render={<Link to="/e/$slug" params={{ slug: expense.slug }} />}
+                                >
+                                  {expense.name || "Untitled expense"}
+                                </Button>
+                              ) : (
+                                expense.name || "Untitled expense"
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {viewData.currencies.length === 0 ? (
+                      <p className="mt-3 text-sm text-ink-soft">
+                        {viewData.missingPayers.length
+                          ? "Assign payers to see balances."
+                          : "No outstanding balances."}
+                      </p>
+                    ) : (
+                      <div className="mt-3 space-y-5">
+                        {viewData.currencies.map((group) => (
+                          <section key={group.currency} aria-label={`${group.currency} balances`}>
+                            <GroupTitle as="h3">{group.currency}</GroupTitle>
+                            <ul className="mt-3 divide-y divide-rule rounded-lg border border-edge bg-field">
+                              {group.members.map((member) => (
+                                <li
+                                  key={member.memberId}
+                                  className="flex flex-wrap justify-between gap-3 px-3 py-3 text-sm"
+                                >
+                                  <span className="min-w-0 break-words">{member.name}</span>
+                                  <BalanceValue
+                                    balance={member.balance}
+                                    code={group.currency}
+                                    memberId={member.memberId}
+                                    viewerMemberId={viewData.viewerMemberId}
+                                    suggestions={group.suggestions}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+              {/* The dialog's own `default` (DESIGN.md § 5: a dialog is its own
+                region). Only shown when someone in this view owes someone. */}
+              {isOwner && payableCurrencies.length > 0 && (
+                <div className="mt-5 flex justify-end">
+                  <Button size="touch" className="w-full sm:w-auto" onClick={beginPayment}>
+                    <Banknote aria-hidden="true" className="h-4 w-4" />
+                    Record payment
+                  </Button>
+                </div>
+              )}
+              <section className="mt-5 border-t border-rule pt-4">
+                <GroupTitle as="h3">Payment history</GroupTitle>
+                {!allData.history.length && (
+                  <p className="mt-2 text-sm text-ink-soft">No payments recorded yet.</p>
+                )}
+                <ul className="mt-2 space-y-3">
+                  {allData.history.map((item) => (
+                    <li
+                      key={item.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm"
+                    >
+                      <div className="flex min-w-0 items-center gap-1">
+                        <div className="min-w-0 flex-1 break-words">
+                          <p>
+                            {memberName(item.fromMemberId)} → {memberName(item.toMemberId)}
+                          </p>
+                          <p className="text-xs text-ink-soft">
+                            {formatExpenseDate(item.date)} · {item.currency}
+                            {item.reversed ? " · Reversed" : ""}
+                          </p>
+                          {item.note && (
+                            <p className="mt-1 whitespace-pre-wrap text-xs text-ink-soft">
+                              {item.note}
+                            </p>
+                          )}
+                        </div>
+                        {isOwner && !item.reversed && (
+                          <Button
+                            variant="destructive-icon"
+                            size="icon-lg"
+                            title="Reverse payment"
+                            aria-label={`Reverse ${currency(item.amount, item.currency)} payment from ${memberName(item.fromMemberId)} to ${memberName(item.toMemberId)}`}
+                            onClick={() => setReversingId(item.id)}
+                          >
+                            <RotateCcw aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
+                          </Button>
+                        )}
+                      </div>
+                      <span className="font-numeric whitespace-nowrap">
+                        {currency(item.amount, item.currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog
+          open={memberBreakdownOpen}
+          onOpenChange={(next) => {
+            setMemberBreakdownOpen(next);
+          }}
+        >
+          <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
+            <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {selectedBreakdown && selectedMember && (
+                      <MemberAvatar
+                        id={selectedBreakdown.memberId}
+                        name={selectedBreakdown.name}
+                        size="md"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <DialogTitle className="sr-only">
+                        {selectedMember?.name ?? "Member breakdown"}
+                      </DialogTitle>
+                      <p className="break-words text-sm font-medium text-ink">
+                        {selectedMember?.name ?? "Member breakdown"}
+                      </p>
+                      <DialogDescription className="mt-1 text-xs">
+                        {selectedBreakdown
+                          ? `${selectedBreakdown.expenseCount} ${selectedBreakdown.expenseCount === 1 ? "expense" : "expenses"} · ${selectedMember?.currency}`
+                          : `${selectedMember?.currency ?? ""} expense breakdown`}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </div>
+                <DialogClose
+                  aria-label="Close member breakdown"
+                  render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+                >
+                  <X aria-hidden="true" />
+                </DialogClose>
+              </div>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto card-inset">
+              {breakdown === undefined ? (
+                <p role="status" className="text-sm text-ink-soft">
+                  Loading breakdown…
+                </p>
+              ) : selectedBreakdown && selectedMember ? (
+                <TabMemberBreakdown
+                  member={selectedBreakdown}
+                  currencyCode={selectedMember.currency}
+                  variant="modal"
+                  settlements={selectedSettlements}
+                  viewerMemberId={data.viewerMemberId}
+                  onExpenseClick={(expenseSlug) => {
+                    setMemberBreakdownOpen(false);
+                    setSelectedExpenseSlug(expenseSlug);
+                  }}
+                />
+              ) : (
+                <p className="text-sm text-ink-soft">No breakdown available.</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+        <ExpenseDetailsDialog
+          open={selectedExpenseSlug !== null}
+          onOpenChange={(next) => {
+            if (!next) setSelectedExpenseSlug(null);
+          }}
+          expense={selectedExpense}
+          slug={slug}
+          defaultCurrency={defaultCurrency}
+          isOwner={isOwner}
+          members={members}
+        />
+        <ConfirmDialog
+          open={reversingId !== null}
+          onOpenChange={(next) => {
+            if (!next) setReversingId(null);
+          }}
+          title="Reverse this payment?"
+          description={
+            reverseHistory
+              ? `${memberName(reverseHistory.fromMemberId)}’s ${currency(reverseHistory.amount, reverseHistory.currency)} payment to ${memberName(reverseHistory.toMemberId)} will be reversed. The history entry stays visible and balances are recalculated.`
+              : "This payment will be reversed."
+          }
+          confirmLabel="Reverse payment"
+          pendingLabel="Reversing…"
+          onConfirm={async () => {
+            if (reversingId) {
+              await reverse({ slug, settlementId: reversingId });
+              setStatus("Payment reversed. Balances updated.");
             }
           }}
         />
-        <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
-          <header className="sticky top-0 z-10 shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <DialogTitle>Settle up ({viewLabel})</DialogTitle>
-                <DialogDescription className="mt-1">{modalDescription}</DialogDescription>
-              </div>
-              <DialogClose
-                aria-label="Close settlement"
-                render={<Button variant="ghost" size="icon-touch" />}
-              >
-                <X aria-hidden="true" />
-              </DialogClose>
-            </div>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 sm:px-6 sm:pb-6 sm:pt-6">
-            <div className="space-y-6">
-              {settlementViews.map(({ title, data: viewData, paymentExpenseView }) => (
-                <section key={paymentExpenseView} aria-label={title ?? "Settlement balances"}>
-                  {title && <GroupTitle as="h3">{title}</GroupTitle>}
-                  {viewData.missingPayers.length > 0 && (
-                    <div className="mt-3 rounded-md border border-rule bg-field p-3 text-sm">
-                      <p className="text-margin-red-ink">
-                        These expenses are excluded until a payer is assigned:
-                      </p>
-                      <ul className="mt-2 space-y-1">
-                        {viewData.missingPayers.map((expense) => (
-                          <li key={expense.slug} className="break-words">
-                            {isOwner ? (
-                              <Button
-                                variant="link"
-                                size="touch"
-                                nativeButton={false}
-                                className="h-auto whitespace-normal px-0 text-left"
-                                render={<Link to="/e/$slug" params={{ slug: expense.slug }} />}
-                              >
-                                {expense.name || "Untitled expense"}
-                              </Button>
-                            ) : (
-                              expense.name || "Untitled expense"
-                            )}
-                          </li>
+        {payment && (
+          <Dialog
+            open
+            onOpenChange={(next) => {
+              if (!next && !submitting.current) {
+                setPayment(null);
+                setPaymentError(null);
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogTitle>Record payment</DialogTitle>
+              <DialogDescription className="mt-1">
+                This records money already transferred outside the app.
+              </DialogDescription>
+              <form onSubmit={savePayment} className="mt-5 space-y-4" aria-busy={paymentPending}>
+                <fieldset disabled={paymentPending} className="space-y-4">
+                  {payableCurrencies.length > 1 && (
+                    <div>
+                      <Label htmlFor="settlement-currency">Currency</Label>
+                      <Select
+                        id="settlement-currency"
+                        className="w-full font-numeric"
+                        value={payment.currency}
+                        onChange={(event) =>
+                          setPayment({ ...payment, ...paymentDraft(event.target.value) })
+                        }
+                      >
+                        {payableCurrencies.map((code) => (
+                          <option key={code} value={code}>
+                            {code}
+                          </option>
                         ))}
-                      </ul>
+                      </Select>
                     </div>
                   )}
-                  {viewData.currencies.length === 0 ? (
-                    <p className="mt-3 text-sm text-ink-soft">
-                      {viewData.missingPayers.length
-                        ? "Assign payers to see balances."
-                        : "No outstanding balances."}
-                    </p>
-                  ) : (
-                    <div className="mt-3 space-y-5">
-                      {viewData.currencies.map((group) => (
-                        <section key={group.currency} aria-label={`${group.currency} balances`}>
-                          <GroupTitle as="h3">{group.currency}</GroupTitle>
-                          <ul className="mt-3 divide-y divide-rule rounded-lg border border-edge bg-field">
-                            {group.members.map((member) => (
-                              <li
-                                key={member.memberId}
-                                className="flex flex-wrap justify-between gap-3 px-3 py-3 text-sm"
-                              >
-                                <span className="min-w-0 break-words">{member.name}</span>
-                                <BalanceValue
-                                  balance={member.balance}
-                                  code={group.currency}
-                                  memberId={member.memberId}
-                                  viewerMemberId={viewData.viewerMemberId}
-                                  suggestions={group.suggestions}
-                                />
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      ))}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="settlement-from">From</Label>
+                      <Select
+                        id="settlement-from"
+                        className="w-full"
+                        value={payment.fromMemberId}
+                        onChange={(event) =>
+                          setPayment({
+                            ...payment,
+                            ...paymentDraft(payment.currency, {
+                              fromMemberId: event.target.value as PaymentDraft["fromMemberId"],
+                              toMemberId: payment.toMemberId,
+                            }),
+                          })
+                        }
+                      >
+                        {payingParties(payment.currency).payers.map((member) => (
+                          <option key={member.memberId} value={member.memberId}>
+                            {member.name} · owes {currency(-member.balance, payment.currency)}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
-                  )}
-                </section>
-              ))}
-            </div>
-            {/* The dialog's own `default` (DESIGN.md § 5: a dialog is its own
-                region). Only shown when someone in this view owes someone. */}
-            {isOwner && payableCurrencies.length > 0 && (
-              <div className="mt-5 flex justify-end">
-                <Button size="touch" className="w-full sm:w-auto" onClick={beginPayment}>
-                  <Banknote aria-hidden="true" className="h-4 w-4" />
-                  Record payment
-                </Button>
-              </div>
-            )}
-            <section className="mt-5 border-t border-rule pt-4">
-              <GroupTitle as="h3">Payment history</GroupTitle>
-              {!allData.history.length && (
-                <p className="mt-2 text-sm text-ink-soft">No payments recorded yet.</p>
-              )}
-              <ul className="mt-2 space-y-3">
-                {allData.history.map((item) => (
-                  <li
-                    key={item.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm"
-                  >
-                    <div className="flex min-w-0 items-center gap-1">
-                      <div className="min-w-0 flex-1 break-words">
-                        <p>
-                          {memberName(item.fromMemberId)} → {memberName(item.toMemberId)}
-                        </p>
-                        <p className="text-xs text-ink-soft">
-                          {formatExpenseDate(item.date)} · {item.currency}
-                          {item.reversed ? " · Reversed" : ""}
-                        </p>
-                        {item.note && (
-                          <p className="mt-1 whitespace-pre-wrap text-xs text-ink-soft">
-                            {item.note}
-                          </p>
-                        )}
-                      </div>
-                      {isOwner && !item.reversed && (
-                        <Button
-                          variant="destructive-icon"
-                          size="icon-lg"
-                          title="Reverse payment"
-                          aria-label={`Reverse ${currency(item.amount, item.currency)} payment from ${memberName(item.fromMemberId)} to ${memberName(item.toMemberId)}`}
-                          onClick={() => setReversingId(item.id)}
-                        >
-                          <RotateCcw aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
-                        </Button>
-                      )}
+                    <div>
+                      <Label htmlFor="settlement-to">To</Label>
+                      <Select
+                        id="settlement-to"
+                        className="w-full"
+                        value={payment.toMemberId}
+                        onChange={(event) =>
+                          setPayment({
+                            ...payment,
+                            ...paymentDraft(payment.currency, {
+                              fromMemberId: payment.fromMemberId,
+                              toMemberId: event.target.value as PaymentDraft["toMemberId"],
+                            }),
+                          })
+                        }
+                      >
+                        {payingParties(payment.currency).payees.map((member) => (
+                          <option key={member.memberId} value={member.memberId}>
+                            {member.name} · gets {currency(member.balance, payment.currency)}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
-                    <span className="font-numeric whitespace-nowrap">
-                      {currency(item.amount, item.currency)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={memberBreakdownOpen}
-        onOpenChange={(next) => {
-          setMemberBreakdownOpen(next);
-        }}
-      >
-        <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
-          <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-3">
-                  {selectedBreakdown && selectedMember && (
-                    <MemberAvatar
-                      id={selectedBreakdown.memberId}
-                      name={selectedBreakdown.name}
-                      size="md"
+                  </div>
+                  <div>
+                    <Label htmlFor="settlement-amount">Amount ({payment.currency})</Label>
+                    <Input
+                      id="settlement-amount"
+                      icon={Banknote}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0.01"
+                      className="font-numeric"
+                      value={payment.amountText}
+                      onChange={(event) =>
+                        setPayment({ ...payment, amountText: event.target.value })
+                      }
+                      aria-invalid={!!paymentError}
+                      aria-describedby={
+                        paymentError ? "settlement-error" : "settlement-amount-help"
+                      }
+                      required
                     />
-                  )}
-                  <div className="min-w-0">
-                    <DialogTitle className="sr-only">
-                      {selectedMember?.name ?? "Member breakdown"}
-                    </DialogTitle>
-                    <p className="break-words text-sm font-medium text-ink">
-                      {selectedMember?.name ?? "Member breakdown"}
+                    <p id="settlement-amount-help" className="mt-1 text-xs text-ink-soft">
+                      Up to {currency(maxPayment(payment), payment.currency)}. You can record a
+                      partial payment.
                     </p>
-                    <DialogDescription className="mt-1 text-xs">
-                      {selectedBreakdown
-                        ? `${selectedBreakdown.expenseCount} ${selectedBreakdown.expenseCount === 1 ? "expense" : "expenses"} · ${selectedMember?.currency}`
-                        : `${selectedMember?.currency ?? ""} expense breakdown`}
-                    </DialogDescription>
                   </div>
-                </div>
-              </div>
-              <DialogClose
-                aria-label="Close member breakdown"
-                render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
-              >
-                <X aria-hidden="true" />
-              </DialogClose>
-            </div>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto card-inset">
-            {breakdown === undefined ? (
-              <p role="status" className="text-sm text-ink-soft">
-                Loading breakdown…
-              </p>
-            ) : selectedBreakdown && selectedMember ? (
-              <TabMemberBreakdown
-                member={selectedBreakdown}
-                currencyCode={selectedMember.currency}
-                variant="modal"
-                settlements={selectedSettlements}
-                viewerMemberId={data.viewerMemberId}
-                onExpenseClick={(expenseSlug) => {
-                  setMemberBreakdownOpen(false);
-                  setSelectedExpenseSlug(expenseSlug);
-                }}
-              />
-            ) : (
-              <p className="text-sm text-ink-soft">No breakdown available.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      <ExpenseDetailsDialog
-        open={selectedExpenseSlug !== null}
-        onOpenChange={(next) => {
-          if (!next) setSelectedExpenseSlug(null);
-        }}
-        expense={selectedExpense}
-        slug={slug}
-        defaultCurrency={defaultCurrency}
-        isOwner={isOwner}
-        members={members}
-      />
-      <ConfirmDialog
-        open={reversingId !== null}
-        onOpenChange={(next) => {
-          if (!next) setReversingId(null);
-        }}
-        title="Reverse this payment?"
-        description={
-          reverseHistory
-            ? `${memberName(reverseHistory.fromMemberId)}’s ${currency(reverseHistory.amount, reverseHistory.currency)} payment to ${memberName(reverseHistory.toMemberId)} will be reversed. The history entry stays visible and balances are recalculated.`
-            : "This payment will be reversed."
-        }
-        confirmLabel="Reverse payment"
-        pendingLabel="Reversing…"
-        onConfirm={async () => {
-          if (reversingId) {
-            await reverse({ slug, settlementId: reversingId });
-            setStatus("Payment reversed. Balances updated.");
-          }
-        }}
-      />
-      {payment && (
-        <Dialog
-          open
-          onOpenChange={(next) => {
-            if (!next && !submitting.current) {
-              setPayment(null);
-              setPaymentError(null);
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogTitle>Record payment</DialogTitle>
-            <DialogDescription className="mt-1">
-              This records money already transferred outside the app.
-            </DialogDescription>
-            <form onSubmit={savePayment} className="mt-5 space-y-4" aria-busy={paymentPending}>
-              <fieldset disabled={paymentPending} className="space-y-4">
-                {payableCurrencies.length > 1 && (
                   <div>
-                    <Label htmlFor="settlement-currency">Currency</Label>
-                    <Select
-                      id="settlement-currency"
-                      className="w-full font-numeric"
-                      value={payment.currency}
-                      onChange={(event) =>
-                        setPayment({ ...payment, ...paymentDraft(event.target.value) })
-                      }
-                    >
-                      {payableCurrencies.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                )}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="settlement-from">From</Label>
-                    <Select
-                      id="settlement-from"
+                    <Label htmlFor="settlement-date">Payment date</Label>
+                    <DatePicker
+                      id="settlement-date"
                       className="w-full"
-                      value={payment.fromMemberId}
-                      onChange={(event) =>
-                        setPayment({
-                          ...payment,
-                          ...paymentDraft(payment.currency, {
-                            fromMemberId: event.target.value as PaymentDraft["fromMemberId"],
-                            toMemberId: payment.toMemberId,
-                          }),
-                        })
-                      }
-                    >
-                      {payingParties(payment.currency).payers.map((member) => (
-                        <option key={member.memberId} value={member.memberId}>
-                          {member.name} · owes {currency(-member.balance, payment.currency)}
-                        </option>
-                      ))}
-                    </Select>
+                      value={payment.date}
+                      onChange={(date) => setPayment({ ...payment, date })}
+                      aria-label="Payment date"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="settlement-to">To</Label>
-                    <Select
-                      id="settlement-to"
-                      className="w-full"
-                      value={payment.toMemberId}
-                      onChange={(event) =>
-                        setPayment({
-                          ...payment,
-                          ...paymentDraft(payment.currency, {
-                            fromMemberId: payment.fromMemberId,
-                            toMemberId: event.target.value as PaymentDraft["toMemberId"],
-                          }),
-                        })
-                      }
-                    >
-                      {payingParties(payment.currency).payees.map((member) => (
-                        <option key={member.memberId} value={member.memberId}>
-                          {member.name} · gets {currency(member.balance, payment.currency)}
-                        </option>
-                      ))}
-                    </Select>
+                    <Label htmlFor="settlement-note">Note (optional)</Label>
+                    <Textarea
+                      id="settlement-note"
+                      maxLength={2000}
+                      value={payment.note}
+                      onChange={(event) => setPayment({ ...payment, note: event.target.value })}
+                    />
                   </div>
+                </fieldset>
+                {paymentError && <FieldError id="settlement-error">{paymentError}</FieldError>}
+                <div className="flex flex-wrap justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="touch"
+                    disabled={paymentPending}
+                    onClick={() => {
+                      setPayment(null);
+                      setPaymentError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="touch"
+                    disabled={paymentPending}
+                    aria-busy={paymentPending}
+                  >
+                    {paymentPending ? "Recording…" : "Record payment"}
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="settlement-amount">Amount ({payment.currency})</Label>
-                  <Input
-                    id="settlement-amount"
-                    icon={Banknote}
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0.01"
-                    className="font-numeric"
-                    value={payment.amountText}
-                    onChange={(event) => setPayment({ ...payment, amountText: event.target.value })}
-                    aria-invalid={!!paymentError}
-                    aria-describedby={paymentError ? "settlement-error" : "settlement-amount-help"}
-                    required
-                  />
-                  <p id="settlement-amount-help" className="mt-1 text-xs text-ink-soft">
-                    Up to {currency(maxPayment(payment), payment.currency)}. You can record a
-                    partial payment.
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="settlement-date">Payment date</Label>
-                  <DatePicker
-                    id="settlement-date"
-                    className="w-full"
-                    value={payment.date}
-                    onChange={(date) => setPayment({ ...payment, date })}
-                    aria-label="Payment date"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="settlement-note">Note (optional)</Label>
-                  <Textarea
-                    id="settlement-note"
-                    maxLength={2000}
-                    value={payment.note}
-                    onChange={(event) => setPayment({ ...payment, note: event.target.value })}
-                  />
-                </div>
-              </fieldset>
-              {paymentError && <FieldError id="settlement-error">{paymentError}</FieldError>}
-              <div className="flex flex-wrap justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="touch"
-                  disabled={paymentPending}
-                  onClick={() => {
-                    setPayment(null);
-                    setPaymentError(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="touch"
-                  disabled={paymentPending}
-                  aria-busy={paymentPending}
-                >
-                  {paymentPending ? "Recording…" : "Record payment"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
-      {status && (
-        <p className="mt-2 text-xs text-ink-soft" role="status">
-          {status}
-        </p>
-      )}
-    </Panel>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+        {status && (
+          <p className="mt-2 text-xs text-ink-soft" role="status">
+            {status}
+          </p>
+        )}
+      </Panel>
+    </div>
   );
 }

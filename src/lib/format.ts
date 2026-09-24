@@ -20,6 +20,15 @@ export function todayISODate(): string {
   return toISODate(new Date());
 }
 
+// Strictly validates the canonical calendar-date form used by expenses and
+// settlement as-of dates. Comparing the normalized UTC date rejects values
+// such as 2026-02-30 rather than letting Date.parse roll them over.
+export function isValidISODate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 // How an expense's date reads everywhere it's listed, e.g. "Mar 3, 2027".
 // Undefined when there's no date, so callers can fall back to their own copy.
 export function formatExpenseDate(

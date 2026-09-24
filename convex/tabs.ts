@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { computeShares, computeSplit, round2 } from "../src/lib/calculations";
 import { expenseAdjustments, person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
+import { isValidISODate } from "../src/lib/format";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   forbidden,
@@ -761,6 +762,8 @@ async function computeCurrencyBreakdown(
       expenseName: string;
       date: string;
       fairShare: number;
+      /** Net amount this member gets back (positive) or owes (negative). */
+      balance: number | null;
       payerId?: string;
       payerName: string;
       total: number;
@@ -777,6 +780,8 @@ async function computeCurrencyBreakdown(
     const rate = activeExchangeRate(expense, defaultCurrency);
     const original = computeShares(split);
     const shares = rate ? convertShares(original, split.grandTotal, rate.rate) : original;
+    const convertedTotal = round2(rate ? split.grandTotal * rate.rate : split.grandTotal);
+    const payerResolved = expense.people.some((person) => person.id === expense.payerId);
     for (const row of shares) {
       if (!expense.items.some((item) => item.splitWith.includes(row.personId))) continue;
       const entry = totals.get(row.personId);
@@ -788,6 +793,9 @@ async function computeCurrencyBreakdown(
         expenseName: expense.name,
         date: expense.date,
         fairShare: round2(row.fairShare),
+        balance: payerResolved
+          ? round2((expense.payerId === row.personId ? convertedTotal : 0) - row.fairShare)
+          : null,
         payerId: expense.payerId,
         payerName:
           expense.people.find((person) => person.id === expense.payerId)?.name ?? "Unknown",
@@ -822,24 +830,82 @@ async function computeCurrencyBreakdown(
   };
 }
 
+const breakdownExpenseLine = v.object({
+  expenseSlug: v.string(),
+  expenseName: v.string(),
+  date: v.string(),
+  fairShare: v.number(),
+  balance: v.union(v.number(), v.null()),
+  payerId: v.optional(v.string()),
+  payerName: v.string(),
+  total: v.number(),
+});
+const breakdownMember = v.object({
+  memberId: v.id("tabMembers"),
+  resolvedId: v.string(),
+  name: v.string(),
+  claimed: v.boolean(),
+  totalSpent: v.number(),
+  expenseCount: v.number(),
+  expenses: v.array(breakdownExpenseLine),
+});
+const breakdownResult = v.union(
+  v.null(),
+  v.object({
+    tab: v.object({ name: v.string(), slug: v.string() }),
+    expenseCount: v.number(),
+    currencies: v.array(
+      v.object({
+        convertedExpenseCount: v.number(),
+        currency: v.string(),
+        expenseCount: v.number(),
+        members: v.array(breakdownMember),
+      }),
+    ),
+  }),
+);
+
 export const breakdown = query({
-  args: { slug: v.string() },
-  handler: async (ctx, { slug }) => {
+  args: {
+    slug: v.string(),
+    view: v.optional(v.union(v.literal("paid"), v.literal("upcoming"), v.literal("all"))),
+    asOfDate: v.optional(v.string()),
+  },
+  returns: breakdownResult,
+  handler: async (ctx, { slug, view: requestedView, asOfDate }) => {
     const viewable = await viewableTab(ctx, slug);
     if (!viewable) return null;
     const { tab } = viewable;
+
+    // The standalone breakdown route still calls this query with only a slug,
+    // which intentionally keeps its historical all-expenses behavior. A
+    // selected paid/upcoming view must carry the same calendar snapshot used
+    // by settlement balances so the modal's rows and totals stay in sync.
+    const view = requestedView ?? "all";
+    if (asOfDate !== undefined && !isValidISODate(asOfDate)) {
+      throw new Error("Use a real YYYY-MM-DD as-of date");
+    }
+    if (view !== "all" && !asOfDate) {
+      throw new Error("A valid as-of date is required for a selected expense view");
+    }
 
     const expenses = await ctx.db
       .query("expenses")
       .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
       .collect();
+    const scopedExpenses =
+      view === "all"
+        ? expenses
+        : expenses.filter((expense) =>
+            view === "upcoming" ? expense.date > asOfDate! : expense.date <= asOfDate!,
+          );
 
     // Group expenses by currency so each currency gets its own independent
     // breakdown - amounts in different currencies can't be added together. A
     // tab with no expenses yet still gets one (empty) "USD" group so the
     // roster still renders.
     const byCurrency = new Map<string, Doc<"expenses">[]>();
-    for (const expense of expenses) {
+    for (const expense of scopedExpenses) {
       const code =
         activeExchangeRate(expense, tab.defaultCurrency ?? "USD")?.to ?? expense.currency ?? "USD";
       const list = byCurrency.get(code);
@@ -868,7 +934,7 @@ export const breakdown = query({
 
     return {
       tab: { name: tab.name, slug: tab.slug },
-      expenseCount: expenses.length,
+      expenseCount: scopedExpenses.length,
       currencies,
     };
   },

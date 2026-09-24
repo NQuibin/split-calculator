@@ -18,6 +18,7 @@ const member: TabBreakdownMember = {
       expenseName: "Dinner",
       date: "2026-09-08",
       fairShare: 6.66,
+      balance: 13.34,
       payerId: "member-1",
       payerName: "Nikki Q",
       total: 20,
@@ -27,18 +28,59 @@ const member: TabBreakdownMember = {
 
 test("uses the responsive expense-list layout in the member modal without totals", () => {
   const markup = renderMarkup(
-    createElement(TabMemberBreakdown, { member, currencyCode: "CAD", variant: "modal" }),
+    createElement(TabMemberBreakdown, {
+      member,
+      currencyCode: "CAD",
+      variant: "modal",
+      viewerMemberId: "member-1",
+    }),
   );
 
   expect(markup).toContain(">Date<");
   expect(markup).toContain(">Expense<");
   expect(markup).toContain(">Paid by<");
   expect(markup).toContain(">Total<");
-  expect(markup).toContain(">Spent<");
+  expect(markup).toContain(">Balance<");
+  expect(markup).toContain("You get");
+  expect(markup).toContain("You spent");
+  expect(markup).toContain("CA$6.66");
   expect(markup).toContain("Sep 08");
-  expect(markup).toContain("Paid by <span");
+  expect(markup).toContain('Nikki Q <span class="text-xs text-ink-soft">paid</span>');
+  expect(markup).toContain("@min-[56rem]:gap-x-6");
+  expect(markup).toContain("hidden border-b border-edge bg-surface");
+  expect(markup).toContain("@min-[38rem]:grid");
+  expect(markup).toContain(
+    "@min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]",
+  );
   expect(markup).toContain("h-8 w-8");
   expect(markup).not.toContain("Total spent");
+});
+
+test("does not show spent when the selected member is not the payer", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member: {
+        ...member,
+        memberId: "member-2",
+        resolvedId: "user-2",
+        name: "Pat",
+        expenses: [
+          {
+            ...member.expenses[0],
+            balance: -6.66,
+            payerId: "member-1",
+            payerName: "Nikki Q",
+          },
+        ],
+      },
+      currencyCode: "CAD",
+      variant: "modal",
+      viewerMemberId: "viewer",
+    }),
+  );
+
+  expect(markup).not.toContain("spent");
+  expect(markup).toContain("Pat owes");
 });
 
 test("shows selected-member settlement directions before the modal expense table", () => {
@@ -68,7 +110,9 @@ test("shows selected-member settlement directions before the modal expense table
   );
 
   expect(markup).toContain("Settlement breakdown");
-  expect(markup).toMatch(/font-semibold text-ink">Nikki Q<\/span> owes you/);
+  expect(markup).toMatch(
+    /font-semibold text-ink">Nikki Q<\/span> owes <span class="font-semibold text-ink">you<\/span>/,
+  );
   expect(markup).toMatch(
     /font-semibold text-ink">Nikki Q<\/span> owes <span class="font-semibold text-ink">Pat<\/span>/,
   );
@@ -129,7 +173,9 @@ test("uses viewer perspective when the viewer owes the selected member", () => {
     }),
   );
 
-  expect(markup).toMatch(/You owe <span class="font-semibold text-ink">Nikki Q<\/span>/);
+  expect(markup).toMatch(
+    /font-semibold text-ink">You<\/span> owe <span class="font-semibold text-ink">Nikki Q<\/span>/,
+  );
   expect(markup).toContain("CA$13.34");
   expect(markup).toContain("font-semibold text-margin-red-ink");
 });

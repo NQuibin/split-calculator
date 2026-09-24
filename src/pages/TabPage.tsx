@@ -3,20 +3,9 @@ import { ExpenseViewTabs, type ExpenseView } from "@/components/ExpenseViewTabs"
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
+import { UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
-import {
-  BanknoteCheck,
-  Check,
-  X,
-  Coins,
-  Link2,
-  Pencil,
-  Plus,
-  Receipt,
-  Settings,
-  Trash2,
-} from "lucide-react";
+import { Check, X, Coins, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
@@ -33,7 +22,6 @@ import {
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
 import { isUpcoming } from "@/lib/format";
-import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
@@ -46,7 +34,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { TabSummaryCards } from "@/components/TabSummaryCards";
-import { computeExpenseBalances, viewerBalanceLabel } from "@/lib/settlements";
+import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
+import { expenseListGridClass } from "@/components/tabExpenseGridClass";
+import { computeExpenseBalances } from "@/lib/settlements";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -177,7 +167,6 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
     <div className="grid gap-6">
       <TabSummaryCards
         expenses={expenses}
-        members={tab.members}
         defaultCurrency={tab.defaultCurrency}
         expenseView={hasUpcoming ? expenseView : "paid"}
       />
@@ -835,152 +824,6 @@ function ExpenseActions({
 // at `lg` before the sidebar's own 240px is subtracted, which is why the
 // wider gap waits for `lg`: it's the first tier that actually has slack once
 // the sidebar's cost is accounted for.
-function expenseListGridClass(withSettlement: boolean) {
-  // Each branch spells out every full `md:`/`lg:` class as one literal string,
-  // not built by gluing a breakpoint prefix onto a shared value (e.g.
-  // `` `md:${cols}` ``) - Tailwind's scanner only picks up class names that
-  // appear intact in the source, so splitting the prefix from the value across
-  // a template-literal interpolation makes the whole rule silently vanish from
-  // the build. No warning, no type error: the class just isn't there, and the
-  // column collapses to one giant track.
-  const list = withSettlement
-    ? "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)_minmax(6.75rem,max-content)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)_minmax(6.75rem,max-content)]"
-    : "divide-y divide-rule/70 @min-[38rem]:grid @min-[38rem]:gap-x-4 @min-[38rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(9rem)_fit-content(8rem)] @min-[56rem]:gap-x-6 @min-[56rem]:grid-cols-[4.75rem_minmax(0,1fr)_fit-content(11rem)_fit-content(11rem)]";
-  return {
-    list,
-    // `gap-x-4` carries through from its base declaration (mobile and `md`)
-    // until `lg:gap-x-6` overrides it - matching the same step-up the list
-    // above takes, since a subgrid inherits the parent's gap only when it
-    // doesn't declare its own for that axis, and this element always declares
-    // one (it needs `gap-x-4` unconditionally for its own independent mobile
-    // grid), so its own value has to move in lockstep with the list's or the
-    // two silently mismatch.
-    row: "grid grid-cols-[auto_minmax(0,1fr)_fit-content(9.5rem)] items-start gap-x-4 gap-y-2 bleed-px @min-[38rem]:grid-cols-subgrid @min-[38rem]:col-span-full @min-[38rem]:items-center @min-[56rem]:gap-x-6",
-  };
-}
-
-/** The payer identity shown in the desktop payer column. */
-function ExpensePayer({
-  payer,
-  upcoming,
-}: {
-  payer: { id: string; name: string } | undefined;
-  upcoming: boolean;
-}) {
-  if (!payer) {
-    return (
-      <span className="text-xs text-ink-soft">{upcoming ? "Not paid yet" : "Payer needed"}</span>
-    );
-  }
-  return (
-    <span className="flex min-w-0 items-center gap-3">
-      <MemberAvatar id={payer.id} name={payer.name} size="md" />
-      <span className="truncate text-sm text-ink-soft">{payer.name}</span>
-    </span>
-  );
-}
-
-/** An expense's date as "Mar 3", with the full date kept in `dateTime`. */
-function ExpenseDate({ date }: { date: string | undefined }) {
-  const { formatExpenseDateShort } = useLocaleFormatters();
-  const short = formatExpenseDateShort(date);
-  const upcoming = isUpcoming(date);
-  return (
-    <span className="inline-flex flex-col items-start whitespace-nowrap">
-      {date && short ? (
-        <time dateTime={date} className="flex flex-col leading-tight">
-          <span className="text-sm">{short}</span>
-          <span className="text-xs">{date.slice(0, 4)}</span>
-        </time>
-      ) : (
-        "No date"
-      )}
-      {upcoming && (
-        <span className="mt-1">
-          <UpcomingExpenseIcon date={date} />
-        </span>
-      )}
-    </span>
-  );
-}
-
-/**
- * The expense total. Its formatted value already carries a currency symbol;
- * the conversion note only appears when it adds information.
- */
-function ExpenseAmount({
-  total,
-  code,
-  upcoming,
-  compact = false,
-}: {
-  total: number;
-  code: string;
-  upcoming: boolean;
-  compact?: boolean;
-}) {
-  const { currency } = useLocaleFormatters();
-  return (
-    <>
-      <span className={compact ? "font-numeric text-sm" : "block font-numeric text-sm"}>
-        {currency(total, code)}
-      </span>
-      {!compact && (
-        <span className="mt-0.5 block text-xs text-ink-soft @min-[38rem]:hidden">
-          {upcoming ? "Total planned" : "Total"}
-        </span>
-      )}
-    </>
-  );
-}
-
-/**
- * What this expense does to the signed-in member's balance, in the same
- * currency as the row's amount. Two absent cases, and they don't mean the same
- * thing: `null` is an expense with no payer, so it owes nobody anything yet;
- * `undefined` is a split the viewer simply isn't part of.
- */
-function ViewerSettlement({
-  balance,
-  code,
-  projected,
-}: {
-  balance: number | null | undefined;
-  code: string;
-  projected: boolean;
-}) {
-  const { currency } = useLocaleFormatters();
-  if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
-  if (balance === undefined) return <span className="text-xs text-ink-soft">Not in split</span>;
-  if (balance === 0)
-    return projected ? (
-      <span className="text-sm text-ink">Not due</span>
-    ) : (
-      <span className="inline-flex shrink-0 flex-col items-center text-ledger-green">
-        <BanknoteCheck aria-hidden="true" className="h-8 w-8" strokeWidth={2.25} />
-        <span className="text-xs text-ink-soft">Settled</span>
-      </span>
-    );
-  const owed = balance < 0;
-  const balanceLabel = viewerBalanceLabel(balance);
-  return (
-    <>
-      <span
-        className={`hidden text-sm font-semibold @min-[38rem]:block ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
-      >
-        {balanceLabel} <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
-      </span>
-      <span className="block text-xs text-ink-soft @min-[38rem]:hidden">{balanceLabel}</span>
-      <span
-        className={`block font-numeric text-sm font-semibold @min-[38rem]:hidden ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
-      >
-        {owed ? "\u2212" : "+"}
-        {currency(Math.abs(balance), code)}
-      </span>
-    </>
-  );
-}
-
 function ExpenseList({
   slug,
   defaultCurrency,
@@ -996,7 +839,6 @@ function ExpenseList({
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
 }) {
-  const { currency } = useLocaleFormatters();
   const { remove } = useExpenseActions();
   const viewer = useQuery(api.users.viewer);
   const [search, setSearch] = useState("");
@@ -1023,7 +865,7 @@ function ExpenseList({
   const viewerIds = new Set(viewerMember ? [viewerMember.id, viewerMember.resolvedId] : []);
   const showSettlement =
     viewerIds.size > 0 && expenses.some((e) => e.people.some((p) => viewerIds.has(p.id)));
-  const { list: listGrid, row: rowGrid } = expenseListGridClass(showSettlement);
+  const { list: listGrid } = expenseListGridClass(showSettlement);
   const expenseRows = (
     <>
       {/* A row list with no header or footer is still a table body (DESIGN.md
@@ -1040,17 +882,7 @@ function ExpenseList({
           </p>
         ) : (
           <ul className={listGrid}>
-            <li
-              className={`${rowGrid} hidden @min-[38rem]:grid border-b border-edge bg-surface py-2 text-xs font-medium uppercase text-ink-soft`}
-            >
-              <span className="@min-[38rem]:col-start-1">Date</span>
-              <span className="@min-[38rem]:col-start-2">Expense</span>
-              <span className="@min-[38rem]:col-start-3">Paid by</span>
-              <span className="text-right @min-[38rem]:col-start-4">Total</span>
-              {showSettlement && (
-                <span className="text-right @min-[38rem]:col-start-5">Balance</span>
-              )}
-            </li>
+            <TabExpenseHeader showBalance={showSettlement} />
             {filtered.map((expense) => {
               const rowSplit = computeSplit(
                 expense.people,
@@ -1074,104 +906,29 @@ function ExpenseList({
                 typeof viewerSpent === "number" &&
                 typeof viewerBalance === "number";
               return (
-                // The row itself is the grid/subgrid item now - not a wrapping div -
-                // so `divide-y` on the list keeps drawing real borders between real
-                // boxes exactly as it did before, and the hover/focus-overlay classes
-                // that used to sit on that div work unchanged sitting here instead.
-                <li
+                <TabExpenseRow
                   key={expense.slug}
-                  className={`${rowGrid} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
-                >
-                  {/* The trigger covers the row through its ::after overlay, so the
-              whole row stays tappable while the actions menu sits above it. */}
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    onClick={() => {
-                      setSelectedSlug(expense.slug);
-                    }}
-                    className="col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest @min-[38rem]:col-start-2 @min-[38rem]:self-auto"
-                  >
-                    <span className="block text-sm">{expense.name ?? "Untitled expense"}</span>
-                  </button>
-                  {/* Not interactive, so it sits under the row-link overlay like any
-                      other plain cell - no `z-10` needed. */}
-                  <span className="hidden min-w-0 @min-[38rem]:col-start-3 @min-[38rem]:block">
-                    <ExpensePayer payer={payer} upcoming={upcoming} />
-                  </span>
-                  <span className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 @min-[38rem]:hidden">
-                    {payer ? <MemberAvatar id={payer.id} name={payer.name} size="md" /> : null}
-                    <span className="min-w-0">
-                      {!payer && (
-                        <span className="block text-xs text-ink-soft">
-                          {upcoming ? "Not paid yet" : "Payer needed"}
-                        </span>
-                      )}
-                      {payer && (
-                        <span className="block break-words text-sm text-ink">
-                          {payer.name} <span className="text-xs text-ink-soft">paid</span>
-                        </span>
-                      )}
-                    </span>
-                    <ExpenseAmount
-                      total={rowSplit.grandTotal * rate}
-                      code={expense.settlementCurrency}
-                      upcoming={upcoming}
-                      compact
-                    />
-                  </span>
-                  <span className="hidden min-w-0 self-start text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto @min-[38rem]:block @min-[38rem]:self-auto">
-                    <ExpenseAmount
-                      total={rowSplit.grandTotal * rate}
-                      code={expense.settlementCurrency}
-                      upcoming={upcoming}
-                    />
-                  </span>
-                  {showViewerSpent && (
-                    <span className="col-start-3 row-start-1 min-w-0 text-right @min-[38rem]:hidden">
-                      <span className="block text-xs text-ink-soft">You spent</span>
-                      <span className="block font-numeric text-sm font-semibold">
-                        {currency(viewerSpent * rate, expense.settlementCurrency)}
-                      </span>
-                    </span>
-                  )}
-                  {/* One date element for both layouts: the second row below `md`,
-                      its own leading column from `md` up. */}
-                  <span className="col-start-1 row-start-1 row-span-2 self-center text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:row-span-1 @min-[38rem]:text-sm">
-                    <ExpenseDate date={expense.date} />
-                  </span>
-                  {showSettlement && (
-                    <span
-                      className={`col-start-3 min-w-0 text-right @min-[38rem]:col-start-5 @min-[38rem]:row-auto @min-[38rem]:self-center ${showViewerSpent ? "row-start-2" : "row-start-1 row-span-2 self-center"}`}
-                    >
-                      {showViewerSpent && (
-                        <span className="hidden @min-[38rem]:block">
-                          <span className="block text-sm text-ink-soft">
-                            You spent{" "}
-                            <span className="font-numeric font-semibold text-ink">
-                              {currency(viewerSpent * rate, expense.settlementCurrency)}
-                            </span>
-                          </span>
-                          <span className="block text-sm font-semibold text-ledger-green">
-                            You get{" "}
-                            <span className="font-numeric">
-                              {currency(Math.abs(viewerBalance * rate), expense.settlementCurrency)}
-                            </span>
-                          </span>
-                        </span>
-                      )}
-                      <span className={showViewerSpent ? "block @min-[38rem]:hidden" : "block"}>
-                        <ViewerSettlement
-                          balance={
-                            typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
-                          }
-                          code={expense.settlementCurrency}
-                          projected={upcoming}
-                        />
-                      </span>
-                    </span>
-                  )}
-                </li>
+                  name={expense.name ?? "Untitled expense"}
+                  date={expense.date}
+                  total={rowSplit.grandTotal * rate}
+                  code={expense.settlementCurrency}
+                  payer={payer}
+                  upcoming={upcoming}
+                  memberContext={
+                    showSettlement
+                      ? {
+                          balance:
+                            typeof viewerBalance === "number"
+                              ? viewerBalance * rate
+                              : viewerBalance,
+                          spent: showViewerSpent ? viewerSpent * rate : undefined,
+                        }
+                      : undefined
+                  }
+                  onExpenseClick={() => {
+                    setSelectedSlug(expense.slug);
+                  }}
+                />
               );
             })}
           </ul>

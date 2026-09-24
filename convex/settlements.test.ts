@@ -51,11 +51,12 @@ async function expense(
   splitWith?: string[],
   cost?: number,
   expenseSlug = "dinner",
+  date = TODAY,
 ) {
   await owner.mutation(api.tabs.createExpense, {
     tabSlug: "trip",
     expenseSlug,
-    state: state(payerId, currency, TODAY, splitWith, cost),
+    state: state(payerId, currency, date, splitWith, cost),
     memberMapping: [
       { personId: "a", memberId: members[0].id },
       { personId: "b", memberId: members[1].id },
@@ -73,6 +74,107 @@ test("missing, empty, and foreign payers are rejected when creating an expense",
     "Choose who paid before saving the expense",
   );
   await expect(expense(owner, members, "foreign")).rejects.toThrow("Payer must belong to this tab");
+});
+
+test("breakdown lines expose converted member balances", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b", "c"], 120);
+  await owner.mutation(api.tabs.setDefaultCurrency, { slug: "trip", currency: "CAD" });
+  await owner.mutation(api.tabs.setExpenseExchangeRate, {
+    slug: "trip",
+    expenseSlug: "dinner",
+    from: "USD",
+    to: "CAD",
+    rate: 1.5,
+  });
+
+  const breakdown = (await owner.query(api.tabs.breakdown, { slug: "trip" }))!;
+  const membersByName = new Map(
+    breakdown.currencies[0].members.map((member) => [member.name, member]),
+  );
+  expect(breakdown.currencies[0].currency).toBe("CAD");
+  expect(membersByName.get("Alex")?.expenses[0]).toMatchObject({
+    total: 180,
+    fairShare: 60,
+    balance: 120,
+  });
+  expect(membersByName.get("Bea")?.expenses[0].balance).toBe(-60);
+});
+
+test("breakdown scopes counts, member totals, lines, and currency groups to the selected view", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b", "c"], 120, "today");
+  await expense(
+    owner,
+    members,
+    members[0].id,
+    "USD",
+    ["a", "b", "c"],
+    60,
+    "tomorrow",
+    "2026-09-13",
+  );
+  await expense(
+    owner,
+    members,
+    members[0].id,
+    "CAD",
+    ["a", "b", "c"],
+    30,
+    "yesterday",
+    "2026-09-11",
+  );
+
+  const paid = (await owner.query(api.tabs.breakdown, {
+    slug: "trip",
+    view: "paid",
+    asOfDate: TODAY,
+  }))!;
+  expect(paid.expenseCount).toBe(2);
+  expect(paid.currencies.map((group) => [group.currency, group.expenseCount])).toEqual([
+    ["CAD", 1],
+    ["USD", 1],
+  ]);
+  const paidUsd = paid.currencies.find((group) => group.currency === "USD")!;
+  const paidAlex = paidUsd.members.find((member) => member.name === "Alex")!;
+  expect(paidAlex.totalSpent).toBe(40);
+  expect(paidAlex.expenses.map((line) => line.expenseSlug)).toEqual(["today"]);
+
+  const upcoming = (await owner.query(api.tabs.breakdown, {
+    slug: "trip",
+    view: "upcoming",
+    asOfDate: TODAY,
+  }))!;
+  expect(upcoming.expenseCount).toBe(1);
+  expect(upcoming.currencies).toHaveLength(1);
+  expect(upcoming.currencies[0].currency).toBe("USD");
+  expect(
+    upcoming.currencies[0].members.find((member) => member.name === "Alex")?.expenses,
+  ).toHaveLength(1);
+  expect(
+    upcoming.currencies[0].members.find((member) => member.name === "Alex")?.expenses[0]
+      .expenseSlug,
+  ).toBe("tomorrow");
+
+  const all = (await owner.query(api.tabs.breakdown, { slug: "trip" }))!;
+  expect(all.expenseCount).toBe(3);
+  expect(all.currencies.map((group) => [group.currency, group.expenseCount])).toEqual([
+    ["USD", 2],
+    ["CAD", 1],
+  ]);
+  expect(
+    all.currencies.find((group) => group.currency === "USD")?.members[0].expenses,
+  ).toHaveLength(2);
+});
+
+test("selected breakdown views require a valid as-of date", async () => {
+  const { owner } = await setup();
+  await expect(owner.query(api.tabs.breakdown, { slug: "trip", view: "paid" })).rejects.toThrow(
+    "as-of date",
+  );
+  await expect(
+    owner.query(api.tabs.breakdown, { slug: "trip", view: "upcoming", asOfDate: "2026-02-30" }),
+  ).rejects.toThrow("real YYYY-MM-DD");
 });
 
 test("record is authorized, exact, idempotent, guarded, and reversible", async () => {

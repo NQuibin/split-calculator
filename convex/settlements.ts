@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { computeShares, computeSplit, round2 } from "../src/lib/calculations";
 import { CURRENCIES } from "../src/lib/currencies";
 import { activeExchangeRate, convertShares } from "../src/lib/exchangeRate";
+import { isValidISODate } from "../src/lib/format";
 import { suggestSettlements } from "../src/lib/settlements";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -26,12 +27,6 @@ type MemberTotals = {
   directDebts: Map<string, number>;
 };
 type CurrencyTotals = Map<string, MemberTotals>;
-
-function isDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const timestamp = Date.parse(`${value}T00:00:00Z`);
-  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
-}
 
 function paymentCents(amount: number) {
   const value = amount * 100;
@@ -289,7 +284,7 @@ export const get = query({
   },
   returns: consolidatedSettlementResult,
   handler: async (ctx, { slug, asOfDate }) => {
-    if (!isDate(asOfDate)) throw new Error("Use a real YYYY-MM-DD as-of date");
+    if (!isValidISODate(asOfDate)) throw new Error("Use a real YYYY-MM-DD as-of date");
     const tab = await findTab(ctx, slug);
     if (!tab) return null;
     const viewer = await requireTabViewer(ctx, tab);
@@ -370,7 +365,11 @@ export const record = mutation({
     const amountCents = paymentCents(args.amount);
     const requestId = args.requestId.trim();
     const note = args.note?.trim() || undefined;
-    if (!currencyCodes.has(args.currency) || !isDate(args.date) || !isDate(args.asOfDate)) {
+    if (
+      !currencyCodes.has(args.currency) ||
+      !isValidISODate(args.date) ||
+      !isValidISODate(args.asOfDate)
+    ) {
       throw new Error("Use a supported currency and real YYYY-MM-DD dates");
     }
     if (!requestId || requestId.length > 128) throw new Error("A valid request id is required");
