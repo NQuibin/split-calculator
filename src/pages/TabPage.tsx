@@ -785,8 +785,10 @@ function ExpenseActions({
 // construction, not by coincidence.
 //
 // Two stages. Below `md`, the row uses three areas: date at left, expense and
-// payer details in the middle, and total/balance at right. From `md` up it is
-// a single, subgridded line - date, name, payer, total, spent, balance, menu.
+// payer-plus-total details in the middle. When the viewer paid a shared
+// expense, their own spend sits at the top right; their balance stays below.
+// From `md` up it is a single, subgridded line - date, name, payer, total,
+// spent, balance, menu.
 //
 // The avatars column's own *track* stays the same (`max-content`) at both
 // desktop tiers; only what's rendered inside it changes at `lg` (see
@@ -900,20 +902,26 @@ function ExpenseAmount({
   code,
   native,
   upcoming,
+  compact = false,
 }: {
   total: number;
   code: string;
   /** The original amount, when a saved exchange rate converted this expense. */
   native?: { amount: number; code: string };
   upcoming: boolean;
+  compact?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
   return (
     <>
-      <span className="block font-numeric text-sm">{currency(total, code)}</span>
-      <span className="mt-0.5 block text-xs text-ink-soft @min-[38rem]:hidden">
-        {upcoming ? "Total planned" : "Total"}
+      <span className={compact ? "font-numeric text-sm" : "block font-numeric text-sm"}>
+        {currency(total, code)}
       </span>
+      {!compact && (
+        <span className="mt-0.5 block text-xs text-ink-soft @min-[38rem]:hidden">
+          {upcoming ? "Total planned" : "Total"}
+        </span>
+      )}
       {native && (
         <span className="block text-xs text-ink-soft">
           {currency(native.amount, native.code)} · converted
@@ -952,13 +960,13 @@ function ViewerSettlement({
       >
         {balanceLabel} <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
       </span>
+      <span className="block text-xs text-ink-soft @min-[38rem]:hidden">{balanceLabel}</span>
       <span
         className={`block font-numeric text-sm font-semibold @min-[38rem]:hidden ${owed ? "text-margin-red-ink" : "text-ledger-green"}`}
       >
         {owed ? "\u2212" : "+"}
         {currency(Math.abs(balance), code)}
       </span>
-      <span className="block text-xs text-ink-soft @min-[38rem]:hidden">{balanceLabel}</span>
     </>
   );
 }
@@ -1048,6 +1056,13 @@ function ExpenseList({
               const viewerSpent = rowSplit.people.find((row) => viewerIds.has(row.personId))?.total;
               const payer = payerFor(expense.payerId);
               const upcoming = isUpcoming(expense.date);
+              const participantCount = rowSplit.people.filter(
+                (person) => person.lines.length > 0,
+              ).length;
+              const showMobileViewerSpent =
+                Boolean(expense.payerId && viewerIds.has(expense.payerId)) &&
+                participantCount > 1 &&
+                typeof viewerSpent === "number";
               return (
                 // The row itself is the grid/subgrid item now - not a wrapping div -
                 // so `divide-y` on the list keeps drawing real borders between real
@@ -1074,7 +1089,7 @@ function ExpenseList({
                   <span className="hidden min-w-0 @min-[38rem]:col-start-3 @min-[38rem]:block">
                     <ExpensePayer payer={payer} upcoming={upcoming} />
                   </span>
-                  <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-3 @min-[38rem]:hidden">
+                  <span className="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 @min-[38rem]:hidden">
                     {payer ? <MemberAvatar id={payer.id} name={payer.name} size="md" /> : null}
                     <span className="min-w-0">
                       {!payer && (
@@ -1083,13 +1098,24 @@ function ExpenseList({
                         </span>
                       )}
                       {payer && (
-                        <span className="block break-words text-xs text-ink-soft">
-                          Paid by <span className="text-sm text-ink">{payer.name}</span>
+                        <span className="block break-words text-sm text-ink">
+                          {payer.name} <span className="text-xs text-ink-soft">paid</span>
                         </span>
                       )}
                     </span>
+                    <ExpenseAmount
+                      total={rowSplit.grandTotal * rate}
+                      code={expense.settlementCurrency}
+                      native={
+                        expense.exchangeRate
+                          ? { amount: rowSplit.grandTotal, code: expense.currency }
+                          : undefined
+                      }
+                      upcoming={upcoming}
+                      compact
+                    />
                   </span>
-                  <span className="col-start-3 row-start-1 min-w-0 self-start text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto @min-[38rem]:self-auto">
+                  <span className="hidden min-w-0 self-start text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto @min-[38rem]:block @min-[38rem]:self-auto">
                     <ExpenseAmount
                       total={rowSplit.grandTotal * rate}
                       code={expense.settlementCurrency}
@@ -1101,6 +1127,14 @@ function ExpenseList({
                       upcoming={upcoming}
                     />
                   </span>
+                  {showMobileViewerSpent && (
+                    <span className="col-start-3 row-start-1 min-w-0 text-right @min-[38rem]:hidden">
+                      <span className="block text-xs text-ink-soft">You spent</span>
+                      <span className="block font-numeric text-sm font-semibold">
+                        {currency(viewerSpent * rate, expense.settlementCurrency)}
+                      </span>
+                    </span>
+                  )}
                   <span className="hidden min-w-0 text-right font-numeric text-sm font-semibold @min-[38rem]:col-start-5 @min-[38rem]:block">
                     {typeof viewerSpent === "number"
                       ? currency(viewerSpent * rate, expense.settlementCurrency)
@@ -1112,7 +1146,9 @@ function ExpenseList({
                     <ExpenseDate date={expense.date} />
                   </span>
                   {showSettlement && (
-                    <span className="col-start-3 row-start-2 min-w-0 text-right @min-[38rem]:col-start-6 @min-[38rem]:row-auto">
+                    <span
+                      className={`col-start-3 min-w-0 text-right @min-[38rem]:col-start-6 @min-[38rem]:row-auto ${showMobileViewerSpent ? "row-start-2" : "row-start-1 row-span-2 self-center"}`}
+                    >
                       <ViewerSettlement
                         balance={
                           typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance
