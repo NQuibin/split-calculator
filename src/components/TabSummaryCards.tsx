@@ -1,4 +1,4 @@
-import { Coins, Hash, ReceiptText } from "lucide-react";
+import { Hash, ReceiptText } from "lucide-react";
 import type { ReactNode } from "react";
 import { isUpcoming } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
@@ -6,7 +6,6 @@ import { computeSplit } from "@/lib/calculations";
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
 import type { TabExpenseSummary } from "@/lib/tabSync";
 import { Panel } from "@/components/ui/Page";
-import { CURRENCIES } from "@/lib/currencies";
 
 type SummaryCardProps = {
   label: string;
@@ -62,17 +61,10 @@ export function TabSummaryCards({
     (a, b) => Number(b === defaultCurrency) - Number(a === defaultCurrency) || a.localeCompare(b),
   );
   const amounts = orderedCodes.map((code) => ({ code, value: totals.get(code) ?? 0 }));
-  const settlementCurrencies = [...new Set(expenses.map((expense) => expense.settlementCurrency))];
-  const singleCurrency =
-    settlementCurrencies.length <= 1 ? (settlementCurrencies[0] ?? defaultCurrency) : undefined;
-  const currencyName = CURRENCIES.find((option) => option.code === singleCurrency)?.name;
   const { currency } = useLocaleFormatters();
 
   return (
-    <section
-      aria-label="Tab summary"
-      className={`grid grid-cols-2 gap-4 ${singleCurrency ? "sm:grid-cols-3" : ""}`}
-    >
+    <section aria-label="Tab summary" className="grid grid-cols-2 gap-4">
       <SummaryCard
         label="Tab total"
         icon={ReceiptText}
@@ -95,20 +87,6 @@ export function TabSummaryCards({
           {visibleExpenses.length}
         </span>
       </SummaryCard>
-      {singleCurrency && (
-        <SummaryCard
-          label="Currency"
-          icon={Coins}
-          className="col-span-2 -mx-5 rounded-none sm:col-span-1 sm:mx-0 sm:rounded-xl"
-        >
-          <span className="font-numeric text-base font-semibold text-ink">
-            {singleCurrency}
-            {currencyName && (
-              <span className="font-sans font-normal text-ink-soft"> · {currencyName}</span>
-            )}
-          </span>
-        </SummaryCard>
-      )}
     </section>
   );
 }

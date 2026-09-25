@@ -54,7 +54,7 @@ test.each([
   expect(markup).not.toContain("You spent");
 });
 
-test("shows the single settlement currency in a full-width mobile summary card", () => {
+test("omits a standalone currency summary card", () => {
   const markup = renderMarkup(
     createElement(TabSummaryCards, {
       expenses: [expense("paid", "2026-09-23")],
@@ -63,11 +63,8 @@ test("shows the single settlement currency in a full-width mobile summary card",
     }),
   );
 
-  expect(markup).toContain(">Currency</p>");
-  expect(markup).toContain("CAD");
-  expect(markup).toContain("Canadian Dollar");
-  expect(markup).toContain("col-span-2");
-  expect(markup).toContain("sm:grid-cols-3");
+  expect(markup).not.toContain(">Currency</p>");
+  expect(markup).not.toContain("sm:grid-cols-3");
 });
 
 test("omits the currency card when expenses use multiple settlement currencies", () => {
@@ -86,7 +83,7 @@ test("omits the currency card when expenses use multiple settlement currencies",
   expect(markup).not.toContain("sm:grid-cols-3");
 });
 
-test("shows the default currency before the tab has expenses", () => {
+test("does not add a currency card before the tab has expenses", () => {
   const markup = renderMarkup(
     createElement(TabSummaryCards, {
       expenses: [],
@@ -95,6 +92,5 @@ test("shows the default currency before the tab has expenses", () => {
     }),
   );
 
-  expect(markup).toContain(">Currency</p>");
-  expect(markup).toContain("Canadian Dollar");
+  expect(markup).not.toContain(">Currency</p>");
 });

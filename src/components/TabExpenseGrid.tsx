@@ -120,7 +120,7 @@ export function TabExpenseBalance({
               <span className="font-numeric font-semibold text-ink">{currency(spent, code)}</span>
             </span>
           )}
-          <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ink-soft">
+          <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ink-soft">
             <span className="text-xs">None</span>
             <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
           </span>
@@ -135,7 +135,7 @@ export function TabExpenseBalance({
             </>
           )}
           <span
-            className={`${hasSpent ? "mt-2 " : ""}inline-flex w-20 items-center justify-center gap-1.5 text-ink-soft`}
+            className={`${hasSpent ? "mt-2 " : ""}inline-flex w-20 items-center justify-end gap-1.5 text-ink-soft`}
           >
             <span className="text-xs">None</span>
             <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
@@ -148,7 +148,7 @@ export function TabExpenseBalance({
     return projected ? (
       <span className="text-sm text-ink">Not due</span>
     ) : (
-      <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ledger-green">
+      <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ledger-green">
         <span className="text-xs text-ink-soft">Settled</span>
         <Check aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
       </span>

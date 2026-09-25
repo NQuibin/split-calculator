@@ -64,7 +64,7 @@ test("renders settled balance as a 20px check with its label underneath", () => 
   );
 
   expect(markup).toContain(
-    'class="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ledger-green"',
+    'class="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ledger-green"',
   );
   expect(markup).toContain('class="lucide lucide-check h-5 w-5"');
   expect(markup).toContain('<span class="text-xs text-ink-soft">Settled</span>');
@@ -80,7 +80,7 @@ test("renders None when the viewer did not participate in the expense", () => {
   );
 
   expect(markup).toContain('class="lucide lucide-circle-minus h-5 w-5"');
-  expect(markup).toContain("inline-flex w-20 items-center justify-center gap-1.5 text-ink-soft");
+  expect(markup).toContain("inline-flex w-20 items-center justify-end gap-1.5 text-ink-soft");
   expect(markup).toContain('<span class="text-xs">None</span>');
   expect(markup).not.toContain("Not in split");
 });

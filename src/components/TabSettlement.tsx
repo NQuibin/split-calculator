@@ -21,9 +21,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { TabMemberBreakdown, type TabMemberSettlement } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
-import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
-import { CURRENCIES } from "@/lib/currencies";
 import { todayISODate } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTabBreakdown, type TabExpenseSummary } from "@/lib/tabSync";
@@ -179,7 +177,7 @@ function directionLabel(direction: BalanceDirection | null) {
 
 function SettledBalance() {
   return (
-    <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ledger-green">
+    <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ledger-green">
       <span className="text-xs font-normal text-ink-soft">Settled</span>
       <Check aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
     </span>
@@ -188,7 +186,7 @@ function SettledBalance() {
 
 function NoBalance() {
   return (
-    <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ink-soft">
+    <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ink-soft">
       <span className="text-xs font-normal">None</span>
       <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
     </span>
@@ -299,11 +297,11 @@ function MobileBalanceValue({
         : "-";
 
   return (
-    <span className="flex flex-col items-end text-right">
+    <span className="flex min-w-0 max-w-full flex-col items-end break-words text-right">
       {spent !== undefined && (
         <>
           <span className="text-xs text-ink-soft">Spent</span>
-          <span className="font-numeric text-sm font-semibold text-ink">{spent}</span>
+          <span className="break-words font-numeric text-sm font-semibold text-ink">{spent}</span>
         </>
       )}
       {hasSharedExpenseWithViewer === false && memberId !== viewerMemberId ? (
@@ -336,7 +334,7 @@ function MobileMemberCounts({
   paidFor?: number;
 }) {
   return (
-    <span className="col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[29.5rem]:hidden">
+    <span className="col-start-1 row-start-2 self-end text-xs font-normal text-ink-soft @min-[38rem]:hidden">
       <span>
         Included in {includedIn} expense{includedIn === 1 ? "" : "s"}
       </span>
@@ -347,117 +345,23 @@ function MobileMemberCounts({
   );
 }
 
-function ViewerBalanceCard({
-  member,
-  currencyCode,
-  hasSpend,
-  hasPaidFor,
-  hasIncludedIn,
-  suggestions,
-  onClick,
-}: {
-  member: SettlementSummaryData["currencies"][number]["members"][number];
-  currencyCode: string;
-  hasSpend: boolean;
-  hasPaidFor: boolean;
-  hasIncludedIn: boolean;
-  suggestions?: SettlementSummaryData["currencies"][number]["suggestions"];
-  onClick?: () => void;
-}) {
-  const { currency } = useLocaleFormatters();
-  const spent = member.share ? currency(member.share, currencyCode) : "No expenses";
-  const viewerBalance = balanceDisplay({
-    balance: member.balance,
-    balanceWithViewer: member.balanceWithViewer,
-    memberId: member.memberId,
-    viewerMemberId: member.memberId,
-    suggestions,
-  });
-  const signedViewerBalance =
-    viewerBalance.balance > 0
-      ? `+${currency(viewerBalance.balance, currencyCode)}`
-      : viewerBalance.balance < 0
-        ? `−${currency(Math.abs(viewerBalance.balance), currencyCode)}`
-        : "—";
-  const metrics = [
-    hasIncludedIn && (
-      <span
-        key="included"
-        className="min-w-0 pl-4 @min-[29.5rem]:border-l @min-[29.5rem]:border-rule"
-      >
-        <span className="block text-sm text-ink-soft">Included in</span>
-        <span className="break-words font-display text-lg font-semibold text-ink">
-          <span className="font-numeric">{member.includedIn ?? 0}</span> expense
-          {(member.includedIn ?? 0) === 1 ? "" : "s"}
-        </span>
-      </span>
-    ),
-    hasPaidFor && (
-      <span key="paid" className="min-w-0 border-l border-rule pl-4">
-        <span className="block text-sm text-ink-soft">Paid for</span>
-        <span className="break-words font-display text-lg font-semibold text-ink">
-          <span className="font-numeric">{member.paidFor ?? 0}</span> expense
-          {(member.paidFor ?? 0) === 1 ? "" : "s"}
-        </span>
-      </span>
-    ),
-    hasSpend && (
-      <span key="spent" className="min-w-0 pl-4 @min-[29.5rem]:border-l @min-[29.5rem]:border-rule">
-        <span className="block text-sm text-ink-soft">Total spent</span>
-        <span className="break-words font-numeric text-lg font-semibold text-ink">{spent}</span>
-      </span>
-    ),
-    <span key="balance" className="min-w-0 border-l border-rule pl-4 @min-[29.5rem]:border-rule">
-      <span className="block text-sm text-ink-soft">{directionLabel(viewerBalance.direction)}</span>
-      <span
-        className={`${balanceColor(viewerBalance.balance)} block break-words font-numeric text-lg font-semibold`}
-      >
-        {signedViewerBalance}
-      </span>
-    </span>,
-  ].filter(Boolean);
-
-  return (
-    <div className={mobileRaisedSurfaceClass}>
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        aria-label={`View ${member.name}'s ${currencyCode} balance breakdown`}
-        onClick={onClick}
-        className="relative grid w-full grid-cols-2 gap-x-4 gap-y-4 rounded-none border-y-2 border-forest bg-field px-4 py-4 text-left transition-colors hover:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest @min-[29.5rem]:grid-cols-[minmax(0,1.15fr)_repeat(4,minmax(0,1fr))] @min-[29.5rem]:items-center @min-[29.5rem]:gap-0"
-      >
-        <span className="col-span-2 flex min-w-0 items-center gap-3 @min-[29.5rem]:col-span-1 @min-[29.5rem]:pr-4">
-          <MemberAvatar id={member.memberId} name={member.name} size="lg" />
-          <span className="min-w-0 break-words">
-            <span className="block text-sm font-normal text-ink-soft">You</span>
-            <span className="block font-display text-2xl font-semibold text-ink">
-              {member.name}
-            </span>
-          </span>
-        </span>
-        {metrics.map((metric) => metric)}
-      </button>
-    </div>
-  );
-}
-
 const viewerCurrencyRowGrid = {
   withSpendAndIncludedInAndPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(5.5rem,1fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   withSpendAndPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   withSpendAndIncludedIn:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   withSpend:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   withIncludedInAndPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(5.5rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   withPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   withIncludedIn:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(5.5rem,1fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
   balanceOnly:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[29.5rem]:grid-cols-[minmax(10rem,1.5fr)_minmax(8rem,1.2fr)] @min-[29.5rem]:gap-x-3",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 @min-[38rem]:grid-cols-[minmax(0,.65fr)_minmax(0,1.5fr)] @min-[38rem]:gap-x-3",
 } as const;
 
 type ViewerCurrencyRowGrid = keyof typeof viewerCurrencyRowGrid;
@@ -499,7 +403,6 @@ function MemberCurrencyRow({
   onClick?: () => void;
 }) {
   const { currency } = useLocaleFormatters();
-  const currencyName = CURRENCIES.find((option) => option.code === group.currency)?.name;
   const spent = member.share ? currency(member.share, group.currency) : "No expenses";
   const grid =
     viewerCurrencyRowGrid[
@@ -516,32 +419,47 @@ function MemberCurrencyRow({
       aria-haspopup="dialog"
       aria-label={`View ${member.name}'s ${group.currency} balance breakdown`}
       onClick={onClick}
-      className={`${grid} min-h-11 w-full px-4 py-3 text-left transition-colors hover:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest`}
+      className={`${grid} box-border min-h-11 min-w-0 w-full bg-field px-5 py-3 text-left text-sm transition-colors hover:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest @max-[37.99rem]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @min-[38rem]:px-6`}
     >
       <span className="min-w-0 break-words text-sm">
         <span className="font-numeric font-semibold text-ink">{group.currency}</span>
-        {currencyName && <span className="text-ink-soft"> · {currencyName}</span>}
       </span>
-      {(hasIncludedIn || hasPaidFor || hasSpend) && (
-        <span className="col-start-1 row-start-2 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-ink-soft @min-[29.5rem]:contents">
+      {(hasIncludedIn || hasPaidFor) && (
+        <span className="col-start-1 row-start-2 flex min-w-0 flex-col gap-y-1 text-xs text-ink-soft @min-[38rem]:contents @min-[38rem]:text-sm">
           {hasIncludedIn && (
             <span className="break-words">
+              <span className="@min-[38rem]:hidden">Included in </span>
               <span className="font-numeric">{member.includedIn ?? 0}</span> expense
               {(member.includedIn ?? 0) === 1 ? "" : "s"}
             </span>
           )}
           {hasPaidFor && (
             <span className="break-words">
+              <span className="@min-[38rem]:hidden">Paid for </span>
               <span className="font-numeric">{member.paidFor ?? 0}</span> expense
               {(member.paidFor ?? 0) === 1 ? "" : "s"}
             </span>
           )}
-          {hasSpend && (
-            <span className="break-words font-numeric font-semibold text-ink">{spent}</span>
-          )}
         </span>
       )}
-      <span className="min-w-0 break-words col-start-2 row-span-2 row-start-1 justify-self-end text-right font-semibold @min-[29.5rem]:col-auto @min-[29.5rem]:row-span-1 @min-[29.5rem]:row-start-auto">
+      {hasSpend && (
+        <span className="hidden min-w-0 break-words text-right font-numeric font-semibold text-ink @min-[38rem]:block">
+          {spent}
+        </span>
+      )}
+      <span className="col-start-2 row-span-2 row-start-1 flex min-w-0 justify-end @min-[38rem]:hidden">
+        <MobileBalanceValue
+          balance={member.balance}
+          balanceWithViewer={member.balanceWithViewer}
+          hasSharedExpenseWithViewer={member.hasSharedExpenseWithViewer}
+          code={group.currency}
+          spent={hasSpend ? (member.share ? spent : "-") : undefined}
+          memberId={member.memberId}
+          viewerMemberId={viewerMemberId}
+          suggestions={group.suggestions}
+        />
+      </span>
+      <span className="hidden min-w-0 break-words justify-self-end text-right font-semibold @min-[38rem]:block @max-[44rem]:[&_.font-numeric]:block">
         <BalanceLabel
           balance={member.balance}
           balanceWithViewer={member.balanceWithViewer}
@@ -580,26 +498,23 @@ function MultiCurrencyMemberBalanceCard({
   const hasIncludedIn = groups.some((group) =>
     group.members.some((member) => member.includedIn !== undefined),
   );
-  const grid =
-    viewerCurrencyRowGrid[viewerCurrencyRowGridFor({ hasSpend, hasPaidFor, hasIncludedIn })];
-
   return (
-    <section
-      aria-label={`${member.name} balances`}
-      className={isViewer ? mobileRaisedSurfaceClass : undefined}
-    >
-      <div
-        className={`overflow-hidden rounded-none ${isViewer ? "border-y-2 border-forest" : ""} bg-field`}
-      >
-        <div className="grid @min-[29.5rem]:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)]">
-          <div className="flex min-w-0 items-center gap-3 px-4 py-4 @min-[29.5rem]:row-span-full @min-[29.5rem]:border-r @min-[29.5rem]:border-rule">
-            <MemberAvatar id={member.memberId} name={member.name} size={isViewer ? "lg" : "md"} />
+    <section aria-label={`${member.name} balances`}>
+      <div className={`overflow-hidden rounded-none ${isViewer ? "border-y-2 border-forest" : ""}`}>
+        <div className="grid min-w-0 @min-[38rem]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]">
+          <div className="flex min-w-0 items-center gap-3 border-b border-rule px-5 py-4 @min-[38rem]:row-span-full @min-[38rem]:border-b-0 @min-[38rem]:border-r @min-[38rem]:px-6">
+            <MemberAvatar
+              id={member.memberId}
+              name={member.name}
+              size="md"
+              className={isViewer ? "text-sm" : undefined}
+            />
             <span className="min-w-0 break-words">
-              {isViewer && <span className="block text-sm font-normal text-ink-soft">You</span>}
+              {isViewer && <span className="block text-xs font-normal text-ink-soft">You</span>}
               <span
                 className={
                   isViewer
-                    ? "block font-display text-2xl font-semibold text-ink"
+                    ? "block min-w-0 break-words text-sm font-semibold text-ink"
                     : "block text-sm font-medium text-ink"
                 }
               >
@@ -607,16 +522,7 @@ function MultiCurrencyMemberBalanceCard({
               </span>
             </span>
           </div>
-          <div className="@min-[29.5rem]:col-start-2">
-            <div
-              className={`${grid} hidden border-b border-rule px-4 py-2 text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:grid`}
-            >
-              <span aria-hidden="true" />
-              {hasIncludedIn && <span>Included in</span>}
-              {hasPaidFor && <span>Paid for</span>}
-              {hasSpend && <span className="text-right">Spent</span>}
-              <span className="text-right">Balance</span>
-            </div>
+          <div className="@min-[38rem]:col-start-2">
             <div className="divide-y divide-rule">
               {groups.map((group) => {
                 const groupMember = group.members.find(
@@ -658,59 +564,66 @@ function ViewerBalanceCards({
   const groups = data.currencies.filter((group) =>
     group.members.some((member) => member.memberId === data.viewerMemberId),
   );
-  const className = bleed ? "bleed mb-0 space-y-5 sm:mb-4 [&>*]:mx-0" : "space-y-5";
 
-  if (groups.length > 1) {
+  if (data.currencies.length > 1) {
+    const hasSpend = groups.some((group) =>
+      group.members.some((member) => member.share !== undefined),
+    );
+    const hasPaidFor = groups.some((group) =>
+      group.members.some((member) => member.paidFor !== undefined),
+    );
+    const hasIncludedIn = groups.some((group) =>
+      group.members.some((member) => member.includedIn !== undefined),
+    );
+    const grid =
+      viewerCurrencyRowGrid[viewerCurrencyRowGridFor({ hasSpend, hasPaidFor, hasIncludedIn })];
     return (
-      <div className={className}>
-        <MultiCurrencyMemberBalanceCard
-          groups={groups}
-          memberId={data.viewerMemberId}
-          viewerMemberId={data.viewerMemberId}
-          onMemberClick={onMemberClick}
-          isViewer
-        />
+      <div className={bleed ? "bleed mb-0 [&>*]:mx-0" : undefined}>
+        <div>
+          <div className="hidden border-y border-rule bg-surface @min-[38rem]:grid @min-[38rem]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]">
+            <span aria-hidden="true" />
+            <div
+              className={`${grid} box-border w-full px-6 py-2 text-xs font-medium uppercase text-ink-soft`}
+            >
+              <span aria-hidden="true" />
+              {hasIncludedIn && <span>Included in</span>}
+              {hasPaidFor && <span>Paid for</span>}
+              {hasSpend && <span className="text-right">Spent</span>}
+              <span className="text-right">Balance</span>
+            </div>
+          </div>
+          <MultiCurrencyMemberBalanceCard
+            groups={groups}
+            memberId={data.viewerMemberId}
+            viewerMemberId={data.viewerMemberId}
+            onMemberClick={onMemberClick}
+            isViewer
+          />
+        </div>
       </div>
     );
   }
 
-  const cards = groups.flatMap((group) => {
-    const viewer = group.members.find((member) => member.memberId === data.viewerMemberId);
-    if (!viewer) return [];
-    return [
-      <ViewerBalanceCard
-        key={group.currency}
-        member={viewer}
-        currencyCode={group.currency}
-        hasSpend={group.members.some((member) => member.share !== undefined)}
-        hasPaidFor={group.members.some((member) => member.paidFor !== undefined)}
-        hasIncludedIn={group.members.some((member) => member.includedIn !== undefined)}
-        suggestions={group.suggestions}
-        onClick={() => onMemberClick?.(viewer.memberId, group.currency)}
-      />,
-    ];
-  });
-
-  return cards.length > 0 ? <div className={className}>{cards}</div> : null;
+  return null;
 }
 
 const balanceRowGrid = {
   withSpend:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_7rem_9.5rem] @min-[38rem]:gap-x-4",
   withSpendAndPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_5rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_5rem_7rem_9.5rem] @min-[38rem]:gap-x-4",
   withSpendAndIncludedIn:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_6rem_7rem_9.5rem] @min-[38rem]:gap-x-4",
   withSpendAndIncludedInAndPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_7rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_7rem_9.5rem] @min-[38rem]:gap-x-4",
   withPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_5rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_5rem_9.5rem] @min-[38rem]:gap-x-4",
   withIncludedIn:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_6rem_9.5rem] @min-[38rem]:gap-x-4",
   withIncludedInAndPaidFor:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_6rem_5rem_9.5rem] @min-[38rem]:gap-x-4",
   balanceOnly:
-    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[29.5rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[29.5rem]:gap-x-4",
+    "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 @min-[38rem]:grid-cols-[minmax(0,1fr)_9.5rem] @min-[38rem]:gap-x-4",
 } as const;
 
 function SingleCurrencySummaryList({
@@ -724,7 +637,10 @@ function SingleCurrencySummaryList({
   const group = data.currencies[0];
   if (!group) return null;
 
-  const members = group.members.filter((member) => member.memberId !== data.viewerMemberId);
+  const members = [...group.members].sort(
+    (a, b) =>
+      Number(b.memberId === data.viewerMemberId) - Number(a.memberId === data.viewerMemberId),
+  );
   const hasSpend = members.some((member) => member.share !== undefined);
   const hasPaidFor = members.some((member) => member.paidFor !== undefined);
   const hasIncludedIn = members.some((member) => member.includedIn !== undefined);
@@ -732,46 +648,56 @@ function SingleCurrencySummaryList({
 
   return (
     <section aria-label={`${group.currency} balances`} className="bleed space-y-3">
-      <GroupTitle as="h3" className={`${grid} hidden bleed-px py-2 text-xs @min-[29.5rem]:grid`}>
-        <span aria-hidden="true" />
+      <GroupTitle
+        as="h3"
+        className={`${grid} hidden bleed-px border-t border-rule pt-2 pb-0 text-xs @min-[38rem]:grid`}
+      >
+        <span className="font-numeric text-xs font-semibold uppercase text-ink">
+          {group.currency}
+        </span>
         {hasIncludedIn && (
-          <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+          <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[38rem]:block">
             Included in
           </span>
         )}
         {hasPaidFor && (
-          <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+          <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[38rem]:block">
             Paid for
           </span>
         )}
         {hasSpend && (
-          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+          <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[38rem]:block">
             Spent
           </span>
         )}
-        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
+        <span className="hidden text-right text-xs font-medium uppercase text-ink-soft @min-[38rem]:block">
           Balance
         </span>
       </GroupTitle>
-      <ul className="divide-y divide-rule border-b border-edge bg-field @min-[29.5rem]:border-t">
+      <ul className="divide-y divide-rule border-b border-edge bg-field">
         {members.map((member) => {
           const spent = member.share ? currency(member.share, group.currency) : "No expenses";
+          const isViewer = member.memberId === data.viewerMemberId;
           return (
             <li
               key={member.memberId}
-              className={`${grid} relative bleed-px py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
+              className={`${grid} relative bleed-px py-3 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash ${isViewer ? "z-10 border-y-2 border-forest" : ""}`}
             >
               <button
                 type="button"
                 aria-haspopup="dialog"
+                aria-label={`View ${member.name}'s ${group.currency} balance breakdown`}
                 onClick={() => onMemberClick?.(member.memberId, group.currency)}
                 className="flex min-w-0 items-center gap-3 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-forest"
               >
                 <MemberAvatar id={member.memberId} name={member.name} size="md" />
-                <span className="min-w-0 break-words font-medium">{member.name}</span>
+                <span className="min-w-0 break-words">
+                  {isViewer && <span className="block text-xs text-ink-soft">You</span>}
+                  <span className="font-medium">{member.name}</span>
+                </span>
               </button>
               {hasIncludedIn && (
-                <span className="hidden text-ink-soft @min-[29.5rem]:block">
+                <span className="hidden text-ink-soft @min-[38rem]:block">
                   {member.includedIn ? (
                     <>
                       <span className="font-numeric">{member.includedIn}</span> expense
@@ -783,7 +709,7 @@ function SingleCurrencySummaryList({
                 </span>
               )}
               {hasPaidFor && (
-                <span className="hidden text-ink-soft @min-[29.5rem]:block">
+                <span className="hidden text-ink-soft @min-[38rem]:block">
                   {member.paidFor ? (
                     <>
                       <span className="font-numeric">{member.paidFor}</span> expense
@@ -795,7 +721,7 @@ function SingleCurrencySummaryList({
                 </span>
               )}
               {hasSpend && (
-                <span className="hidden text-right @min-[29.5rem]:block">
+                <span className="hidden text-right @min-[38rem]:block">
                   {member.share ? (
                     <span className="font-numeric font-semibold text-ink">{spent}</span>
                   ) : (
@@ -804,7 +730,7 @@ function SingleCurrencySummaryList({
                 </span>
               )}
               {hasSpend && (
-                <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto @min-[29.5rem]:hidden">
+                <span className="col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[38rem]:col-auto @min-[38rem]:row-auto @min-[38rem]:hidden">
                   <MobileBalanceValue
                     balance={member.balance}
                     balanceWithViewer={member.balanceWithViewer}
@@ -818,7 +744,7 @@ function SingleCurrencySummaryList({
                 </span>
               )}
               <span
-                className={`${hasSpend ? "hidden @min-[29.5rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[29.5rem]:col-auto @min-[29.5rem]:row-auto"} justify-end`}
+                className={`${hasSpend ? "hidden @min-[38rem]:flex" : "col-start-2 row-span-2 row-start-1 flex self-end justify-end @min-[38rem]:col-auto @min-[38rem]:row-auto"} justify-end`}
               >
                 <BalanceValue
                   balance={member.balance}
@@ -862,7 +788,7 @@ function MemberSummaryList({
   ];
 
   return (
-    <div className="bleed divide-y divide-edge border-y border-edge">
+    <div className="bleed divide-y divide-edge border-b border-edge">
       {memberIds.map((memberId) => {
         const groups = data.currencies.filter((group) =>
           group.members.some((member) => member.memberId === memberId),
@@ -1148,14 +1074,16 @@ export function TabSettlement({
               <Link
                 to="/t/$slug/breakdown"
                 params={{ slug }}
-                className="group ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:hidden"
+                className="group ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest @min-[38rem]:hidden"
               >
                 Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
               </Link>
             )}
-            <div className="ml-auto flex w-full items-center gap-3 sm:w-auto">
+            <div className="ml-auto flex w-full items-center gap-3 @min-[38rem]:w-auto">
               <DialogTrigger
-                render={<Button variant="secondary" size="touch" className="w-full sm:w-auto" />}
+                render={
+                  <Button variant="secondary" size="touch" className="w-full @min-[38rem]:w-auto" />
+                }
               >
                 View payments
               </DialogTrigger>
@@ -1163,7 +1091,7 @@ export function TabSettlement({
                 <Link
                   to="/t/$slug/breakdown"
                   params={{ slug }}
-                  className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:inline-flex"
+                  className="group hidden min-h-11 shrink-0 items-center gap-1 rounded-md text-sm font-medium text-forest hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest @min-[38rem]:inline-flex"
                 >
                   Breakdown <ChevronRight aria-hidden="true" className="h-4 w-4 chevron-x" />
                 </Link>

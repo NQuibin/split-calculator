@@ -60,11 +60,11 @@ test("renders each viewer currency once with its own balance", () => {
   expect(markup).toContain("You get ");
   expect(markup).toContain("USD");
   expect(markup).toContain("You owe ");
-  expect(markup.match(/CA\$7\.34/g)).toHaveLength(1);
-  expect(markup.match(/\$0\.50/g)).toHaveLength(1);
+  expect(markup.match(/CA\$7\.34/g)).toHaveLength(2);
+  expect(markup.match(/\$0\.50/g)).toHaveLength(2);
 });
 
-test("renders the viewer in a responsive balance card above other member rows", () => {
+test("renders the viewer as the first shared-layout single-currency row", () => {
   const markup = renderMarkup(
     createElement(SettlementSummary, {
       data: {
@@ -92,26 +92,18 @@ test("renders the viewer in a responsive balance card above other member rows", 
   );
 
   expect(markup).toContain('aria-label="View Alex\'s USD balance breakdown"');
-  expect(markup).toContain("bg-field");
-  expect(markup).not.toContain("bg-margin-red/10");
-  expect(markup).toContain("-mx-5 rounded-none sm:mx-0 sm:rounded-xl");
   expect(markup).toContain("border-y-2 border-forest");
-  expect(markup).not.toContain("sm:border-2");
-  expect(markup).not.toContain("sm:rounded-xl sm:border-2");
-  expect(markup).toContain("break-words font-display text-lg");
-  expect(markup).toContain('text-sm font-normal text-ink-soft">You');
-  expect(markup).toContain('text-sm text-ink-soft">You owe');
-  expect(markup).toContain('class="-mx-5 rounded-none sm:mx-0 sm:rounded-xl"><button');
-  expect(markup).toContain("relative grid w-full grid-cols-2");
+  expect(markup).toContain('block text-xs text-ink-soft">You');
+  expect(markup).toContain('class="flex min-w-0 items-center gap-3 text-left');
+  expect(markup).toContain("relative bleed-px py-3");
+  expect(markup).toContain("divide-y divide-rule border-b border-edge bg-field");
   expect(markup).toContain(">You</span>");
   expect(markup).toContain("Included in");
   expect(markup).toContain("Paid for");
-  expect(markup).toContain("Total spent");
-  expect(markup).not.toContain("Your balance");
-  expect(markup).toContain(">−$8.00</span>");
-  expect(markup).toContain("grid-cols-2");
-  expect(markup.match(/class="min-w-0 pl-4 @min-\[29\.5rem\]:border-l/g)).toHaveLength(2);
-  expect(markup).toContain("@min-[29.5rem]:grid-cols-[minmax(0,1.15fr)_repeat(4,minmax(0,1fr))]");
+  expect(markup).toContain("Spent");
+  expect(markup).toContain("Balance");
+  expect(markup).toContain(">USD</span>");
+  expect(markup).not.toContain("grid w-full grid-cols-2");
   expect(markup.indexOf('aria-label="View Alex\'s USD balance breakdown"')).toBeLessThan(
     markup.indexOf("Bea"),
   );
@@ -136,8 +128,8 @@ test("keeps mixed viewer currencies together in one summary", () => {
   expect(markup).not.toContain('aria-label="CAD balances"');
   expect(markup).not.toContain('aria-label="USD balances"');
   expect(markup).toContain("You get ");
-  expect(markup).toContain("Canadian Dollar");
-  expect(markup).toContain("US Dollar");
+  expect(markup).not.toContain("Canadian Dollar");
+  expect(markup).not.toContain("US Dollar");
   expect(markup.match(/aria-label="View Alex's (?:CAD|USD) balance breakdown"/g)).toHaveLength(2);
   expect(markup.match(/>You<\/span>/g)).toHaveLength(1);
 });
@@ -169,8 +161,8 @@ test("shows every member while putting the viewer first", () => {
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Cam"));
   expect(markup).toContain(">You</span>");
-  expect(markup).toContain(">You get</span>");
-  expect(markup).toContain(">+$10.00</span>");
+  expect(markup).toContain("You get ");
+  expect(markup).toContain("$10.00");
   expect(markup).toContain("Owes you ");
   expect(markup).not.toContain("You owe ");
 });
@@ -228,8 +220,8 @@ test("uses direct viewer balances for every non-viewer row", () => {
     }),
   );
 
-  expect(markup).toContain(">You get</span>");
-  expect(markup).toContain(">+$12.00</span>");
+  expect(markup).toContain("You get ");
+  expect(markup).toContain("$12.00");
   expect(markup.match(/Owes you <span[^>]*>\$6\.00<\/span>/g)).toHaveLength(2);
   expect(markup).not.toContain("$3.00");
   expect(markup).not.toContain("$9.00");
@@ -255,8 +247,8 @@ test("says You owe only when the viewer owes overall", () => {
     }),
   );
 
-  expect(markup).toContain(">You owe</span>");
-  expect(markup).toContain(">−$10.00</span>");
+  expect(markup).toContain("You owe ");
+  expect(markup).toContain("$10.00");
   expect(markup).not.toContain("You get ");
 });
 
@@ -291,10 +283,93 @@ test("renders other members as one member card with rows for each currency", () 
   expect(markup.indexOf("Alex")).toBeLessThan(markup.indexOf("Bea"));
   expect(markup.match(/aria-label="Bea balances"/g)).toHaveLength(1);
   expect(markup.match(/aria-label="View Bea's (?:CAD|USD) balance breakdown"/g)).toHaveLength(2);
-  expect(markup).toContain('class="bleed divide-y divide-edge border-y border-edge"');
+  expect(markup).toContain('class="bleed divide-y divide-edge border-b border-edge"');
   expect(markup).not.toContain('aria-label="Bea balances" class="-mx-5');
   expect(markup).not.toContain('aria-label="CAD balances"');
   expect(markup).not.toContain('aria-label="USD balances"');
+});
+
+test("uses the compact two-column mobile layout for every multi-currency member row", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        viewerMemberId: "alex",
+        missingPayers: [],
+        currencies: [
+          {
+            currency: "CAD",
+            members: [
+              {
+                memberId: "alex",
+                name: "Alex",
+                balance: -3,
+                share: 20,
+                includedIn: 2,
+                paidFor: 1,
+              },
+              {
+                memberId: "bea",
+                name: "Bea",
+                balance: 3,
+                share: 10,
+                includedIn: 1,
+                paidFor: 0,
+              },
+            ],
+          },
+          {
+            currency: "USD",
+            members: [
+              {
+                memberId: "alex",
+                name: "Alex",
+                balance: 1,
+                share: 5,
+                includedIn: 1,
+                paidFor: 0,
+              },
+              {
+                memberId: "bea",
+                name: "Bea",
+                balance: -1,
+                share: 4,
+                includedIn: 1,
+                paidFor: 1,
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(
+    markup.match(/@max-\[37\.99rem\]:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1fr\)\]/g),
+  ).toHaveLength(4);
+  expect(
+    markup.match(/flex min-w-0 max-w-full flex-col items-end break-words text-right/g),
+  ).toHaveLength(4);
+  expect(markup).toContain("@min-[38rem]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]");
+  expect(markup).toContain("w-full bg-field px-5 py-3");
+  expect(markup).not.toContain("border-y-2 border-forest bg-field");
+  expect(markup).toContain("minmax(0,.65fr)");
+  expect(markup).toContain("minmax(0,1.5fr)");
+  expect(markup).toContain("@max-[44rem]:[&amp;_.font-numeric]:block");
+  expect(markup).toContain("h-8 w-8 text-xs");
+  expect(markup).toContain("text-sm");
+  expect(markup).toContain("block text-xs font-normal text-ink-soft");
+  expect(markup).toContain("break-words text-sm font-semibold text-ink");
+  expect(markup).toContain('@min-[38rem]:hidden">Included in ');
+  expect(markup).toContain('@min-[38rem]:hidden">Paid for ');
+  expect(markup).toContain("gap-y-1 text-xs text-ink-soft");
+  expect(markup).toContain("@min-[38rem]:text-sm");
+  expect(markup).toContain("border-b border-rule px-5 py-4");
+  expect(markup).toContain("@min-[38rem]:border-b-0");
+  expect(markup).toContain("w-full bg-field px-5 py-3");
+  expect(markup).toContain("@min-[38rem]:px-6");
+  expect(markup).toContain("box-border min-h-11 min-w-0 w-full bg-field px-5 py-3");
+  expect(markup).toContain("box-border w-full px-6 py-2");
+  expect(markup).not.toContain('aria-label="Alex balances" class="-mx-5');
 });
 
 test("keeps the compact member rows for a single currency", () => {
@@ -362,7 +437,7 @@ test("routes a member currency row click with that member and currency", () => {
   container.remove();
 });
 
-test("renders mixed currency rows with shared headers per member", () => {
+test("renders one shared header above all mixed-currency member rows", () => {
   const markup = renderMarkup(
     createElement(SettlementSummary, {
       data: {
@@ -391,18 +466,24 @@ test("renders mixed currency rows with shared headers per member", () => {
   expect(markup).not.toContain(">Member<");
   expect(markup).toContain("Paid for");
   expect(markup.indexOf(">Paid for<")).toBeLessThan(markup.indexOf(">Spent<"));
-  expect(markup).toContain("hidden border-b border-rule");
+  expect(markup).toContain("hidden border-y border-rule bg-surface");
   expect(markup).toContain("1</span> expense");
   expect(markup).toContain(">0</span> expenses");
   expect(markup).toContain(">Spent<");
   expect(markup).toContain("You get ");
   expect(markup).not.toContain(">You owe<");
-  expect(markup.match(/>Balance</g)).toHaveLength(2);
+  expect(markup.match(/>Balance</g)).toHaveLength(1);
+  expect(markup.indexOf(">Balance</span>")).toBeLessThan(
+    markup.indexOf('aria-label="View Alex\'s CAD balance breakdown"'),
+  );
+  expect(markup).toContain(
+    'class="hidden min-w-0 break-words text-right font-numeric font-semibold text-ink @min-[38rem]:block"',
+  );
   expect(markup).toContain("CA$42.39");
   expect(markup).toContain("CA$42.40");
   expect(markup).toContain("$0.50");
-  expect(markup).toContain("Canadian Dollar");
-  expect(markup).toContain("US Dollar");
+  expect(markup).not.toContain("Canadian Dollar");
+  expect(markup).not.toContain("US Dollar");
   expect(markup.match(/aria-label="View (?:Alex|Bea)'s CAD balance breakdown"/g)).toHaveLength(2);
   expect(markup.match(/aria-label="View (?:Alex|Bea)'s USD balance breakdown"/g)).toHaveLength(2);
 });
@@ -473,9 +554,12 @@ test("retains payment history controls for upcoming balances", () => {
 
   expect(markup).not.toContain("Expected balances from upcoming expenses");
   expect(markup).toContain("View payments");
+  expect(markup).toContain("w-full @min-[38rem]:w-auto");
+  expect(markup).toContain("@min-[38rem]:hidden");
+  expect(markup).toContain("@min-[38rem]:inline-flex");
 });
 
-test("renders the viewer card inside the balances panel before other member rows", () => {
+test("renders the viewer row inside the balances panel under the shared header", () => {
   const settlement = {
     ...viewerData,
     history: [],
@@ -497,12 +581,14 @@ test("renders the viewer card inside the balances panel before other member rows
   const viewerCard = markup.indexOf('aria-label="View Alex\'s USD balance breakdown"');
   const balancesPanel = markup.indexOf('aria-label="Balances"');
   const balancesTitle = markup.indexOf(">Balances<", balancesPanel);
+  const sharedHeader = markup.indexOf(">Included in<", balancesTitle);
   const otherMember = markup.indexOf(">Bea</span>", balancesPanel);
 
   expect(viewerCard).toBeGreaterThanOrEqual(0);
   expect(viewerCard).toBeGreaterThan(balancesPanel);
   expect(viewerCard).toBeGreaterThan(balancesTitle);
-  expect(markup.slice(balancesPanel, viewerCard)).toContain("bleed mb-0 space-y-5 sm:mb-4");
+  expect(viewerCard).toBeGreaterThan(sharedHeader);
+  expect(markup).toContain("border-y-2 border-forest");
   expect(otherMember).toBeGreaterThan(viewerCard);
 });
 
@@ -542,7 +628,7 @@ test("renders the multi-currency viewer summary inside the balances panel", () =
   expect(markup.indexOf('aria-label="View Alex\'s CAD balance breakdown"')).toBeGreaterThan(
     balancesPanel,
   );
-  expect(markup.slice(balancesPanel, viewerCard)).toContain("bleed mb-0 space-y-5 sm:mb-4");
+  expect(markup.slice(balancesPanel, viewerCard)).toContain('class="bleed mb-0 [&amp;>*]:mx-0"');
   expect(markup).toContain("text-margin-red-ink break-words");
   expect(otherMember).toBeGreaterThan(viewerCard);
 });
@@ -615,13 +701,10 @@ test("shows what each member spent beside their balance, and totals the column",
   expect(markup).toContain("Spent");
   expect(markup).toContain("Balance");
   expect(markup).toContain("CA$42.39");
-  expect(markup).toContain("Total spent");
-  expect(markup).toContain(
-    '<span class="text-xs text-ink-soft">Spent</span><span class="font-numeric text-sm font-semibold text-ink">CA$42.40</span>',
-  );
-  expect(markup).toContain(
-    '<span class="mt-2 text-xs text-ink-soft">Owes you</span><span class="text-ledger-green font-numeric text-sm font-semibold">+CA$42.40</span>',
-  );
+  expect(markup).toContain('<span class="text-xs text-ink-soft">Spent</span>');
+  expect(markup).toContain("CA$42.40");
+  expect(markup).toContain(">Owes you</span>");
+  expect(markup).toContain("+CA$42.40");
   // Without a direct suggestion, a non-viewer row is settled with the viewer.
   expect(markup).toContain("Settled");
   expect(markup).not.toContain("You owe ");
@@ -722,10 +805,10 @@ test("shows paid-for counts before spent in a single-currency table", () => {
   expect(markup).toContain(">-</span>");
   expect(markup).toContain('aria-label="USD balances"');
   expect(markup).not.toContain('<span class="font-numeric">USD</span>');
-  expect(markup).toContain("hidden bleed-px py-2 text-xs @min-[29.5rem]:grid");
   expect(markup).toContain(
-    "divide-y divide-rule border-b border-edge bg-field @min-[29.5rem]:border-t",
+    "hidden bleed-px border-t border-rule pt-2 pb-0 text-xs @min-[38rem]:grid",
   );
+  expect(markup).toContain("divide-y divide-rule border-b border-edge bg-field");
 });
 
 test("shows included-in counts before paid-for counts", () => {
