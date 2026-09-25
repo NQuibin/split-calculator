@@ -2,7 +2,6 @@ import { ArrowUpRight, ChevronDown, FileText, Pencil, Trash2, X } from "lucide-r
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
-import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { Input, Label } from "@/components/ui/Input";
 import { GroupTitle } from "@/components/ui/Typography";
@@ -99,15 +98,6 @@ export function ExpenseDetailsDialog({
                   (isUpcoming(expense.date) ? "Not set" : "Payer needed")}
               </span>
             </p>
-            <ExpenseBalances
-              people={expense.people}
-              split={split}
-              payerId={expense.payerId}
-              currency={expense.currency}
-              projected={isUpcoming(expense.date)}
-              unallocated={expense.items.some((item) => item.splitWith.length === 0)}
-              headingLevel="h3"
-            />
             {expense.note && (
               <section className="mt-5 border-t border-rule/70 pt-5">
                 <GroupTitle as="h4">Note</GroupTitle>
