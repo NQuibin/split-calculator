@@ -652,9 +652,7 @@ function SingleCurrencySummaryList({
         as="h3"
         className={`${grid} hidden bleed-px border-t border-rule pt-2 pb-0 text-xs @min-[38rem]:grid`}
       >
-        <span className="font-numeric text-xs font-semibold uppercase text-ink">
-          {group.currency}
-        </span>
+        <span aria-hidden="true" />
         {hasIncludedIn && (
           <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[38rem]:block">
             Included in
@@ -1069,6 +1067,11 @@ export function TabSettlement({
             <SectionTitle className="flex items-center gap-2">
               <Scale aria-hidden="true" className="h-5 w-5 text-brass" strokeWidth={2.25} />
               Balances
+              {data.currencies.length === 1 && (
+                <span className="rounded-full bg-forest/10 px-2 py-0.5 font-numeric text-xs font-semibold text-ink">
+                  {data.currencies[0]?.currency}
+                </span>
+              )}
             </SectionTitle>
             {data.currencies.length > 0 && (
               <Link

@@ -102,7 +102,7 @@ test("renders the viewer as the first shared-layout single-currency row", () => 
   expect(markup).toContain("Paid for");
   expect(markup).toContain("Spent");
   expect(markup).toContain("Balance");
-  expect(markup).toContain(">USD</span>");
+  expect(markup).not.toContain(">USD</span>");
   expect(markup).not.toContain("grid w-full grid-cols-2");
   expect(markup.indexOf('aria-label="View Alex\'s USD balance breakdown"')).toBeLessThan(
     markup.indexOf("Bea"),
@@ -588,6 +588,9 @@ test("renders the viewer row inside the balances panel under the shared header",
   expect(viewerCard).toBeGreaterThan(balancesPanel);
   expect(viewerCard).toBeGreaterThan(balancesTitle);
   expect(viewerCard).toBeGreaterThan(sharedHeader);
+  expect(markup).toContain(
+    'class="rounded-full bg-forest/10 px-2 py-0.5 font-numeric text-xs font-semibold text-ink">USD</span>',
+  );
   expect(markup).toContain("border-y-2 border-forest");
   expect(otherMember).toBeGreaterThan(viewerCard);
 });
@@ -622,6 +625,8 @@ test("renders the multi-currency viewer summary inside the balances panel", () =
   const balancesTitle = markup.indexOf(">Balances<", balancesPanel);
   const viewerCard = markup.indexOf('aria-label="View Alex\'s USD balance breakdown"');
   const otherMember = markup.indexOf(">Bea</span>", balancesPanel);
+
+  expect(markup).not.toContain("rounded-full bg-forest/10 px-2 py-0.5 font-numeric");
 
   expect(viewerCard).toBeGreaterThan(balancesPanel);
   expect(viewerCard).toBeGreaterThan(balancesTitle);
