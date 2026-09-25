@@ -70,34 +70,49 @@ export function ExpenseDetailsDialog({
                 </>
               )}
             </p>
-            <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-              <span>
-                <span className="mr-1 font-medium">Date</span>
-                {formatExpenseDate(expense.date) ? (
-                  <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>
-                ) : (
-                  "Not set"
-                )}
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="font-medium">Created by</span>
-                <MemberAvatar id={expense.createdBy.id} name={expense.createdBy.name} />
-                <span>{expense.createdBy.name}</span>
-              </span>
-            </span>
-            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
-              <span>{isUpcoming(expense.date) ? "Planned payer" : "Paid by"}:</span>
-              {payerFor(expense.payerId) && (
-                <MemberAvatar
-                  id={payerFor(expense.payerId)!.id}
-                  name={payerFor(expense.payerId)!.name}
-                />
+            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-rule/70 pb-5 text-sm text-ink-soft">
+              {formatExpenseDate(expense.date) ? (
+                <time dateTime={expense.date}>{formatExpenseDate(expense.date)}</time>
+              ) : (
+                <span>Not set</span>
               )}
-              <span className="text-ink">
-                {payerFor(expense.payerId)?.name ??
-                  (isUpcoming(expense.date) ? "Not set" : "Payer needed")}
+              <span aria-hidden="true" className="h-5 border-l border-rule" />
+              <span className="inline-flex items-center gap-2">
+                <span>{isUpcoming(expense.date) ? "Planned payer" : "Paid by"}</span>
+                {payerFor(expense.payerId) && (
+                  <MemberAvatar
+                    id={payerFor(expense.payerId)!.id}
+                    name={payerFor(expense.payerId)!.name}
+                  />
+                )}
+                <span className="text-ink">
+                  {payerFor(expense.payerId)?.name ??
+                    (isUpcoming(expense.date) ? "Not set" : "Payer needed")}
+                </span>
               </span>
-            </p>
+            </div>
+            <section className="mt-5">
+              <div className="flex items-center justify-between gap-3">
+                <GroupTitle as="h3">Shared with</GroupTitle>
+                <span className="text-sm font-medium text-ink-soft">
+                  {split.people.length} {split.people.length === 1 ? "person" : "people"}
+                </span>
+              </div>
+              <ul>
+                {split.people.map((person) => (
+                  <li
+                    key={person.personId}
+                    className="flex min-h-14 items-center gap-3 py-2 text-sm last:pb-0"
+                  >
+                    <MemberAvatar id={person.personId} name={person.name} size="md" />
+                    <span className="min-w-0 flex-1 break-words font-medium">{person.name}</span>
+                    <span className="shrink-0 font-numeric font-semibold">
+                      {currency(person.total, expense.currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
             {expense.note && (
               <section className="mt-5 border-t border-rule/70 pt-5">
                 <GroupTitle as="h4">Note</GroupTitle>
@@ -150,20 +165,8 @@ export function ExpenseDetailsDialog({
                 canEdit={isOwner}
               />
             )}
-            <GroupTitle as="h4" className="mt-6 border-t border-rule/70 pt-5">
-              Split with
-            </GroupTitle>
-            <ul className="mt-3 space-y-3">
-              {split.people.map((person) => (
-                <li key={person.personId} className="flex items-center gap-2 text-sm">
-                  <MemberAvatar id={person.personId} name={person.name} />
-                  <span className="min-w-0 flex-1 break-words">{person.name}</span>
-                  <span className="font-numeric">{currency(person.total, expense.currency)}</span>
-                </li>
-              ))}
-            </ul>
             {expense.mode === "itemized" && (
-              <details className="group mt-6 border-t border-rule/70 pt-5">
+              <details className="group mt-5 border-t border-rule/70 pt-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
                   Items · {split.items.length}
                   <ChevronDown className="h-4 w-4 chevron-flip" />
@@ -180,6 +183,10 @@ export function ExpenseDetailsDialog({
                 </ul>
               </details>
             )}
+            <p className="mt-5 flex flex-wrap items-center gap-x-1 border-t border-rule/70 pt-5 text-xs text-ink-soft">
+              <span>Created by</span>
+              <span className="text-ink">{expense.createdBy.name}</span>
+            </p>
           </div>
           <footer className="shrink-0 border-t border-rule/70 bg-surface px-5 py-4 sm:px-6">
             {isOwner ? (
