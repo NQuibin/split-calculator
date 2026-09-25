@@ -98,12 +98,9 @@ export function ExpenseDetailsDialog({
                   {split.people.length} {split.people.length === 1 ? "person" : "people"}
                 </span>
               </div>
-              <ul>
+              <ul className="mt-5">
                 {split.people.map((person) => (
-                  <li
-                    key={person.personId}
-                    className="flex min-h-14 items-center gap-3 py-2 text-sm last:pb-0"
-                  >
+                  <li key={person.personId} className="flex min-h-11 items-center gap-3 text-sm">
                     <MemberAvatar id={person.personId} name={person.name} size="md" />
                     <span className="min-w-0 flex-1 break-words font-medium">{person.name}</span>
                     <span className="shrink-0 font-numeric font-semibold">
