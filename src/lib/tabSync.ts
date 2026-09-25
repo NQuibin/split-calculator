@@ -61,6 +61,8 @@ export interface TabBreakdownExpenseLine {
   fairShare: number;
   /** Net amount this member gets back (positive) or owes (negative); null when payer is unresolved. */
   balance: number | null;
+  /** This member's direct balance with the authenticated viewer, when one exists. */
+  viewerBalance?: number | null;
   payerId?: string;
   payerName: string;
   total: number;

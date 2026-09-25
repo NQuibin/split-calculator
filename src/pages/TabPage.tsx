@@ -891,9 +891,14 @@ function ExpenseList({
               );
               const rate = expense.exchangeRate?.rate ?? 1;
               const balances = computeExpenseBalances(expense.people, rowSplit, expense.payerId);
+              const viewerParticipates =
+                Boolean(expense.payerId && viewerIds.has(expense.payerId)) ||
+                expense.items.some((item) => item.splitWith.some((id) => viewerIds.has(id)));
               const viewerBalance = !balances.length
                 ? null
-                : balances.find((row) => viewerIds.has(row.memberId))?.balance;
+                : viewerParticipates
+                  ? balances.find((row) => viewerIds.has(row.memberId))?.balance
+                  : undefined;
               const viewerSpent = rowSplit.people.find((row) => viewerIds.has(row.personId))?.total;
               const payer = payerFor(expense.payerId);
               const upcoming = isUpcoming(expense.date);
@@ -922,6 +927,7 @@ function ExpenseList({
                               ? viewerBalance * rate
                               : viewerBalance,
                           spent: showViewerSpent ? viewerSpent * rate : undefined,
+                          viewerPerspective: true,
                         }
                       : undefined
                   }

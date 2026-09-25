@@ -53,3 +53,48 @@ test.each([
   expect(markup).toContain(`>${expectedCount}</span>`);
   expect(markup).not.toContain("You spent");
 });
+
+test("shows the single settlement currency in a full-width mobile summary card", () => {
+  const markup = renderMarkup(
+    createElement(TabSummaryCards, {
+      expenses: [expense("paid", "2026-09-23")],
+      defaultCurrency: "CAD",
+      expenseView: "paid",
+    }),
+  );
+
+  expect(markup).toContain(">Currency</p>");
+  expect(markup).toContain("CAD");
+  expect(markup).toContain("Canadian Dollar");
+  expect(markup).toContain("col-span-2");
+  expect(markup).toContain("sm:grid-cols-3");
+});
+
+test("omits the currency card when expenses use multiple settlement currencies", () => {
+  const markup = renderMarkup(
+    createElement(TabSummaryCards, {
+      expenses: [
+        expense("paid", "2026-09-23"),
+        { ...expense("other", "2026-09-23"), settlementCurrency: "USD" },
+      ],
+      defaultCurrency: "CAD",
+      expenseView: "paid",
+    }),
+  );
+
+  expect(markup).not.toContain(">Currency</p>");
+  expect(markup).not.toContain("sm:grid-cols-3");
+});
+
+test("shows the default currency before the tab has expenses", () => {
+  const markup = renderMarkup(
+    createElement(TabSummaryCards, {
+      expenses: [],
+      defaultCurrency: "CAD",
+      expenseView: "paid",
+    }),
+  );
+
+  expect(markup).toContain(">Currency</p>");
+  expect(markup).toContain("Canadian Dollar");
+});

@@ -130,9 +130,9 @@ export function TabMemberBreakdown({
               const upcoming = isUpcoming(line.date);
               const showSpent =
                 modal &&
-                line.payerId === member.memberId &&
+                member.memberId === viewerMemberId &&
                 typeof line.balance === "number" &&
-                line.balance > 0;
+                line.balance >= 0;
               if (modal) {
                 return (
                   <TabExpenseRow
@@ -144,9 +144,11 @@ export function TabMemberBreakdown({
                     payer={line.payerId ? { id: line.payerId, name: line.payerName } : undefined}
                     upcoming={upcoming}
                     memberContext={{
-                      balance: line.balance,
-                      memberName: member.memberId === viewerMemberId ? undefined : member.name,
+                      balance:
+                        member.memberId === viewerMemberId ? line.balance : line.viewerBalance,
+                      memberName: undefined,
                       spent: showSpent ? line.fairShare : undefined,
+                      viewerPerspective: member.memberId !== viewerMemberId,
                     }}
                     onExpenseClick={() => onExpenseClick?.(line.expenseSlug)}
                   />

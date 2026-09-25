@@ -101,6 +101,32 @@ test("breakdown lines expose converted member balances", async () => {
   expect(membersByName.get("Bea")?.expenses[0].balance).toBe(-60);
 });
 
+test("breakdown lines expose viewer-relative balances only when the viewer is involved", async () => {
+  const { owner, members } = await setup();
+  const [viewer, paidByOther] = members;
+
+  await expense(owner, members, viewer.id, "USD", ["a", "b", "c"], 120, "viewer-paid");
+  await expense(owner, members, paidByOther.id, "USD", ["a", "b", "c"], 120, "other-paid");
+  await expense(owner, members, members[2].id, "USD", ["b", "c"], 120, "viewer-absent");
+
+  const breakdown = (await owner.query(api.tabs.breakdown, { slug: "trip" }))!;
+  const membersByName = new Map(
+    breakdown.currencies[0].members.map((member) => [member.name, member]),
+  );
+  expect(
+    membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-paid"),
+  ).toMatchObject({ viewerBalance: 40 });
+  expect(
+    membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "other-paid"),
+  ).toMatchObject({ viewerBalance: -40 });
+  expect(
+    membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-absent"),
+  ).not.toHaveProperty("viewerBalance");
+  expect(
+    membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-absent"),
+  ).toHaveProperty("balance", -60);
+});
+
 test("breakdown scopes counts, member totals, lines, and currency groups to the selected view", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", ["a", "b", "c"], 120, "today");
@@ -474,6 +500,30 @@ test("returns direct viewer balances without transitive third-party netting", as
     [-1, 4],
     [-9, 6],
   ]);
+});
+
+test("marks members who share an expense with the viewer separately for each currency", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "CAD", ["a", "b"], 12, "viewer-pays");
+  await expense(owner, members, members[1].id, "EUR", ["a"], 12, "member-pays");
+  await expense(owner, members, members[2].id, "GBP", ["a", "b"], 12, "both-shares");
+  await expense(owner, members, members[2].id, "JPY", ["c"], 12, "unrelated");
+
+  const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  const byCurrency = new Map(
+    result.all.currencies.map((currency) => [currency.currency, currency]),
+  );
+  const memberFlag = (currency: string, memberId: string) =>
+    byCurrency.get(currency)?.members.find((member) => member.memberId === memberId)
+      ?.hasSharedExpenseWithViewer;
+
+  expect(memberFlag("CAD", members[1].id)).toBe(true);
+  expect(memberFlag("EUR", members[1].id)).toBe(true);
+  expect(memberFlag("GBP", members[1].id)).toBe(true);
+  expect(memberFlag("GBP", members[2].id)).toBe(true);
+  expect(memberFlag("CAD", members[2].id)).toBe(false);
+  expect(memberFlag("EUR", members[2].id)).toBe(false);
+  expect(memberFlag("JPY", members[2].id)).toBe(false);
 });
 
 test("claiming a payer preserves balances and gives the claimant read-only access", async () => {

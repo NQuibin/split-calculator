@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Banknote, ChevronRight, RotateCcw, Scale, X } from "lucide-react";
+import { Banknote, Check, ChevronRight, CircleMinus, RotateCcw, Scale, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -64,6 +64,7 @@ export type SettlementSummaryData = {
       balance: number;
       /** Direct net balance with the logged-in member; positive means they owe the viewer. */
       balanceWithViewer?: number;
+      hasSharedExpenseWithViewer?: boolean;
       share?: number;
       paidFor?: number;
       includedIn?: number;
@@ -176,9 +177,28 @@ function directionLabel(direction: BalanceDirection | null) {
   }
 }
 
+function SettledBalance() {
+  return (
+    <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ledger-green">
+      <span className="text-xs font-normal text-ink-soft">Settled</span>
+      <Check aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+    </span>
+  );
+}
+
+function NoBalance() {
+  return (
+    <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ink-soft">
+      <span className="text-xs font-normal">None</span>
+      <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+    </span>
+  );
+}
+
 function BalanceLabel({
   balance,
   balanceWithViewer,
+  hasSharedExpenseWithViewer,
   code,
   memberId,
   viewerMemberId,
@@ -186,6 +206,7 @@ function BalanceLabel({
 }: {
   balance: number;
   balanceWithViewer?: number;
+  hasSharedExpenseWithViewer?: boolean;
   code: string;
   memberId?: string;
   viewerMemberId?: string | null;
@@ -199,6 +220,8 @@ function BalanceLabel({
     viewerMemberId,
     suggestions,
   });
+  if (hasSharedExpenseWithViewer === false && memberId !== viewerMemberId) return <NoBalance />;
+  if (display.balance === 0 && memberId !== viewerMemberId) return <SettledBalance />;
   return (
     <span className={`${balanceColor(display.balance)} break-words`}>
       {directionLabel(display.direction)}{" "}
@@ -212,6 +235,7 @@ function BalanceLabel({
 function BalanceValue({
   balance,
   balanceWithViewer,
+  hasSharedExpenseWithViewer,
   code,
   memberId,
   viewerMemberId,
@@ -219,6 +243,7 @@ function BalanceValue({
 }: {
   balance: number;
   balanceWithViewer?: number;
+  hasSharedExpenseWithViewer?: boolean;
   code: string;
   memberId?: string;
   viewerMemberId?: string | null;
@@ -229,6 +254,7 @@ function BalanceValue({
       <BalanceLabel
         balance={balance}
         balanceWithViewer={balanceWithViewer}
+        hasSharedExpenseWithViewer={hasSharedExpenseWithViewer}
         code={code}
         memberId={memberId}
         viewerMemberId={viewerMemberId}
@@ -241,6 +267,7 @@ function BalanceValue({
 function MobileBalanceValue({
   balance,
   balanceWithViewer,
+  hasSharedExpenseWithViewer,
   code,
   spent,
   memberId,
@@ -249,6 +276,7 @@ function MobileBalanceValue({
 }: {
   balance: number;
   balanceWithViewer?: number;
+  hasSharedExpenseWithViewer?: boolean;
   code: string;
   spent?: string;
   memberId?: string;
@@ -278,8 +306,14 @@ function MobileBalanceValue({
           <span className="font-numeric text-sm font-semibold text-ink">{spent}</span>
         </>
       )}
-      {display.balance === 0 ? (
-        <span className={`${spent !== undefined ? "mt-2" : ""} text-sm text-ink`}>Settled</span>
+      {hasSharedExpenseWithViewer === false && memberId !== viewerMemberId ? (
+        <span className={spent !== undefined ? "mt-2" : undefined}>
+          <NoBalance />
+        </span>
+      ) : display.balance === 0 ? (
+        <span className={spent !== undefined ? "mt-2" : undefined}>
+          <SettledBalance />
+        </span>
       ) : (
         <>
           <span className={`${spent !== undefined ? "mt-2" : ""} text-xs text-ink-soft`}>
@@ -332,6 +366,19 @@ function ViewerBalanceCard({
 }) {
   const { currency } = useLocaleFormatters();
   const spent = member.share ? currency(member.share, currencyCode) : "No expenses";
+  const viewerBalance = balanceDisplay({
+    balance: member.balance,
+    balanceWithViewer: member.balanceWithViewer,
+    memberId: member.memberId,
+    viewerMemberId: member.memberId,
+    suggestions,
+  });
+  const signedViewerBalance =
+    viewerBalance.balance > 0
+      ? `+${currency(viewerBalance.balance, currencyCode)}`
+      : viewerBalance.balance < 0
+        ? `−${currency(Math.abs(viewerBalance.balance), currencyCode)}`
+        : "—";
   const metrics = [
     hasIncludedIn && (
       <span
@@ -361,16 +408,11 @@ function ViewerBalanceCard({
       </span>
     ),
     <span key="balance" className="min-w-0 border-l border-rule pl-4 @min-[29.5rem]:border-rule">
-      <span className="block text-sm text-ink-soft">Your balance</span>
-      <span className="break-words font-display text-lg font-semibold">
-        <BalanceLabel
-          balance={member.balance}
-          balanceWithViewer={member.balanceWithViewer}
-          code={currencyCode}
-          memberId={member.memberId}
-          viewerMemberId={member.memberId}
-          suggestions={suggestions}
-        />
+      <span className="block text-sm text-ink-soft">{directionLabel(viewerBalance.direction)}</span>
+      <span
+        className={`${balanceColor(viewerBalance.balance)} block break-words font-numeric text-lg font-semibold`}
+      >
+        {signedViewerBalance}
       </span>
     </span>,
   ].filter(Boolean);
@@ -503,6 +545,7 @@ function MemberCurrencyRow({
         <BalanceLabel
           balance={member.balance}
           balanceWithViewer={member.balanceWithViewer}
+          hasSharedExpenseWithViewer={member.hasSharedExpenseWithViewer}
           code={group.currency}
           memberId={member.memberId}
           viewerMemberId={viewerMemberId}
@@ -615,7 +658,7 @@ function ViewerBalanceCards({
   const groups = data.currencies.filter((group) =>
     group.members.some((member) => member.memberId === data.viewerMemberId),
   );
-  const className = bleed ? "bleed mb-4 space-y-5 [&>*]:mx-0" : "space-y-5";
+  const className = bleed ? "bleed mb-0 space-y-5 sm:mb-4 [&>*]:mx-0" : "space-y-5";
 
   if (groups.length > 1) {
     return (
@@ -681,7 +724,6 @@ function SingleCurrencySummaryList({
   const group = data.currencies[0];
   if (!group) return null;
 
-  const currencyName = CURRENCIES.find((option) => option.code === group.currency)?.name;
   const members = group.members.filter((member) => member.memberId !== data.viewerMemberId);
   const hasSpend = members.some((member) => member.share !== undefined);
   const hasPaidFor = members.some((member) => member.paidFor !== undefined);
@@ -690,11 +732,8 @@ function SingleCurrencySummaryList({
 
   return (
     <section aria-label={`${group.currency} balances`} className="bleed space-y-3">
-      <GroupTitle as="h3" className={`${grid} bleed-px py-2 text-xs`}>
-        <span className="min-w-0">
-          <span className="font-numeric">{group.currency}</span>
-          {currencyName && <span className="font-normal text-ink-soft"> · {currencyName}</span>}
-        </span>
+      <GroupTitle as="h3" className={`${grid} hidden bleed-px py-2 text-xs @min-[29.5rem]:grid`}>
+        <span aria-hidden="true" />
         {hasIncludedIn && (
           <span className="hidden text-xs font-medium uppercase text-ink-soft @min-[29.5rem]:block">
             Included in
@@ -714,7 +753,7 @@ function SingleCurrencySummaryList({
           Balance
         </span>
       </GroupTitle>
-      <ul className="divide-y divide-rule border-y border-edge bg-field">
+      <ul className="divide-y divide-rule border-b border-edge bg-field @min-[29.5rem]:border-t">
         {members.map((member) => {
           const spent = member.share ? currency(member.share, group.currency) : "No expenses";
           return (
@@ -769,6 +808,7 @@ function SingleCurrencySummaryList({
                   <MobileBalanceValue
                     balance={member.balance}
                     balanceWithViewer={member.balanceWithViewer}
+                    hasSharedExpenseWithViewer={member.hasSharedExpenseWithViewer}
                     code={group.currency}
                     spent={member.share ? spent : "-"}
                     memberId={member.memberId}
@@ -783,6 +823,7 @@ function SingleCurrencySummaryList({
                 <BalanceValue
                   balance={member.balance}
                   balanceWithViewer={member.balanceWithViewer}
+                  hasSharedExpenseWithViewer={member.hasSharedExpenseWithViewer}
                   code={group.currency}
                   memberId={member.memberId}
                   viewerMemberId={data.viewerMemberId}

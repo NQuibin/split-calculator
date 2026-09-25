@@ -25,6 +25,7 @@ type MemberTotals = {
   transferredCents: number;
   /** Direct debt edges, keyed by debtor member id, then creditor member id. */
   directDebts: Map<string, number>;
+  hasSharedExpenseWithViewer: boolean;
 };
 type CurrencyTotals = Map<string, MemberTotals>;
 
@@ -83,6 +84,7 @@ function blank(roster: Doc<"tabMembers">[]): CurrencyTotals {
         shareCents: 0,
         transferredCents: 0,
         directDebts: new Map(),
+        hasSharedExpenseWithViewer: false,
       },
     ]),
   );
@@ -116,7 +118,12 @@ function directBalanceWithViewer(totals: CurrencyTotals, memberId: string, viewe
 }
 
 /** Read one coherent ledger snapshot, shared by the query and payment mutation. */
-async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
+async function readBalances(
+  ctx: ReadCtx,
+  tab: Doc<"tabs">,
+  asOfDate: string,
+  viewerUserId?: Id<"users">,
+) {
   const [roster, expenses, payments] = await Promise.all([
     limited(
       ctx.db
@@ -144,6 +151,7 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
     roster.map(async (seat) => ({ id: seat._id, name: await resolveSeatName(ctx, seat) })),
   );
   const memberIds = new Set<string>(people.map((person) => person.id));
+  const viewerMemberId = roster.find((seat) => seat.userId === viewerUserId)?._id;
   const views = {} as Record<
     ExpenseView,
     {
@@ -191,6 +199,21 @@ async function readBalances(ctx: ReadCtx, tab: Doc<"tabs">, asOfDate: string) {
       if (shareAmounts.reduce(addCents, 0) !== totalCents)
         throw new Error(`Expense "${expense.name || expense.slug}" has inconsistent shares`);
       const totals = byCurrency.get(code) ?? blank(roster);
+      if (
+        viewerMemberId &&
+        (expense.payerId === viewerMemberId ||
+          expense.items.some((item) => item.splitWith.includes(viewerMemberId)))
+      ) {
+        for (const memberId of new Set([
+          expense.payerId,
+          ...expense.items.flatMap((item) => item.splitWith),
+        ])) {
+          if (memberId !== viewerMemberId) {
+            const member = totals.get(memberId);
+            if (member) member.hasSharedExpenseWithViewer = true;
+          }
+        }
+      }
       shares.forEach((share, index) => {
         const member = totals.get(share.personId)!;
         member.shareCents = addCents(member.shareCents, shareAmounts[index]);
@@ -245,6 +268,7 @@ const settlementSummary = v.object({
           share: v.number(),
           balance: v.number(),
           balanceWithViewer: v.number(),
+          hasSharedExpenseWithViewer: v.boolean(),
         }),
       ),
       suggestions: v.array(
@@ -288,7 +312,7 @@ export const get = query({
     const tab = await findTab(ctx, slug);
     if (!tab) return null;
     const viewer = await requireTabViewer(ctx, tab);
-    const { roster, people, views, payments } = await readBalances(ctx, tab, asOfDate);
+    const { roster, people, views, payments } = await readBalances(ctx, tab, asOfDate, viewer);
     const viewerMemberId = roster.find((seat) => seat.userId === viewer)?._id ?? null;
     const format = (expenseView: ExpenseView) => {
       const { byCurrency, missingPayers } = views[expenseView];
@@ -310,6 +334,7 @@ export const get = query({
                   viewerMemberId === null || viewerMemberId === person.id
                     ? net(total) / 100
                     : directBalanceWithViewer(totals, person.id, viewerMemberId) / 100,
+                hasSharedExpenseWithViewer: total.hasSharedExpenseWithViewer,
               };
             });
             return {

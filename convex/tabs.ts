@@ -753,6 +753,7 @@ async function computeCurrencyBreakdown(
   seats: Seat[],
   currencyExpenses: Doc<"expenses">[],
   defaultCurrency: string,
+  viewerMemberId?: string,
 ) {
   const totals = new Map<string, { totalSpent: number; expenseCount: number }>();
   const lines = new Map<
@@ -764,6 +765,8 @@ async function computeCurrencyBreakdown(
       fairShare: number;
       /** Net amount this member gets back (positive) or owes (negative). */
       balance: number | null;
+      /** This member's direct balance with the authenticated viewer, when one exists. */
+      viewerBalance?: number | null;
       payerId?: string;
       payerName: string;
       total: number;
@@ -782,20 +785,40 @@ async function computeCurrencyBreakdown(
     const shares = rate ? convertShares(original, split.grandTotal, rate.rate) : original;
     const convertedTotal = round2(rate ? split.grandTotal * rate.rate : split.grandTotal);
     const payerResolved = expense.people.some((person) => person.id === expense.payerId);
+    const viewerShare = viewerMemberId
+      ? shares.find(
+          (row) =>
+            row.personId === viewerMemberId &&
+            expense.items.some((item) => item.splitWith.includes(viewerMemberId)),
+        )
+      : undefined;
+    const viewerIsPayer = expense.payerId === viewerMemberId;
     for (const row of shares) {
       if (!expense.items.some((item) => item.splitWith.includes(row.personId))) continue;
       const entry = totals.get(row.personId);
       if (!entry) continue;
       entry.totalSpent += row.fairShare;
       entry.expenseCount += 1;
+      const balance = payerResolved
+        ? round2((expense.payerId === row.personId ? convertedTotal : 0) - row.fairShare)
+        : null;
+      const viewerParticipates = viewerIsPayer || viewerShare !== undefined;
+      const viewerBalance = !viewerParticipates
+        ? undefined
+        : !payerResolved
+          ? null
+          : viewerIsPayer && row.personId !== viewerMemberId
+            ? round2(-((expense.payerId === row.personId ? convertedTotal : 0) - row.fairShare))
+            : viewerShare && expense.payerId === row.personId && row.personId !== viewerMemberId
+              ? round2(-viewerShare.fairShare)
+              : undefined;
       lines.get(row.personId)!.push({
         expenseSlug: expense.slug,
         expenseName: expense.name,
         date: expense.date,
         fairShare: round2(row.fairShare),
-        balance: payerResolved
-          ? round2((expense.payerId === row.personId ? convertedTotal : 0) - row.fairShare)
-          : null,
+        balance,
+        ...(viewerBalance !== undefined ? { viewerBalance } : {}),
         payerId: expense.payerId,
         payerName:
           expense.people.find((person) => person.id === expense.payerId)?.name ?? "Unknown",
@@ -836,6 +859,7 @@ const breakdownExpenseLine = v.object({
   date: v.string(),
   fairShare: v.number(),
   balance: v.union(v.number(), v.null()),
+  viewerBalance: v.optional(v.union(v.number(), v.null())),
   payerId: v.optional(v.string()),
   payerName: v.string(),
   total: v.number(),
@@ -917,6 +941,7 @@ export const breakdown = query({
     // Read once and share across the currency groups - each group covers the
     // same roster, so re-reading it per currency would be pure waste.
     const seats = await tabSeats(ctx, tab._id);
+    const viewerMemberId = seats.find((seat) => seat.userId === viewable.userId)?._id;
     const currencies = await Promise.all(
       Array.from(byCurrency.entries()).map(async ([currency, currencyExpenses]) => ({
         currency,
@@ -925,6 +950,7 @@ export const breakdown = query({
           seats,
           currencyExpenses,
           tab.defaultCurrency ?? "USD",
+          viewerMemberId,
         )),
       })),
     );

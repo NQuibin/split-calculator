@@ -1,6 +1,6 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseIcon } from "@/components/UpcomingExpenseIcon";
-import { Check } from "lucide-react";
+import { Check, CircleMinus } from "lucide-react";
 import { isUpcoming } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { viewerBalanceLabel } from "@/lib/settlements";
@@ -12,6 +12,8 @@ export type TabExpenseMemberContext = {
   balance: number | null | undefined;
   memberName?: string;
   spent?: number;
+  spentLabel?: string;
+  viewerPerspective?: boolean;
 };
 
 /** The payer identity shown in the desktop payer column. */
@@ -94,6 +96,7 @@ export function TabExpenseBalance({
   memberName,
   spent,
   spentLabel = "You spent",
+  viewerPerspective = false,
 }: {
   balance: number | null | undefined;
   code: string;
@@ -101,24 +104,59 @@ export function TabExpenseBalance({
   memberName?: string;
   spent?: number;
   spentLabel?: string;
+  viewerPerspective?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
+  const hasSpent = typeof spent === "number";
   if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
-  if (balance === undefined) return <span className="text-xs text-ink-soft">Not in split</span>;
+  if (balance === undefined) {
+    if (!viewerPerspective) return <span className="text-xs text-ink-soft">Not in split</span>;
+    return (
+      <>
+        <span className="hidden @min-[38rem]:block">
+          {hasSpent && (
+            <span className="mb-2 block text-sm text-ink-soft">
+              {spentLabel}{" "}
+              <span className="font-numeric font-semibold text-ink">{currency(spent, code)}</span>
+            </span>
+          )}
+          <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ink-soft">
+            <span className="text-xs">None</span>
+            <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+        </span>
+        <span className="block @min-[38rem]:hidden">
+          {hasSpent && (
+            <>
+              <span className="block text-xs text-ink-soft">{spentLabel}</span>
+              <span className="block font-numeric text-sm font-semibold text-ink">
+                {currency(spent, code)}
+              </span>
+            </>
+          )}
+          <span
+            className={`${hasSpent ? "mt-2 " : ""}inline-flex w-20 items-center justify-center gap-1.5 text-ink-soft`}
+          >
+            <span className="text-xs">None</span>
+            <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+        </span>
+      </>
+    );
+  }
   if (balance === 0)
     return projected ? (
       <span className="text-sm text-ink">Not due</span>
     ) : (
-      <span className="inline-flex shrink-0 flex-col items-center text-ledger-green">
-        <Check aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+      <span className="inline-flex w-20 shrink-0 items-center justify-center gap-1.5 text-ledger-green">
         <span className="text-xs text-ink-soft">Settled</span>
+        <Check aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
       </span>
     );
   const owes = balance < 0;
   const balanceLabel = memberName
     ? `${memberName} ${owes ? "owes" : "gets"}`
     : viewerBalanceLabel(balance);
-  const hasSpent = typeof spent === "number";
   return (
     <>
       <span className="hidden @min-[38rem]:block">
@@ -184,7 +222,8 @@ export function TabExpenseRow({
   const { row } = expenseListGridClass(memberContext !== undefined);
   const title = <span className="block text-sm">{name}</span>;
   const memberName = memberContext?.memberName;
-  const spentLabel = memberName ? `${memberName} spent` : "You spent";
+  const spentLabel =
+    memberContext?.spentLabel ?? (memberName ? `${memberName} spent` : "You spent");
   const titleClassName =
     "col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold @min-[38rem]:col-start-2 @min-[38rem]:self-auto";
 
@@ -238,6 +277,7 @@ export function TabExpenseRow({
             memberName={memberName}
             spent={memberContext.spent}
             spentLabel={spentLabel}
+            viewerPerspective={memberContext.viewerPerspective}
           />
         </span>
       )}

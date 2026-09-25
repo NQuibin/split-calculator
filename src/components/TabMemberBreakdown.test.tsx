@@ -43,6 +43,7 @@ test("uses the responsive expense-list layout in the member modal without totals
   expect(markup).toContain(">Balance<");
   expect(markup).toContain("You get");
   expect(markup).toContain("You spent");
+  expect(markup).not.toContain("Nikki Q spent");
   expect(markup).toContain("CA$6.66");
   expect(markup).toContain("Sep 08");
   expect(markup).toContain('Nikki Q <span class="text-xs text-ink-soft">paid</span>');
@@ -56,7 +57,7 @@ test("uses the responsive expense-list layout in the member modal without totals
   expect(markup).not.toContain("Total spent");
 });
 
-test("does not show spent when the selected member is not the payer", () => {
+test("does not show spent when viewing another member", () => {
   const markup = renderMarkup(
     createElement(TabMemberBreakdown, {
       member: {
@@ -68,6 +69,7 @@ test("does not show spent when the selected member is not the payer", () => {
           {
             ...member.expenses[0],
             balance: -6.66,
+            viewerBalance: -6.66,
             payerId: "member-1",
             payerName: "Nikki Q",
           },
@@ -80,7 +82,97 @@ test("does not show spent when the selected member is not the payer", () => {
   );
 
   expect(markup).not.toContain("spent");
-  expect(markup).toContain("Pat owes");
+  expect(markup).toContain("You owe");
+});
+
+test("does not show spent when the viewer owes the payer", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member: {
+        ...member,
+        expenses: [
+          {
+            ...member.expenses[0],
+            balance: -6.66,
+            payerId: "member-2",
+            payerName: "Pat",
+          },
+        ],
+      },
+      currencyCode: "CAD",
+      variant: "modal",
+      viewerMemberId: "member-1",
+    }),
+  );
+
+  expect(markup).toContain("You owe");
+  expect(markup).not.toContain("You spent");
+});
+
+test("shows the viewer's get amount for another member's expense", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member: {
+        ...member,
+        memberId: "member-2",
+        name: "Pat",
+        expenses: [{ ...member.expenses[0], viewerBalance: 6.66 }],
+      },
+      currencyCode: "CAD",
+      variant: "modal",
+      viewerMemberId: "viewer",
+    }),
+  );
+
+  expect(markup).toContain("You get");
+});
+
+test("does not show the selected member's spent amount with the viewer's balance", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member: {
+        ...member,
+        memberId: "member-2",
+        name: "Pat",
+        expenses: [
+          {
+            ...member.expenses[0],
+            balance: 13.34,
+            viewerBalance: -6.66,
+            payerId: "member-2",
+            payerName: "Pat",
+          },
+        ],
+      },
+      currencyCode: "CAD",
+      variant: "modal",
+      viewerMemberId: "viewer",
+    }),
+  );
+
+  expect(markup).not.toContain("Pat spent");
+  expect(markup).not.toContain("You spent");
+  expect(markup).toContain("You owe");
+});
+
+test("shows None when the viewer has no balance relation to another member's expense", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member: {
+        ...member,
+        memberId: "member-2",
+        name: "Pat",
+        expenses: [{ ...member.expenses[0], viewerBalance: undefined }],
+      },
+      currencyCode: "CAD",
+      variant: "modal",
+      viewerMemberId: "viewer",
+    }),
+  );
+
+  expect(markup).toContain("None</span>");
+  expect(markup).toContain('class="lucide lucide-circle-minus h-5 w-5"');
+  expect(markup).not.toContain("Not in split");
 });
 
 test("shows selected-member settlement directions before the modal expense table", () => {
