@@ -115,16 +115,36 @@ test("breakdown lines expose viewer-relative balances only when the viewer is in
   );
   expect(
     membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-paid"),
-  ).toMatchObject({ viewerBalance: 40 });
+  ).toMatchObject({ viewerBalance: 40, sharedWithViewer: true });
   expect(
     membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "other-paid"),
-  ).toMatchObject({ viewerBalance: -40 });
+  ).toMatchObject({ viewerBalance: -40, sharedWithViewer: true });
   expect(
     membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-absent"),
-  ).not.toHaveProperty("viewerBalance");
+  ).toMatchObject({ sharedWithViewer: false });
   expect(
     membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-absent"),
   ).toHaveProperty("balance", -60);
+});
+
+test("breakdown includes payer-only rows shared with the viewer", async () => {
+  const { owner, members } = await setup();
+  const [, payer] = members;
+  await expense(owner, members, payer.id, "USD", ["a", "c"], 120, "payer-only");
+
+  const breakdown = (await owner.query(api.tabs.breakdown, { slug: "trip" }))!;
+  const payerRow = breakdown.currencies[0].members.find((member) => member.memberId === payer.id)!;
+  expect(payerRow.expenses).toMatchObject([
+    {
+      expenseSlug: "payer-only",
+      fairShare: 0,
+      balance: 120,
+      viewerBalance: -60,
+      sharedWithViewer: true,
+    },
+  ]);
+  expect(payerRow.expenseCount).toBe(0);
+  expect(payerRow.totalSpent).toBe(0);
 });
 
 test("breakdown scopes counts, member totals, lines, and currency groups to the selected view", async () => {

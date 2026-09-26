@@ -47,6 +47,9 @@
      Use it wherever brass has to be readable. */
   --brass-ink: #7a611f;
   --rule: #ccd5bd;
+  /* Neutral resting fill for metadata chips. Kept grey so it cannot read as
+     the warm --wash hover/active state. */
+  --chip-neutral: #e3e5e2;
   /* The hover/active wash for rows, list items and quiet buttons.
      Deliberately WARM - brass mixed into --surface - while every resting
      ground in the app is sage. A same-hue wash only reads as "slightly darker
@@ -115,6 +118,7 @@
   --color-margin-red: var(--margin-red);
   --color-brass: var(--brass);
   --color-rule: var(--rule);
+  --color-chip-neutral: var(--chip-neutral);
   --color-wash: var(--wash);
   --color-brass-ink: var(--brass-ink);
   --color-edge: var(--edge);

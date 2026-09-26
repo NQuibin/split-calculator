@@ -59,7 +59,7 @@ function Notice({ children }: { children: ReactNode }) {
   return <EmptyState>{children}</EmptyState>;
 }
 
-const directoryListClass = `${mobileRaisedSurfaceClass} divide-y divide-rule/70 overflow-hidden border border-rule/70 bg-surface/80`;
+const directoryListClass = `${mobileRaisedSurfaceClass} divide-y divide-rule/70 overflow-hidden border border-rule/70 bg-surface`;
 // The whole row is one link, carrying no actions of its own - so it needs no
 // overlay and no actions track. If a row ever does gain actions, see
 // DESIGN.md § 5, "Interactive rows": a button cannot nest inside this link.

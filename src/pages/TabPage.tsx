@@ -33,7 +33,6 @@ import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/B
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
-import { TabSummaryCards } from "@/components/TabSummaryCards";
 import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
 import { computeExpenseBalances } from "@/lib/settlements";
@@ -120,7 +119,7 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
   return (
     <Page width="narrow" center>
       <div
-        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8`}
+        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface px-6 py-8 text-center sm:px-8`}
       >
         <span
           aria-hidden="true"
@@ -161,15 +160,8 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
     );
   }
 
-  // Keep the two cards in a single standard-width column. The shared Page
-  // shell intentionally gives every page the same readable max width.
   const tabContent = (
     <div className="grid gap-6">
-      <TabSummaryCards
-        expenses={expenses}
-        defaultCurrency={tab.defaultCurrency}
-        expenseView={hasUpcoming ? expenseView : "paid"}
-      />
       <TabSettlement
         slug={slug}
         members={tab.members}
@@ -965,7 +957,7 @@ function ExpenseList({
   return (
     <section
       aria-label="Expenses"
-      className={`@container ${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 card-inset`}
+      className={`@container ${mobileRaisedSurfaceClass} border border-rule/70 bg-surface card-inset`}
     >
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SectionTitle className="mr-auto flex items-center gap-2">

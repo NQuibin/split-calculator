@@ -48,7 +48,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-rule/70 bg-surface/80",
+        "overflow-hidden rounded-xl border border-rule/70 bg-surface",
         bleedOnMobile && mobileRaisedSurfaceClass,
         className,
       )}

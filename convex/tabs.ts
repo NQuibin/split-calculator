@@ -767,6 +767,7 @@ async function computeCurrencyBreakdown(
       balance: number | null;
       /** This member's direct balance with the authenticated viewer, when one exists. */
       viewerBalance?: number | null;
+      sharedWithViewer: boolean;
       payerId?: string;
       payerName: string;
       total: number;
@@ -818,11 +819,33 @@ async function computeCurrencyBreakdown(
         date: expense.date,
         fairShare: round2(row.fairShare),
         balance,
+        sharedWithViewer: viewerParticipates,
         ...(viewerBalance !== undefined ? { viewerBalance } : {}),
         payerId: expense.payerId,
         payerName:
           expense.people.find((person) => person.id === expense.payerId)?.name ?? "Unknown",
         total: round2(rate ? split.grandTotal * rate.rate : split.grandTotal),
+      });
+    }
+    const payerHasShare = expense.items.some((item) => item.splitWith.includes(expense.payerId!));
+    if (
+      payerResolved &&
+      !payerHasShare &&
+      expense.payerId !== viewerMemberId &&
+      viewerShare !== undefined
+    ) {
+      const payer = expense.people.find((person) => person.id === expense.payerId)!;
+      lines.get(payer.id)?.push({
+        expenseSlug: expense.slug,
+        expenseName: expense.name,
+        date: expense.date,
+        fairShare: 0,
+        balance: convertedTotal,
+        viewerBalance: -viewerShare.fairShare,
+        sharedWithViewer: true,
+        payerId: expense.payerId,
+        payerName: payer.name,
+        total: convertedTotal,
       });
     }
   }
@@ -860,6 +883,7 @@ const breakdownExpenseLine = v.object({
   fairShare: v.number(),
   balance: v.union(v.number(), v.null()),
   viewerBalance: v.optional(v.union(v.number(), v.null())),
+  sharedWithViewer: v.boolean(),
   payerId: v.optional(v.string()),
   payerName: v.string(),
   total: v.number(),

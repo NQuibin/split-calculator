@@ -63,6 +63,7 @@ export interface TabBreakdownExpenseLine {
   balance: number | null;
   /** This member's direct balance with the authenticated viewer, when one exists. */
   viewerBalance?: number | null;
+  sharedWithViewer: boolean;
   payerId?: string;
   payerName: string;
   total: number;

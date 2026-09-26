@@ -70,7 +70,7 @@ function Shell({
   return (
     <Page width="narrow" center>
       <div
-        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface/80 px-6 py-8 text-center sm:px-8`}
+        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface px-6 py-8 text-center sm:px-8`}
       >
         <span
           aria-hidden="true"

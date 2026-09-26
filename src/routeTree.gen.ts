@@ -17,7 +17,6 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TabsRouteImport } from './routes/tabs'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as TSlugIndexRouteImport } from './routes/t.$slug.index'
-import { Route as TSlugBreakdownRouteImport } from './routes/t.$slug.breakdown'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,11 +58,6 @@ const TSlugIndexRoute = TSlugIndexRouteImport.update({
   path: '/t/$slug/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TSlugBreakdownRoute = TSlugBreakdownRouteImport.update({
-  id: '/t/$slug/breakdown',
-  path: '/t/$slug/breakdown',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,7 +67,6 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
-  '/t/$slug/breakdown': typeof TSlugBreakdownRoute
   '/t/$slug/': typeof TSlugIndexRoute
 }
 export interface FileRoutesByTo {
@@ -84,7 +77,6 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
-  '/t/$slug/breakdown': typeof TSlugBreakdownRoute
   '/t/$slug': typeof TSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -96,7 +88,6 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
-  '/t/$slug/breakdown': typeof TSlugBreakdownRoute
   '/t/$slug/': typeof TSlugIndexRoute
 }
 export interface FileRouteTypes {
@@ -109,7 +100,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
-    | '/t/$slug/breakdown'
     | '/t/$slug/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -120,7 +110,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
-    | '/t/$slug/breakdown'
     | '/t/$slug'
   id:
     | '__root__'
@@ -131,7 +120,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
-    | '/t/$slug/breakdown'
     | '/t/$slug/'
   fileRoutesById: FileRoutesById
 }
@@ -143,7 +131,6 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TabsRoute: typeof TabsRoute
   ESlugRoute: typeof ESlugRoute
-  TSlugBreakdownRoute: typeof TSlugBreakdownRoute
   TSlugIndexRoute: typeof TSlugIndexRoute
 }
 
@@ -205,13 +192,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/t/$slug/breakdown': {
-      id: '/t/$slug/breakdown'
-      path: '/t/$slug/breakdown'
-      fullPath: '/t/$slug/breakdown'
-      preLoaderRoute: typeof TSlugBreakdownRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -223,7 +203,6 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TabsRoute: TabsRoute,
   ESlugRoute: ESlugRoute,
-  TSlugBreakdownRoute: TSlugBreakdownRoute,
   TSlugIndexRoute: TSlugIndexRoute,
 }
 export const routeTree = rootRouteImport

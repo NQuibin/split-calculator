@@ -43,6 +43,7 @@ utilities via `@theme inline`. **Never write a hex literal in a `className`.**
 | `--margin-red-ink` | `#b23c26` | `text-margin-red-ink` | Destructive and error **text**                            |
 | `--brass`       | `#b8933a` | `text-brass`        | **Decoration only** — see the contrast warning below          |
 | `--rule`        | `#ccd5bd` | `border-rule`       | Borders, dividers, input outlines                             |
+| `--chip-neutral`| `#e3e5e2` | `bg-chip-neutral`   | Neutral metadata chips; never hover or active state           |
 | `--wash`        | `#e9dfc5` | `bg-wash`           | Hover/active wash — **warm**, against sage resting grounds      |
 | `--brass-ink`   | `#7a611f` | `text-brass-ink`    | Brass where it must be **readable** — the wordmark, brass text  |
 | `--edge`        | `#788576` | `border-edge`       | The boundary of a floating surface **or a form field**          |
@@ -337,10 +338,9 @@ something.
 **There is one bordered weight, and it is forest.** The app tried the quieter
 alternative first: a `--edge` border with an `--ink` label. It works in a
 dialog footer, where the filled `default` beside it supplies the contrast —
-but a button alone in a card (the balances panel's `View payments`, the tabs
-empty state) has nothing to be quieter *than*, and it read as chrome rather
-than as the region's action. Rather than keep two bordered weights and a rule
-about which regions get which, `secondary` is forest everywhere: `default` and
+but a button alone in a card, as in the tabs empty state, has nothing to be
+quieter *than*, and it read as chrome rather than as the region's action.
+`secondary` is forest everywhere: `default` and
 `secondary` are told apart by **fill**, not by colour, so a dialog footer
 shows one filled forest button beside one outlined forest button and the
 hierarchy still reads. The cost is that a footer carries two forest shapes;
@@ -606,7 +606,7 @@ structure for a fraction of the ink.
 ### Cards, rows, chips
 
 - Card: `rounded-lg border border-rule bg-surface p-4` (or `p-5` for a page-level
-  panel).
+  panel). Card backgrounds are always solid; never use opacity on `bg-surface`.
 - Divided list: `divide-y divide-rule` on the container, not per-row borders.
 - Person chip: `rounded-full border border-rule bg-paper px-4 py-2`.
 - Avatars: `MemberAvatar`. Avatar colours are a deliberate placeholder; custom
@@ -983,8 +983,8 @@ reintroduce them.
 - ~~Three hand-rolled delete confirmations.~~ → `ui/ConfirmDialog.tsx`, which
   owns pending/error state and stays open when the work fails.
 - ~~Sub-44px targets~~: the wordmark, the sidebar sign-in and sign-out
-  controls, the currency/date pickers, the currency filters, the Friends tab
-  chips, and the "Breakdown" link. Verified **signed in, with data**, at
+  controls, the currency/date pickers, the currency filters and the Friends
+  tab chips. Verified **signed in, with data**, at
   393×852 across `/tabs`, `/expenses`, `/friends`, `/settings` and a tab
   detail page: no interactive box under 44px. The one exception is a
   breadcrumb crumb (29×36) — inline text links are exempt under WCAG 2.5.8,
