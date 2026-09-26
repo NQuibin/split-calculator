@@ -5,7 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
-import { Check, X, Coins, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
+import { Check, X, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
@@ -165,7 +165,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       <TabSettlement
         slug={slug}
         members={tab.members}
-        isOwner={tab.isOwner}
+        canManage
         defaultCurrency={tab.defaultCurrency}
         expenses={expenses}
         expenseView={hasUpcoming ? expenseView : "paid"}
@@ -174,17 +174,17 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         expenseView={expenseView}
         defaultCurrency={tab.defaultCurrency}
         slug={slug}
-        isOwner={tab.isOwner}
+        canManage
         members={tab.members}
         expenses={expenses}
       />
     </div>
   );
-  const mobileExpenseActions = tab.isOwner ? (
+  const mobileExpenseActions = (
     <div className="mb-6 md:hidden">
       <ExpenseActions slug={slug} members={tab.members} className="w-full" />
     </div>
-  ) : null;
+  );
 
   return (
     <Page>
@@ -206,23 +206,17 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         <div className="min-w-0">
           <PageTitle className="sm:text-4xl">{tab.name}</PageTitle>
         </div>
-        {tab.isOwner && (
-          <TabOwnerActions
-            slug={slug}
-            members={tab.members}
-            defaultCurrency={tab.defaultCurrency}
-            name={tab.name}
-            expenseCount={expenses.length}
-          />
-        )}
+        <TabOwnerActions
+          slug={slug}
+          members={tab.members}
+          defaultCurrency={tab.defaultCurrency}
+          name={tab.name}
+          expenseCount={expenses.length}
+          isOwner={tab.isOwner}
+          ownerName={tab.ownerName}
+        />
         <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-          <Roster slug={slug} isOwner={tab.isOwner} members={tab.members} />
-          {!tab.isOwner && (
-            <span className="inline-flex items-center gap-2">
-              <Coins aria-hidden="true" className="h-3.5 w-3.5 text-brass" strokeWidth={2.25} />
-              Tab currency · {tab.defaultCurrency}
-            </span>
-          )}
+          <Roster slug={slug} members={tab.members} />
         </div>
       </header>
       {mobileExpenseActions}
@@ -247,12 +241,16 @@ function TabOwnerActions({
   defaultCurrency,
   name,
   expenseCount,
+  isOwner,
+  ownerName,
 }: {
   slug: string;
   members: { resolvedId: string; id: string; name: string; claimed: boolean }[];
   defaultCurrency: string;
   name: string;
   expenseCount: number;
+  isOwner: boolean;
+  ownerName: string;
 }) {
   return (
     <div className="flex w-auto items-center justify-end gap-2 md:justify-start">
@@ -262,6 +260,8 @@ function TabOwnerActions({
         name={name}
         defaultCurrency={defaultCurrency}
         expenseCount={expenseCount}
+        isOwner={isOwner}
+        ownerName={ownerName}
       />
     </div>
   );
@@ -272,11 +272,15 @@ function TabSettingsDialog({
   name,
   defaultCurrency,
   expenseCount,
+  isOwner,
+  ownerName,
 }: {
   slug: string;
   name: string;
   defaultCurrency: string;
   expenseCount: number;
+  isOwner: boolean;
+  ownerName: string;
 }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -385,11 +389,15 @@ function TabSettingsDialog({
               variant="destructive"
               size="touch"
               className="w-full sm:w-auto"
+              disabled={!isOwner}
               onClick={() => setConfirming(true)}
             >
               <Trash2 className="h-4 w-4" />
               Delete tab
             </Button>
+            {!isOwner && (
+              <p className="text-sm text-ink-soft">Only {ownerName} can delete this tab.</p>
+            )}
             <div className="grid grid-cols-2 gap-2 sm:flex">
               <DialogClose
                 disabled={pending}
@@ -449,15 +457,13 @@ function DeleteTabDialog({
 
 function Roster({
   slug,
-  isOwner,
   members,
 }: {
   slug: string;
-  isOwner: boolean;
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
 }) {
   const { addMember, renameMember, removeMember } = useTabActions();
-  const inviteLinks = useTabInviteLinks(slug, isOwner);
+  const inviteLinks = useTabInviteLinks(slug, true);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -604,7 +610,7 @@ function Roster({
                       <span className="min-w-0 break-words text-sm font-medium">{member.name}</span>
                       {!member.claimed && <AnonymousBadge />}
                     </span>
-                    {isOwner && !member.claimed && invite && (
+                    {!member.claimed && invite && (
                       <Button
                         type="button"
                         variant="link"
@@ -621,40 +627,38 @@ function Roster({
                       </Button>
                     )}
                   </div>
-                  {isOwner && (
-                    <div className="flex shrink-0 items-center">
-                      <Button
-                        type="button"
-                        variant="quiet-icon"
-                        size="icon-touch"
-                        disabled={pending}
-                        aria-label={`Edit ${member.name}`}
-                        onClick={() => {
-                          resetForm();
-                          setEditingId(member.id);
-                          setName(member.name);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive-icon"
-                        size="icon-touch"
-                        disabled={pending}
-                        aria-label={`Remove ${member.name}`}
-                        onClick={() => {
-                          resetForm();
-                          setRemovingId(member.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex shrink-0 items-center">
+                    <Button
+                      type="button"
+                      variant="quiet-icon"
+                      size="icon-touch"
+                      disabled={pending}
+                      aria-label={`Edit ${member.name}`}
+                      onClick={() => {
+                        resetForm();
+                        setEditingId(member.id);
+                        setName(member.name);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive-icon"
+                      size="icon-touch"
+                      disabled={pending}
+                      aria-label={`Remove ${member.name}`}
+                      onClick={() => {
+                        resetForm();
+                        setRemovingId(member.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                {isOwner && editingId === member.id && memberForm}
-                {isOwner && removingId === member.id && (
+                {editingId === member.id && memberForm}
+                {removingId === member.id && (
                   <div className="mt-3 text-sm">
                     <p>Remove {member.name} from this tab?</p>
                     <div className="mt-2 flex gap-3">
@@ -691,24 +695,23 @@ function Roster({
             {error}
           </p>
         )}
-        {isOwner &&
-          (adding ? (
-            memberForm
-          ) : (
-            <Button
-              type="button"
-              size="touch"
-              disabled={pending}
-              onClick={() => {
-                resetForm();
-                setAdding(true);
-              }}
-              className="mt-6 w-full"
-            >
-              <Plus className="h-4 w-4" />
-              Add member
-            </Button>
-          ))}
+        {adding ? (
+          memberForm
+        ) : (
+          <Button
+            type="button"
+            size="touch"
+            disabled={pending}
+            onClick={() => {
+              resetForm();
+              setAdding(true);
+            }}
+            className="mt-6 w-full"
+          >
+            <Plus className="h-4 w-4" />
+            Add member
+          </Button>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -819,7 +822,7 @@ function ExpenseActions({
 function ExpenseList({
   slug,
   defaultCurrency,
-  isOwner,
+  canManage,
   members,
   expenses,
   expenseView,
@@ -827,7 +830,7 @@ function ExpenseList({
   expenseView: ExpenseView;
   defaultCurrency: string;
   slug: string;
-  isOwner: boolean;
+  canManage: boolean;
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
 }) {
@@ -982,7 +985,7 @@ function ExpenseList({
         expense={selected}
         slug={slug}
         defaultCurrency={defaultCurrency}
-        isOwner={isOwner}
+        canManage={canManage}
         members={members}
         onDelete={(expenseSlug) => setDeletingSlug(expenseSlug)}
       />

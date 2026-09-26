@@ -227,12 +227,17 @@ test("new tab members are available on old expenses without changing selections 
   const seat = (await t.run((ctx) => ctx.db.query("tabMembers").collect())).find(
     (s) => s._id === sam.id,
   )!;
-  await t
-    .withIdentity({ subject: `${samUserId}|session` })
-    .mutation(api.tabs.claimMember, { slug: "trip", token: seat.inviteToken });
-  const after = (await user.query(api.expenses.get, { slug: "dinner" }))!;
+  const member = t.withIdentity({ subject: `${samUserId}|session` });
+  await member.mutation(api.tabs.claimMember, { slug: "trip", token: seat.inviteToken });
+  const after = (await member.query(api.expenses.get, { slug: "dinner" }))!;
   expect(after.people.find((p) => p.id === sam.id)?.name).toBe("Samuel");
   expect(after.items).toEqual(edited.items);
+  const memberEdit = toExpenseStateArgs(after);
+  memberEdit.name = "Updated by a tab member";
+  await member.mutation(api.expenses.save, { slug: "dinner", state: memberEdit });
+  expect((await user.query(api.expenses.get, { slug: "dinner" }))?.name).toBe(
+    "Updated by a tab member",
+  );
   await user.mutation(api.tabs.create, { slug: "other", name: "Other", memberNames: [] });
   const foreign = (await user.query(api.tabs.getBySlug, { slug: "other" }))!.members[0].id;
   edited.items[0].splitWith = [foreign];

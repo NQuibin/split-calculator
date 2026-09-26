@@ -58,15 +58,19 @@ test("a new tab seats the creator first, then everyone named", async () => {
   expect(view!.members.map((m) => m.name)).toEqual(["Alex", "Sam", "Jo"]);
 });
 
-test("adding, renaming and removing a member all reach the rows", async () => {
+test("a tab member can add, rename and remove roster entries", async () => {
   const { t, user } = await setup();
-  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: [] });
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: ["Sam"] });
+  const samId = await t.run((ctx) => ctx.db.insert("users", { name: "Sam" }));
+  const sam = t.withIdentity({ subject: `${samId}|session` });
+  const samSeat = (await seats(t)).find((seat) => seat.name === "Sam")!;
+  await sam.mutation(api.tabs.claimMember, { slug: "trip", token: samSeat.inviteToken });
 
-  await user.mutation(api.tabs.addMember, { slug: "trip", name: "Sam" });
-  const added = (await seats(t)).find((s) => s.name === "Sam")!;
+  await sam.mutation(api.tabs.addMember, { slug: "trip", name: "Jo" });
+  const added = (await seats(t)).find((s) => s.name === "Jo")!;
   expect(added).toBeTruthy();
 
-  await user.mutation(api.tabs.renameMember, {
+  await sam.mutation(api.tabs.renameMember, {
     slug: "trip",
     memberId: added._id,
     name: "Samantha",
@@ -77,7 +81,7 @@ test("adding, renaming and removing a member all reach the rows", async () => {
   expect(renamed.name).toBe("Samantha");
   expect(renamed.inviteToken).toBe(added.inviteToken);
 
-  await user.mutation(api.tabs.removeMember, { slug: "trip", memberId: added._id });
+  await sam.mutation(api.tabs.removeMember, { slug: "trip", memberId: added._id });
   expect((await seats(t)).some((s) => s._id === added._id)).toBe(false);
 });
 

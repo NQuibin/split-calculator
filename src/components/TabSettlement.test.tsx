@@ -12,6 +12,13 @@ vi.mock("convex/react", () => ({
     return mocks.results.shift();
   },
 }));
+vi.mock("@tanstack/react-router", async () => {
+  const React = await import("react");
+  return {
+    Link: ({ children, params }: { children: React.ReactNode; params: { slug: string } }) =>
+      React.createElement("a", { href: `/e/${params.slug}` }, children),
+  };
+});
 
 import { SettlementSummary, TabSettlement, type SettlementSummaryData } from "./TabSettlement";
 
@@ -107,6 +114,17 @@ test("opens a member's detail from the whole balance row", () => {
   root.unmount();
 });
 
+test("lets tab members open expenses that need a payer", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: { ...data, missingPayers: [{ slug: "needs-payer", name: "Dinner" }] },
+      canManage: true,
+    }),
+  );
+  expect(markup).toContain('href="/e/needs-payer"');
+  expect(markup).toContain("Dinner");
+});
+
 test("keeps the selected expense view and removes payment and breakdown controls", () => {
   mocks.results = [
     { paid: data, upcoming: data, all: data },
@@ -116,7 +134,7 @@ test("keeps the selected expense view and removes payment and breakdown controls
     createElement(TabSettlement, {
       slug: "trip",
       members: [{ id: "viewer", name: "Nikki Q" }],
-      isOwner: true,
+      canManage: true,
       expenseView: "upcoming",
     }),
   );

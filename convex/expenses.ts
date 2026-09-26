@@ -7,7 +7,7 @@ import { computeExpenseBalances, splitParticipants } from "../src/lib/settlement
 import { mutation, query } from "./_generated/server";
 import { expenseState, person } from "./schema";
 import { isAcceptedImageType, MAX_IMAGE_BYTES } from "./imageFormats";
-import { forbidden, requireUserId, unauthenticated } from "./authz";
+import { canViewTab, forbidden, requireUserId, unauthenticated } from "./authz";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { Infer } from "convex/values";
@@ -81,14 +81,20 @@ async function ownExpenseOrDeny(ctx: QueryCtx | MutationCtx, slug: string) {
       .unique();
     if (own) return own;
   }
-  // `first`, not `unique`: per-user uniqueness is all the schema guarantees,
-  // and any hit at all means this slug isn't the caller's to use.
-  const other = await ctx.db
+  // A tab expense is shared with every member, while a personal expense
+  // remains private to its creator. The slug index keeps this lookup scoped
+  // to matching documents before checking each candidate's tab membership.
+  const matches = await ctx.db
     .query("expenses")
     .withIndex("by_slug", (q) => q.eq("slug", slug))
-    .first();
-  if (!other) return null;
+    .collect();
+  if (matches.length === 0) return null;
   if (!userId) unauthenticated();
+  for (const expense of matches) {
+    if (!expense.tabId) continue;
+    const tab = await ctx.db.get(expense.tabId);
+    if (tab && (await canViewTab(ctx, tab, userId))) return expense;
+  }
   forbidden();
 }
 

@@ -6,7 +6,7 @@ import { isValidISODate } from "../src/lib/format";
 import { suggestSettlements } from "../src/lib/settlements";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { requireTabOwner, requireTabViewer } from "./authz";
+import { requireTabViewer } from "./authz";
 import { orderExpensePeople } from "./expenseMembers";
 import { resolveSeatName } from "./tabs";
 
@@ -386,7 +386,7 @@ export const record = mutation({
   handler: async (ctx, args) => {
     const tab = await findTab(ctx, args.slug);
     if (!tab) throw new Error("Tab not found");
-    const userId = await requireTabOwner(ctx, tab);
+    const userId = await requireTabViewer(ctx, tab);
     const amountCents = paymentCents(args.amount);
     const requestId = args.requestId.trim();
     const note = args.note?.trim() || undefined;
@@ -467,7 +467,7 @@ export const reverse = mutation({
   handler: async (ctx, { slug, settlementId }) => {
     const tab = await findTab(ctx, slug);
     if (!tab) throw new Error("Tab not found");
-    const userId = await requireTabOwner(ctx, tab);
+    const userId = await requireTabViewer(ctx, tab);
     const settlement = await ctx.db.get(settlementId);
     if (!settlement || settlement.tabId !== tab._id) throw new Error("Settlement not found");
     if (settlement.reversedAt === undefined) {

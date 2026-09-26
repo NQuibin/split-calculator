@@ -100,9 +100,9 @@ function ExpenseEditor() {
   const [selectedTabSlug, setSelectedTabSlug] = useState(isAuthenticated ? (search.tab ?? "") : "");
   const tabSlug = isAuthenticated ? (search.tab ?? selectedTabSlug) : "";
   const tab = useTab(tabSlug);
-  const tabs = useTabList().filter((tab) => tab.isOwner);
+  const tabs = useTabList();
   const { createExpense } = useTabActions();
-  const tabDraft = isAuthenticated && !stored && tab?.isOwner ? tab : null;
+  const tabDraft = isAuthenticated && !stored && tab ? tab : null;
   const state =
     baseState && tabDraft
       ? withTabPeople(

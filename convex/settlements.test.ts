@@ -240,28 +240,32 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
     outsider.query(api.settlements.get, { slug: "trip", asOfDate: "2026-09-12" }),
   ).rejects.toThrow("Not authorized");
   await expect(outsider.mutation(api.settlements.record, args)).rejects.toThrow("Not authorized");
+  const invite = (await owner.query(api.tabs.getInviteLinks, { slug: "trip" })).find(
+    (link) => link.memberId === members[1].id,
+  )!;
+  await outsider.mutation(api.tabs.claimMember, { slug: "trip", token: invite.token });
   await expect(
-    owner.mutation(api.settlements.record, { ...args, amount: 40.001, requestId: "bad" }),
+    outsider.mutation(api.settlements.record, { ...args, amount: 40.001, requestId: "bad" }),
   ).rejects.toThrow("two decimal");
   await expect(
-    owner.mutation(api.settlements.record, { ...args, amount: -1, requestId: "negative" }),
+    outsider.mutation(api.settlements.record, { ...args, amount: -1, requestId: "negative" }),
   ).rejects.toThrow("positive");
-  await owner.mutation(api.settlements.record, args);
-  await owner.mutation(api.settlements.record, args);
-  await expect(owner.mutation(api.settlements.record, { ...args, amount: 39 })).rejects.toThrow(
+  await outsider.mutation(api.settlements.record, args);
+  await outsider.mutation(api.settlements.record, args);
+  await expect(outsider.mutation(api.settlements.record, { ...args, amount: 39 })).rejects.toThrow(
     "different settlement",
   );
   await expect(
-    owner.mutation(api.settlements.record, { ...args, requestId: "too-much", amount: 40.01 }),
+    outsider.mutation(api.settlements.record, { ...args, requestId: "too-much", amount: 40.01 }),
   ).rejects.toThrow("exceeds");
   const first = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: "2026-09-12" }))!;
   expect(first.paid.history).toHaveLength(1);
   expect(first.paid.currencies[0].members.map((m) => m.balance)).toEqual([40, 0, -40]);
-  await owner.mutation(api.settlements.reverse, {
+  await outsider.mutation(api.settlements.reverse, {
     slug: "trip",
     settlementId: first.paid.history[0].id,
   });
-  await owner.mutation(api.settlements.reverse, {
+  await outsider.mutation(api.settlements.reverse, {
     slug: "trip",
     settlementId: first.paid.history[0].id,
   });
@@ -573,9 +577,14 @@ test("claiming a payer preserves balances and gives the claimant read-only acces
   });
   const paid = (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!
     .paid!;
-  await expect(
-    outsider.mutation(api.settlements.reverse, { slug: "trip", settlementId: paid.history[0].id }),
-  ).rejects.toThrow("Not authorized");
+  await outsider.mutation(api.settlements.reverse, {
+    slug: "trip",
+    settlementId: paid.history[0].id,
+  });
+  expect(
+    (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))?.paid.history[0]
+      .reversed,
+  ).toBe(true);
   await owner.mutation(api.expenses.remove, { slug: "dinner" });
   await expect(
     owner.mutation(api.tabs.removeMember, { slug: "trip", memberId: members[2].id }),

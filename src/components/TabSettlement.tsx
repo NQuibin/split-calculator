@@ -72,7 +72,7 @@ export function SettlementSummary({
   expenses = [],
   expenseView = "all",
   asOfDate = todayISODate(),
-  isOwner = false,
+  canManage = false,
   onMemberClick,
 }: {
   data: SettlementSummaryData;
@@ -80,7 +80,7 @@ export function SettlementSummary({
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
   asOfDate?: string;
-  isOwner?: boolean;
+  canManage?: boolean;
   onMemberClick?: (memberId: string, currencyCode: string) => void;
 }) {
   const { currency } = useLocaleFormatters();
@@ -99,7 +99,7 @@ export function SettlementSummary({
           <ul className="mt-2">
             {data.missingPayers.map((expense) => (
               <li key={expense.slug} className="break-words">
-                {isOwner ? (
+                {canManage ? (
                   <Button
                     variant="link"
                     size="touch"
@@ -250,14 +250,14 @@ export function SettlementSummary({
 export function TabSettlement({
   slug,
   members,
-  isOwner,
+  canManage,
   defaultCurrency = "USD",
   expenses = [],
   expenseView = "paid",
 }: {
   slug: string;
   members: Member[];
-  isOwner: boolean;
+  canManage: boolean;
   defaultCurrency?: string;
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
@@ -322,7 +322,7 @@ export function TabSettlement({
         expenses={expenses}
         expenseView={expenseView}
         asOfDate={day}
-        isOwner={isOwner}
+        canManage={canManage}
         onMemberClick={openMemberExpenses}
       />
       <Dialog open={memberBreakdownOpen} onOpenChange={setMemberBreakdownOpen}>
@@ -382,7 +382,7 @@ export function TabSettlement({
         expense={selectedExpense}
         slug={slug}
         defaultCurrency={defaultCurrency}
-        isOwner={isOwner}
+        canManage={canManage}
         members={members}
       />
     </Panel>

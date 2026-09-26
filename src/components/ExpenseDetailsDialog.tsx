@@ -19,7 +19,7 @@ export function ExpenseDetailsDialog({
   expense,
   slug,
   defaultCurrency,
-  isOwner,
+  canManage,
   members,
   onDelete,
 }: {
@@ -28,7 +28,7 @@ export function ExpenseDetailsDialog({
   expense: TabExpenseSummary | undefined;
   slug: string;
   defaultCurrency: string;
-  isOwner: boolean;
+  canManage: boolean;
   members: Member[];
   onDelete?: (slug: string) => void;
 }) {
@@ -159,7 +159,7 @@ export function ExpenseDetailsDialog({
                 tabSlug={slug}
                 expense={expense}
                 target={defaultCurrency}
-                canEdit={isOwner}
+                canEdit={canManage}
               />
             )}
             {expense.mode === "itemized" && (
@@ -186,7 +186,7 @@ export function ExpenseDetailsDialog({
             </p>
           </div>
           <footer className="shrink-0 border-t border-rule/70 bg-surface px-5 py-4 sm:px-6">
-            {isOwner ? (
+            {canManage ? (
               <div className="grid w-full gap-3 sm:flex sm:justify-end">
                 <Button
                   variant="secondary"

@@ -28,6 +28,7 @@ export interface TabMemberSummary {
 export interface TabDetail {
   slug: string;
   name: string;
+  ownerName: string;
   isOwner: boolean;
   members: TabMemberSummary[];
   defaultCurrency: string;

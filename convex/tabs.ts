@@ -8,13 +8,7 @@ import { expenseAdjustments, person, expenseItem, expenseMode, expenseState } fr
 import { normalizeMemberName } from "../src/lib/tabMembers";
 import { isValidISODate } from "../src/lib/format";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import {
-  forbidden,
-  isInviteToken,
-  requireTabOwner,
-  requireTabViewer,
-  requireUserId,
-} from "./authz";
+import { isInviteToken, requireTabOwner, requireTabViewer, requireUserId } from "./authz";
 import type { Doc, Id } from "./_generated/dataModel";
 
 async function getTabBySlug(ctx: QueryCtx | MutationCtx, slug: string) {
@@ -44,6 +38,14 @@ async function ownedTab(ctx: QueryCtx | MutationCtx, slug: string) {
   const tab = await getTabBySlug(ctx, slug);
   if (!tab) throw new Error("Tab not found");
   const userId = await requireTabOwner(ctx, tab);
+  return { tab, userId };
+}
+
+async function memberTab(ctx: QueryCtx | MutationCtx, slug: string) {
+  await requireUserId(ctx);
+  const tab = await getTabBySlug(ctx, slug);
+  if (!tab) throw new Error("Tab not found");
+  const userId = await requireTabViewer(ctx, tab);
   return { tab, userId };
 }
 
@@ -181,7 +183,7 @@ export const create = mutation({
 export const rename = mutation({
   args: { slug: v.string(), name: v.string() },
   handler: async (ctx, { slug, name }) => {
-    const { tab } = await ownedTab(ctx, slug);
+    const { tab } = await memberTab(ctx, slug);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Tab name is required");
@@ -192,7 +194,7 @@ export const rename = mutation({
 export const setDefaultCurrency = mutation({
   args: { slug: v.string(), currency: v.string() },
   handler: async (ctx, { slug, currency }) => {
-    const { tab } = await ownedTab(ctx, slug);
+    const { tab } = await memberTab(ctx, slug);
 
     await ctx.db.patch(tab._id, { defaultCurrency: currency, updatedAt: Date.now() });
   },
@@ -234,7 +236,7 @@ export const deleteTab = mutation({
 export const addMember = mutation({
   args: { slug: v.string(), name: v.string() },
   handler: async (ctx, { slug, name }) => {
-    const { tab } = await ownedTab(ctx, slug);
+    const { tab } = await memberTab(ctx, slug);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
@@ -249,7 +251,7 @@ export const addMember = mutation({
 export const renameMember = mutation({
   args: { slug: v.string(), memberId: v.string(), name: v.string() },
   handler: async (ctx, { slug, memberId, name }) => {
-    const { tab } = await ownedTab(ctx, slug);
+    const { tab } = await memberTab(ctx, slug);
 
     const trimmedName = name.trim();
     if (!trimmedName) throw new Error("Member name is required");
@@ -266,7 +268,7 @@ export const renameMember = mutation({
 export const removeMember = mutation({
   args: { slug: v.string(), memberId: v.string() },
   handler: async (ctx, { slug, memberId }) => {
-    const { tab } = await ownedTab(ctx, slug);
+    const { tab } = await memberTab(ctx, slug);
 
     const seats = await tabSeats(ctx, tab._id);
     const removed = seats.find((s) => s._id === memberId);
@@ -481,10 +483,12 @@ export const getBySlug = query({
 
     if (!(await isInviteToken(ctx, tab, token))) await requireTabViewer(ctx, tab);
     const userId = await getAuthUserId(ctx);
+    const owner = await ctx.db.get(tab.ownerUserId);
 
     return {
       slug: tab.slug,
       name: tab.name,
+      ownerName: owner?.name?.trim() || owner?.email?.trim() || "Tab owner",
       isOwner: userId !== null && tab.ownerUserId === userId,
       members: await resolveMembers(ctx, tab),
       defaultCurrency: tab.defaultCurrency ?? "USD",
@@ -495,7 +499,7 @@ export const getBySlug = query({
 export const getInviteLinks = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const { tab } = await ownedTab(ctx, slug);
+    const { tab } = await memberTab(ctx, slug);
 
     return (await tabSeats(ctx, tab._id))
       .filter((seat) => !seat.userId)
@@ -518,13 +522,20 @@ export const createExpense = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { tabSlug, expenseSlug, state, memberMapping }) => {
-    const { tab, userId } = await ownedTab(ctx, tabSlug);
+    const { tab, userId } = await memberTab(ctx, tabSlug);
 
     const existing = await ctx.db
       .query("expenses")
       .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", expenseSlug))
       .unique();
     if (existing) throw new Error("An existing expense cannot be added to a tab");
+    const sameSlug = await ctx.db
+      .query("expenses")
+      .withIndex("by_slug", (q) => q.eq("slug", expenseSlug))
+      .collect();
+    if (sameSlug.some((expense) => expense.tabId === tab._id)) {
+      throw new Error("An existing expense cannot be added to a tab");
+    }
     if (state.items.length === 0) throw new Error("Add an item before saving");
     if (state.image) await assertValidImage(ctx, state.image.storageId);
     const expense = state;
@@ -607,15 +618,16 @@ export const setExpenseExchangeRate = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
     const tab = await getTabBySlug(ctx, args.slug);
     if (!tab) throw new Error("Tab not found");
-    if (tab.ownerUserId !== userId) forbidden("Only the tab owner can set exchange rates");
-    const expense = await ctx.db
-      .query("expenses")
-      .withIndex("by_user_slug", (q) => q.eq("userId", userId).eq("slug", args.expenseSlug))
-      .unique();
-    if (!expense || expense.tabId !== tab._id) throw new Error("Expense not found in this tab");
+    await requireTabViewer(ctx, tab);
+    const expense = (
+      await ctx.db
+        .query("expenses")
+        .withIndex("by_slug", (q) => q.eq("slug", args.expenseSlug))
+        .collect()
+    ).find((candidate) => candidate.tabId === tab._id);
+    if (!expense) throw new Error("Expense not found in this tab");
     if (args.from !== (expense.currency ?? "USD") || args.to !== (tab.defaultCurrency ?? "USD"))
       throw new Error("Currency changed. Reopen the expense and try again.");
     if (

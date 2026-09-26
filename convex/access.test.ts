@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
+import { toExpenseStateArgs } from "../src/lib/expenseSync";
 
 const modules = import.meta.glob("./**/*.ts");
 const state = {
@@ -54,6 +55,17 @@ test("an outsider cannot read a tab, its expenses, or its balances", async () =>
   await expect(sam.query(api.tabs.getInviteLinks, { slug: "trip" })).rejects.toThrow(
     "Not authorized",
   );
+  await expect(sam.mutation(api.tabs.rename, { slug: "trip", name: "Hijacked" })).rejects.toThrow(
+    "Not authorized",
+  );
+  await expect(
+    sam.mutation(api.tabs.createExpense, {
+      tabSlug: "trip",
+      expenseSlug: "outsider-dinner",
+      state,
+      memberMapping: [],
+    }),
+  ).rejects.toThrow("Not authorized");
 });
 
 test("a signed-out visitor cannot read a tab", async () => {
@@ -103,14 +115,21 @@ test("claiming an invite is what grants access", async () => {
   expect((await sam.query(api.tabs.getBySlug, { slug: "trip" }))?.name).toBe("Trip");
   expect(await sam.query(api.tabs.expensesForTab, { slug: "trip" })).toHaveLength(1);
   expect(await sam.query(api.tabs.breakdown, { slug: "trip" })).not.toBeNull();
-  // A member still isn't an owner.
-  expect((await sam.query(api.tabs.getBySlug, { slug: "trip" }))?.isOwner).toBe(false);
-  await expect(sam.query(api.tabs.getInviteLinks, { slug: "trip" })).rejects.toThrow(
-    "Not authorized",
-  );
-  await expect(sam.mutation(api.tabs.rename, { slug: "trip", name: "Hijacked" })).rejects.toThrow(
-    "Not authorized",
-  );
+  const detail = await sam.query(api.tabs.getBySlug, { slug: "trip" });
+  expect(detail?.isOwner).toBe(false);
+  expect(detail?.ownerName).toBe("Alex");
+  expect(await sam.query(api.tabs.getInviteLinks, { slug: "trip" })).toEqual([]);
+  await sam.mutation(api.tabs.rename, { slug: "trip", name: "Shared trip" });
+  await sam.mutation(api.tabs.setDefaultCurrency, { slug: "trip", currency: "CAD" });
+  await sam.mutation(api.tabs.addMember, { slug: "trip", name: "Jo" });
+  const added = (await sam.query(api.tabs.getInviteLinks, { slug: "trip" }))[0];
+  expect(added.name).toBe("Jo");
+  await sam.mutation(api.tabs.renameMember, {
+    slug: "trip",
+    memberId: added.memberId,
+    name: "Jojo",
+  });
+  await sam.mutation(api.tabs.removeMember, { slug: "trip", memberId: added.memberId });
   await expect(sam.mutation(api.tabs.deleteTab, { slug: "trip" })).rejects.toThrow(
     "Not authorized",
   );
@@ -130,7 +149,7 @@ test("someone else's expense is forbidden, not invisible", async () => {
   expect(await sam.query(api.expenses.get, { slug: "nope" })).toBeNull();
 });
 
-test("a tab member cannot edit or delete the owner's expense", async () => {
+test("a tab member can create, read, edit, and delete shared expenses", async () => {
   const { t, sam } = await setup();
   const token = await t.run(async (ctx) => {
     const seats = await ctx.db.query("tabMembers").collect();
@@ -138,16 +157,39 @@ test("a tab member cannot edit or delete the owner's expense", async () => {
   });
   await sam.mutation(api.tabs.claimMember, { slug: "trip", token });
 
-  await expect(sam.mutation(api.expenses.remove, { slug: "dinner" })).rejects.toThrow(
-    "Not authorized",
+  const tab = (await sam.query(api.tabs.getBySlug, { slug: "trip" }))!;
+  expect(await sam.query(api.expenses.get, { slug: "dinner" })).toMatchObject({
+    name: "Dinner",
+    tab: { slug: "trip" },
+  });
+  const edited = toExpenseStateArgs((await sam.query(api.expenses.get, { slug: "dinner" }))!);
+  edited.name = "Shared edit";
+  await sam.mutation(api.expenses.save, { slug: "dinner", state: edited });
+  expect((await sam.query(api.expenses.get, { slug: "dinner" }))?.name).toBe("Shared edit");
+  await sam.mutation(api.tabs.setDefaultCurrency, { slug: "trip", currency: "CAD" });
+  await sam.mutation(api.tabs.setExpenseExchangeRate, {
+    slug: "trip",
+    expenseSlug: "dinner",
+    from: "USD",
+    to: "CAD",
+    rate: 1.4,
+  });
+  await sam.mutation(api.tabs.createExpense, {
+    tabSlug: "trip",
+    expenseSlug: "sam-dinner",
+    state,
+    memberMapping: [{ personId: "person-1", memberId: tab.members[0].id }],
+  });
+  expect(await sam.query(api.expenses.get, { slug: "sam-dinner" })).toMatchObject({
+    name: "Dinner",
+    tab: { slug: "trip" },
+  });
+  const ownTabExpense = toExpenseStateArgs(
+    (await sam.query(api.expenses.get, { slug: "sam-dinner" }))!,
   );
-  await expect(
-    sam.mutation(api.tabs.setExpenseExchangeRate, {
-      slug: "trip",
-      expenseSlug: "dinner",
-      from: "USD",
-      to: "EUR",
-      rate: 2,
-    }),
-  ).rejects.toThrow("Only the tab owner");
+  ownTabExpense.name = "Updated by Sam";
+  await sam.mutation(api.expenses.save, { slug: "sam-dinner", state: ownTabExpense });
+  expect((await sam.query(api.expenses.get, { slug: "sam-dinner" }))?.name).toBe("Updated by Sam");
+  await sam.mutation(api.expenses.remove, { slug: "sam-dinner" });
+  expect(await sam.query(api.expenses.get, { slug: "sam-dinner" })).toBeNull();
 });
