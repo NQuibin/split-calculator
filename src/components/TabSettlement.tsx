@@ -158,7 +158,7 @@ export function SettlementSummary({
                 aria-label={`${group.currency} balances`}
                 className="bleed"
               >
-                <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 border-b border-rule bleed-px py-2">
+                <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 bleed-px py-2">
                   <span className="rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
                     {group.currency}
                   </span>
