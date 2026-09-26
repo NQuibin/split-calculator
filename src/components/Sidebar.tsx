@@ -86,7 +86,7 @@ export function Sidebar() {
           aria-label="Open menu"
           aria-controls="app-nav"
           aria-expanded={mobileOpen}
-          className="-mr-2 text-ink-soft hover:text-forest"
+          className="-mr-2 text-ink-soft hover:text-forest active:text-forest"
         >
           <Menu className="h-5 w-5" strokeWidth={2.25} />
         </Button>
@@ -164,7 +164,7 @@ export function Sidebar() {
               to={href}
               aria-current={active ? "page" : undefined}
               onClick={closeDrawer}
-              className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${active ? "bg-rule/30 font-semibold text-forest" : "text-ink-soft hover:bg-wash"}`}
+              className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${active ? "bg-rule/30 font-semibold text-forest" : "text-ink-soft hover:bg-wash active:bg-wash"}`}
             >
               <Icon
                 aria-hidden="true"

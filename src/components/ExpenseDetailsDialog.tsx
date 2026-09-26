@@ -36,6 +36,7 @@ export function ExpenseDetailsDialog({
   const split = expense
     ? computeSplit(expense.people, expense.items, expense.globalAdjustments)
     : null;
+  const sharedPeople = split?.people.filter((person) => Math.round(person.total * 100) !== 0) ?? [];
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
   return (
@@ -95,11 +96,11 @@ export function ExpenseDetailsDialog({
               <div className="flex items-center justify-between gap-3">
                 <GroupTitle as="h3">Shared with</GroupTitle>
                 <span className="text-sm font-medium text-ink-soft">
-                  {split.people.length} {split.people.length === 1 ? "person" : "people"}
+                  {sharedPeople.length} {sharedPeople.length === 1 ? "person" : "people"}
                 </span>
               </div>
               <ul className="mt-5">
-                {split.people.map((person) => (
+                {sharedPeople.map((person) => (
                   <li key={person.personId} className="flex min-h-11 items-center gap-3 text-sm">
                     <MemberAvatar id={person.personId} name={person.name} size="md" />
                     <span className="min-w-0 flex-1 break-words font-medium">{person.name}</span>
@@ -126,7 +127,7 @@ export function ExpenseDetailsDialog({
                     href={expense.image.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-3 flex items-center gap-3 rounded-lg border border-rule/70 p-3 text-sm text-forest transition hover:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+                    className="mt-3 flex items-center gap-3 rounded-lg border border-rule/70 p-3 text-sm text-forest transition hover:bg-wash active:bg-wash focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
                   >
                     {expense.image.type !== "application/pdf" ? (
                       <img

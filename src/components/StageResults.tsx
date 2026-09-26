@@ -334,7 +334,7 @@ export function StageResults({
               href={image.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 text-sm text-ink transition hover:text-forest"
+              className="flex items-center gap-2 text-sm text-ink transition hover:text-forest active:text-forest"
             >
               <FileText className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
               <span className="truncate">{image.name}</span>

@@ -442,7 +442,7 @@ export function StageExpense({
                   variant="link"
                   size="touch"
                   onClick={onAddPerson}
-                  className="mt-3 justify-start px-0 no-underline hover:text-ink hover:no-underline"
+                  className="mt-3 justify-start px-0 no-underline hover:text-ink hover:no-underline active:text-ink active:no-underline"
                 >
                   <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
                   Add person
@@ -901,7 +901,7 @@ function ModeButton({
       className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
         active
           ? "border-forest bg-forest text-surface"
-          : "border-rule text-ink-soft hover:border-forest hover:text-forest"
+          : "border-rule text-ink-soft hover:border-forest hover:text-forest active:border-forest active:text-forest"
       }`}
     >
       <Icon className="h-4 w-4" strokeWidth={2.25} />
@@ -1084,7 +1084,7 @@ function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: strin
           setEditing(true);
         }}
         aria-label="Rename expense"
-        className="shrink-0 text-ink-soft hover:text-forest"
+        className="shrink-0 text-ink-soft hover:text-forest active:text-forest"
       >
         <Pencil className="h-4 w-4" strokeWidth={2.25} />
       </Button>
@@ -1153,7 +1153,7 @@ function PersonRow({
             setEditing(true);
           }}
           aria-label={`Rename ${person.name}`}
-          className="shrink-0 text-ink-soft hover:text-forest"
+          className="shrink-0 text-ink-soft hover:text-forest active:text-forest"
         >
           <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
         </Button>
@@ -1165,7 +1165,7 @@ function PersonRow({
           size="icon-touch"
           onClick={onRemove}
           aria-label={`Remove ${person.name} from this expense`}
-          className="shrink-0 text-ink-soft hover:text-margin-red-ink"
+          className="shrink-0 text-ink-soft hover:text-margin-red-ink active:text-margin-red-ink"
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.5} />
         </Button>

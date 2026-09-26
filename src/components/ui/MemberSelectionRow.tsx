@@ -20,7 +20,7 @@ export function MemberSelectionRow({
 }: MemberSelectionRowProps) {
   return (
     <label
-      className={`flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm text-ink transition-colors hover:bg-wash focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest ${selected ? "border-forest bg-field" : "border-edge bg-surface"}`}
+      className={`flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm text-ink transition-colors hover:bg-wash active:bg-wash focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest ${selected ? "border-forest bg-field" : "border-edge bg-surface"}`}
     >
       <input type="checkbox" checked={selected} onChange={onToggle} className="sr-only" />
       <MemberAvatar id={id} name={name} />

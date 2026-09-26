@@ -49,7 +49,7 @@ export function ExpenseLineItem({
 
   return (
     <li
-      className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center bleed-px text-sm transition-colors hover:bg-wash ${isEditing ? "bg-wash" : "bg-field"}`}
+      className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center bleed-px text-sm transition-colors hover:bg-wash active:bg-wash ${isEditing ? "bg-wash" : "bg-field"}`}
     >
       <div className="min-w-0">
         <button

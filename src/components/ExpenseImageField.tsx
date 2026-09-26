@@ -37,7 +37,7 @@ function ReceiptFileRow({ name, href }: { name: string; href?: string | null }) 
       href={href}
       target="_blank"
       rel="noreferrer"
-      className={`${className} hover:border-forest hover:text-forest`}
+      className={`${className} hover:border-forest hover:text-forest active:border-forest active:text-forest`}
     >
       {content}
     </a>

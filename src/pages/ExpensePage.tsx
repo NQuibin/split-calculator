@@ -253,7 +253,7 @@ function ExpenseEditor() {
                   variant="link"
                   size="xs"
                   onClick={() => dispatch({ type: "BACK_TO_EXPENSE" })}
-                  className="h-auto px-0 font-normal text-ink-soft break-words whitespace-normal no-underline hover:text-forest"
+                  className="h-auto px-0 font-normal text-ink-soft break-words whitespace-normal no-underline hover:text-forest active:text-forest"
                 >
                   {state.name}
                 </Button>

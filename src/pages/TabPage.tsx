@@ -558,7 +558,11 @@ function Roster({
     >
       <DialogTrigger
         render={
-          <Button variant="link" size="touch" className="group gap-2.5 pl-0 hover:no-underline" />
+          <Button
+            variant="link"
+            size="touch"
+            className="group gap-2.5 pl-0 hover:no-underline active:no-underline"
+          />
         }
       >
         {members.length > 0 && (
@@ -578,7 +582,7 @@ function Roster({
             )}
           </span>
         )}
-        <span className="group-hover:underline">Manage</span>
+        <span className="group-hover:underline group-active:underline">Manage</span>
       </DialogTrigger>
       <DialogContent>
         <div className="flex items-start justify-between gap-3">
@@ -616,7 +620,7 @@ function Roster({
                         variant="link"
                         size="xs"
                         onClick={() => void copyInvite(member.id, invite.token)}
-                        className="mt-2 h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline"
+                        className="mt-2 h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline active:text-ink active:no-underline"
                       >
                         {copiedId === member.id ? (
                           <Check className="h-3.5 w-3.5" />

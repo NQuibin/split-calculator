@@ -93,7 +93,7 @@ function CreateTabModal({
               size="icon-xs"
               aria-label="New tab"
               title="New tab"
-              className="text-ink-soft hover:text-forest"
+              className="text-ink-soft hover:text-forest active:text-forest"
             />
           }
         >
@@ -180,7 +180,7 @@ function CreateTabModal({
                     setMemberDrafts((prev) => prev.filter((entry) => entry.id !== draft.id))
                   }
                   aria-label={`Remove member ${i + 1}`}
-                  className="shrink-0 text-ink-soft hover:text-margin-red-ink"
+                  className="shrink-0 text-ink-soft hover:text-margin-red-ink active:text-margin-red-ink"
                 >
                   <X className="h-4 w-4" strokeWidth={2.25} />
                 </Button>
@@ -194,7 +194,7 @@ function CreateTabModal({
             onClick={() =>
               setMemberDrafts((prev) => [...prev, { id: crypto.randomUUID(), name: "" }])
             }
-            className="h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline"
+            className="h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline active:text-ink active:no-underline"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             {memberDrafts.length === 0 ? "Add member" : "Add another member"}

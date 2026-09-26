@@ -229,7 +229,7 @@ export function TabExpenseRow({
 
   return (
     <li
-      className={`${row} relative py-4 transition-colors hover:bg-wash has-[button:focus-visible]:bg-wash`}
+      className={`${row} relative py-4 transition-colors hover:bg-wash active:bg-wash has-[button:focus-visible]:bg-wash`}
     >
       {onExpenseClick ? (
         <button

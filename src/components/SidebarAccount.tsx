@@ -323,7 +323,7 @@ function SignInMenu() {
                   setStep("email");
                   setError(null);
                 }}
-                className="h-auto px-0 text-xs underline decoration-forest/40 underline-offset-4 hover:text-ink"
+                className="h-auto px-0 text-xs underline decoration-forest/40 underline-offset-4 hover:text-ink active:text-ink"
               >
                 Use a different email
               </Button>
@@ -334,7 +334,7 @@ function SignInMenu() {
                 size="xs"
                 disabled={submitting}
                 onClick={(e) => void handleSendCode(e)}
-                className="h-auto px-0 text-xs underline decoration-forest/40 underline-offset-4 hover:text-ink"
+                className="h-auto px-0 text-xs underline decoration-forest/40 underline-offset-4 hover:text-ink active:text-ink"
               >
                 Send a new code
               </Button>

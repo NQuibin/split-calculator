@@ -75,7 +75,7 @@ export function OverflowAction({
   render?: ReactElement<{ className?: string; children?: ReactNode }>;
 }) {
   const classes = cn(
-    "flex min-h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0",
+    "flex min-h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0",
     destructive ? "text-margin-red-ink" : "text-ink",
     className,
   );

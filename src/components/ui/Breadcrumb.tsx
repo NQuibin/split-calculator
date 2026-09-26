@@ -50,4 +50,4 @@ export function BreadcrumbCurrent({ children }: { children: ReactNode }) {
  * breadcrumb's layout height.
  */
 export const crumbLinkClass =
-  "-my-2 inline-flex min-w-0 items-center break-words rounded-sm py-2 hover:text-forest hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";
+  "-my-2 inline-flex min-w-0 items-center break-words rounded-sm py-2 hover:text-forest hover:underline active:text-forest active:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest";

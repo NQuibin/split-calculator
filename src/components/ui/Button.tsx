@@ -8,7 +8,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        default: "bg-primary text-primary-foreground hover:bg-primary/80 active:bg-primary/80",
         // Every labelled action that is not the region's `default`. Forest
         // ties it to the primary by hue while the unfilled ground keeps it a
         // rank below - the two are told apart by fill, not by colour. There is
@@ -19,33 +19,34 @@ const buttonVariants = cva(
         // the label goes to `--ink` with it, because forest on `--wash` is the
         // `field` control's signal and an action must not borrow it.
         secondary:
-          "border-forest bg-background text-forest hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
+          "border-forest bg-background text-forest hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         // A button that stands in for a form control - the popover triggers
         // behind the currency, date and tab pickers. It reads as an input, so
         // it behaves like one: the ground never fills, the border darkens to
         // --forest the way `fieldClass` does on focus. Don't use it for an
         // action; see DESIGN.md § 5.
         field:
-          "border-edge bg-field font-normal text-ink hover:border-forest hover:bg-field aria-expanded:border-forest aria-expanded:bg-field",
+          "border-edge bg-field font-normal text-ink hover:border-forest hover:bg-field active:border-forest active:bg-field aria-expanded:border-forest aria-expanded:bg-field",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
+          "hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground",
         // Bordered like `secondary`, so a destructive action can sit in a row
         // beside one without the group looking like two different controls.
         // The tint is what distinguishes it, not the absence of an edge.
         destructive:
-          "border-destructive/30 bg-destructive/10 text-margin-red-ink hover:border-destructive/50 hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
+          "border-destructive/30 bg-destructive/10 text-margin-red-ink hover:border-destructive/50 hover:bg-destructive/20 active:border-destructive/50 active:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
         // Compact destructive icon action: keep the control visually quiet and
         // signal the destructive state through the icon colour on hover.
         "destructive-icon":
-          "bg-transparent text-ink-soft hover:bg-transparent hover:text-margin-red-ink focus-visible:ring-destructive/20",
+          "bg-transparent text-ink-soft hover:bg-transparent hover:text-margin-red-ink active:bg-transparent active:text-margin-red-ink focus-visible:ring-destructive/20",
         // Compact non-destructive icon action: keep the control visually quiet
         // and signal the action through the forest icon colour on hover.
-        "quiet-icon": "bg-transparent text-ink-soft hover:bg-transparent hover:text-forest",
+        "quiet-icon":
+          "bg-transparent text-ink-soft hover:bg-transparent hover:text-forest active:bg-transparent active:text-forest",
         // Overflow/menu trigger: retain the 44px touch target while its
         // hover, pressed, and open states reveal a faint circular wash.
         "menu-icon":
           "rounded-full bg-transparent text-ink-soft hover:bg-wash/70 hover:text-forest active:bg-wash/70 active:text-forest aria-expanded:bg-wash/70 aria-expanded:text-forest",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline active:underline",
       },
       size: {
         default:

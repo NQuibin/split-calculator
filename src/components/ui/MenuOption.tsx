@@ -24,7 +24,7 @@ export function MenuOption({ className, children, selected, action, ...props }: 
       type="button"
       aria-pressed={action ? undefined : selected}
       className={cn(
-        "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm text-ink transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest",
+        "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm text-ink transition hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest",
         className,
       )}
       {...props}

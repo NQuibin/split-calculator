@@ -104,6 +104,9 @@ Consequences that are binding:
   `--surface` row is 1.05:1 — a state change nobody can see. The shadcn
   `--accent` token points at `--wash`, so `hover:bg-accent` inside `ui/` and
   `hover:bg-wash` in app code are the same colour.
+- **Mirror interactive hover feedback with `active:` for touch presses.**
+  Match the hover treatment while a control is pressed; keep selected/open
+  states separate and persistent.
 - **`--wash` is deliberately warm.** Every resting ground here is sage, so a
   sage hover only reads as "slightly darker paper" and would need a big
   luminance step to register at all. Shifting *hue* instead lets a modest step

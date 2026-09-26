@@ -64,7 +64,7 @@ const directoryListClass = `${mobileRaisedSurfaceClass} divide-y divide-rule/70 
 // overlay and no actions track. If a row ever does gain actions, see
 // DESIGN.md § 5, "Interactive rows": a button cannot nest inside this link.
 const directoryRowClass =
-  "group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 px-5 py-6 transition-colors hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_auto] sm:px-6";
+  "group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 px-5 py-6 transition-colors hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_auto] sm:px-6";
 
 type TabRow = FunctionReturnType<typeof api.tabs.listWithSummary>[number];
 
@@ -326,7 +326,7 @@ function FriendRow({
                   to="/t/$slug"
                   params={{ slug: tab.slug }}
                   onClick={() => setOpen(false)}
-                  className="group flex min-h-11 items-center justify-between gap-3 px-4 py-3 text-sm text-ink transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
+                  className="group flex min-h-11 items-center justify-between gap-3 px-4 py-3 text-sm text-ink transition hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
                 >
                   <span className="min-w-0 break-words font-medium">{tab.name}</span>
                   <ChevronRight

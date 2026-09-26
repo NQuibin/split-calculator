@@ -102,7 +102,7 @@ export function RateInput({
               className={`inline-flex size-11 items-center justify-center transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${
                 rate.mode === "percent"
                   ? "bg-forest text-surface"
-                  : "text-ink-soft hover:text-forest"
+                  : "text-ink-soft hover:text-forest active:text-forest"
               }`}
             >
               <Percent className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -115,7 +115,7 @@ export function RateInput({
               className={`inline-flex size-11 items-center justify-center rounded-r-[calc(var(--radius-md)-1px)] transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest ${
                 rate.mode === "amount"
                   ? "bg-forest text-surface"
-                  : "text-ink-soft hover:text-forest"
+                  : "text-ink-soft hover:text-forest active:text-forest"
               }`}
             >
               <DollarSign className="h-3.5 w-3.5" strokeWidth={2.5} />

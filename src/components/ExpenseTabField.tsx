@@ -26,7 +26,7 @@ function TabLink({ slug, name }: { slug: string; name: string }) {
     <Link
       to="/t/$slug"
       params={{ slug }}
-      className="group inline-flex min-h-11 min-w-0 items-center break-words gap-1 text-forest hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+      className="group inline-flex min-h-11 min-w-0 items-center break-words gap-1 text-forest hover:underline active:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
     >
       {name}
       <ChevronRight

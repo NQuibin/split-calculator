@@ -200,7 +200,7 @@ export function SettlementSummary({
                           aria-haspopup="dialog"
                           aria-label={`View ${member.name}'s ${group.currency} expenses`}
                           onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                          className="flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
+                          className="flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash active:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
                         >
                           <span className="flex min-w-0 items-center gap-3">
                             <MemberAvatar id={member.memberId} name={member.name} size="md" />

@@ -27,6 +27,7 @@ test("renders viewer spent and balance labels through the shared row", () => {
   expect(markup).toContain("CA$20.00");
   expect(markup).toContain("CA$13.34");
   expect(markup).toContain("hover:bg-wash");
+  expect(markup).toContain("active:bg-wash");
   expect(markup).toContain("focus-visible:after:outline-forest");
   expect(markup).toContain('class="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1"');
   expect(markup).toContain('class="mt-2 block text-xs text-ink-soft">You get');
