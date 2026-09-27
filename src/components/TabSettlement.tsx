@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Check, ChevronRight, X } from "lucide-react";
+import { ChevronRight, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -37,7 +37,6 @@ export type SettlementSummaryData = {
       balance: number;
       /** Positive means this member owes the viewer; negative means the viewer owes them. */
       balanceWithViewer?: number;
-      hasSharedExpenseWithViewer?: boolean;
       includedIn?: number;
     }[];
   }[];
@@ -146,8 +145,7 @@ export function SettlementSummary({
           {data.currencies.map((group) => {
             const members = group.members.filter(
               (member) =>
-                member.memberId !== data.viewerMemberId &&
-                (member.hasSharedExpenseWithViewer !== false || memberDirectBalance(member) !== 0),
+                member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
             );
             const owedCents = members.reduce(
               (sum, member) => sum + Math.max(0, Math.round(memberDirectBalance(member) * 100)),
@@ -185,88 +183,57 @@ export function SettlementSummary({
                 <ul className="divide-y divide-rule border-y border-edge bg-field">
                   {members.length === 0 && (
                     <li className="bleed-px py-3 text-sm text-ink-soft">
-                      No shared expenses with other members.
+                      No outstanding balances.
                     </li>
                   )}
                   {members.map((member) => {
                     const balance = memberDirectBalance(member);
-                    const settled = balance === 0;
-                    const expenseCount = settled
-                      ? 0
-                      : relatedExpenseCount(
-                          expenses,
-                          expenseView,
-                          asOfDate,
-                          group.currency,
-                          data.viewerMemberId!,
-                          member.memberId,
-                        );
-                    const content = (
-                      <>
-                        <span className="flex min-w-0 items-center gap-3">
-                          <MemberAvatar id={member.memberId} name={member.name} size="md" />
-                          <span className="min-w-0 break-words">
-                            <span className="block text-ink">
-                              {balance > 0 ? (
-                                <>
-                                  <span className="font-medium">{member.name}</span> owes you{" "}
-                                </>
-                              ) : balance < 0 ? (
-                                <>
-                                  You owe <span className="font-medium">{member.name}</span>{" "}
-                                </>
-                              ) : (
-                                <>
-                                  Nothing owed between you and{" "}
-                                  <span className="font-medium">{member.name}</span>
-                                </>
-                              )}
-                              {!settled && (
+                    const expenseCount = relatedExpenseCount(
+                      expenses,
+                      expenseView,
+                      asOfDate,
+                      group.currency,
+                      data.viewerMemberId!,
+                      member.memberId,
+                    );
+                    return (
+                      <li key={member.memberId}>
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          aria-label={`View ${member.name}'s ${group.currency} expenses`}
+                          onClick={() => onMemberClick?.(member.memberId, group.currency)}
+                          className="group flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash active:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <MemberAvatar id={member.memberId} name={member.name} size="md" />
+                            <span className="min-w-0 break-words">
+                              <span className="block text-ink">
+                                {balance > 0 ? (
+                                  <>
+                                    <span className="font-medium">{member.name}</span> owes you{" "}
+                                  </>
+                                ) : balance < 0 ? (
+                                  <>
+                                    You owe <span className="font-medium">{member.name}</span>{" "}
+                                  </>
+                                ) : null}
                                 <span
                                   className={`font-numeric font-semibold ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
                                 >
                                   {currency(Math.abs(balance), group.currency)}
                                 </span>
-                              )}
-                            </span>
-                            {!settled && (
+                              </span>
                               <span className="mt-1 block text-xs text-ink-soft">
                                 {expenseCount} {expenseCount === 1 ? "expense" : "expenses"}
                               </span>
-                            )}
+                            </span>
                           </span>
-                        </span>
-                        {settled ? (
-                          <Check
-                            aria-label="Settled"
-                            className="-mr-1 h-5 w-5 shrink-0 self-center text-ledger-green"
-                            strokeWidth={2.25}
-                          />
-                        ) : (
                           <ChevronRight
                             aria-hidden="true"
                             className="-mr-1 h-5 w-5 shrink-0 self-center text-ink-soft chevron-x"
                           />
-                        )}
-                      </>
-                    );
-                    return (
-                      <li key={member.memberId}>
-                        {settled ? (
-                          <div className="flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left">
-                            {content}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            aria-haspopup="dialog"
-                            aria-label={`View ${member.name}'s ${group.currency} expenses`}
-                            onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                            className="group flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash active:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
-                          >
-                            {content}
-                          </button>
-                        )}
+                        </button>
                       </li>
                     );
                   })}

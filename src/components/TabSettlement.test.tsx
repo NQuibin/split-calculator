@@ -41,28 +41,24 @@ const data: SettlementSummaryData = {
           name: "P2",
           balance: -1674.33,
           balanceWithViewer: 1674.33,
-          hasSharedExpenseWithViewer: true,
         },
         {
           memberId: "alex",
           name: "Alex",
           balance: 0,
           balanceWithViewer: -842.55,
-          hasSharedExpenseWithViewer: true,
         },
         {
           memberId: "p3",
           name: "P3",
           balance: -9,
           balanceWithViewer: 0,
-          hasSharedExpenseWithViewer: true,
         },
         {
           memberId: "unrelated",
           name: "Payment only",
           balance: 2,
           balanceWithViewer: 2,
-          hasSharedExpenseWithViewer: false,
         },
       ],
     },
@@ -75,14 +71,12 @@ const data: SettlementSummaryData = {
           name: "Jamie",
           balance: 486.2,
           balanceWithViewer: 486.2,
-          hasSharedExpenseWithViewer: true,
         },
         {
           memberId: "sam",
           name: "Sam",
           balance: -125,
           balanceWithViewer: -125,
-          hasSharedExpenseWithViewer: true,
         },
       ],
     },
@@ -131,9 +125,8 @@ test("shows per-currency direct owed and owing totals with viewer-centric rows",
   expect(markup).toContain("You owe");
   expect(markup).toContain('class="font-medium">P2</span> owes you');
   expect(markup).toContain('You owe <span class="font-medium">Alex</span>');
-  expect(markup).toContain('Nothing owed between you and <span class="font-medium">P3</span>');
+  expect(markup).not.toContain("P3");
   expect(markup).not.toContain("1 expense");
-  expect(markup).toContain('aria-label="Settled"');
   expect(markup).toContain("chevron-x");
   expect(markup).toContain("-mr-1");
   expect(markup).toContain('class="font-medium">Payment only</span> owes you');
@@ -153,7 +146,7 @@ test("opens a member's detail from the whole balance row", () => {
   root.unmount();
 });
 
-test("renders a zero-balance member as a static settled row", () => {
+test("omits a zero-balance member row", () => {
   const settledData: SettlementSummaryData = {
     viewerMemberId: "viewer",
     missingPayers: [],
@@ -166,9 +159,8 @@ test("renders a zero-balance member as a static settled row", () => {
   };
   const markup = renderMarkup(createElement(SettlementSummary, { data: settledData }));
 
-  expect(markup).toContain("Nothing owed between you and");
-  expect(markup).toContain('aria-label="Settled"');
-  expect(markup).not.toContain("expense");
+  expect(markup).toContain("No outstanding balances.");
+  expect(markup).not.toContain("P3");
   expect(markup).not.toContain("<button");
   expect(markup).not.toContain("chevron-x");
 });
