@@ -295,6 +295,7 @@ export function TabSettlement({
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
 }) {
+  const { currency } = useLocaleFormatters();
   const [day, setDay] = useState(todayISODate);
   const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
@@ -332,6 +333,11 @@ export function TabSettlement({
   const data = "paid" in response ? response[expenseView] : response;
   const selectedBreakdown = selectedMember
     ? breakdown?.currencies
+        .find((group) => group.currency === selectedMember.currency)
+        ?.members.find((member) => member.memberId === selectedMember.memberId)
+    : undefined;
+  const selectedBalance = selectedMember
+    ? data.currencies
         .find((group) => group.currency === selectedMember.currency)
         ?.members.find((member) => member.memberId === selectedMember.memberId)
     : undefined;
@@ -393,14 +399,31 @@ export function TabSettlement({
                 Loading expenses…
               </p>
             ) : selectedBreakdown && selectedMember ? (
-              <TabMemberBreakdown
-                member={selectedBreakdown}
-                currencyCode={selectedMember.currency}
-                onExpenseClick={(expenseSlug) => {
-                  setMemberBreakdownOpen(false);
-                  setSelectedExpenseSlug(expenseSlug);
-                }}
-              />
+              <>
+                {selectedBalance && memberDirectBalance(selectedBalance) !== 0 && (
+                  <p className="pb-4 text-sm">
+                    <span className="text-ink-soft">
+                      {memberDirectBalance(selectedBalance) > 0 ? "You are owed" : "You owe"}
+                    </span>{" "}
+                    <span
+                      className={`font-numeric font-semibold ${memberDirectBalance(selectedBalance) > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
+                    >
+                      {currency(
+                        Math.abs(memberDirectBalance(selectedBalance)),
+                        selectedMember.currency,
+                      )}
+                    </span>
+                  </p>
+                )}
+                <TabMemberBreakdown
+                  member={selectedBreakdown}
+                  currencyCode={selectedMember.currency}
+                  onExpenseClick={(expenseSlug) => {
+                    setMemberBreakdownOpen(false);
+                    setSelectedExpenseSlug(expenseSlug);
+                  }}
+                />
+              </>
             ) : (
               <p className="text-sm text-ink-soft">No expenses available.</p>
             )}

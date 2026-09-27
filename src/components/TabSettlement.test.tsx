@@ -203,3 +203,52 @@ test("keeps the selected expense view and removes payment and breakdown controls
   expect(markup).not.toContain("View payments");
   expect(markup).not.toContain("Breakdown</a>");
 });
+
+test("shows the selected member balance above the modal expense list", () => {
+  const response = { paid: data, upcoming: data, all: data };
+  const breakdownResult = {
+    currencies: [
+      {
+        currency: "CAD",
+        expenseCount: 0,
+        convertedExpenseCount: 0,
+        members: [
+          {
+            memberId: "p2",
+            resolvedId: "p2",
+            name: "P2",
+            claimed: false,
+            totalSpent: 0,
+            expenseCount: 0,
+            expenses: [],
+          },
+        ],
+      },
+    ],
+    expenseCount: 0,
+    tab: { name: "Trip", slug: "trip" },
+  };
+  mocks.results = [response, breakdownResult, response, breakdownResult];
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(TabSettlement, {
+        slug: "trip",
+        members: [{ id: "viewer", name: "Nikki Q" }],
+        canManage: true,
+      }),
+    ),
+  );
+  flushSync(() =>
+    container
+      .querySelector<HTMLButtonElement>('button[aria-label="View P2\'s CAD expenses"]')
+      ?.click(),
+  );
+
+  expect(document.body.textContent).toContain("You are owed");
+  expect(document.body.textContent).toContain("CA$1,674.33");
+  root.unmount();
+  container.remove();
+});

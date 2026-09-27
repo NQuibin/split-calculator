@@ -1,6 +1,6 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseIcon } from "@/components/UpcomingExpenseIcon";
-import { Check, ChevronRight, CircleMinus } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { isUpcoming } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { viewerBalanceLabel } from "@/lib/settlements";
@@ -120,9 +120,8 @@ export function TabExpenseBalance({
               <span className="font-numeric font-semibold text-ink">{currency(spent, code)}</span>
             </span>
           )}
-          <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ink-soft">
-            <span className="text-xs">None</span>
-            <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+          <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
+            No balance
           </span>
         </span>
         <span className="block @min-[38rem]:hidden">
@@ -135,10 +134,9 @@ export function TabExpenseBalance({
             </>
           )}
           <span
-            className={`${hasSpent ? "mt-2 " : ""}inline-flex w-20 items-center justify-end gap-1.5 text-ink-soft`}
+            className={`${hasSpent ? "mt-2 " : ""}ml-auto block w-20 text-right text-xs text-ink-soft`}
           >
-            <span className="text-xs">None</span>
-            <CircleMinus aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+            No balance
           </span>
         </span>
       </>
@@ -146,11 +144,10 @@ export function TabExpenseBalance({
   }
   if (balance === 0)
     return projected ? (
-      <span className="text-sm text-ink">Not due</span>
+      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">Not due</span>
     ) : (
-      <span className="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ledger-green">
-        <span className="text-xs text-ink-soft">Settled</span>
-        <Check aria-hidden="true" className="h-5 w-5" strokeWidth={2.25} />
+      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
+        No balance
       </span>
     );
   const owes = balance < 0;

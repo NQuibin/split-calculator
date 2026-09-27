@@ -61,7 +61,7 @@ test("omits the balance column when no member context is supplied", () => {
   expect(header).not.toContain(">Balance<");
 });
 
-test("renders settled balance as a 20px check with its label underneath", () => {
+test("renders a zero balance without an icon", () => {
   const markup = renderMarkup(
     createElement(TabExpenseRow, {
       ...sharedRow,
@@ -69,15 +69,25 @@ test("renders settled balance as a 20px check with its label underneath", () => 
     }),
   );
 
-  expect(markup).toContain(
-    'class="inline-flex w-20 shrink-0 items-center justify-end gap-1.5 text-ledger-green"',
-  );
-  expect(markup).toContain('class="lucide lucide-check h-5 w-5"');
-  expect(markup).toContain('<span class="text-xs text-ink-soft">Settled</span>');
-  expect(markup).not.toContain("lucide-banknote-check");
+  expect(markup).toContain("No balance");
+  expect(markup).not.toContain("lucide-check");
 });
 
-test("renders None when the viewer did not participate in the expense", () => {
+test("styles an upcoming zero balance like No balance", () => {
+  const markup = renderMarkup(
+    createElement(TabExpenseRow, {
+      ...sharedRow,
+      upcoming: true,
+      memberContext: { balance: 0 },
+    }),
+  );
+
+  expect(markup).toContain(
+    '<span class="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">Not due</span>',
+  );
+});
+
+test("renders No balance when the viewer did not participate in the expense", () => {
   const markup = renderMarkup(
     createElement(TabExpenseRow, {
       ...sharedRow,
@@ -85,8 +95,7 @@ test("renders None when the viewer did not participate in the expense", () => {
     }),
   );
 
-  expect(markup).toContain('class="lucide lucide-circle-minus h-5 w-5"');
-  expect(markup).toContain("inline-flex w-20 items-center justify-end gap-1.5 text-ink-soft");
-  expect(markup).toContain('<span class="text-xs">None</span>');
+  expect(markup).toContain("No balance");
+  expect(markup).not.toContain("lucide-circle-minus");
   expect(markup).not.toContain("Not in split");
 });

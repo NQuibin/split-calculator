@@ -21,7 +21,7 @@ export function TabMemberBreakdown({
           No related expenses.
         </p>
       ) : (
-        <div className="overflow-hidden border-y border-edge bg-field @min-[38rem]:border-t-0">
+        <div className="overflow-hidden border-y border-edge bg-field">
           <ul className={`${modalListGrid} text-sm`}>
             <TabExpenseHeader showBalance />
             {expenses.map((line) => {
