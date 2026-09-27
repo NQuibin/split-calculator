@@ -278,11 +278,13 @@ body {
   transition: transform 150ms ease;
 }
 
-.group:hover .chevron-x {
+.group:hover .chevron-x,
+.group:active .chevron-x {
   transform: translateX(2px);
 }
 
-.group:hover .chevron-y {
+.group:hover .chevron-y,
+.group:active .chevron-y {
   transform: translateY(2px);
 }
 

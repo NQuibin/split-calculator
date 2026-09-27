@@ -107,6 +107,7 @@ test("breakdown lines expose viewer-relative balances only when the viewer is in
 
   await expense(owner, members, viewer.id, "USD", ["a", "b", "c"], 120, "viewer-paid");
   await expense(owner, members, paidByOther.id, "USD", ["a", "b", "c"], 120, "other-paid");
+  await expense(owner, members, members[2].id, "USD", ["a", "b", "c"], 120, "third-paid");
   await expense(owner, members, members[2].id, "USD", ["b", "c"], 120, "viewer-absent");
 
   const breakdown = (await owner.query(api.tabs.breakdown, { slug: "trip" }))!;
@@ -119,6 +120,12 @@ test("breakdown lines expose viewer-relative balances only when the viewer is in
   expect(
     membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "other-paid"),
   ).toMatchObject({ viewerBalance: -40, sharedWithViewer: true });
+  expect(
+    membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "third-paid"),
+  ).toMatchObject({ sharedWithViewer: false });
+  expect(
+    membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "third-paid"),
+  ).not.toHaveProperty("viewerBalance");
   expect(
     membersByName.get("Bea")?.expenses.find((line) => line.expenseSlug === "viewer-absent"),
   ).toMatchObject({ sharedWithViewer: false });

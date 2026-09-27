@@ -28,8 +28,13 @@ test("renders viewer spent and balance labels through the shared row", () => {
   expect(markup).toContain("CA$13.34");
   expect(markup).toContain("hover:bg-wash");
   expect(markup).toContain("active:bg-wash");
+  expect(markup).toContain("chevron-x");
+  expect(markup).toContain("-mr-1");
+  expect(markup).toContain("grid-cols-[4rem_minmax(0,1fr)_fit-content(9.5rem)]");
   expect(markup).toContain("focus-visible:after:outline-forest");
-  expect(markup).toContain('class="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1"');
+  expect(markup).toContain('class="flex min-w-0 flex-col items-start gap-y-0.5"');
+  expect(markup).toContain("col-start-1 col-span-2 row-start-1");
+  expect(markup).toContain("col-start-3 row-start-2");
   expect(markup).toContain('class="mt-2 block text-xs text-ink-soft">You get');
 });
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Check, X } from "lucide-react";
+import { Check, ChevronRight, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,7 @@ import { TabMemberBreakdown } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
 import { todayISODate } from "@/lib/format";
+import { computeSplit } from "@/lib/calculations";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTabBreakdown, type TabExpenseSummary } from "@/lib/tabSync";
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
@@ -60,9 +61,13 @@ function relatedExpenseCount(
     if (expense.settlementCurrency !== currency) return false;
     if (view === "paid" && expense.date > asOfDate) return false;
     if (view === "upcoming" && expense.date <= asOfDate) return false;
-    const participated = (id: string) =>
-      expense.payerId === id || expense.items.some((item) => item.splitWith.includes(id));
-    return participated(viewerMemberId) && participated(memberId);
+    const shares = computeSplit(expense.people, expense.items, expense.globalAdjustments).people;
+    const hasShare = (id: string) =>
+      Math.round((shares.find((person) => person.personId === id)?.total ?? 0) * 100) !== 0;
+    return (
+      (expense.payerId === viewerMemberId && hasShare(memberId)) ||
+      (expense.payerId === memberId && hasShare(viewerMemberId))
+    );
   }).length;
 }
 
@@ -185,55 +190,83 @@ export function SettlementSummary({
                   )}
                   {members.map((member) => {
                     const balance = memberDirectBalance(member);
-                    const expenseCount = relatedExpenseCount(
-                      expenses,
-                      expenseView,
-                      asOfDate,
-                      group.currency,
-                      data.viewerMemberId!,
-                      member.memberId,
-                    );
-                    return (
-                      <li key={member.memberId}>
-                        <button
-                          type="button"
-                          aria-haspopup="dialog"
-                          aria-label={`View ${member.name}'s ${group.currency} expenses`}
-                          onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                          className="flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash active:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
-                        >
-                          <span className="flex min-w-0 items-center gap-3">
-                            <MemberAvatar id={member.memberId} name={member.name} size="md" />
-                            <span className="min-w-0 break-words">
-                              <span className="block font-medium text-ink">
-                                {balance > 0 ? (
-                                  <>{member.name} owes you </>
-                                ) : balance < 0 ? (
-                                  <>You owe {member.name} </>
-                                ) : (
-                                  <>Settled with {member.name}</>
-                                )}
-                                {balance !== 0 && (
-                                  <span
-                                    className={`font-numeric ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
-                                  >
-                                    {currency(Math.abs(balance), group.currency)}
-                                  </span>
-                                )}
-                                {balance === 0 && (
-                                  <Check
-                                    aria-label="Settled"
-                                    className="ml-1 inline h-5 w-5 text-ledger-green"
-                                    strokeWidth={2.25}
-                                  />
-                                )}
-                              </span>
+                    const settled = balance === 0;
+                    const expenseCount = settled
+                      ? 0
+                      : relatedExpenseCount(
+                          expenses,
+                          expenseView,
+                          asOfDate,
+                          group.currency,
+                          data.viewerMemberId!,
+                          member.memberId,
+                        );
+                    const content = (
+                      <>
+                        <span className="flex min-w-0 items-center gap-3">
+                          <MemberAvatar id={member.memberId} name={member.name} size="md" />
+                          <span className="min-w-0 break-words">
+                            <span className="block text-ink">
+                              {balance > 0 ? (
+                                <>
+                                  <span className="font-medium">{member.name}</span> owes you{" "}
+                                </>
+                              ) : balance < 0 ? (
+                                <>
+                                  You owe <span className="font-medium">{member.name}</span>{" "}
+                                </>
+                              ) : (
+                                <>
+                                  Nothing owed between you and{" "}
+                                  <span className="font-medium">{member.name}</span>
+                                </>
+                              )}
+                              {!settled && (
+                                <span
+                                  className={`font-numeric font-semibold ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
+                                >
+                                  {currency(Math.abs(balance), group.currency)}
+                                </span>
+                              )}
+                            </span>
+                            {!settled && (
                               <span className="mt-1 block text-xs text-ink-soft">
                                 {expenseCount} {expenseCount === 1 ? "expense" : "expenses"}
                               </span>
-                            </span>
+                            )}
                           </span>
-                        </button>
+                        </span>
+                        {settled ? (
+                          <Check
+                            aria-label="Settled"
+                            className="-mr-1 h-5 w-5 shrink-0 self-center text-ledger-green"
+                            strokeWidth={2.25}
+                          />
+                        ) : (
+                          <ChevronRight
+                            aria-hidden="true"
+                            className="-mr-1 h-5 w-5 shrink-0 self-center text-ink-soft chevron-x"
+                          />
+                        )}
+                      </>
+                    );
+                    return (
+                      <li key={member.memberId}>
+                        {settled ? (
+                          <div className="flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left">
+                            {content}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-haspopup="dialog"
+                            aria-label={`View ${member.name}'s ${group.currency} expenses`}
+                            onClick={() => onMemberClick?.(member.memberId, group.currency)}
+                            className="group flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash active:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
+                          >
+                            {content}
+                          </button>
+                        )}
                       </li>
                     );
                   })}

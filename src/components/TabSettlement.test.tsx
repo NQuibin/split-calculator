@@ -4,6 +4,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { renderMarkup } from "@/test/render";
+import type { TabExpenseSummary } from "@/lib/tabSync";
 
 const mocks = vi.hoisted(() => ({ results: [] as unknown[], query: vi.fn() }));
 vi.mock("convex/react", () => ({
@@ -88,16 +89,54 @@ const data: SettlementSummaryData = {
   ],
 };
 
+const zero = { mode: "percent" as const, value: 0 };
+const thirdPartyExpense: TabExpenseSummary = {
+  mode: "simple",
+  date: "2026-09-08",
+  createdBy: { id: "third", name: "Third payer" },
+  slug: "third-party",
+  name: "Third-party expense",
+  payerId: "third",
+  people: [
+    { id: "viewer", name: "Nikki Q" },
+    { id: "p3", name: "P3" },
+    { id: "third", name: "Third payer" },
+  ],
+  items: [
+    {
+      id: "total",
+      name: "Total",
+      cost: 30,
+      discount: zero,
+      tax: zero,
+      tip: zero,
+      splitWith: ["viewer", "p3", "third"],
+    },
+  ],
+  currency: "CAD",
+  settlementCurrency: "CAD",
+  createdAt: 0,
+};
+
 test("shows per-currency direct owed and owing totals with viewer-centric rows", () => {
-  const markup = renderMarkup(createElement(SettlementSummary, { data, viewerName: "Nikki Q" }));
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data,
+      viewerName: "Nikki Q",
+      expenses: [thirdPartyExpense],
+    }),
+  );
   expect(markup).toContain("Nikki Q");
   expect(markup).toContain("You are owed");
   expect(markup).toContain("You owe");
-  expect(markup).toContain("P2 owes you");
-  expect(markup).toContain("You owe Alex");
-  expect(markup).toContain("Settled with P3");
+  expect(markup).toContain('class="font-medium">P2</span> owes you');
+  expect(markup).toContain('You owe <span class="font-medium">Alex</span>');
+  expect(markup).toContain('Nothing owed between you and <span class="font-medium">P3</span>');
+  expect(markup).not.toContain("1 expense");
   expect(markup).toContain('aria-label="Settled"');
-  expect(markup).toContain("Payment only owes you");
+  expect(markup).toContain("chevron-x");
+  expect(markup).toContain("-mr-1");
+  expect(markup).toContain('class="font-medium">Payment only</span> owes you');
   expect(markup).toContain('aria-label="CAD balances"');
   expect(markup).toContain('aria-label="USD balances"');
 });
@@ -112,6 +151,26 @@ test("opens a member's detail from the whole balance row", () => {
     ?.click();
   expect(onMemberClick).toHaveBeenCalledWith("p2", "CAD");
   root.unmount();
+});
+
+test("renders a zero-balance member as a static settled row", () => {
+  const settledData: SettlementSummaryData = {
+    viewerMemberId: "viewer",
+    missingPayers: [],
+    currencies: [
+      {
+        currency: "CAD",
+        members: [data.currencies[0].members[0], data.currencies[0].members[3]],
+      },
+    ],
+  };
+  const markup = renderMarkup(createElement(SettlementSummary, { data: settledData }));
+
+  expect(markup).toContain("Nothing owed between you and");
+  expect(markup).toContain('aria-label="Settled"');
+  expect(markup).not.toContain("expense");
+  expect(markup).not.toContain("<button");
+  expect(markup).not.toContain("chevron-x");
 });
 
 test("lets tab members open expenses that need a payer", () => {

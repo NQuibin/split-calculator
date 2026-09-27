@@ -1,6 +1,6 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseIcon } from "@/components/UpcomingExpenseIcon";
-import { Check, CircleMinus } from "lucide-react";
+import { Check, ChevronRight, CircleMinus } from "lucide-react";
 import { isUpcoming } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { viewerBalanceLabel } from "@/lib/settlements";
@@ -187,7 +187,6 @@ export function TabExpenseBalance({
         <span
           className={`block font-numeric text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
         >
-          {owes ? "\u2212" : "+"}
           {currency(Math.abs(balance), code)}
         </span>
       </span>
@@ -225,11 +224,11 @@ export function TabExpenseRow({
   const spentLabel =
     memberContext?.spentLabel ?? (memberName ? `${memberName} spent` : "You spent");
   const titleClassName =
-    "col-start-2 row-start-1 min-w-0 self-center break-words text-left font-semibold @min-[38rem]:col-start-2 @min-[38rem]:self-auto";
+    "col-start-1 col-span-2 row-start-1 min-w-0 self-center break-words text-left font-semibold @min-[38rem]:col-start-2 @min-[38rem]:col-span-1 @min-[38rem]:self-auto";
 
   return (
     <li
-      className={`${row} relative py-4 transition-colors hover:bg-wash active:bg-wash has-[button:focus-visible]:bg-wash`}
+      className={`${row} group relative py-4 transition-colors hover:bg-wash active:bg-wash has-[button:focus-visible]:bg-wash`}
     >
       {onExpenseClick ? (
         <button
@@ -247,9 +246,9 @@ export function TabExpenseRow({
       <span className="hidden min-w-0 @min-[38rem]:col-start-3 @min-[38rem]:block">
         <TabExpensePayer payer={payer} upcoming={upcoming} />
       </span>
-      <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-x-2 @min-[38rem]:hidden">
+      <span className="col-start-2 row-start-2 flex min-w-0 self-center items-center gap-x-2 @min-[38rem]:hidden">
         {payer && <MemberAvatar id={payer.id} name={payer.name} size="md" />}
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
+        <span className="flex min-w-0 flex-col items-start gap-y-0.5">
           {payer ? (
             <span className="break-words text-sm text-ink">
               {payer.name} <span className="text-xs text-ink-soft">paid</span>
@@ -265,11 +264,11 @@ export function TabExpenseRow({
       <span className="hidden min-w-0 self-start text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto @min-[38rem]:block @min-[38rem]:self-auto">
         <TabExpenseAmount total={total} code={code} upcoming={upcoming} />
       </span>
-      <span className="col-start-1 row-start-1 row-span-2 self-center text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:row-span-1 @min-[38rem]:text-sm">
+      <span className="col-start-1 row-start-2 self-center text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:text-sm">
         <TabExpenseDate date={date} />
       </span>
       {memberContext && (
-        <span className="col-start-3 row-start-1 row-span-2 min-w-0 self-center text-right @min-[38rem]:col-start-5 @min-[38rem]:row-auto @min-[38rem]:row-span-1">
+        <span className="col-start-3 row-start-2 min-w-0 self-center text-right @min-[38rem]:col-start-5 @min-[38rem]:row-auto">
           <TabExpenseBalance
             balance={memberContext.balance}
             code={code}
@@ -281,6 +280,10 @@ export function TabExpenseRow({
           />
         </span>
       )}
+      <ChevronRight
+        aria-hidden="true"
+        className={`-mr-1 col-start-3 row-start-1 h-5 w-5 shrink-0 self-center justify-self-end text-ink-soft chevron-x ${memberContext ? "@min-[38rem]:col-start-6" : "@min-[38rem]:col-start-5"}`}
+      />
     </li>
   );
 }

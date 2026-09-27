@@ -831,7 +831,7 @@ async function computeCurrencyBreakdown(
         date: expense.date,
         fairShare: round2(row.fairShare),
         balance,
-        sharedWithViewer: viewerParticipates,
+        sharedWithViewer: typeof viewerBalance === "number" && viewerBalance !== 0,
         ...(viewerBalance !== undefined ? { viewerBalance } : {}),
         payerId: expense.payerId,
         payerName:
@@ -854,7 +854,7 @@ async function computeCurrencyBreakdown(
         fairShare: 0,
         balance: convertedTotal,
         viewerBalance: -viewerShare.fairShare,
-        sharedWithViewer: true,
+        sharedWithViewer: viewerShare.fairShare !== 0,
         payerId: expense.payerId,
         payerName: payer.name,
         total: convertedTotal,
