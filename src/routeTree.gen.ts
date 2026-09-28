@@ -17,6 +17,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TabsRouteImport } from './routes/tabs'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as TSlugIndexRouteImport } from './routes/t.$slug.index'
+import { Route as TSlugPaymentRouteImport } from './routes/t.$slug.payment'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const TSlugIndexRoute = TSlugIndexRouteImport.update({
   path: '/t/$slug/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TSlugPaymentRoute = TSlugPaymentRouteImport.update({
+  id: '/t/$slug/payment',
+  path: '/t/$slug/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/t/$slug/payment': typeof TSlugPaymentRoute
   '/t/$slug/': typeof TSlugIndexRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/t/$slug/payment': typeof TSlugPaymentRoute
   '/t/$slug': typeof TSlugIndexRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/t/$slug/payment': typeof TSlugPaymentRoute
   '/t/$slug/': typeof TSlugIndexRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/t/$slug/payment'
     | '/t/$slug/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/t/$slug/payment'
     | '/t/$slug'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/t/$slug/payment'
     | '/t/$slug/'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TabsRoute: typeof TabsRoute
   ESlugRoute: typeof ESlugRoute
+  TSlugPaymentRoute: typeof TSlugPaymentRoute
   TSlugIndexRoute: typeof TSlugIndexRoute
 }
 
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/t/$slug/payment': {
+      id: '/t/$slug/payment'
+      path: '/t/$slug/payment'
+      fullPath: '/t/$slug/payment'
+      preLoaderRoute: typeof TSlugPaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TabsRoute: TabsRoute,
   ESlugRoute: ESlugRoute,
+  TSlugPaymentRoute: TSlugPaymentRoute,
   TSlugIndexRoute: TSlugIndexRoute,
 }
 export const routeTree = rootRouteImport

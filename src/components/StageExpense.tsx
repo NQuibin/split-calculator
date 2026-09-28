@@ -50,6 +50,7 @@ import type {
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
+import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { TipRateInput } from "@/components/ui/TipRateInput";
 
 const zeroAdjustments: ExpenseAdjustments = {
@@ -486,15 +487,14 @@ export function StageExpense({
           </Label>
         </div>
         <div className="mt-3">
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 py-3 text-sm text-ink">
-            <input
-              type="checkbox"
-              checked={adjustmentsOpen}
-              onChange={(event) => setAdjustmentsOpen(event.target.checked)}
-              className="h-5 w-5 shrink-0 accent-forest"
-            />
+          <CheckboxRow
+            selected={adjustmentsOpen}
+            onCheckedChange={setAdjustmentsOpen}
+            ground="plain"
+            className="py-3"
+          >
             Use individual discount, tax &amp; tip
-          </label>
+          </CheckboxRow>
           <p className="mb-3 text-xs text-ink-soft">Override global adjustments for this item.</p>
           {adjustmentsOpen && (
             <>

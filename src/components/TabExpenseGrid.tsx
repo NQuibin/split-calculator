@@ -10,9 +10,8 @@ export type TabExpensePayer = { id: string; name: string } | undefined;
 
 export type TabExpenseMemberContext = {
   balance: number | null | undefined;
+  settled?: boolean;
   memberName?: string;
-  spent?: number;
-  spentLabel?: string;
   viewerPerspective?: boolean;
 };
 
@@ -93,57 +92,31 @@ export function TabExpenseBalance({
   balance,
   code,
   projected,
+  settled = false,
   memberName,
-  spent,
-  spentLabel = "You spent",
   viewerPerspective = false,
 }: {
   balance: number | null | undefined;
   code: string;
   projected: boolean;
+  settled?: boolean;
   memberName?: string;
-  spent?: number;
-  spentLabel?: string;
   viewerPerspective?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
-  const hasSpent = typeof spent === "number";
   if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
   if (balance === undefined) {
     if (!viewerPerspective) return <span className="text-xs text-ink-soft">Not in split</span>;
     return (
-      <>
-        <span className="hidden @min-[38rem]:block">
-          {hasSpent && (
-            <span className="mb-2 block text-sm text-ink-soft">
-              {spentLabel}{" "}
-              <span className="font-numeric font-semibold text-ink">{currency(spent, code)}</span>
-            </span>
-          )}
-          <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
-            No balance
-          </span>
-        </span>
-        <span className="block @min-[38rem]:hidden">
-          {hasSpent && (
-            <>
-              <span className="block text-xs text-ink-soft">{spentLabel}</span>
-              <span className="block font-numeric text-sm font-semibold text-ink">
-                {currency(spent, code)}
-              </span>
-            </>
-          )}
-          <span
-            className={`${hasSpent ? "mt-2 " : ""}ml-auto block w-20 text-right text-xs text-ink-soft`}
-          >
-            No balance
-          </span>
-        </span>
-      </>
+      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
+        No balance
+      </span>
     );
   }
   if (balance === 0)
-    return projected ? (
+    return settled ? (
+      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink">Settled</span>
+    ) : projected ? (
       <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">Not due</span>
     ) : (
       <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
@@ -157,12 +130,6 @@ export function TabExpenseBalance({
   return (
     <>
       <span className="hidden @min-[38rem]:block">
-        {hasSpent && (
-          <span className="block text-sm text-ink-soft">
-            {spentLabel}{" "}
-            <span className="font-numeric font-semibold text-ink">{currency(spent, code)}</span>
-          </span>
-        )}
         <span
           className={`block text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
         >
@@ -170,17 +137,7 @@ export function TabExpenseBalance({
         </span>
       </span>
       <span className="block @min-[38rem]:hidden">
-        {hasSpent && (
-          <>
-            <span className="block text-xs text-ink-soft">{spentLabel}</span>
-            <span className="block font-numeric text-sm font-semibold text-ink">
-              {currency(spent, code)}
-            </span>
-          </>
-        )}
-        <span className={`${hasSpent ? "mt-2 " : ""}block text-xs text-ink-soft`}>
-          {balanceLabel}
-        </span>
+        <span className="block text-xs text-ink-soft">{balanceLabel}</span>
         <span
           className={`block font-numeric text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
         >
@@ -218,8 +175,6 @@ export function TabExpenseRow({
   const { row } = expenseListGridClass(memberContext !== undefined);
   const title = <span className="block text-sm">{name}</span>;
   const memberName = memberContext?.memberName;
-  const spentLabel =
-    memberContext?.spentLabel ?? (memberName ? `${memberName} spent` : "You spent");
   const titleClassName =
     "col-start-1 col-span-2 row-start-1 min-w-0 self-center break-words text-left font-semibold @min-[38rem]:col-start-2 @min-[38rem]:col-span-1 @min-[38rem]:self-auto";
 
@@ -270,9 +225,8 @@ export function TabExpenseRow({
             balance={memberContext.balance}
             code={code}
             projected={upcoming}
+            settled={memberContext.settled}
             memberName={memberName}
-            spent={memberContext.spent}
-            spentLabel={spentLabel}
             viewerPerspective={memberContext.viewerPerspective}
           />
         </span>

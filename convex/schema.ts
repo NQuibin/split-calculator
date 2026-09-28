@@ -138,4 +138,12 @@ export default defineSchema({
     .index("by_tabId", ["tabId"])
     .index("by_tabId_and_fromMemberId", ["tabId", "fromMemberId"])
     .index("by_tabId_and_toMemberId", ["tabId", "toMemberId"]),
+  settlementAllocations: defineTable({
+    tabId: v.id("tabs"),
+    settlementId: v.id("settlements"),
+    expenseId: v.id("expenses"),
+    amountCents: v.number(),
+  })
+    .index("by_tabId", ["tabId"])
+    .index("by_settlementId", ["settlementId"]),
 });

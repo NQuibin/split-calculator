@@ -6,7 +6,10 @@ import { afterEach, expect, test, vi } from "vitest";
 import { renderMarkup } from "@/test/render";
 import type { TabExpenseSummary } from "@/lib/tabSync";
 
-const mocks = vi.hoisted(() => ({ results: [] as unknown[], query: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  results: [] as unknown[],
+  query: vi.fn(),
+}));
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => {
     mocks.query(...args);
@@ -16,8 +19,27 @@ vi.mock("convex/react", () => ({
 vi.mock("@tanstack/react-router", async () => {
   const React = await import("react");
   return {
-    Link: ({ children, params }: { children: React.ReactNode; params: { slug: string } }) =>
-      React.createElement("a", { href: `/e/${params.slug}` }, children),
+    Link: ({
+      children,
+      params,
+      to,
+      search,
+    }: {
+      children: React.ReactNode;
+      params: { slug: string };
+      to: string;
+      search?: { view?: string };
+    }) =>
+      React.createElement(
+        "a",
+        {
+          href:
+            to === "/e/$slug"
+              ? `/e/${params.slug}`
+              : `/t/${params.slug}/payment${search?.view ? `?view=${search.view}` : ""}`,
+        },
+        children,
+      ),
   };
 });
 
@@ -26,57 +48,80 @@ import { SettlementSummary, TabSettlement, type SettlementSummaryData } from "./
 afterEach(() => {
   mocks.results = [];
   mocks.query.mockClear();
+  document.body.replaceChildren();
 });
 
 const data: SettlementSummaryData = {
   viewerMemberId: "viewer",
   missingPayers: [],
+  history: [],
   currencies: [
     {
       currency: "CAD",
       members: [
-        { memberId: "viewer", name: "Nikki Q", balance: 840.11 },
+        { memberId: "viewer", name: "Nikki Q", balance: 840.11, expenses: [] },
         {
           memberId: "p2",
           name: "P2",
           balance: -1674.33,
           balanceWithViewer: 1674.33,
+          expenses: [
+            {
+              expenseId: "e1",
+              expenseSlug: "first",
+              name: "First expense",
+              date: "2026-09-01",
+              outstanding: 30,
+            },
+            {
+              expenseId: "e2",
+              expenseSlug: "second",
+              name: "Second expense",
+              date: "2026-09-02",
+              outstanding: 30,
+            },
+          ],
         },
         {
           memberId: "alex",
           name: "Alex",
           balance: 0,
           balanceWithViewer: -842.55,
+          expenses: [],
         },
         {
           memberId: "p3",
           name: "P3",
           balance: -9,
           balanceWithViewer: 0,
+          expenses: [],
         },
         {
           memberId: "unrelated",
           name: "Payment only",
           balance: 2,
           balanceWithViewer: 2,
+          expenses: [],
         },
       ],
     },
     {
       currency: "USD",
       members: [
-        { memberId: "viewer", name: "Nikki Q", balance: 361.2 },
+        { memberId: "viewer", name: "Nikki Q", balance: 361.2, expenses: [] },
         {
           memberId: "jamie",
           name: "Jamie",
           balance: 486.2,
           balanceWithViewer: 486.2,
+          expenses: [],
         },
         {
           memberId: "sam",
           name: "Sam",
           balance: -125,
           balanceWithViewer: -125,
+          expenses: [],
         },
       ],
     },
@@ -150,6 +195,7 @@ test("omits a zero-balance member row", () => {
   const settledData: SettlementSummaryData = {
     viewerMemberId: "viewer",
     missingPayers: [],
+    history: [],
     currencies: [
       {
         currency: "CAD",
@@ -161,8 +207,60 @@ test("omits a zero-balance member row", () => {
 
   expect(markup).toContain("No outstanding balances.");
   expect(markup).not.toContain("P3");
-  expect(markup).not.toContain("<button");
+  expect(markup).not.toContain('aria-label="View');
   expect(markup).not.toContain("chevron-x");
+});
+
+test("hides zero-value owed and owe summaries", () => {
+  const oneDirection: SettlementSummaryData = {
+    viewerMemberId: "viewer",
+    missingPayers: [],
+    history: [],
+    currencies: [
+      {
+        currency: "CAD",
+        members: [
+          { memberId: "viewer", name: "Nikki Q", balance: 30, expenses: [] },
+          {
+            memberId: "p2",
+            name: "P2",
+            balance: -30,
+            balanceWithViewer: 30,
+            expenses: [],
+          },
+        ],
+      },
+    ],
+  };
+
+  const owed = renderMarkup(createElement(SettlementSummary, { data: oneDirection }));
+  const owing = renderMarkup(
+    createElement(SettlementSummary, {
+      data: {
+        ...oneDirection,
+        currencies: [
+          {
+            currency: "CAD",
+            members: [
+              { memberId: "viewer", name: "Nikki Q", balance: -30, expenses: [] },
+              {
+                memberId: "p2",
+                name: "P2",
+                balance: 30,
+                balanceWithViewer: -30,
+                expenses: [],
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+
+  expect(owed).toContain("You are owed");
+  expect(owed).not.toContain("You owe</span>");
+  expect(owing).toContain("You owe</span>");
+  expect(owing).not.toContain("You are owed");
 });
 
 test("lets tab members open expenses that need a payer", () => {
@@ -243,4 +341,85 @@ test("shows the selected member balance above the modal expense list", () => {
   expect(document.body.textContent).toContain("CA$1,674.33");
   root.unmount();
   container.remove();
+});
+
+test("links to record payment beside payment history and keeps the active view", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data,
+      slug: "trip",
+      expenseView: "all",
+      canRecordPayment: true,
+    }),
+  );
+  expect(markup).toContain('href="/t/trip/payment?view=all"');
+  expect(markup).toContain("Payment history");
+});
+
+test("hides record payment in the upcoming view", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data,
+      slug: "trip",
+      expenseView: "upcoming",
+      canRecordPayment: true,
+    }),
+  );
+  expect(markup).not.toContain("Record payment");
+  expect(markup).toContain("Payment history");
+});
+
+test("keeps payment history in its modal", () => {
+  const historyData: SettlementSummaryData = {
+    ...data,
+    history: [
+      {
+        id: "payment-1",
+        fromMemberId: "p2",
+        toMemberId: "viewer",
+        amount: 30,
+        currency: "CAD",
+        date: "2026-09-04",
+        reversed: false,
+        view: "paid",
+      },
+      {
+        id: "payment-2",
+        fromMemberId: "viewer",
+        toMemberId: "p2",
+        amount: 10,
+        currency: "CAD",
+        date: "2026-09-05",
+        reversed: true,
+        view: "upcoming",
+      },
+    ],
+  };
+  const response = { paid: historyData, upcoming: historyData, all: historyData };
+  const breakdownResult = { currencies: [], expenseCount: 0, tab: { name: "Trip", slug: "trip" } };
+  mocks.results = Array.from({ length: 5 }, () => [response, breakdownResult]).flat();
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(TabSettlement, {
+        slug: "trip",
+        members: [
+          { id: "viewer", name: "Nikki Q" },
+          { id: "p2", name: "P2" },
+        ],
+        canManage: true,
+      }),
+    ),
+  );
+  const historyButton = [...container.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Payment history"),
+  );
+  flushSync(() => historyButton?.click());
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog?.textContent).toContain("P2 paid Nikki Q");
+  expect(dialog?.textContent).toContain("Nikki Q paid P2");
+  expect(dialog?.textContent).toContain("CA$30.00");
+  expect(dialog?.textContent).toContain("Upcoming expenses · Reversed");
+  root.unmount();
 });

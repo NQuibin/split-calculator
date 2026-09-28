@@ -21,6 +21,7 @@ export function ExpenseDetailsDialog({
   defaultCurrency,
   canManage,
   members,
+  paymentStatuses = [],
   onDelete,
 }: {
   open: boolean;
@@ -30,6 +31,7 @@ export function ExpenseDetailsDialog({
   defaultCurrency: string;
   canManage: boolean;
   members: Member[];
+  paymentStatuses?: { memberId: string; share: number; paid: number; currency: string }[];
   onDelete?: (slug: string) => void;
 }) {
   const { currency, formatExpenseDate } = useLocaleFormatters();
@@ -37,6 +39,7 @@ export function ExpenseDetailsDialog({
     ? computeSplit(expense.people, expense.items, expense.globalAdjustments)
     : null;
   const sharedPeople = split?.people.filter((person) => Math.round(person.total * 100) !== 0) ?? [];
+  const statusByMember = new Map(paymentStatuses.map((status) => [status.memberId, status]));
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
   return (
@@ -100,15 +103,32 @@ export function ExpenseDetailsDialog({
                 </span>
               </div>
               <ul className="mt-5">
-                {sharedPeople.map((person) => (
-                  <li key={person.personId} className="flex min-h-11 items-center gap-3 text-sm">
-                    <MemberAvatar id={person.personId} name={person.name} size="md" />
-                    <span className="min-w-0 flex-1 break-words font-medium">{person.name}</span>
-                    <span className="shrink-0 font-numeric font-semibold">
-                      {currency(person.total, expense.currency)}
-                    </span>
-                  </li>
-                ))}
+                {sharedPeople.map((person) => {
+                  const status = statusByMember.get(person.personId);
+                  return (
+                    <li key={person.personId} className="flex min-h-11 items-center gap-3 text-sm">
+                      <MemberAvatar id={person.personId} name={person.name} size="md" />
+                      <span className="min-w-0 flex-1 break-words">
+                        <span className="block font-medium">{person.name}</span>
+                        {person.personId === expense.payerId && (
+                          <span className="block text-xs text-ink-soft">Payer</span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-numeric font-semibold">
+                          {currency(person.total, expense.currency)}
+                        </span>
+                        {person.personId !== expense.payerId && status ? (
+                          <span className="block text-xs text-ink-soft">
+                            {status.paid >= status.share
+                              ? "Settled"
+                              : `Partial (${currency(status.paid, status.currency)} paid)`}
+                          </span>
+                        ) : null}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
             {expense.note && (

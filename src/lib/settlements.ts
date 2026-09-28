@@ -15,6 +15,38 @@ export function viewerBalanceLabel(balance: number) {
   return balance < 0 ? "You owe" : "You get";
 }
 
+/** Apply the ledger's remaining allocations to one viewer-relative expense balance. */
+export function viewerExpenseBalanceAfterPayments(
+  balance: number | null | undefined,
+  expenseSlug: string,
+  payerId: string | undefined,
+  viewerMemberId: string | undefined,
+  members: {
+    memberId: string;
+    expenses: { expenseSlug: string; outstanding: number }[];
+  }[],
+) {
+  if (typeof balance !== "number" || !payerId || !viewerMemberId || balance === 0)
+    return { balance, settled: false };
+
+  const debts = members.flatMap((member) =>
+    member.expenses
+      .filter((expense) => expense.expenseSlug === expenseSlug)
+      .map((expense) => ({ memberId: member.memberId, outstanding: expense.outstanding })),
+  );
+  const outstanding =
+    balance < 0
+      ? (debts.find((debt) => debt.memberId === payerId)?.outstanding ?? 0)
+      : debts
+          .filter((debt) => debt.memberId !== viewerMemberId)
+          .reduce((sum, debt) => sum + Math.round(debt.outstanding * 100), 0) / 100;
+  const remaining = Math.min(Math.abs(balance), Math.round(outstanding * 100) / 100);
+  return {
+    balance: remaining === 0 ? 0 : Math.sign(balance) * remaining,
+    settled: remaining === 0,
+  };
+}
+
 /** Compute paid, owed, and net balance for one expense. A missing/invalid payer is intentionally unusable. */
 export function computeExpenseBalances(
   people: Person[],

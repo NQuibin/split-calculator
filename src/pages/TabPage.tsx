@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
-import { isUpcoming } from "@/lib/format";
+import { isUpcoming, todayISODate } from "@/lib/format";
 import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
@@ -35,7 +35,10 @@ import { TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
-import { computeExpenseBalances } from "@/lib/settlements";
+import { computeExpenseBalances, viewerExpenseBalanceAfterPayments } from "@/lib/settlements";
+import type { FunctionReturnType } from "convex/server";
+
+type SettlementResponse = NonNullable<FunctionReturnType<typeof api.settlements.get>>;
 
 const route = getRouteApi("/t/$slug/");
 
@@ -140,6 +143,7 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
 function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   const tab = useTab(slug);
   const expenses = useQuery(api.tabs.expensesForTab, { slug });
+  const settlement = useQuery(api.settlements.get, { slug, asOfDate: todayISODate() });
   const [expenseView, setExpenseView] = useState<ExpenseView>("paid");
   const hasUpcoming = expenses?.some((expense) => isUpcoming(expense.date)) ?? false;
   if (!hasUpcoming && expenseView !== "paid") setExpenseView("paid");
@@ -177,6 +181,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         canManage
         members={tab.members}
         expenses={expenses}
+        settlement={settlement}
       />
     </div>
   );
@@ -830,6 +835,7 @@ function ExpenseList({
   members,
   expenses,
   expenseView,
+  settlement,
 }: {
   expenseView: ExpenseView;
   defaultCurrency: string;
@@ -837,6 +843,7 @@ function ExpenseList({
   canManage: boolean;
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
+  settlement: SettlementResponse | null | undefined;
 }) {
   const { remove } = useExpenseActions();
   const viewer = useQuery(api.users.viewer);
@@ -854,6 +861,14 @@ function ExpenseList({
     (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()),
   );
   const selected = expenses.find((e) => e.slug === selectedSlug);
+  const selectedPaymentStatuses =
+    selected && settlement && "paid" in settlement
+      ? settlement[activeView].currencies.flatMap((group) =>
+          group.expensePayments
+            .filter((status) => status.expenseSlug === selected.slug)
+            .map((status) => ({ ...status, currency: group.currency })),
+        )
+      : [];
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
   // An expense records a seat id, but a claimed member can be keyed by either
@@ -898,17 +913,24 @@ function ExpenseList({
                 : viewerParticipates
                   ? balances.find((row) => viewerIds.has(row.memberId))?.balance
                   : undefined;
-              const viewerSpent = rowSplit.people.find((row) => viewerIds.has(row.personId))?.total;
+              const convertedViewerBalance =
+                typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance;
+              const settledView = settlement?.[activeView];
+              const currencyMembers = settledView?.currencies.find(
+                (group) => group.currency === expense.settlementCurrency,
+              )?.members;
+              const paymentAdjusted =
+                currencyMembers && viewerMember
+                  ? viewerExpenseBalanceAfterPayments(
+                      convertedViewerBalance,
+                      expense.slug,
+                      expense.payerId,
+                      viewerMember.id,
+                      currencyMembers,
+                    )
+                  : { balance: convertedViewerBalance, settled: false };
               const payer = payerFor(expense.payerId);
               const upcoming = isUpcoming(expense.date);
-              const participantCount = rowSplit.people.filter(
-                (person) => person.lines.length > 0,
-              ).length;
-              const showViewerSpent =
-                Boolean(expense.payerId && viewerIds.has(expense.payerId)) &&
-                participantCount > 1 &&
-                typeof viewerSpent === "number" &&
-                typeof viewerBalance === "number";
               return (
                 <TabExpenseRow
                   key={expense.slug}
@@ -921,11 +943,8 @@ function ExpenseList({
                   memberContext={
                     showSettlement
                       ? {
-                          balance:
-                            typeof viewerBalance === "number"
-                              ? viewerBalance * rate
-                              : viewerBalance,
-                          spent: showViewerSpent ? viewerSpent * rate : undefined,
+                          balance: paymentAdjusted.balance,
+                          settled: paymentAdjusted.settled,
                           viewerPerspective: true,
                         }
                       : undefined
@@ -991,6 +1010,7 @@ function ExpenseList({
         defaultCurrency={defaultCurrency}
         canManage={canManage}
         members={members}
+        paymentStatuses={selectedPaymentStatuses}
         onDelete={(expenseSlug) => setDeletingSlug(expenseSlug)}
       />
     </section>
