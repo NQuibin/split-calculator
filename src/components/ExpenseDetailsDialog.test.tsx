@@ -8,7 +8,7 @@ import { ExpenseDetailsDialog } from "./ExpenseDetailsDialog";
 
 afterEach(() => document.body.replaceChildren());
 
-test("shows each member's settled, partial, or payer status under their share", () => {
+test("shows Settled only for fully covered shares", () => {
   const zero = { mode: "amount" as const, value: 0 };
   const expense: TabExpenseSummary = {
     mode: "simple",
@@ -62,7 +62,8 @@ test("shows each member's settled, partial, or payer status under their share", 
 
   const text = document.body.textContent ?? "";
   expect(text).toContain("Settled");
-  expect(text).toContain("Partial (CA$4.00 paid)");
+  expect(text).not.toContain("Partial");
+  expect(text).not.toContain("paid)");
   expect(text).toContain("Payer");
   root.unmount();
 });

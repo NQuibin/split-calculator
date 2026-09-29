@@ -13,7 +13,6 @@ import { resolveSeatName } from "./tabs";
 // Never return partial balances. A larger tab needs a paginated ledger before
 // it can be settled; the extra row detects that boundary explicitly.
 const READ_LIMIT = 500;
-const ALLOCATION_LIMIT = 10_000;
 const currencyCodes = new Set(CURRENCIES.map((c) => c.code));
 type ReadCtx = QueryCtx | MutationCtx;
 type ExpenseView = "paid" | "upcoming" | "all";
@@ -137,7 +136,6 @@ const paymentFields = {
   fromMemberId: v.id("tabMembers"),
   toMemberId: v.id("tabMembers"),
   amount: v.number(),
-  allocations: v.array(v.object({ expenseId: v.id("expenses"), amount: v.number() })),
   currency: v.string(),
   date: v.string(),
   note: v.optional(v.string()),
@@ -149,32 +147,17 @@ type PaymentInput = {
   fromMemberId: Id<"tabMembers">;
   toMemberId: Id<"tabMembers">;
   amount: number;
-  allocations: { expenseId: Id<"expenses">; amount: number }[];
   currency: string;
   date: string;
   note?: string;
   requestId: string;
 };
-type NormalizedPayment = Omit<PaymentInput, "amount" | "allocations"> & {
+type NormalizedPayment = Omit<PaymentInput, "amount"> & {
   amountCents: number;
-  allocations: { expenseId: Id<"expenses">; amountCents: number }[];
 };
 
 function normalizePayment(payment: PaymentInput): NormalizedPayment {
   const amountCents = paymentCents(payment.amount);
-  if (payment.allocations.length === 0)
-    throw new Error("At least one expense allocation is required");
-  const allocations = payment.allocations.map((allocation) => ({
-    expenseId: allocation.expenseId,
-    amountCents: paymentCents(allocation.amount),
-  }));
-  if (new Set(allocations.map((allocation) => allocation.expenseId)).size !== allocations.length)
-    throw new Error("Expense allocations must be unique");
-  if (
-    allocations.reduce((sum, allocation) => addCents(sum, allocation.amountCents), 0) !==
-    amountCents
-  )
-    throw new Error("Expense allocations must equal the payment amount");
   const requestId = payment.requestId.trim();
   const note = payment.note?.trim() || undefined;
   if (!currencyCodes.has(payment.currency) || !isValidISODate(payment.date))
@@ -183,7 +166,7 @@ function normalizePayment(payment: PaymentInput): NormalizedPayment {
   if (note && note.length > 2000) throw new Error("Payment notes must be 2,000 characters or less");
   if (payment.fromMemberId === payment.toMemberId)
     throw new Error("Settlement members must be distinct");
-  return { ...payment, amountCents, allocations, requestId, note };
+  return { ...payment, amountCents, requestId, note };
 }
 
 function samePayment(prior: Doc<"settlements">, payment: NormalizedPayment, view: ExpenseView) {
@@ -198,30 +181,6 @@ function samePayment(prior: Doc<"settlements">, payment: NormalizedPayment, view
   );
 }
 
-async function sameAllocations(
-  ctx: MutationCtx,
-  settlementId: Id<"settlements">,
-  payment: NormalizedPayment,
-) {
-  const rows = await ctx.db
-    .query("settlementAllocations")
-    .withIndex("by_settlementId", (q) => q.eq("settlementId", settlementId))
-    .take(READ_LIMIT + 1);
-  if (rows.length > READ_LIMIT)
-    throw new Error("This settlement has too many expense allocations to retry");
-  const expected = [...payment.allocations].sort((a, b) => a.expenseId.localeCompare(b.expenseId));
-  return (
-    rows.length === expected.length &&
-    rows
-      .sort((a, b) => a.expenseId.localeCompare(b.expenseId))
-      .every(
-        (row, index) =>
-          row.expenseId === expected[index].expenseId &&
-          row.amountCents === expected[index].amountCents,
-      )
-  );
-}
-
 /** Read one coherent ledger snapshot, shared by the query and payment mutation. */
 async function readBalances(
   ctx: ReadCtx,
@@ -229,7 +188,7 @@ async function readBalances(
   asOfDate: string,
   viewerUserId?: Id<"users">,
 ) {
-  const [roster, expenses, payments, allocations] = await Promise.all([
+  const [roster, expenses, payments] = await Promise.all([
     limited(
       ctx.db
         .query("tabMembers")
@@ -251,27 +210,12 @@ async function readBalances(
         .take(READ_LIMIT + 1),
       "payments",
     ),
-    limited(
-      ctx.db
-        .query("settlementAllocations")
-        .withIndex("by_tabId", (q) => q.eq("tabId", tab._id))
-        .take(ALLOCATION_LIMIT + 1),
-      "payment allocations",
-      ALLOCATION_LIMIT,
-    ),
   ]);
   const people = await Promise.all(
     roster.map(async (seat) => ({ id: seat._id, name: await resolveSeatName(ctx, seat) })),
   );
   const memberIds = new Set<string>(people.map((person) => person.id));
   const viewerMemberId = roster.find((seat) => seat.userId === viewerUserId)?._id;
-  const paymentsById = new Map(payments.map((payment) => [payment._id, payment]));
-  const allocationsByExpense = new Map<string, typeof allocations>();
-  for (const allocation of allocations) {
-    const rows = allocationsByExpense.get(allocation.expenseId) ?? [];
-    rows.push(allocation);
-    allocationsByExpense.set(allocation.expenseId, rows);
-  }
   const views = {} as Record<
     ExpenseView,
     {
@@ -332,45 +276,16 @@ async function readBalances(
       for (const [index, share] of shares.entries()) {
         const shareCents = shareAmounts[index];
         if (share.personId === expense.payerId || shareCents === 0) continue;
-        let outstanding = shareCents;
-        for (const allocation of allocationsByExpense.get(expense._id) ?? []) {
-          const payment = paymentsById.get(allocation.settlementId);
-          if (
-            !payment ||
-            payment.reversedAt !== undefined ||
-            payment.date > asOfDate ||
-            payment.currency !== code ||
-            !appliesToView(payment.view ?? "paid", expenseView) ||
-            payment.fromMemberId !== share.personId ||
-            payment.toMemberId !== expense.payerId
-          ) {
-            continue;
-          }
-          outstanding = Math.max(0, outstanding - allocation.amountCents);
-        }
-        const paidCents = shareCents - outstanding;
-        if (paidCents > 0) {
-          const statuses = expensePayments.get(code) ?? [];
-          statuses.push({
-            expenseSlug: expense.slug,
-            memberId: share.personId as Id<"tabMembers">,
-            share: shareCents / 100,
-            paid: paidCents / 100,
-          });
-          expensePayments.set(code, statuses);
-        }
-        if (outstanding > 0) {
-          const key = expenseDebtKey(code, share.personId, expense.payerId);
-          const debts = expenseDebts.get(key) ?? [];
-          debts.push({
-            expenseId: expense._id,
-            expenseSlug: expense.slug,
-            name: expense.name,
-            date: expense.date,
-            outstanding: outstanding / 100,
-          });
-          expenseDebts.set(key, debts);
-        }
+        const key = expenseDebtKey(code, share.personId, expense.payerId);
+        const debts = expenseDebts.get(key) ?? [];
+        debts.push({
+          expenseId: expense._id,
+          expenseSlug: expense.slug,
+          name: expense.name,
+          date: expense.date,
+          outstanding: shareCents / 100,
+        });
+        expenseDebts.set(key, debts);
       }
       if (
         viewerMemberId &&
@@ -418,9 +333,42 @@ async function readBalances(
       addDirectDebt(totals, payment.fromMemberId, payment.toMemberId, -payment.amountCents);
       byCurrency.set(payment.currency, totals);
     }
+    // Netting opposite debt edges (including payments) covers oldest expenses first.
+    for (const [key, debts] of expenseDebts) {
+      const [, from, to] = key.split(":");
+      const totals = byCurrency.get(key.split(":")[0])!;
+      const netDebt = Math.max(0, directBalanceWithViewer(totals, from, to));
+      let remaining = Math.max(
+        0,
+        debts.reduce((sum, debt) => sum + checkedCents(debt.outstanding), 0) - netDebt,
+      );
+      // `expenses` is read in creation order; stable sort preserves that order for equal dates.
+      debts.sort((a, b) => a.date.localeCompare(b.date));
+      for (const debt of debts) {
+        const shareCents = checkedCents(debt.outstanding);
+        const paidCents = Math.min(shareCents, remaining);
+        debt.outstanding = (shareCents - paidCents) / 100;
+        remaining -= paidCents;
+        if (paidCents > 0) {
+          const statuses = expensePayments.get(key.split(":")[0]) ?? [];
+          statuses.push({
+            expenseSlug: debt.expenseSlug,
+            memberId: from as Id<"tabMembers">,
+            share: shareCents / 100,
+            paid: paidCents / 100,
+          });
+          expensePayments.set(key.split(":")[0], statuses);
+        }
+      }
+    }
+    for (const [key, debts] of expenseDebts)
+      expenseDebts.set(
+        key,
+        debts.filter((debt) => debt.outstanding > 0),
+      );
     views[expenseView] = { byCurrency, expenseDebts, expensePayments, missingPayers };
   }
-  return { roster, people, views, payments, allocations };
+  return { roster, people, views, payments };
 }
 
 const settlementSummary = v.object({
@@ -608,7 +556,7 @@ async function savePayments(
       pending.push(payment);
       continue;
     }
-    if (!samePayment(prior, payment, view) || !(await sameAllocations(ctx, prior._id, payment))) {
+    if (!samePayment(prior, payment, view)) {
       throw new Error("This request id was already used for a different settlement");
     }
   }
@@ -623,13 +571,8 @@ async function savePayments(
     throw new Error("Settlement date must not be after today; refresh and try again");
   }
 
-  const {
-    views,
-    roster,
-    allocations: existingAllocations,
-  } = await readBalances(ctx, tab, asOfDate);
+  const { views, roster } = await readBalances(ctx, tab, asOfDate);
   const ids = new Set(roster.map((seat) => seat._id));
-  let newAllocationCount = 0;
   for (const payment of pending) {
     if (!ids.has(payment.fromMemberId) || !ids.has(payment.toMemberId))
       throw new Error("Settlement members must belong to this tab");
@@ -637,28 +580,10 @@ async function savePayments(
     const directBalance = directBalanceWithViewer(totals, payment.fromMemberId, payment.toMemberId);
     if (directBalance <= 0 || payment.amountCents > directBalance)
       throw new Error("Settlement amount exceeds the current amount owed");
-
-    const debts =
-      views[view].expenseDebts.get(
-        expenseDebtKey(payment.currency, payment.fromMemberId, payment.toMemberId),
-      ) ?? [];
-    const debtByExpenseId = new Map(debts.map((debt) => [debt.expenseId, debt]));
-    let partialAllocations = 0;
-    for (const allocation of payment.allocations) {
-      const debt = debtByExpenseId.get(allocation.expenseId);
-      const outstandingCents = debt ? paymentCents(debt.outstanding) : 0;
-      if (!debt || allocation.amountCents > outstandingCents)
-        throw new Error("An expense allocation exceeds the current direct debt outstanding");
-      if (allocation.amountCents < outstandingCents) partialAllocations += 1;
-    }
-    if (partialAllocations > 1) throw new Error("At most one expense allocation may be partial");
-    newAllocationCount += payment.allocations.length;
   }
-  if (existingAllocations.length + newAllocationCount > ALLOCATION_LIMIT)
-    throw new Error("This tab needs a larger ledger before more payments can be allocated");
 
   for (const payment of pending) {
-    const settlementId = await ctx.db.insert("settlements", {
+    await ctx.db.insert("settlements", {
       tabId: tab._id,
       fromMemberId: payment.fromMemberId,
       toMemberId: payment.toMemberId,
@@ -670,14 +595,6 @@ async function savePayments(
       requestId: payment.requestId,
       view,
     });
-    for (const allocation of payment.allocations) {
-      await ctx.db.insert("settlementAllocations", {
-        tabId: tab._id,
-        settlementId,
-        expenseId: allocation.expenseId,
-        amountCents: allocation.amountCents,
-      });
-    }
   }
   return null;
 }

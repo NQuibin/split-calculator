@@ -65,22 +65,6 @@ async function expense(
     ],
   });
 }
-async function allocation(
-  owner: Awaited<ReturnType<typeof setup>>["owner"],
-  memberId: string,
-  expenseSlug: string,
-  amount: number,
-  view: "paid" | "upcoming" | "all" = "paid",
-) {
-  const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  const expense = result[view].currencies
-    .flatMap((currency) => currency.members)
-    .find((member) => member.memberId === memberId)
-    ?.expenses.find((row) => row.expenseSlug === expenseSlug);
-  if (!expense) throw new Error(`No settlement debt for ${expenseSlug}`);
-  return [{ expenseId: expense.expenseId, amount }];
-}
-
 test("missing, empty, and foreign payers are rejected when creating an expense", async () => {
   const { owner, members } = await setup();
   await expect(expense(owner, members, undefined)).rejects.toThrow(
@@ -254,7 +238,6 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 40,
-    allocations: await allocation(owner, members[1].id, "dinner", 40),
     currency: "USD",
     date: "2026-09-12",
     requestId: "pay-1",
@@ -280,7 +263,6 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
     outsider.mutation(api.settlements.record, {
       ...args,
       amount: 39,
-      allocations: args.allocations.map((row) => ({ ...row, amount: 39 })),
     }),
   ).rejects.toThrow("different settlement");
   await expect(
@@ -288,7 +270,6 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
       ...args,
       requestId: "too-much",
       amount: 40.01,
-      allocations: args.allocations.map((row) => ({ ...row, amount: 40.01 })),
     }),
   ).rejects.toThrow("exceeds");
   const first = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: "2026-09-12" }))!;
@@ -318,7 +299,6 @@ test("recordMany writes all payments atomically and retries idempotently", async
       fromMemberId: members[1].id as Id<"tabMembers">,
       toMemberId: members[0].id as Id<"tabMembers">,
       amount: 40,
-      allocations: await allocation(owner, members[1].id, "dinner", 40),
       currency: "USD",
       date: TODAY,
       requestId: "batch-bea",
@@ -327,7 +307,6 @@ test("recordMany writes all payments atomically and retries idempotently", async
       fromMemberId: members[2].id as Id<"tabMembers">,
       toMemberId: members[0].id as Id<"tabMembers">,
       amount: 40,
-      allocations: await allocation(owner, members[2].id, "dinner", 40),
       currency: "USD",
       date: TODAY,
       requestId: "batch-cam",
@@ -346,7 +325,6 @@ test("recordMany writes all payments atomically and retries idempotently", async
     ...payments[0],
     fromMemberId: failed.members[1].id as Id<"tabMembers">,
     toMemberId: failed.members[0].id as Id<"tabMembers">,
-    allocations: await allocation(failed.owner, failed.members[1].id, "dinner", 40),
     requestId: "valid-first",
   };
   const invalid = {
@@ -354,7 +332,6 @@ test("recordMany writes all payments atomically and retries idempotently", async
     fromMemberId: failed.members[2].id as Id<"tabMembers">,
     toMemberId: failed.members[0].id as Id<"tabMembers">,
     amount: 41,
-    allocations: await allocation(failed.owner, failed.members[2].id, "dinner", 41),
     requestId: "invalid-second",
   };
   await expect(
@@ -373,13 +350,11 @@ test("recordMany writes all payments atomically and retries idempotently", async
 test("rejects cross-tab members and retains a payment-only currency after expense deletion", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "EUR");
-  const dinnerAllocation = await allocation(owner, members[1].id, "dinner", 40);
   await owner.mutation(api.settlements.record, {
     slug: "trip",
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 40,
-    allocations: dinnerAllocation,
     currency: "EUR",
     date: "2026-09-12",
     requestId: "eur",
@@ -393,7 +368,6 @@ test("rejects cross-tab members and retains a payment-only currency after expens
       fromMemberId: other.members[0].id,
       toMemberId: members[0].id,
       amount: 1,
-      allocations: dinnerAllocation.map((row) => ({ ...row, amount: 1 })),
       currency: "EUR",
       date: "2026-09-12",
       requestId: "cross",
@@ -438,7 +412,7 @@ test("payer is remapped on create, survives reload, and protects its seat", asyn
   expect((await owner.query(api.expenses.get, { slug: "dinner" }))!.payerId).toBe(members[2].id);
 });
 
-test("partial payment keeps expense paid separate and edits recompute the debt", async () => {
+test("partial payment reduces the pair balance and edits recompute the debt", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id);
   await owner.mutation(api.settlements.record, {
@@ -446,7 +420,6 @@ test("partial payment keeps expense paid separate and edits recompute the debt",
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 15,
-    allocations: await allocation(owner, members[1].id, "dinner", 15),
     currency: "USD",
     date: TODAY,
     requestId: "partial",
@@ -467,7 +440,7 @@ test("partial payment keeps expense paid separate and edits recompute the debt",
   expect(result.paid.currencies[0].members.map((m) => m.balance)).toEqual([45, -15, -30]);
 });
 
-test("legacy settlements reduce direct balances without changing per-expense outstanding", async () => {
+test("stored settlements reduce direct balances and oldest expense outstanding", async () => {
   const { t, owner, members } = await setup();
   await expense(owner, members, members[0].id);
   await t.run(async (ctx) => {
@@ -489,10 +462,10 @@ test("legacy settlements reduce direct balances without changing per-expense out
   const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
   const member = result.paid.currencies[0].members.find((row) => row.memberId === members[1].id)!;
   expect(member.balanceWithViewer).toBe(25);
-  expect(member.expenses).toMatchObject([{ expenseSlug: "dinner", outstanding: 40 }]);
+  expect(member.expenses).toMatchObject([{ expenseSlug: "dinner", outstanding: 25 }]);
 });
 
-test("allocates across debts with at most one partial expense and restores on reversal", async () => {
+test("payments settle oldest expenses first and reversal restores them", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", undefined, 90, "first");
   await expense(owner, members, members[0].id, "USD", undefined, 90, "second");
@@ -508,25 +481,7 @@ test("allocates across debts with at most one partial expense and restores on re
       slug: "trip",
       fromMemberId: members[1].id,
       toMemberId: members[0].id,
-      amount: 40,
-      allocations: [
-        { expenseId: member.expenses[0].expenseId, amount: 20 },
-        { expenseId: member.expenses[1].expenseId, amount: 20 },
-      ],
-      currency: "USD",
-      date: TODAY,
-      requestId: "two-partials",
-      asOfDate: TODAY,
-    }),
-  ).rejects.toThrow("At most one");
-
-  await expect(
-    owner.mutation(api.settlements.record, {
-      slug: "trip",
-      fromMemberId: members[1].id,
-      toMemberId: members[0].id,
       amount: 61,
-      allocations: [{ expenseId: member.expenses[0].expenseId, amount: 61 }],
       currency: "USD",
       date: TODAY,
       requestId: "overpay",
@@ -539,10 +494,6 @@ test("allocates across debts with at most one partial expense and restores on re
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 40,
-    allocations: [
-      { expenseId: member.expenses[0].expenseId, amount: 30 },
-      { expenseId: member.expenses[1].expenseId, amount: 10 },
-    ],
     currency: "USD",
     date: TODAY,
     requestId: "one-partial",
@@ -567,67 +518,22 @@ test("allocates across debts with at most one partial expense and restores on re
   ]);
 });
 
-test("rejects allocations from another expense, debt pair, currency, or view", async () => {
-  const { t, owner, members } = await setup();
-  await expense(owner, members, members[0].id, "USD", undefined, 120, "paid-usd");
-  await expense(owner, members, members[0].id, "CAD", undefined, 120, "paid-cad");
-  await expense(owner, members, members[2].id, "USD", ["b", "c"], 120, "other-pair");
-  await expense(owner, members, members[0].id, "USD", undefined, 120, "future");
-  const future = (await owner.query(api.expenses.get, { slug: "future" }))!;
-  await owner.mutation(api.expenses.save, {
-    slug: "future",
-    state: { ...toExpenseStateArgs(future), date: "2026-09-13" },
+test("opposite expenses settle the earliest debt before later expenses", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b"], 30, "first");
+  await expense(owner, members, members[1].id, "USD", ["a", "b"], 20, "second");
+  await expense(owner, members, members[1].id, "USD", ["a", "b"], 10, "third");
+
+  const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  const usd = result.paid.currencies[0];
+  expect(usd.members.map((member) => member.balanceWithViewer)).toEqual([0, 0, 0]);
+  expect(usd.members.every((member) => member.expenses.length === 0)).toBe(true);
+  expect(usd.expensePayments).toContainEqual({
+    expenseSlug: "first",
+    memberId: members[1].id,
+    share: 15,
+    paid: 15,
   });
-  const expenseIds = await t.run(async (ctx) => {
-    const tab = await ctx.db
-      .query("tabs")
-      .withIndex("by_slug", (q) => q.eq("slug", "trip"))
-      .unique();
-    const rows = await ctx.db
-      .query("expenses")
-      .withIndex("by_tab", (q) => q.eq("tabId", tab!._id))
-      .collect();
-    return Object.fromEntries(rows.map((row) => [row.slug, row._id]));
-  });
-  const base = {
-    slug: "trip",
-    fromMemberId: members[1].id,
-    toMemberId: members[0].id,
-    amount: 1,
-    date: TODAY,
-    asOfDate: TODAY,
-    requestId: "invalid-allocation",
-  };
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      currency: "USD",
-      allocations: [{ expenseId: expenseIds["other-pair"], amount: 1 }],
-    }),
-  ).rejects.toThrow("expense allocation");
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      currency: "USD",
-      allocations: [{ expenseId: expenseIds["paid-cad"], amount: 1 }],
-    }),
-  ).rejects.toThrow("expense allocation");
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      currency: "USD",
-      view: "paid",
-      allocations: [{ expenseId: expenseIds.future, amount: 1 }],
-    }),
-  ).rejects.toThrow("expense allocation");
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      currency: "USD",
-      view: "upcoming",
-      allocations: [{ expenseId: expenseIds["paid-usd"], amount: 1 }],
-    }),
-  ).rejects.toThrow("expense allocation");
 });
 
 test("invalid dates, currency and precision are refused before creating a settlement", async () => {
@@ -638,7 +544,6 @@ test("invalid dates, currency and precision are refused before creating a settle
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 1,
-    allocations: await allocation(owner, members[1].id, "dinner", 1),
     currency: "USD",
     date: TODAY,
     requestId: "x",
@@ -656,30 +561,6 @@ test("invalid dates, currency and precision are refused before creating a settle
   await expect(owner.mutation(api.settlements.record, { ...base, amount: 0 })).rejects.toThrow(
     "positive",
   );
-  await expect(
-    owner.mutation(api.settlements.record, { ...base, allocations: [] }),
-  ).rejects.toThrow("At least one");
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      allocations: [
-        { ...base.allocations[0], amount: 0.5 },
-        { ...base.allocations[0], amount: 0.5 },
-      ],
-    }),
-  ).rejects.toThrow("unique");
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      allocations: [{ ...base.allocations[0], amount: 0.001 }],
-    }),
-  ).rejects.toThrow("two decimal");
-  await expect(
-    owner.mutation(api.settlements.record, {
-      ...base,
-      allocations: [{ ...base.allocations[0], amount: 0.5 }],
-    }),
-  ).rejects.toThrow("equal the payment");
   await expect(
     owner.mutation(api.settlements.record, { ...base, date: "2026-09-13" }),
   ).rejects.toThrow("after today");
@@ -748,7 +629,6 @@ test("view-scoped payments affect the selected future balances and remain in eve
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 10,
-    allocations: await allocation(owner, members[1].id, "dinner", 10),
     currency: "USD",
     date: TODAY,
     requestId: "paid-payment",
@@ -759,7 +639,6 @@ test("view-scoped payments affect the selected future balances and remain in eve
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 20,
-    allocations: await allocation(owner, members[1].id, "future", 20, "upcoming"),
     currency: "USD",
     date: TODAY,
     requestId: "upcoming-payment",
@@ -798,7 +677,6 @@ test("returns direct viewer balances without transitive third-party netting", as
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 2,
-    allocations: await allocation(owner, members[1].id, "viewer-one", 2),
     currency: "USD",
     date: TODAY,
     requestId: "p2-pays-viewer",
@@ -813,18 +691,11 @@ test("returns direct viewer balances without transitive third-party netting", as
     [-9, 6],
   ]);
 
-  const directDebts = result.paid.currencies[0].members.find(
-    (member) => member.memberId === members[1].id,
-  )!.expenses;
   await owner.mutation(api.settlements.record, {
     slug: "trip",
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 4,
-    allocations: directDebts.map((debt) => ({
-      expenseId: debt.expenseId,
-      amount: debt.outstanding,
-    })),
     currency: "USD",
     date: TODAY,
     requestId: "direct-cap",
@@ -837,7 +708,7 @@ test("returns direct viewer balances without transitive third-party netting", as
   ).toBe(0);
 });
 
-test("reports per-expense paid shares in the selected view and after reversals", async () => {
+test("reports per-expense settlement coverage in the selected view and after reversals", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", undefined, 120, "shared-dinner");
   await expense(
@@ -856,7 +727,6 @@ test("reports per-expense paid shares in the selected view and after reversals",
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 10,
-    allocations: await allocation(owner, members[1].id, "shared-dinner", 10),
     currency: "USD",
     date: TODAY,
     requestId: "partial-share",
@@ -882,7 +752,6 @@ test("reports per-expense paid shares in the selected view and after reversals",
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 30,
-    allocations: await allocation(owner, members[1].id, "shared-dinner", 30),
     currency: "USD",
     date: TODAY,
     requestId: "finish-share",
@@ -954,7 +823,6 @@ test("claiming a payer preserves balances and gives the claimant read-only acces
     fromMemberId: members[0].id,
     toMemberId: members[2].id,
     amount: 40,
-    allocations: await allocation(owner, members[2].id, "dinner", 40),
     currency: "USD",
     date: TODAY,
     requestId: "claimed",
@@ -976,7 +844,6 @@ test("claiming a payer preserves balances and gives the claimant read-only acces
   ).rejects.toThrow("settlement");
   await owner.mutation(api.tabs.deleteTab, { slug: "trip" });
   expect(await t.run((ctx) => ctx.db.query("settlements").take(1))).toEqual([]);
-  expect(await t.run((ctx) => ctx.db.query("settlementAllocations").take(1))).toEqual([]);
 });
 
 test("saved rates apply once and a changed tab currency preserves original repayments", async () => {
@@ -998,7 +865,6 @@ test("saved rates apply once and a changed tab currency preserves original repay
     fromMemberId: members[1].id,
     toMemberId: members[0].id,
     amount: 1,
-    allocations: await allocation(owner, members[1].id, "dinner", 1),
     currency: "USD",
     date: TODAY,
     requestId: "fx",

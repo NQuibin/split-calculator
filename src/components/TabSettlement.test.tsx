@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { renderMarkup } from "@/test/render";
 import type { TabExpenseSummary } from "@/lib/tabSync";
+import { ExpenseViewTabs } from "@/components/ExpenseViewTabs";
 
 const mocks = vi.hoisted(() => ({
   results: [] as unknown[],
@@ -24,11 +25,13 @@ vi.mock("@tanstack/react-router", async () => {
       params,
       to,
       search,
+      className,
     }: {
       children: React.ReactNode;
       params: { slug: string };
       to: string;
       search?: { view?: string };
+      className?: string;
     }) =>
       React.createElement(
         "a",
@@ -37,13 +40,19 @@ vi.mock("@tanstack/react-router", async () => {
             to === "/e/$slug"
               ? `/e/${params.slug}`
               : `/t/${params.slug}/payment${search?.view ? `?view=${search.view}` : ""}`,
+          className,
         },
         children,
       ),
   };
 });
 
-import { SettlementSummary, TabSettlement, type SettlementSummaryData } from "./TabSettlement";
+import {
+  SettlementActions,
+  SettlementSummary,
+  TabSettlement,
+  type SettlementSummaryData,
+} from "./TabSettlement";
 
 afterEach(() => {
   mocks.results = [];
@@ -344,25 +353,43 @@ test("shows the selected member balance above the modal expense list", () => {
 });
 
 test("links to record payment beside payment history and keeps the active view", () => {
+  mocks.results = [{ paid: data, upcoming: data, all: data }];
   const markup = renderMarkup(
-    createElement(SettlementSummary, {
-      data,
+    createElement(SettlementActions, {
       slug: "trip",
+      members: [{ id: "viewer", name: "Nikki Q" }],
       expenseView: "all",
-      canRecordPayment: true,
     }),
   );
   expect(markup).toContain('href="/t/trip/payment?view=all"');
   expect(markup).toContain("Payment history");
+  expect(markup.match(/min-w-0 w-full md:w-auto/g)).toHaveLength(2);
+  expect(markup.match(/<svg/g)).toHaveLength(2);
+});
+
+test("places actions above view controls on mobile and beside them on desktop", () => {
+  const markup = renderMarkup(
+    <ExpenseViewTabs
+      value="paid"
+      onChange={() => undefined}
+      label="Expense view"
+      actions={<span>Actions</span>}
+    >
+      <span>Content</span>
+    </ExpenseViewTabs>,
+  );
+  expect(markup).toContain("flex flex-col md:flex-row md:items-start md:justify-between md:gap-3");
+  expect(markup).toContain("order-2 mb-6");
+  expect(markup).toContain('class="order-1 md:order-none"');
 });
 
 test("hides record payment in the upcoming view", () => {
+  mocks.results = [{ paid: data, upcoming: data, all: data }];
   const markup = renderMarkup(
-    createElement(SettlementSummary, {
-      data,
+    createElement(SettlementActions, {
       slug: "trip",
+      members: [{ id: "viewer", name: "Nikki Q" }],
       expenseView: "upcoming",
-      canRecordPayment: true,
     }),
   );
   expect(markup).not.toContain("Record payment");
@@ -396,19 +423,18 @@ test("keeps payment history in its modal", () => {
     ],
   };
   const response = { paid: historyData, upcoming: historyData, all: historyData };
-  const breakdownResult = { currencies: [], expenseCount: 0, tab: { name: "Trip", slug: "trip" } };
-  mocks.results = Array.from({ length: 5 }, () => [response, breakdownResult]).flat();
+  mocks.results = Array.from({ length: 5 }, () => response);
   const container = document.createElement("div");
   const root = createRoot(container);
   flushSync(() =>
     root.render(
-      createElement(TabSettlement, {
+      createElement(SettlementActions, {
         slug: "trip",
         members: [
           { id: "viewer", name: "Nikki Q" },
           { id: "p2", name: "P2" },
         ],
-        canManage: true,
+        expenseView: "paid",
       }),
     ),
   );

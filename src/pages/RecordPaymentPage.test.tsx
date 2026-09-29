@@ -6,7 +6,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   response: null as unknown,
-  record: vi.fn(async () => null),
+  record: vi.fn(async (_args: { payments: Record<string, unknown>[] }) => null),
   navigate: vi.fn(async () => undefined),
   view: "paid",
 }));
@@ -120,10 +120,6 @@ function enterAmount(key: string, value: string) {
   flushSync(() => input.dispatchEvent(new Event("input", { bubbles: true })));
 }
 
-function clickExpense(root: ParentNode, text: string) {
-  return clickCheckboxRow(root, text);
-}
-
 async function submit() {
   const form = document.querySelector("form");
   if (!form) throw new Error("Missing payment form");
@@ -131,7 +127,7 @@ async function submit() {
   await Promise.resolve();
 }
 
-test("allocates a partial payment across expenses and preserves the selected view", async () => {
+test("records a payment without expense allocations and preserves the selected view", async () => {
   mocks.view = "upcoming";
   const { container, root } = mount();
   expect(container.textContent).toContain("Tabs");
@@ -145,10 +141,6 @@ test("allocates a partial payment across expenses and preserves the selected vie
   expect(memberRow?.lastElementChild?.getAttribute("aria-hidden")).toBe("true");
   clickButton(container, "Continue");
   enterAmount("p2-CAD", "40");
-  clickExpense(container, "First expense");
-  clickExpense(container, "Second expense");
-  expect(container.textContent).toContain("Apply CA$30.00");
-  expect(container.textContent).toContain("Apply CA$10.00");
   await submit();
   expect(mocks.record).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -160,19 +152,33 @@ test("allocates a partial payment across expenses and preserves the selected vie
           toMemberId: "viewer",
           amount: 40,
           currency: "CAD",
-          allocations: [
-            { expenseId: "e1", amount: 30 },
-            { expenseId: "e2", amount: 10 },
-          ],
         }),
       ],
     }),
   );
+  expect(mocks.record.mock.calls[0]?.[0].payments[0]).not.toHaveProperty("allocations");
   expect(mocks.navigate).toHaveBeenCalledWith({
     to: "/t/$slug",
     params: { slug: "trip" },
     replace: true,
   });
+  root.unmount();
+});
+
+test("keeps a nonzero member eligible when they have no expense rows", () => {
+  const response = {
+    ...paymentData,
+    currencies: [
+      {
+        ...paymentData.currencies[0],
+        members: paymentData.currencies[0].members.map((member) =>
+          member.memberId === "p2" ? { ...member, expenses: [] } : member,
+        ),
+      },
+    ],
+  };
+  const { container, root } = mount(response);
+  expect(container.textContent).toContain("P2 owes you CA$60.00");
   root.unmount();
 });
 
@@ -208,7 +214,6 @@ test("records an outgoing payment when the viewer owes the selected member", asy
   clickCheckboxRow(container, "You owe Alex");
   clickButton(container, "Continue");
   enterAmount("alex-CAD", "10");
-  clickExpense(container, "Alex paid");
   await submit();
   expect(mocks.record).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -217,7 +222,6 @@ test("records an outgoing payment when the viewer owes the selected member", asy
           fromMemberId: "viewer",
           toMemberId: "alex",
           amount: 10,
-          allocations: [{ expenseId: "e3", amount: 10 }],
         }),
       ],
     }),
@@ -308,14 +312,8 @@ test("keeps separate sections and submits the combined payments only when all ar
   expect(container.textContent).toContain("Payment cannot exceed the direct balance");
   expect(submitButton.disabled).toBe(true);
   enterAmount("p2-CAD", "40");
-  clickExpense(container, "First expense");
-  expect(container.textContent).toContain("Select expenses with at least CA$40.00 outstanding.");
-  expect(submitButton.disabled).toBe(true);
-  clickExpense(container, "Second expense");
   expect(submitButton.disabled).toBe(true);
   enterAmount("sam-USD", "5");
-  expect(submitButton.disabled).toBe(true);
-  clickExpense(container, "Hotel");
   expect(submitButton.disabled).toBe(false);
   await submit();
   expect(mocks.record).toHaveBeenCalledWith(
@@ -327,17 +325,12 @@ test("keeps separate sections and submits the combined payments only when all ar
           toMemberId: "viewer",
           amount: 40,
           currency: "CAD",
-          allocations: [
-            { expenseId: "e1", amount: 30 },
-            { expenseId: "e2", amount: 10 },
-          ],
         }),
         expect.objectContaining({
           fromMemberId: "viewer",
           toMemberId: "sam",
           amount: 5,
           currency: "USD",
-          allocations: [{ expenseId: "e4", amount: 5 }],
         }),
       ],
     }),

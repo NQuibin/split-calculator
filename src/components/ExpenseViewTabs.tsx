@@ -7,11 +7,13 @@ export function ExpenseViewTabs({
   value,
   onChange,
   label,
+  actions,
   children,
 }: {
   value: ExpenseView;
   onChange: (value: ExpenseView) => void;
   label: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -21,26 +23,29 @@ export function ExpenseViewTabs({
         if (next === "paid" || next === "upcoming" || next === "all") onChange(next);
       }}
     >
-      <Tabs.List
-        aria-label={label}
-        className="mb-6 inline-flex w-full max-w-full gap-1 rounded-xl border border-edge bg-field p-1 sm:w-auto"
-      >
-        {(
-          [
-            { value: "paid", label: "Paid" },
-            { value: "upcoming", label: "Upcoming" },
-            { value: "all", label: "All" },
-          ] as const
-        ).map((view) => (
-          <Tabs.Tab
-            key={view.value}
-            value={view.value}
-            className="relative min-h-[calc(2.75rem-10px)] min-w-11 flex-1 shrink-0 rounded-lg border border-transparent px-4 font-display text-sm font-medium text-ink-soft transition after:absolute after:inset-x-0 after:-inset-y-[5px] hover:bg-wash hover:text-forest active:bg-wash active:text-forest data-active:border-forest data-active:bg-forest data-active:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest sm:flex-none"
-          >
-            {view.label}
-          </Tabs.Tab>
-        ))}
-      </Tabs.List>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between md:gap-3">
+        <Tabs.List
+          aria-label={label}
+          className="order-2 mb-6 inline-flex w-full max-w-full gap-1 rounded-xl border border-edge bg-field p-1 md:order-none md:w-auto"
+        >
+          {(
+            [
+              { value: "paid", label: "Paid" },
+              { value: "upcoming", label: "Upcoming" },
+              { value: "all", label: "All" },
+            ] as const
+          ).map((view) => (
+            <Tabs.Tab
+              key={view.value}
+              value={view.value}
+              className="relative min-h-[calc(2.75rem-10px)] min-w-11 flex-1 shrink-0 rounded-lg border border-transparent px-4 font-display text-sm font-medium text-ink-soft transition after:absolute after:inset-x-0 after:-inset-y-[5px] hover:bg-wash hover:text-forest active:bg-wash active:text-forest data-active:border-forest data-active:bg-forest data-active:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest md:flex-none"
+            >
+              {view.label}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        <div className="order-1 md:order-none">{actions}</div>
+      </div>
       <Tabs.Panel
         value={value}
         className="rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-forest"

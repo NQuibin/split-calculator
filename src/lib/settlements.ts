@@ -15,7 +15,7 @@ export function viewerBalanceLabel(balance: number) {
   return balance < 0 ? "You owe" : "You get";
 }
 
-/** Apply the ledger's remaining allocations to one viewer-relative expense balance. */
+/** Apply the ledger's remaining direct debt to one viewer-relative expense balance. */
 export function viewerExpenseBalanceAfterPayments(
   balance: number | null | undefined,
   expenseSlug: string,

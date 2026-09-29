@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { ChevronRight, X } from "lucide-react";
+import { Banknote, ChevronRight, History, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -95,26 +95,20 @@ function relatedExpenseCount(
 
 export function SettlementSummary({
   data,
-  slug,
   viewerName,
   expenses = [],
   expenseView = "all",
   asOfDate = todayISODate(),
   canManage = false,
   onMemberClick,
-  onViewPaymentHistory,
-  canRecordPayment = false,
 }: {
   data: SettlementSummaryData;
-  slug?: string;
   viewerName?: string;
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
   asOfDate?: string;
   canManage?: boolean;
   onMemberClick?: (memberId: string, currencyCode: string) => void;
-  onViewPaymentHistory?: () => void;
-  canRecordPayment?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
   const viewer = data.currencies
@@ -154,7 +148,7 @@ export function SettlementSummary({
         <p className="text-ink-soft">View balances</p>
       ) : (
         <>
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-b border-rule bleed bleed-px pb-4">
+          <div className="flex min-w-0 items-center border-b border-rule bleed bleed-px pb-4">
             <div className="flex min-w-0 items-center gap-3">
               <MemberAvatar
                 id={data.viewerMemberId}
@@ -165,31 +159,6 @@ export function SettlementSummary({
                 <p className="font-medium text-ink">{viewer?.name ?? viewerName ?? "You"}</p>
                 <p className="text-xs text-ink-soft">You</p>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="touch" onClick={onViewPaymentHistory}>
-                Payment history
-              </Button>
-              {expenseView !== "upcoming" &&
-                (slug && canRecordPayment ? (
-                  <Button
-                    size="touch"
-                    nativeButton={false}
-                    render={
-                      <Link
-                        to="/t/$slug/payment"
-                        params={{ slug }}
-                        search={{ view: expenseView }}
-                      />
-                    }
-                  >
-                    Record payment
-                  </Button>
-                ) : (
-                  <Button size="touch" disabled>
-                    Record payment
-                  </Button>
-                ))}
             </div>
           </div>
           {data.currencies.length === 0 ? (
@@ -326,7 +295,7 @@ export function TabSettlement({
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
 }) {
-  const { currency, formatExpenseDate } = useLocaleFormatters();
+  const { currency } = useLocaleFormatters();
   const [day, setDay] = useState(todayISODate);
   const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
@@ -335,7 +304,6 @@ export function TabSettlement({
     name: string;
   } | null>(null);
   const [selectedExpenseSlug, setSelectedExpenseSlug] = useState<string | null>(null);
-  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const response = useQuery(api.settlements.get, { slug, asOfDate: day }) as
     | SettlementQueryResponse
     | null
@@ -389,67 +357,13 @@ export function TabSettlement({
     <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
       <SettlementSummary
         data={data}
-        slug={slug}
         viewerName={members.find((member) => member.id === data.viewerMemberId)?.name}
         expenses={expenses}
         expenseView={expenseView}
         asOfDate={day}
         canManage={canManage}
         onMemberClick={openMemberExpenses}
-        canRecordPayment={data.currencies.some((group) =>
-          group.members.some(
-            (member) =>
-              member.memberId !== data.viewerMemberId &&
-              memberDirectBalance(member) !== 0 &&
-              member.expenses.some((expense) => expense.outstanding > 0),
-          ),
-        )}
-        onViewPaymentHistory={() => setPaymentHistoryOpen(true)}
       />
-      <Dialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen}>
-        <DialogContent>
-          <DialogTitle>Payment history</DialogTitle>
-          <DialogDescription className="mt-1">
-            {data.history.length} recorded {data.history.length === 1 ? "payment" : "payments"}.
-          </DialogDescription>
-          {data.history.length === 0 ? (
-            <p className="mt-4 text-sm text-ink-soft">No payments recorded.</p>
-          ) : (
-            <ul className="mt-4 divide-y divide-rule border-y border-edge bg-field">
-              {data.history.map((payment) => {
-                const fromName = members.find((member) => member.id === payment.fromMemberId)?.name;
-                const toName = members.find((member) => member.id === payment.toMemberId)?.name;
-                return (
-                  <li
-                    key={payment.id}
-                    className="flex min-w-0 items-center justify-between gap-4 px-3 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="break-words text-sm text-ink">
-                        <span className="font-medium">{fromName ?? "Former member"}</span> paid{" "}
-                        <span className="font-medium">{toName ?? "Former member"}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-ink-soft">
-                        <time dateTime={payment.date}>
-                          {formatExpenseDate(payment.date) ?? payment.date}
-                        </time>
-                        {payment.view === "upcoming" && " · Upcoming expenses"}
-                        {payment.reversed && " · Reversed"}
-                      </p>
-                    </div>
-                    <span className="shrink-0 font-numeric font-semibold text-ink">
-                      {currency(payment.amount, payment.currency)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <div className="mt-5 flex justify-end">
-            <DialogClose render={<Button variant="secondary" size="touch" />}>Done</DialogClose>
-          </div>
-        </DialogContent>
-      </Dialog>
       <Dialog open={memberBreakdownOpen} onOpenChange={setMemberBreakdownOpen}>
         <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
           <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
@@ -537,5 +451,104 @@ export function TabSettlement({
         }
       />
     </Panel>
+  );
+}
+
+export function SettlementActions({
+  slug,
+  members,
+  expenseView,
+}: {
+  slug: string;
+  members: Member[];
+  expenseView: ExpenseView;
+}) {
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const { currency, formatExpenseDate } = useLocaleFormatters();
+  const response = useQuery(api.settlements.get, { slug, asOfDate: todayISODate() });
+  if (!response) return null;
+  const data = "paid" in response ? response[expenseView] : response;
+  const canRecordPayment = data.currencies.some((group) =>
+    group.members.some(
+      (member) => member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
+    ),
+  );
+  if (!data.viewerMemberId) return null;
+  return (
+    <>
+      <Button
+        variant="secondary"
+        size="touch"
+        className="min-w-0 w-full md:w-auto"
+        onClick={() => setPaymentHistoryOpen(true)}
+      >
+        <History aria-hidden="true" className="h-4 w-4" />
+        Payment history
+      </Button>
+      {expenseView !== "upcoming" &&
+        (canRecordPayment ? (
+          <Button
+            size="touch"
+            nativeButton={false}
+            className="min-w-0 w-full md:w-auto"
+            render={<Link to="/t/$slug/payment" params={{ slug }} search={{ view: expenseView }} />}
+          >
+            <Banknote aria-hidden="true" className="h-4 w-4" />
+            Record payment
+          </Button>
+        ) : (
+          <Button size="touch" className="min-w-0 w-full md:w-auto" disabled>
+            <Banknote aria-hidden="true" className="h-4 w-4" />
+            Record payment
+          </Button>
+        ))}
+      <Dialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen}>
+        <DialogContent>
+          <DialogTitle>Payment history</DialogTitle>
+          <DialogDescription className="mt-1">
+            {data.history.length} recorded {data.history.length === 1 ? "payment" : "payments"}.
+          </DialogDescription>
+          {data.history.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-soft">No payments recorded.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-rule border-y border-edge bg-field">
+              {data.history.map((payment) => (
+                <li
+                  key={payment.id}
+                  className="flex min-w-0 items-center justify-between gap-4 px-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="break-words text-sm text-ink">
+                      <span className="font-medium">
+                        {members.find((member) => member.id === payment.fromMemberId)?.name ??
+                          "Former member"}
+                      </span>{" "}
+                      paid{" "}
+                      <span className="font-medium">
+                        {members.find((member) => member.id === payment.toMemberId)?.name ??
+                          "Former member"}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-ink-soft">
+                      <time dateTime={payment.date}>
+                        {formatExpenseDate(payment.date) ?? payment.date}
+                      </time>
+                      {payment.view === "upcoming" && " · Upcoming expenses"}
+                      {payment.reversed && " · Reversed"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-numeric font-semibold text-ink">
+                    {currency(payment.amount, payment.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-5 flex justify-end">
+            <DialogClose render={<Button variant="secondary" size="touch" />}>Done</DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

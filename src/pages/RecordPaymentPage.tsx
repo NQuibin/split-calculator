@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import type { FunctionReturnType } from "convex/server";
 import type { Id } from "../../convex/_generated/dataModel";
+import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
-import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { FieldError, Input, Label } from "@/components/ui/Input";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
 import { Page, Panel } from "@/components/ui/Page";
@@ -23,31 +22,18 @@ type PaymentMember = {
   name: string;
   currency: string;
   balance: number;
-  expenses: SettlementResponse["paid"]["currencies"][number]["members"][number]["expenses"];
 };
-type PaymentDraft = { amount: string; expenseIds: string[] };
+type PaymentDraft = { amount: string };
 type PaymentSection = {
   key: string;
   choice: PaymentMember;
   draft: PaymentDraft;
   paymentCents: number;
   validAmount: boolean;
-  selectedExpenses: PaymentMember["expenses"];
-  selectedCapacity: number;
   memberBalanceCapacity: number;
-  allocations: { expenseId: string; amount: number }[];
   error: string | null;
   valid: boolean;
 };
-
-function allocatePayment(expenses: PaymentMember["expenses"], paymentCents: number) {
-  let remaining = paymentCents;
-  return expenses.flatMap((expense) => {
-    const amount = Math.min(remaining, Math.round(expense.outstanding * 100));
-    remaining -= amount;
-    return amount > 0 ? [{ expenseId: expense.expenseId, amount }] : [];
-  });
-}
 
 function paymentKey(choice: PaymentMember) {
   return `${choice.memberId}:${choice.currency}`;
@@ -68,7 +54,7 @@ export function RecordPaymentPage() {
     | undefined;
   const recordSettlement = useMutation(api.settlements.recordMany);
   const navigate = useNavigate();
-  const { currency, formatExpenseDate } = useLocaleFormatters();
+  const { currency } = useLocaleFormatters();
   const [stage, setStage] = useState<"select" | "details">("select");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, PaymentDraft>>({});
@@ -82,15 +68,13 @@ export function RecordPaymentPage() {
         .filter(
           (member) =>
             member.memberId !== data.viewerMemberId &&
-            (member.balanceWithViewer ?? member.balance) !== 0 &&
-            member.expenses.some((expense) => expense.outstanding > 0),
+            (member.balanceWithViewer ?? member.balance) !== 0,
         )
         .map((member) => ({
           memberId: member.memberId,
           name: member.name,
           currency: group.currency,
           balance: member.balanceWithViewer ?? member.balance,
-          expenses: member.expenses.filter((expense) => expense.outstanding > 0),
         })),
     ) ?? [];
   const choiceGroups =
@@ -101,7 +85,7 @@ export function RecordPaymentPage() {
   const selectedChoices = choices.filter((choice) => selectedKeys.includes(paymentKey(choice)));
   const sections: PaymentSection[] = selectedChoices.map((choice) => {
     const key = paymentKey(choice);
-    const draft = drafts[key] ?? { amount: "", expenseIds: [] };
+    const draft = drafts[key] ?? { amount: "" };
     const enteredAmountCents = Number(draft.amount) * 100;
     const paymentCents = Math.round(enteredAmountCents);
     const validAmount =
@@ -109,15 +93,7 @@ export function RecordPaymentPage() {
       Number.isSafeInteger(paymentCents) &&
       paymentCents > 0 &&
       Math.abs(enteredAmountCents - paymentCents) < 1e-6;
-    const selectedExpenses = choice.expenses.filter((expense) =>
-      draft.expenseIds.includes(expense.expenseId),
-    );
-    const selectedCapacity = selectedExpenses.reduce(
-      (sum, expense) => sum + Math.round(expense.outstanding * 100),
-      0,
-    );
     const memberBalanceCapacity = Math.round(Math.abs(choice.balance) * 100);
-    const allocations = allocatePayment(selectedExpenses, paymentCents);
     const error =
       draft.amount === ""
         ? null
@@ -125,25 +101,16 @@ export function RecordPaymentPage() {
           ? "Enter a positive amount with up to two decimal places."
           : paymentCents > memberBalanceCapacity
             ? "Payment cannot exceed the direct balance with this member."
-            : selectedCapacity < paymentCents
-              ? `Select expenses with at least ${currency(paymentCents / 100, choice.currency)} outstanding.`
-              : null;
+            : null;
     return {
       key,
       choice,
       draft,
       paymentCents,
       validAmount,
-      selectedExpenses,
-      selectedCapacity,
       memberBalanceCapacity,
-      allocations,
       error,
-      valid:
-        validAmount &&
-        paymentCents <= memberBalanceCapacity &&
-        selectedExpenses.length > 0 &&
-        selectedCapacity >= paymentCents,
+      valid: validAmount && paymentCents <= memberBalanceCapacity,
     };
   });
   const canSubmit = sections.length > 0 && sections.every((section) => section.valid);
@@ -158,18 +125,9 @@ export function RecordPaymentPage() {
   function updateDraft(key: string, update: Partial<PaymentDraft>) {
     setDrafts((current) => ({
       ...current,
-      [key]: { ...(current[key] ?? { amount: "", expenseIds: [] }), ...update },
+      [key]: { ...(current[key] ?? { amount: "" }), ...update },
     }));
     setError(null);
-  }
-
-  function toggleExpense(section: PaymentSection, expenseId: string) {
-    const expenseIds = section.draft.expenseIds;
-    updateDraft(section.key, {
-      expenseIds: expenseIds.includes(expenseId)
-        ? expenseIds.filter((id) => id !== expenseId)
-        : [...expenseIds, expenseId],
-    });
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -182,7 +140,7 @@ export function RecordPaymentPage() {
         slug,
         asOfDate: day,
         view,
-        payments: sections.map(({ choice, paymentCents, allocations }) => ({
+        payments: sections.map(({ choice, paymentCents }) => ({
           fromMemberId: (choice.balance > 0
             ? choice.memberId
             : data.viewerMemberId) as Id<"tabMembers">,
@@ -193,10 +151,6 @@ export function RecordPaymentPage() {
           currency: choice.currency,
           date: day,
           requestId: crypto.randomUUID(),
-          allocations: allocations.map(({ expenseId, amount }) => ({
-            expenseId: expenseId as Id<"expenses">,
-            amount: amount / 100,
-          })),
         })),
       });
       await navigate({ to: "/t/$slug", params: { slug }, replace: true });
@@ -345,47 +299,6 @@ export function RecordPaymentPage() {
                       {section.error}
                     </FieldError>
                   )}
-                </div>
-                <div>
-                  <GroupTitle className="mb-2">Apply to expenses</GroupTitle>
-                  <p className="mb-2 text-xs text-ink-soft">
-                    Applied in list order, filling each expense before the next.
-                  </p>
-                  <ul className="space-y-2">
-                    {section.choice.expenses.map((expense) => {
-                      const selected = section.draft.expenseIds.includes(expense.expenseId);
-                      const allocation =
-                        section.allocations.find((row) => row.expenseId === expense.expenseId)
-                          ?.amount ?? 0;
-                      return (
-                        <li key={expense.expenseId}>
-                          <CheckboxRow
-                            selected={selected}
-                            onCheckedChange={() => toggleExpense(section, expense.expenseId)}
-                            ground="field"
-                            className="items-center"
-                          >
-                            <span className="min-w-0 flex-1 break-words">
-                              <span className="block">{expense.name}</span>
-                              <time dateTime={expense.date} className="text-xs text-ink-soft">
-                                {formatExpenseDate(expense.date) ?? expense.date}
-                              </time>
-                            </span>
-                            <span className="text-right">
-                              <span className="block font-numeric">
-                                {currency(expense.outstanding, section.choice.currency)}
-                              </span>
-                              {selected && allocation > 0 && (
-                                <span className="block text-xs text-ink-soft">
-                                  Apply {currency(allocation / 100, section.choice.currency)}
-                                </span>
-                              )}
-                            </span>
-                          </CheckboxRow>
-                        </li>
-                      );
-                    })}
-                  </ul>
                 </div>
               </section>
             ))}

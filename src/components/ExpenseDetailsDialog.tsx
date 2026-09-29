@@ -118,12 +118,10 @@ export function ExpenseDetailsDialog({
                         <span className="block font-numeric font-semibold">
                           {currency(person.total, expense.currency)}
                         </span>
-                        {person.personId !== expense.payerId && status ? (
-                          <span className="block text-xs text-ink-soft">
-                            {status.paid >= status.share
-                              ? "Settled"
-                              : `Partial (${currency(status.paid, status.currency)} paid)`}
-                          </span>
+                        {person.personId !== expense.payerId &&
+                        status &&
+                        status.paid >= status.share ? (
+                          <span className="block text-xs text-ink-soft">Settled</span>
                         ) : null}
                       </span>
                     </li>

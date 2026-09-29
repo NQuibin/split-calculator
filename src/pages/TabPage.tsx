@@ -31,7 +31,7 @@ import { Page } from "@/components/ui/Page";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { TabSettlement } from "@/components/TabSettlement";
+import { SettlementActions, TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
@@ -185,9 +185,10 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       />
     </div>
   );
-  const mobileExpenseActions = (
-    <div className="mb-6 md:hidden">
-      <ExpenseActions slug={slug} members={tab.members} className="w-full" />
+  const pageActions = (view: ExpenseView) => (
+    <div className="mb-6 grid grid-cols-2 gap-2 md:mb-0 md:flex md:justify-end">
+      <ExpenseActions slug={slug} members={tab.members} className="col-span-2 w-full md:hidden" />
+      <SettlementActions slug={slug} members={tab.members} expenseView={view} />
     </div>
   );
 
@@ -224,13 +225,20 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
           <Roster slug={slug} members={tab.members} />
         </div>
       </header>
-      {mobileExpenseActions}
       {hasUpcoming ? (
-        <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Tab expense date">
+        <ExpenseViewTabs
+          value={expenseView}
+          onChange={setExpenseView}
+          label="Tab expense date"
+          actions={pageActions(expenseView)}
+        >
           {tabContent}
         </ExpenseViewTabs>
       ) : (
-        tabContent
+        <>
+          {pageActions("paid")}
+          {tabContent}
+        </>
       )}
     </Page>
   );

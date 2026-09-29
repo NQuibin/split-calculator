@@ -223,13 +223,6 @@ export const deleteTab = mutation({
       .take(501);
     if (settlements.length > 500)
       throw new Error("This tab needs a batched payment deletion before it can be removed");
-    const allocations = await ctx.db
-      .query("settlementAllocations")
-      .withIndex("by_tabId", (q) => q.eq("tabId", tab._id))
-      .take(10_001);
-    if (allocations.length > 10_000)
-      throw new Error("This tab needs a batched payment deletion before it can be removed");
-    for (const allocation of allocations) await ctx.db.delete(allocation._id);
     for (const settlement of settlements) await ctx.db.delete(settlement._id);
 
     for (const seat of await tabSeats(ctx, tab._id)) {
