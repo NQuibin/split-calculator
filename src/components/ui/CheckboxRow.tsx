@@ -41,8 +41,10 @@ export function CheckboxRow({
   return (
     <label
       className={cn(
-        "flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm text-ink transition-colors hover:bg-wash active:bg-wash focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest",
-        layout === "row" ? "w-full" : "w-fit",
+        "flex min-h-11 cursor-pointer items-center gap-3 rounded-md border text-sm text-ink focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest",
+        layout === "row"
+          ? "w-full px-3 py-2 transition-colors hover:bg-wash active:bg-wash"
+          : "w-fit",
         ground === "plain" && "border-transparent px-0",
         selected
           ? ground === "plain"
@@ -51,7 +53,7 @@ export function CheckboxRow({
           : ground === "plain"
             ? "border-transparent bg-transparent"
             : `border-edge ${restingGround}`,
-        layout === "compact" && `border-transparent ${restingGround}`,
+        layout === "compact" && `border-0 ${restingGround}`,
         className,
       )}
     >

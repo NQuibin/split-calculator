@@ -1,4 +1,4 @@
-import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
+import { TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
 import { isUpcoming } from "@/lib/format";
 import type { TabBreakdownMember } from "@/lib/tabSync";
@@ -23,7 +23,6 @@ export function TabMemberBreakdown({
       ) : (
         <div className="overflow-hidden border-y border-edge bg-field">
           <ul className={`${modalListGrid} text-sm`}>
-            <TabExpenseHeader showBalance />
             {expenses.map((line) => {
               const upcoming = isUpcoming(line.date);
               return (

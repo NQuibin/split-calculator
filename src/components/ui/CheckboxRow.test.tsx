@@ -18,7 +18,7 @@ test("renders the shared checked-circle indicator at the right edge of a touch r
   expect(markup).toContain("border-forest bg-forest text-surface");
 });
 
-test("renders a content-sized checkbox with the indicator on the left and standard padding", () => {
+test("renders a compact checkbox without padding or hover fill", () => {
   const markup = renderMarkup(
     <CheckboxRow selected onCheckedChange={() => undefined} layout="compact">
       <span>Record full amount</span>
@@ -26,8 +26,10 @@ test("renders a content-sized checkbox with the indicator on the left and standa
   );
 
   expect(markup).toContain("w-fit");
-  expect(markup).toContain("px-3 py-2");
-  expect(markup).toContain("border-transparent");
+  expect(markup).not.toContain("px-3 py-2");
+  expect(markup).not.toContain("hover:bg-wash");
+  expect(markup).not.toContain("active:bg-wash");
+  expect(markup).toContain("border-0");
   expect(markup).toContain("bg-surface");
   expect(markup).not.toContain("border-forest bg-field");
   expect(markup).not.toContain("ml-auto");

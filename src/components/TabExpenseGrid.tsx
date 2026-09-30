@@ -14,27 +14,6 @@ export type TabExpenseMemberContext = {
   viewerPerspective?: boolean;
 };
 
-/** The payer identity shown in the desktop payer column. */
-export function TabExpensePayer({
-  payer,
-  upcoming,
-}: {
-  payer: TabExpensePayer;
-  upcoming: boolean;
-}) {
-  if (!payer) {
-    return (
-      <span className="text-xs text-ink-soft">{upcoming ? "Not paid yet" : "Payer needed"}</span>
-    );
-  }
-  return (
-    <span className="flex min-w-0 items-center gap-3">
-      <MemberAvatar id={payer.id} name={payer.name} size="md" />
-      <span className="truncate text-sm text-ink-soft">{payer.name}</span>
-    </span>
-  );
-}
-
 /** An expense date as "Mar 3", with its year and upcoming marker. */
 export function TabExpenseDate({ date }: { date: string | undefined }) {
   const { formatExpenseDateShort } = useLocaleFormatters();
@@ -125,10 +104,13 @@ export function TabExpenseBalance({
   return (
     <>
       <span className="hidden @min-[38rem]:block">
-        <span
-          className={`block text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
-        >
-          {balanceLabel} <span className="font-numeric">{currency(Math.abs(balance), code)}</span>
+        <span className="block break-words text-xs text-ink-soft">
+          {balanceLabel}{" "}
+          <span
+            className={`font-numeric text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
+          >
+            {currency(Math.abs(balance), code)}
+          </span>
         </span>
       </span>
       <span className="block @min-[38rem]:hidden">
@@ -190,8 +172,19 @@ export function TabExpenseRow({
         <span className={titleClassName}>{title}</span>
       )}
 
-      <span className="hidden min-w-0 @min-[38rem]:col-start-3 @min-[38rem]:block">
-        <TabExpensePayer payer={payer} upcoming={upcoming} />
+      <span className="hidden min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 break-words text-sm text-ink @min-[38rem]:col-start-3 @min-[38rem]:flex">
+        {payer ? (
+          <>
+            <MemberAvatar id={payer.id} name={payer.name} size="md" />
+            <span className="break-words">{payer.name}</span>
+            <span className="text-xs text-ink-soft">paid</span>
+          </>
+        ) : (
+          <span className="text-xs text-ink-soft">
+            {upcoming ? "Not paid yet" : "Payer needed"}
+          </span>
+        )}
+        <TabExpenseAmount total={total} code={code} upcoming={upcoming} compact />
       </span>
       <span className="col-start-2 row-start-2 flex min-w-0 self-center items-center gap-x-2 @min-[38rem]:hidden">
         {payer && <MemberAvatar id={payer.id} name={payer.name} size="md" />}
@@ -208,14 +201,11 @@ export function TabExpenseRow({
           <TabExpenseAmount total={total} code={code} upcoming={upcoming} compact />
         </span>
       </span>
-      <span className="hidden min-w-0 self-start text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto @min-[38rem]:block @min-[38rem]:self-auto">
-        <TabExpenseAmount total={total} code={code} upcoming={upcoming} />
-      </span>
       <span className="col-start-1 row-start-2 self-center text-xs text-ink-soft @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:text-sm">
         <TabExpenseDate date={date} />
       </span>
       {memberContext && (
-        <span className="col-start-3 row-start-2 min-w-0 self-center text-right @min-[38rem]:col-start-5 @min-[38rem]:row-auto">
+        <span className="col-start-3 row-start-2 min-w-0 self-center text-right @min-[38rem]:col-start-4 @min-[38rem]:row-auto">
           <TabExpenseBalance
             balance={memberContext.balance}
             code={code}
@@ -227,24 +217,8 @@ export function TabExpenseRow({
       )}
       <ChevronRight
         aria-hidden="true"
-        className={`-mr-1 col-start-3 row-start-1 h-5 w-5 shrink-0 self-center justify-self-end text-ink-soft chevron-x ${memberContext ? "@min-[38rem]:col-start-6" : "@min-[38rem]:col-start-5"}`}
+        className={`-mr-1 col-start-3 row-start-1 h-5 w-5 shrink-0 self-center justify-self-end text-ink-soft chevron-x ${memberContext ? "@min-[38rem]:col-start-5" : "@min-[38rem]:col-start-4"}`}
       />
-    </li>
-  );
-}
-
-/** The shared desktop header for responsive tab expense rows. */
-export function TabExpenseHeader({ showBalance }: { showBalance: boolean }) {
-  const { row } = expenseListGridClass(showBalance);
-  return (
-    <li
-      className={`${row} hidden border-b border-edge bg-surface py-2 text-xs font-medium uppercase text-ink-soft @min-[38rem]:grid`}
-    >
-      <span className="@min-[38rem]:col-start-1">Date</span>
-      <span className="@min-[38rem]:col-start-2">Expense</span>
-      <span className="@min-[38rem]:col-start-3">Paid by</span>
-      <span className="text-right @min-[38rem]:col-start-4">Total</span>
-      {showBalance && <span className="text-right @min-[38rem]:col-start-5">Balance</span>}
     </li>
   );
 }

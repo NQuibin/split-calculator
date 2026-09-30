@@ -179,7 +179,8 @@ test("shows the direct balance and can fill the full payment amount", async () =
   const fullAmount = clickCheckboxRow(container, "Record full amount");
   if (!fullAmount) throw new Error("Missing full payment option");
   expect(fullAmount.className).toContain("w-fit");
-  expect(fullAmount.className).toContain("px-3 py-2");
+  expect(fullAmount.className).not.toContain("px-3 py-2");
+  expect(fullAmount.className).not.toContain("hover:bg-wash");
   expect(fullAmount.querySelector('[aria-hidden="true"]')?.previousElementSibling?.tagName).toBe(
     "INPUT",
   );

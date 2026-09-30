@@ -33,7 +33,7 @@ import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/B
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SettlementActions, TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
-import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
+import { TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
 import { computeExpenseBalances } from "@/lib/settlements";
 import type { FunctionReturnType } from "convex/server";
@@ -893,7 +893,7 @@ function ExpenseList({
       {/* A row list with no header or footer is still a table body (DESIGN.md
           "Data tables"): the field ground between two `--edge` rules, open at
           the sides. */}
-      <div className="bleed overflow-hidden border-y border-edge bg-field @min-[38rem]:border-t-0">
+      <div className="bleed overflow-hidden border-y border-edge bg-field">
         {!filtered.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length
@@ -904,7 +904,6 @@ function ExpenseList({
           </p>
         ) : (
           <ul className={listGrid}>
-            <TabExpenseHeader showBalance={showSettlement} />
             {filtered.map((expense) => {
               const rowSplit = computeSplit(
                 expense.people,

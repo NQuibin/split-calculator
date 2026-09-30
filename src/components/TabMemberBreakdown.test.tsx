@@ -69,13 +69,13 @@ test("shows an empty state when no expenses are shared with the viewer", () => {
   expect(markup).not.toContain(">Date<");
 });
 
-test("retains responsive expense table layout", () => {
+test("renders headerless expense rows with a desktop payer and balance", () => {
   const markup = renderMarkup(createElement(TabMemberBreakdown, { member, currencyCode: "CAD" }));
 
-  expect(markup).toContain(">Date<");
-  expect(markup).toContain(">Expense<");
-  expect(markup).toContain(">Paid by<");
-  expect(markup).toContain(">Balance<");
+  expect(markup).not.toContain(">Date<");
+  expect(markup).not.toContain(">Paid by<");
+  expect(markup).toContain("@min-[38rem]:col-start-3 @min-[38rem]:flex");
+  expect(markup).toContain("block break-words text-xs text-ink-soft");
   expect(markup).toContain("@min-[38rem]:grid");
   expect(markup).toContain("@min-[56rem]:gap-x-6");
 });

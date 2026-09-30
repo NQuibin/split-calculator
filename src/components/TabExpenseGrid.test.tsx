@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { expect, test } from "vitest";
 import { renderMarkup } from "@/test/render";
-import { TabExpenseHeader, TabExpenseRow } from "./TabExpenseGrid";
+import { TabExpenseRow } from "./TabExpenseGrid";
 
 const sharedRow = {
   name: "Dinner",
@@ -35,6 +35,8 @@ test("renders only the viewer balance through the shared row", () => {
   expect(markup).toContain("col-start-1 col-span-2 row-start-1");
   expect(markup).toContain("col-start-3 row-start-2");
   expect(markup).toContain('class="block text-xs text-ink-soft">You lent');
+  expect(markup).toContain("@min-[38rem]:col-start-3 @min-[38rem]:flex");
+  expect(markup).toContain('class="font-numeric text-sm">CA$20.00');
 });
 
 test("renders another selected member's balance label", () => {
@@ -53,11 +55,10 @@ test("renders another selected member's balance label", () => {
 
 test("omits the balance column when no member context is supplied", () => {
   const markup = renderMarkup(createElement(TabExpenseRow, sharedRow));
-  const header = renderMarkup(createElement(TabExpenseHeader, { showBalance: false }));
 
   expect(markup).not.toContain("You lent");
   expect(markup).not.toContain("Not in split");
-  expect(header).not.toContain(">Balance<");
+  expect(markup).not.toContain(">Balance<");
 });
 
 test("renders a zero balance without an icon", () => {
