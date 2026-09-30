@@ -292,6 +292,7 @@ export function TabSettlement({
   const { currency } = useLocaleFormatters();
   const [day, setDay] = useState(todayISODate);
   const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
+  const [returningFromExpense, setReturningFromExpense] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{
     memberId: string;
     currency: string;
@@ -342,6 +343,7 @@ export function TabSettlement({
       .find((group) => group.currency === currencyCode)
       ?.members.find((row) => row.memberId === memberId);
     if (member) {
+      setReturningFromExpense(false);
       setSelectedMember({ memberId, currency: currencyCode, name: member.name });
       setMemberBreakdownOpen(true);
     }
@@ -358,8 +360,17 @@ export function TabSettlement({
         canManage={canManage}
         onMemberClick={openMemberExpenses}
       />
-      <Dialog open={memberBreakdownOpen} onOpenChange={setMemberBreakdownOpen}>
-        <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
+      <Dialog
+        open={memberBreakdownOpen}
+        onOpenChange={(nextOpen) => {
+          setMemberBreakdownOpen(nextOpen);
+          if (!nextOpen) setReturningFromExpense(false);
+        }}
+      >
+        <DialogContent
+          instant={selectedExpenseSlug !== null || returningFromExpense}
+          className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0"
+        >
           <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -418,6 +429,7 @@ export function TabSettlement({
                   member={selectedBreakdown}
                   currencyCode={selectedMember.currency}
                   onExpenseClick={(expenseSlug) => {
+                    setReturningFromExpense(false);
                     setMemberBreakdownOpen(false);
                     setSelectedExpenseSlug(expenseSlug);
                   }}
@@ -431,8 +443,14 @@ export function TabSettlement({
       </Dialog>
       <ExpenseDetailsDialog
         open={selectedExpenseSlug !== null}
+        instant={selectedExpenseSlug !== null || returningFromExpense}
         onOpenChange={(next) => {
           if (!next) setSelectedExpenseSlug(null);
+        }}
+        onBack={() => {
+          setReturningFromExpense(true);
+          setSelectedExpenseSlug(null);
+          setMemberBreakdownOpen(true);
         }}
         expense={selectedExpense}
         slug={slug}
@@ -518,7 +536,7 @@ export function SettlementActions({
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto card-inset pt-0">
             {data.history.length === 0 ? (
-              <p className="text-sm text-ink-soft">No payments recorded.</p>
+              <p className="pt-5 text-sm text-ink-soft sm:pt-6">No payments recorded.</p>
             ) : (
               <ul className="bleed bg-field">
                 {[...historyByDate].map(([date, payments]) => {

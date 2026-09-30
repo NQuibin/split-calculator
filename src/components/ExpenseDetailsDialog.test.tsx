@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import type { TabExpenseSummary } from "@/lib/tabSync";
 import { ExpenseDetailsDialog } from "./ExpenseDetailsDialog";
 
@@ -68,6 +68,7 @@ test("shows shared member names and amounts without status sublabels", () => {
 });
 
 test("opens item details with adjustments and member shares, then goes back", () => {
+  const onBack = vi.fn();
   const expense: TabExpenseSummary = {
     mode: "itemized",
     date: "2026-09-26",
@@ -108,6 +109,7 @@ test("opens item details with adjustments and member shares, then goes back", ()
           { id: "nikki", name: "Nikki Q" },
           { id: "sam", name: "Sam" },
         ],
+        onBack,
       }),
     ),
   );
@@ -132,5 +134,10 @@ test("opens item details with adjustments and member shares, then goes back", ()
   );
   expect(document.body.textContent).toContain("View items");
   expect(document.body.textContent).not.toContain("Item total");
+  expect(onBack).not.toHaveBeenCalled();
+  flushSync(() =>
+    document.querySelector<HTMLButtonElement>('[aria-label="Back to balance"]')?.click(),
+  );
+  expect(onBack).toHaveBeenCalledOnce();
   root.unmount();
 });

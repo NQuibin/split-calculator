@@ -48,7 +48,6 @@ import type {
   ExpenseMode,
 } from "@/lib/types";
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
-import { ExpenseBalances } from "@/components/ExpenseBalances";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
 import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { TipRateInput } from "@/components/ui/TipRateInput";
@@ -754,15 +753,6 @@ export function StageExpense({
             </div>
           </>
         )}
-
-        <ExpenseBalances
-          people={people}
-          split={totals}
-          payerId={payerId}
-          currency={currencyCode}
-          projected={isUpcoming(date)}
-          unallocated={items.some((item) => item.splitWith.length === 0)}
-        />
 
         <NoteField note={note} onSetNote={onSetNote} />
         <ExpenseImageField receipt={receipt} onPick={onPickReceipt} canUpload={canUploadImage} />

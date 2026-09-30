@@ -16,18 +16,29 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
 
 // Backdrop + a scrollable viewport wrap the popup, so a tall dialog scrolls the
 // page-level overlay rather than trapping its own overflow.
-function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.Props) {
+function DialogContent({
+  className,
+  children,
+  instant = false,
+  ...props
+}: DialogPrimitive.Popup.Props & { instant?: boolean }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
         data-slot="dialog-backdrop"
-        className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px] duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+        className={cn(
+          "fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px]",
+          !instant &&
+            "duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        )}
       />
       <DialogPrimitive.Viewport className="fixed inset-0 z-50 flex justify-center overflow-y-auto sm:p-4 sm:py-10">
         <DialogPrimitive.Popup
           data-slot="dialog-content"
           className={cn(
-            "relative m-auto w-full max-w-lg rounded-none border border-rule/70 bg-surface p-5 text-ink shadow-xl outline-hidden duration-150 sm:rounded-xl sm:p-6 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "relative m-auto w-full max-w-lg rounded-none border border-rule/70 bg-surface p-5 text-ink shadow-xl outline-hidden sm:rounded-xl sm:p-6",
+            !instant &&
+              "duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}

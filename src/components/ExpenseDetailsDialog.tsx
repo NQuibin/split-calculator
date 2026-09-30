@@ -22,6 +22,8 @@ export function ExpenseDetailsDialog({
   canManage,
   members,
   onDelete,
+  onBack,
+  instant = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,6 +33,8 @@ export function ExpenseDetailsDialog({
   canManage: boolean;
   members: Member[];
   onDelete?: (slug: string) => void;
+  onBack?: () => void;
+  instant?: boolean;
 }) {
   const { currency, formatExpenseDate } = useLocaleFormatters();
   const split = expense
@@ -53,19 +57,23 @@ export function ExpenseDetailsDialog({
         <DialogContent
           key={expense.slug}
           aria-label={showingItems ? "Item details for this expense" : "Expense details"}
+          instant={instant}
           className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
         >
           <header
             className={`shrink-0 border-b bg-surface p-5 sm:p-6 ${showingItems ? "border-edge" : "border-rule/70"}`}
           >
             <div className="flex items-center justify-between gap-3">
-              {showingItems && (
+              {(showingItems || onBack) && (
                 <Button
                   type="button"
                   variant="quiet-icon"
                   size="icon-touch"
-                  aria-label="Back to expense details"
-                  onClick={() => setItemViewExpenseSlug(null)}
+                  aria-label={showingItems ? "Back to expense details" : "Back to balance"}
+                  onClick={() => {
+                    if (showingItems) setItemViewExpenseSlug(null);
+                    else onBack?.();
+                  }}
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </Button>

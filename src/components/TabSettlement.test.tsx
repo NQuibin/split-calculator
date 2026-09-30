@@ -355,6 +355,103 @@ test("shows the selected member balance above the modal expense list", () => {
   container.remove();
 });
 
+test("returns from an expense to its member balance modal", () => {
+  const response = { paid: data, upcoming: data, all: data };
+  const breakdownResult = {
+    currencies: [
+      {
+        currency: "CAD",
+        expenseCount: 1,
+        convertedExpenseCount: 0,
+        members: [
+          {
+            memberId: "p2",
+            resolvedId: "p2",
+            name: "P2",
+            claimed: false,
+            totalSpent: 0,
+            expenseCount: 1,
+            expenses: [
+              {
+                expenseSlug: "first",
+                expenseName: "First expense",
+                date: "2026-09-01",
+                fairShare: 15,
+                balance: -15,
+                viewerBalance: 15,
+                sharedWithViewer: true,
+                payerId: "viewer",
+                payerName: "Nikki Q",
+                total: 30,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    expenseCount: 1,
+    tab: { name: "Trip", slug: "trip" },
+  };
+  mocks.results = Array.from({ length: 12 }, (_, index) =>
+    index % 2 ? breakdownResult : response,
+  );
+  const expense = {
+    ...thirdPartyExpense,
+    slug: "first",
+    name: "First expense",
+    payerId: "viewer",
+    people: [
+      { id: "viewer", name: "Nikki Q" },
+      { id: "p2", name: "P2" },
+    ],
+    items: [{ ...thirdPartyExpense.items[0], splitWith: ["viewer", "p2"] }],
+  };
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const popupFor = (title: string) =>
+    [...document.querySelectorAll<HTMLElement>('[data-slot="dialog-content"]')].find(
+      (popup) => popup.querySelector('[data-slot="dialog-title"]')?.textContent === title,
+    );
+  flushSync(() =>
+    root.render(
+      createElement(TabSettlement, {
+        slug: "trip",
+        members: [
+          { id: "viewer", name: "Nikki Q" },
+          { id: "p2", name: "P2" },
+        ],
+        canManage: true,
+        defaultCurrency: "CAD",
+        expenses: [expense],
+      }),
+    ),
+  );
+
+  flushSync(() =>
+    container
+      .querySelector<HTMLButtonElement>('button[aria-label="View P2\'s CAD expenses"]')
+      ?.click(),
+  );
+  expect(popupFor("P2")?.className).toContain("data-open:animate-in");
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("First expense"))
+      ?.click(),
+  );
+  expect(document.querySelector('[aria-label="Back to balance"]')).not.toBeNull();
+  expect(popupFor("First expense")?.className).not.toContain("data-open:animate-in");
+
+  flushSync(() =>
+    document.querySelector<HTMLButtonElement>('[aria-label="Back to balance"]')?.click(),
+  );
+  expect(document.querySelector('[aria-label="Back to balance"]')).toBeNull();
+  expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe("P2");
+  expect(popupFor("P2")?.className).not.toContain("data-open:animate-in");
+  root.unmount();
+  container.remove();
+});
+
 test("links to record payment beside payment history and keeps the active view", () => {
   mocks.results = [{ paid: data, upcoming: data, all: data }];
   const markup = renderMarkup(
@@ -399,6 +496,33 @@ test("disables record payment in the upcoming view", () => {
   expect(markup).toMatch(/<button[^>]*disabled[^>]*>[\s\S]*?Record payment/);
   expect(markup).not.toContain('href="/t/trip/payment?view=upcoming"');
   expect(markup).toContain("Payment history");
+});
+
+test("adds top padding when payment history is empty", () => {
+  const response = { paid: data, upcoming: data, all: data };
+  mocks.results = [response, response];
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [{ id: "viewer", name: "Nikki Q" }],
+        expenseView: "paid",
+      }),
+    ),
+  );
+  flushSync(() =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("Payment history"))
+      ?.click(),
+  );
+  const empty = [...document.querySelectorAll("p")].find(
+    (paragraph) => paragraph.textContent === "No payments recorded.",
+  );
+  expect(empty?.classList.contains("pt-5")).toBe(true);
+  expect(empty?.classList.contains("sm:pt-6")).toBe(true);
+  root.unmount();
 });
 
 test("keeps payment history in its modal", () => {
