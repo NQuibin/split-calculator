@@ -34,7 +34,7 @@ test("renders only the viewer balance through the shared row", () => {
   expect(markup).toContain('class="flex min-w-0 flex-col items-start gap-y-0.5"');
   expect(markup).toContain("col-start-1 col-span-2 row-start-1");
   expect(markup).toContain("col-start-3 row-start-2");
-  expect(markup).toContain('class="block text-xs text-ink-soft">You lent');
+  expect(markup).toContain('class="block text-sm text-ink-soft">You lent');
   expect(markup).toContain("@min-[38rem]:col-start-3 @min-[38rem]:flex");
   expect(markup).toContain('class="font-numeric text-sm">CA$20.00');
 });
@@ -83,7 +83,7 @@ test("styles an upcoming zero balance like No balance", () => {
   );
 
   expect(markup).toContain(
-    '<span class="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">Not due</span>',
+    '<span class="ml-auto block w-20 shrink-0 text-right text-sm text-ink-soft">Not due</span>',
   );
 });
 

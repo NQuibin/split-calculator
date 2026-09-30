@@ -468,6 +468,12 @@ export function SettlementActions({
   const response = useQuery(api.settlements.get, { slug, asOfDate: todayISODate() });
   if (!response) return null;
   const data = "paid" in response ? response[expenseView] : response;
+  const historyByDate = data.history.reduce<Map<string, typeof data.history>>((groups, payment) => {
+    const group = groups.get(payment.date) ?? [];
+    group.push(payment);
+    groups.set(payment.date, group);
+    return groups;
+  }, new Map());
   const canRecordPayment = data.currencies.some((group) =>
     group.members.some(
       (member) => member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
@@ -503,49 +509,70 @@ export function SettlementActions({
           </Button>
         ))}
       <Dialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen}>
-        <DialogContent>
-          <DialogTitle>Payment history</DialogTitle>
-          <DialogDescription className="mt-1">
-            {data.history.length} recorded {data.history.length === 1 ? "payment" : "payments"}.
-          </DialogDescription>
-          {data.history.length === 0 ? (
-            <p className="mt-4 text-sm text-ink-soft">No payments recorded.</p>
-          ) : (
-            <ul className="mt-4 divide-y divide-rule border-y border-edge bg-field">
-              {data.history.map((payment) => (
-                <li
-                  key={payment.id}
-                  className="flex min-w-0 items-center justify-between gap-4 px-3 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="break-words text-sm text-ink">
-                      <span className="font-medium">
-                        {members.find((member) => member.id === payment.fromMemberId)?.name ??
-                          "Former member"}
-                      </span>{" "}
-                      paid{" "}
-                      <span className="font-medium">
-                        {members.find((member) => member.id === payment.toMemberId)?.name ??
-                          "Former member"}
-                      </span>
-                    </p>
-                    <p className="mt-1 text-xs text-ink-soft">
-                      <time dateTime={payment.date}>
-                        {formatExpenseDate(payment.date) ?? payment.date}
-                      </time>
-                      {payment.view === "upcoming" && " · Upcoming expenses"}
-                      {payment.reversed && " · Reversed"}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-numeric font-semibold text-ink">
-                    {currency(payment.amount, payment.currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-5 flex justify-end">
-            <DialogClose render={<Button variant="secondary" size="touch" />}>Done</DialogClose>
+        <DialogContent className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
+          <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <DialogTitle>Payment history</DialogTitle>
+                <DialogDescription className="mt-1">
+                  {data.history.length} recorded{" "}
+                  {data.history.length === 1 ? "payment" : "payments"}.
+                </DialogDescription>
+              </div>
+              <DialogClose
+                aria-label="Close payment history"
+                render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+              >
+                <X aria-hidden="true" />
+              </DialogClose>
+            </div>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto card-inset">
+            {data.history.length === 0 ? (
+              <p className="text-sm text-ink-soft">No payments recorded.</p>
+            ) : (
+              <ul className="bleed divide-y divide-rule border-y border-edge bg-field">
+                {[...historyByDate].map(([date, payments]) => (
+                  <li key={date}>
+                    <h3 className="bleed-px border-b border-rule bg-surface py-2 text-sm font-semibold text-ink">
+                      <time dateTime={date}>{formatExpenseDate(date) ?? date}</time>
+                    </h3>
+                    <ul className="divide-y divide-rule">
+                      {payments.map((payment) => (
+                        <li
+                          key={payment.id}
+                          className="flex min-w-0 items-center justify-between gap-4 py-3 bleed-px"
+                        >
+                          <div className="min-w-0">
+                            <p className="break-words text-sm text-ink">
+                              <span className="font-medium">
+                                {members.find((member) => member.id === payment.fromMemberId)
+                                  ?.name ?? "Former member"}
+                              </span>{" "}
+                              paid{" "}
+                              <span className="font-medium">
+                                {members.find((member) => member.id === payment.toMemberId)?.name ??
+                                  "Former member"}
+                              </span>
+                            </p>
+                            {(payment.view === "upcoming" || payment.reversed) && (
+                              <p className="mt-1 text-xs text-ink-soft">
+                                {payment.view === "upcoming" && "Upcoming expenses"}
+                                {payment.view === "upcoming" && payment.reversed && " · "}
+                                {payment.reversed && "Reversed"}
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 font-numeric font-semibold text-ink">
+                            {currency(payment.amount, payment.currency)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </DialogContent>
       </Dialog>

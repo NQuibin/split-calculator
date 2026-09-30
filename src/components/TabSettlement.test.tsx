@@ -420,6 +420,16 @@ test("keeps payment history in its modal", () => {
         reversed: true,
         view: "upcoming",
       },
+      {
+        id: "payment-3",
+        fromMemberId: "p2",
+        toMemberId: "viewer",
+        amount: 5,
+        currency: "CAD",
+        date: "2026-09-05",
+        reversed: false,
+        view: "paid",
+      },
     ],
   };
   const response = { paid: historyData, upcoming: historyData, all: historyData };
@@ -446,6 +456,13 @@ test("keeps payment history in its modal", () => {
   expect(dialog?.textContent).toContain("P2 paid Nikki Q");
   expect(dialog?.textContent).toContain("Nikki Q paid P2");
   expect(dialog?.textContent).toContain("CA$30.00");
+  expect(dialog?.textContent).toContain("CA$5.00");
   expect(dialog?.textContent).toContain("Upcoming expenses · Reversed");
+  expect(dialog?.querySelector('[aria-label="Close payment history"]')).not.toBeNull();
+  expect(dialog?.querySelectorAll("header")).toHaveLength(1);
+  expect(dialog?.querySelectorAll('time[datetime="2026-09-04"]')).toHaveLength(1);
+  expect(dialog?.querySelectorAll('time[datetime="2026-09-05"]')).toHaveLength(1);
+  expect(dialog?.querySelector(".overflow-y-auto")).not.toBeNull();
+  expect(dialog?.textContent).not.toContain("Done");
   root.unmount();
 });

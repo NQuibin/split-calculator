@@ -80,20 +80,20 @@ export function TabExpenseBalance({
   viewerPerspective?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
-  if (balance === null) return <span className="text-xs text-ink-soft">Awaiting payer</span>;
+  if (balance === null) return <span className="text-sm text-ink-soft">Awaiting payer</span>;
   if (balance === undefined) {
-    if (!viewerPerspective) return <span className="text-xs text-ink-soft">Not in split</span>;
+    if (!viewerPerspective) return <span className="text-sm text-ink-soft">Not in split</span>;
     return (
-      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
+      <span className="ml-auto block w-20 shrink-0 text-right text-sm text-ink-soft">
         No balance
       </span>
     );
   }
   if (balance === 0)
     return projected ? (
-      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">Not due</span>
+      <span className="ml-auto block w-20 shrink-0 text-right text-sm text-ink-soft">Not due</span>
     ) : (
-      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
+      <span className="ml-auto block w-20 shrink-0 text-right text-sm text-ink-soft">
         No balance
       </span>
     );
@@ -104,7 +104,7 @@ export function TabExpenseBalance({
   return (
     <>
       <span className="hidden @min-[38rem]:block">
-        <span className="block break-words text-xs text-ink-soft">
+        <span className="block break-words text-sm text-ink-soft">
           {balanceLabel}{" "}
           <span
             className={`font-numeric text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
@@ -114,7 +114,7 @@ export function TabExpenseBalance({
         </span>
       </span>
       <span className="block @min-[38rem]:hidden">
-        <span className="block text-xs text-ink-soft">{balanceLabel}</span>
+        <span className="block text-sm text-ink-soft">{balanceLabel}</span>
         <span
           className={`block font-numeric text-sm font-semibold ${owes ? "text-margin-red-ink" : "text-ledger-green"}`}
         >
@@ -177,10 +177,10 @@ export function TabExpenseRow({
           <>
             <MemberAvatar id={payer.id} name={payer.name} size="md" />
             <span className="break-words">{payer.name}</span>
-            <span className="text-xs text-ink-soft">paid</span>
+            <span className="text-sm text-ink-soft">paid</span>
           </>
         ) : (
-          <span className="text-xs text-ink-soft">
+          <span className="text-sm text-ink-soft">
             {upcoming ? "Not paid yet" : "Payer needed"}
           </span>
         )}
@@ -191,10 +191,10 @@ export function TabExpenseRow({
         <span className="flex min-w-0 flex-col items-start gap-y-0.5">
           {payer ? (
             <span className="break-words text-sm text-ink">
-              {payer.name} <span className="text-xs text-ink-soft">paid</span>
+              {payer.name} <span className="text-sm text-ink-soft">paid</span>
             </span>
           ) : (
-            <span className="text-xs text-ink-soft">
+            <span className="text-sm text-ink-soft">
               {upcoming ? "Not paid yet" : "Payer needed"}
             </span>
           )}
