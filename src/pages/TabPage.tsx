@@ -186,7 +186,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
     </div>
   );
   const pageActions = (view: ExpenseView) => (
-    <div className="mb-6 grid grid-cols-2 gap-2 md:mb-0 md:flex md:justify-end">
+    <div className="mb-6 grid grid-cols-2 gap-2 md:flex md:justify-end">
       <ExpenseActions slug={slug} members={tab.members} className="col-span-2 w-full md:hidden" />
       <SettlementActions slug={slug} members={tab.members} expenseView={view} />
     </div>
