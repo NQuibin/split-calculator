@@ -8,26 +8,41 @@ interface CheckboxRowProps {
   children: ReactNode;
   className?: string;
   ground?: "surface" | "field" | "plain";
+  layout?: "row" | "compact";
 }
 
-/** A 44px checkbox row with the shared right-aligned checked-circle indicator. */
+/** A 44px checkbox control with full-row and compact layouts. */
 export function CheckboxRow({
   selected,
   onCheckedChange,
   children,
   className,
   ground = "surface",
+  layout = "row",
 }: CheckboxRowProps) {
   const restingGround = {
     surface: "bg-surface",
     field: "bg-field",
     plain: "bg-transparent",
   }[ground];
+  const indicator = (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-full border-2",
+        layout === "row" && "ml-auto",
+        selected ? "border-forest bg-forest text-surface" : "border-edge bg-field text-transparent",
+      )}
+    >
+      <Check className="size-4" strokeWidth={3} />
+    </span>
+  );
 
   return (
     <label
       className={cn(
-        "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm text-ink transition-colors hover:bg-wash active:bg-wash focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest",
+        "flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm text-ink transition-colors hover:bg-wash active:bg-wash focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest",
+        layout === "row" ? "w-full" : "w-fit",
         ground === "plain" && "border-transparent px-0",
         selected
           ? ground === "plain"
@@ -36,6 +51,7 @@ export function CheckboxRow({
           : ground === "plain"
             ? "border-transparent bg-transparent"
             : `border-edge ${restingGround}`,
+        layout === "compact" && `border-transparent ${restingGround}`,
         className,
       )}
     >
@@ -45,18 +61,9 @@ export function CheckboxRow({
         onChange={(event) => onCheckedChange(event.target.checked)}
         className="sr-only"
       />
+      {layout === "compact" && indicator}
       {children}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "ml-auto flex size-6 shrink-0 items-center justify-center rounded-full border-2",
-          selected
-            ? "border-forest bg-forest text-surface"
-            : "border-edge bg-field text-transparent",
-        )}
-      >
-        <Check className="size-4" strokeWidth={3} />
-      </span>
+      {layout === "row" && indicator}
     </label>
   );
 }

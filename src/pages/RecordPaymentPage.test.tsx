@@ -165,6 +165,37 @@ test("records a payment without expense allocations and preserves the selected v
   root.unmount();
 });
 
+test("shows the direct balance and can fill the full payment amount", async () => {
+  const { container, root } = mount();
+  clickCheckboxRow(container, "P2 owes you");
+  const continueButton = clickButton(container, "Continue");
+  expect(continueButton.className).toContain("w-full");
+
+  expect(container.textContent).toContain("P2 pays you");
+  expect(container.textContent).toContain("You are owed CA$60.00");
+  expect(container.querySelector('[role="img"][aria-label="P2"]')).not.toBeNull();
+  expect(container.querySelector('label[for="payment-amount-p2-CAD"]')?.textContent).toBe("Amount");
+
+  const fullAmount = clickCheckboxRow(container, "Record full amount");
+  if (!fullAmount) throw new Error("Missing full payment option");
+  expect(fullAmount.className).toContain("w-fit");
+  expect(fullAmount.className).toContain("px-3 py-2");
+  expect(fullAmount.querySelector('[aria-hidden="true"]')?.previousElementSibling?.tagName).toBe(
+    "INPUT",
+  );
+  expect(container.querySelector<HTMLInputElement>("#payment-amount-p2-CAD")?.value).toBe("60.00");
+  expect(fullAmount.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+  const submitButton = clickButton(container, "Record payment");
+  expect(submitButton.className).toContain("w-full");
+  await submit();
+  expect(mocks.record).toHaveBeenCalledWith(
+    expect.objectContaining({
+      payments: [expect.objectContaining({ amount: 60 })],
+    }),
+  );
+  root.unmount();
+});
+
 test("keeps a nonzero member eligible when they have no expense rows", () => {
   const response = {
     ...paymentData,

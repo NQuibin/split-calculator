@@ -17,3 +17,19 @@ test("renders the shared checked-circle indicator at the right edge of a touch r
   expect(markup.indexOf("Apply tip after tax")).toBeLessThan(markup.indexOf('aria-hidden="true"'));
   expect(markup).toContain("border-forest bg-forest text-surface");
 });
+
+test("renders a content-sized checkbox with the indicator on the left and standard padding", () => {
+  const markup = renderMarkup(
+    <CheckboxRow selected onCheckedChange={() => undefined} layout="compact">
+      <span>Record full amount</span>
+    </CheckboxRow>,
+  );
+
+  expect(markup).toContain("w-fit");
+  expect(markup).toContain("px-3 py-2");
+  expect(markup).toContain("border-transparent");
+  expect(markup).toContain("bg-surface");
+  expect(markup).not.toContain("border-forest bg-field");
+  expect(markup).not.toContain("ml-auto");
+  expect(markup.indexOf('aria-hidden="true"')).toBeLessThan(markup.indexOf("Record full amount"));
+});

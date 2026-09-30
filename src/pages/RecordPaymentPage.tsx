@@ -5,8 +5,10 @@ import type { Id } from "../../convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
+import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { FieldError, Input, Label } from "@/components/ui/Input";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Page, Panel } from "@/components/ui/Page";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { GroupTitle, PageTitle, SectionTitle } from "@/components/ui/Typography";
@@ -252,6 +254,7 @@ export function RecordPaymentPage() {
               <Button
                 type="button"
                 size="touch"
+                className="w-full sm:w-auto"
                 onClick={() => setStage("details")}
                 disabled={pending || selectedKeys.length === 0}
               >
@@ -267,19 +270,30 @@ export function RecordPaymentPage() {
                 className="space-y-4 border-t border-rule pt-5 first:border-t-0 first:pt-0"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <SectionTitle>
-                    {section.choice.balance > 0
-                      ? `${section.choice.name} pays you`
-                      : `You pay ${section.choice.name}`}
-                  </SectionTitle>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <MemberAvatar id={section.choice.memberId} name={section.choice.name} />
+                    <div className="min-w-0">
+                      <SectionTitle>
+                        {section.choice.balance > 0
+                          ? `${section.choice.name} pays you`
+                          : `You pay ${section.choice.name}`}
+                      </SectionTitle>
+                      <p
+                        className={`mt-1 text-sm ${section.choice.balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
+                      >
+                        {section.choice.balance > 0 ? "You are owed" : "You owe"}{" "}
+                        <span className="font-numeric font-semibold">
+                          {currency(Math.abs(section.choice.balance), section.choice.currency)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
                   <span className="rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
                     {section.choice.currency}
                   </span>
                 </div>
                 <div>
-                  <Label htmlFor={`payment-amount-${paymentId(section.key)}`}>
-                    Amount · {section.choice.currency}
-                  </Label>
+                  <Label htmlFor={`payment-amount-${paymentId(section.key)}`}>Amount</Label>
                   <Input
                     id={`payment-amount-${paymentId(section.key)}`}
                     type="number"
@@ -299,6 +313,20 @@ export function RecordPaymentPage() {
                       {section.error}
                     </FieldError>
                   )}
+                  <CheckboxRow
+                    selected={
+                      section.validAmount && section.paymentCents === section.memberBalanceCapacity
+                    }
+                    onCheckedChange={(checked) =>
+                      updateDraft(section.key, {
+                        amount: checked ? (section.memberBalanceCapacity / 100).toFixed(2) : "",
+                      })
+                    }
+                    layout="compact"
+                    className="mt-2"
+                  >
+                    Record full amount
+                  </CheckboxRow>
                 </div>
               </section>
             ))}
@@ -307,6 +335,7 @@ export function RecordPaymentPage() {
               <Button
                 type="submit"
                 size="touch"
+                className="w-full sm:w-auto"
                 disabled={pending || !canSubmit}
                 aria-busy={pending}
               >
