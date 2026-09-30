@@ -270,13 +270,12 @@ export function RecordPaymentPage() {
                 className="space-y-4 border-t border-rule pt-5 first:border-t-0 first:pt-0"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <MemberAvatar id={section.choice.memberId} name={section.choice.name} />
                     <div className="min-w-0">
-                      <SectionTitle>
-                        {section.choice.balance > 0
-                          ? `${section.choice.name} pays you`
-                          : `You pay ${section.choice.name}`}
+                      <SectionTitle className="flex min-h-8 items-center break-words">
+                        {section.choice.balance > 0 ? "Payment from" : "Payment to"}{" "}
+                        {section.choice.name}
                       </SectionTitle>
                       <p
                         className={`mt-1 text-sm ${section.choice.balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}

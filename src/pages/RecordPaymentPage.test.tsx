@@ -171,7 +171,7 @@ test("shows the direct balance and can fill the full payment amount", async () =
   const continueButton = clickButton(container, "Continue");
   expect(continueButton.className).toContain("w-full");
 
-  expect(container.textContent).toContain("P2 pays you");
+  expect(container.textContent).toContain("Payment from P2");
   expect(container.textContent).toContain("You are owed CA$60.00");
   expect(container.querySelector('[role="img"][aria-label="P2"]')).not.toBeNull();
   expect(container.querySelector('label[for="payment-amount-p2-CAD"]')?.textContent).toBe("Amount");
@@ -334,8 +334,8 @@ test("keeps separate sections and submits the combined payments only when all ar
   clickCheckboxRow(container, "P2 owes you");
   clickCheckboxRow(container, "You owe Sam");
   clickButton(container, "Continue");
-  expect(container.textContent).toContain("P2 pays you");
-  expect(container.textContent).toContain("You pay Sam");
+  expect(container.textContent).toContain("Payment from P2");
+  expect(container.textContent).toContain("Payment to Sam");
   const submitButton = clickButton(container, "Record payment");
   expect(submitButton.disabled).toBe(true);
 
