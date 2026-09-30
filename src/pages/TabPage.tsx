@@ -35,7 +35,7 @@ import { SettlementActions, TabSettlement } from "@/components/TabSettlement";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { TabExpenseHeader, TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
-import { computeExpenseBalances, viewerExpenseBalanceAfterPayments } from "@/lib/settlements";
+import { computeExpenseBalances } from "@/lib/settlements";
 import type { FunctionReturnType } from "convex/server";
 
 type SettlementResponse = NonNullable<FunctionReturnType<typeof api.settlements.get>>;
@@ -923,20 +923,6 @@ function ExpenseList({
                   : undefined;
               const convertedViewerBalance =
                 typeof viewerBalance === "number" ? viewerBalance * rate : viewerBalance;
-              const settledView = settlement?.[activeView];
-              const currencyMembers = settledView?.currencies.find(
-                (group) => group.currency === expense.settlementCurrency,
-              )?.members;
-              const paymentAdjusted =
-                currencyMembers && viewerMember
-                  ? viewerExpenseBalanceAfterPayments(
-                      convertedViewerBalance,
-                      expense.slug,
-                      expense.payerId,
-                      viewerMember.id,
-                      currencyMembers,
-                    )
-                  : { balance: convertedViewerBalance, settled: false };
               const payer = payerFor(expense.payerId);
               const upcoming = isUpcoming(expense.date);
               return (
@@ -951,8 +937,7 @@ function ExpenseList({
                   memberContext={
                     showSettlement
                       ? {
-                          balance: paymentAdjusted.balance,
-                          settled: paymentAdjusted.settled,
+                          balance: convertedViewerBalance,
                           viewerPerspective: true,
                         }
                       : undefined

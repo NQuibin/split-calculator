@@ -23,7 +23,7 @@ test("renders only the viewer balance through the shared row", () => {
   );
 
   expect(markup).not.toContain("You spent");
-  expect(markup).toContain("You get");
+  expect(markup).toContain("You lent");
   expect(markup).toContain("CA$13.34");
   expect(markup).toContain("hover:bg-wash");
   expect(markup).toContain("active:bg-wash");
@@ -34,7 +34,7 @@ test("renders only the viewer balance through the shared row", () => {
   expect(markup).toContain('class="flex min-w-0 flex-col items-start gap-y-0.5"');
   expect(markup).toContain("col-start-1 col-span-2 row-start-1");
   expect(markup).toContain("col-start-3 row-start-2");
-  expect(markup).toContain('class="block text-xs text-ink-soft">You get');
+  expect(markup).toContain('class="block text-xs text-ink-soft">You lent');
 });
 
 test("renders another selected member's balance label", () => {
@@ -48,14 +48,14 @@ test("renders another selected member's balance label", () => {
   expect(markup).not.toContain("Pat spent");
   expect(markup).toContain("Pat owes");
   expect(markup).not.toContain("You spent");
-  expect(markup).not.toContain("You owe");
+  expect(markup).not.toContain("You borrowed");
 });
 
 test("omits the balance column when no member context is supplied", () => {
   const markup = renderMarkup(createElement(TabExpenseRow, sharedRow));
   const header = renderMarkup(createElement(TabExpenseHeader, { showBalance: false }));
 
-  expect(markup).not.toContain("You get");
+  expect(markup).not.toContain("You lent");
   expect(markup).not.toContain("Not in split");
   expect(header).not.toContain(">Balance<");
 });
@@ -70,18 +70,6 @@ test("renders a zero balance without an icon", () => {
 
   expect(markup).toContain("No balance");
   expect(markup).not.toContain("lucide-check");
-});
-
-test("renders a zero balance as settled when payments cleared it", () => {
-  const markup = renderMarkup(
-    createElement(TabExpenseRow, {
-      ...sharedRow,
-      memberContext: { balance: 0, settled: true },
-    }),
-  );
-
-  expect(markup).toContain(">Settled</span>");
-  expect(markup).not.toContain("No balance");
 });
 
 test("styles an upcoming zero balance like No balance", () => {

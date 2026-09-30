@@ -50,7 +50,7 @@ test("shows only expenses shared with the viewer and keeps expense rows clickabl
 
   expect(markup).toContain("Dinner");
   expect(markup).not.toContain("Lunch");
-  expect(markup).toContain("You get");
+  expect(markup).toContain("You lent");
   expect(markup).not.toContain("You spent");
   expect(markup).toContain("CA$20.00");
   expect(markup).not.toContain("Settlement breakdown");

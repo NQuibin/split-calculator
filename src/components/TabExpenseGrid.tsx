@@ -10,7 +10,6 @@ export type TabExpensePayer = { id: string; name: string } | undefined;
 
 export type TabExpenseMemberContext = {
   balance: number | null | undefined;
-  settled?: boolean;
   memberName?: string;
   viewerPerspective?: boolean;
 };
@@ -92,14 +91,12 @@ export function TabExpenseBalance({
   balance,
   code,
   projected,
-  settled = false,
   memberName,
   viewerPerspective = false,
 }: {
   balance: number | null | undefined;
   code: string;
   projected: boolean;
-  settled?: boolean;
   memberName?: string;
   viewerPerspective?: boolean;
 }) {
@@ -114,9 +111,7 @@ export function TabExpenseBalance({
     );
   }
   if (balance === 0)
-    return settled ? (
-      <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink">Settled</span>
-    ) : projected ? (
+    return projected ? (
       <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">Not due</span>
     ) : (
       <span className="ml-auto block w-20 shrink-0 text-right text-xs text-ink-soft">
@@ -225,7 +220,6 @@ export function TabExpenseRow({
             balance={memberContext.balance}
             code={code}
             projected={upcoming}
-            settled={memberContext.settled}
             memberName={memberName}
             viewerPerspective={memberContext.viewerPerspective}
           />

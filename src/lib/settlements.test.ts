@@ -5,41 +5,11 @@ import {
   splitParticipants,
   suggestSettlements,
   viewerBalanceLabel,
-  viewerExpenseBalanceAfterPayments,
 } from "./settlements";
 
 test("viewer balance copy follows the viewer's net balance", () => {
-  expect(viewerBalanceLabel(-12)).toBe("You owe");
-  expect(viewerBalanceLabel(12)).toBe("You get");
-});
-
-test("viewer expense balance follows allocated payments in either direction", () => {
-  const payerDebts = [{ memberId: "payer", expenses: [{ expenseSlug: "dinner", outstanding: 0 }] }];
-  expect(viewerExpenseBalanceAfterPayments(-40, "dinner", "payer", "viewer", payerDebts)).toEqual({
-    balance: 0,
-    settled: true,
-  });
-  expect(
-    viewerExpenseBalanceAfterPayments(-40, "dinner", "payer", "viewer", [
-      { memberId: "payer", expenses: [{ expenseSlug: "dinner", outstanding: 15 }] },
-    ]),
-  ).toEqual({ balance: -15, settled: false });
-
-  expect(
-    viewerExpenseBalanceAfterPayments(80, "dinner", "viewer", "viewer", [
-      { memberId: "a", expenses: [{ expenseSlug: "dinner", outstanding: 20 }] },
-      { memberId: "b", expenses: [{ expenseSlug: "dinner", outstanding: 10 }] },
-    ]),
-  ).toEqual({ balance: 30, settled: false });
-  expect(
-    viewerExpenseBalanceAfterPayments(80, "dinner", "viewer", "viewer", [
-      { memberId: "a", expenses: [] },
-    ]),
-  ).toEqual({ balance: 0, settled: true });
-  expect(viewerExpenseBalanceAfterPayments(0, "dinner", "viewer", "viewer", [])).toEqual({
-    balance: 0,
-    settled: false,
-  });
+  expect(viewerBalanceLabel(-12)).toBe("You borrowed");
+  expect(viewerBalanceLabel(12)).toBe("You lent");
 });
 
 const zero = { mode: "amount" as const, value: 0 };
