@@ -221,10 +221,6 @@ async function readBalances(
     {
       byCurrency: Map<string, CurrencyTotals>;
       expenseDebts: Map<string, ExpenseDebt[]>;
-      expensePayments: Map<
-        string,
-        { expenseSlug: string; memberId: Id<"tabMembers">; share: number; paid: number }[]
-      >;
       missingPayers: { slug: string; name: string }[];
     }
   >;
@@ -232,10 +228,6 @@ async function readBalances(
   for (const expenseView of ["paid", "upcoming", "all"] as const) {
     const byCurrency = new Map<string, CurrencyTotals>();
     const expenseDebts = new Map<string, ExpenseDebt[]>();
-    const expensePayments = new Map<
-      string,
-      { expenseSlug: string; memberId: Id<"tabMembers">; share: number; paid: number }[]
-    >();
     const missingPayers: { slug: string; name: string }[] = [];
     for (const expense of expenses) {
       const isUpcoming = expense.date > asOfDate;
@@ -349,16 +341,6 @@ async function readBalances(
         const paidCents = Math.min(shareCents, remaining);
         debt.outstanding = (shareCents - paidCents) / 100;
         remaining -= paidCents;
-        if (paidCents > 0) {
-          const statuses = expensePayments.get(key.split(":")[0]) ?? [];
-          statuses.push({
-            expenseSlug: debt.expenseSlug,
-            memberId: from as Id<"tabMembers">,
-            share: shareCents / 100,
-            paid: paidCents / 100,
-          });
-          expensePayments.set(key.split(":")[0], statuses);
-        }
       }
     }
     for (const [key, debts] of expenseDebts)
@@ -366,7 +348,7 @@ async function readBalances(
         key,
         debts.filter((debt) => debt.outstanding > 0),
       );
-    views[expenseView] = { byCurrency, expenseDebts, expensePayments, missingPayers };
+    views[expenseView] = { byCurrency, expenseDebts, missingPayers };
   }
   return { roster, people, views, payments };
 }
@@ -395,14 +377,6 @@ const settlementSummary = v.object({
               outstanding: v.number(),
             }),
           ),
-        }),
-      ),
-      expensePayments: v.array(
-        v.object({
-          expenseSlug: v.string(),
-          memberId: v.id("tabMembers"),
-          share: v.number(),
-          paid: v.number(),
         }),
       ),
       suggestions: v.array(
@@ -449,7 +423,7 @@ export const get = query({
     const { roster, people, views, payments } = await readBalances(ctx, tab, asOfDate, viewer);
     const viewerMemberId = roster.find((seat) => seat.userId === viewer)?._id ?? null;
     const format = (expenseView: ExpenseView) => {
-      const { byCurrency, expenseDebts, expensePayments, missingPayers } = views[expenseView];
+      const { byCurrency, expenseDebts, missingPayers } = views[expenseView];
       return {
         currencies: [...byCurrency]
           .sort(([a], [b]) => a.localeCompare(b))
@@ -485,7 +459,6 @@ export const get = query({
             return {
               currency,
               members,
-              expensePayments: expensePayments.get(currency) ?? [],
               suggestions: suggestSettlements(members).map((suggestion) => ({
                 ...suggestion,
                 fromMemberId: suggestion.fromMemberId as Id<"tabMembers">,

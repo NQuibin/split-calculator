@@ -77,5 +77,6 @@ test("renders headerless expense rows with a desktop payer and balance", () => {
   expect(markup).toContain("@min-[38rem]:col-start-3 @min-[38rem]:flex");
   expect(markup).toContain("block break-words text-sm text-ink-soft");
   expect(markup).toContain("@min-[38rem]:grid");
+  expect(markup).toContain("minmax(0,1.25fr)_minmax(0,1fr)");
   expect(markup).toContain("@min-[56rem]:gap-x-6");
 });

@@ -172,19 +172,20 @@ export function TabExpenseRow({
         <span className={titleClassName}>{title}</span>
       )}
 
-      <span className="hidden min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 break-words text-sm text-ink @min-[38rem]:col-start-3 @min-[38rem]:flex">
-        {payer ? (
-          <>
-            <MemberAvatar id={payer.id} name={payer.name} size="md" />
-            <span className="break-words">{payer.name}</span>
-            <span className="text-sm text-ink-soft">paid</span>
-          </>
-        ) : (
-          <span className="text-sm text-ink-soft">
-            {upcoming ? "Not paid yet" : "Payer needed"}
-          </span>
-        )}
-        <TabExpenseAmount total={total} code={code} upcoming={upcoming} compact />
+      <span className="hidden min-w-0 items-center gap-2 text-sm text-ink @min-[38rem]:col-start-3 @min-[38rem]:flex">
+        {payer && <MemberAvatar id={payer.id} name={payer.name} size="md" />}
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
+          {payer ? (
+            <span className="min-w-0 break-words">
+              {payer.name} <span className="text-sm text-ink-soft">paid</span>
+            </span>
+          ) : (
+            <span className="text-sm text-ink-soft">
+              {upcoming ? "Not paid yet" : "Payer needed"}
+            </span>
+          )}
+          <TabExpenseAmount total={total} code={code} upcoming={upcoming} compact />
+        </span>
       </span>
       <span className="col-start-2 row-start-2 flex min-w-0 self-center items-center gap-x-2 @min-[38rem]:hidden">
         {payer && <MemberAvatar id={payer.id} name={payer.name} size="md" />}

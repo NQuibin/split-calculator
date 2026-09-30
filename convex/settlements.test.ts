@@ -528,12 +528,6 @@ test("opposite expenses settle the earliest debt before later expenses", async (
   const usd = result.paid.currencies[0];
   expect(usd.members.map((member) => member.balanceWithViewer)).toEqual([0, 0, 0]);
   expect(usd.members.every((member) => member.expenses.length === 0)).toBe(true);
-  expect(usd.expensePayments).toContainEqual({
-    expenseSlug: "first",
-    memberId: members[1].id,
-    share: 15,
-    paid: 15,
-  });
 });
 
 test("invalid dates, currency and precision are refused before creating a settlement", async () => {
@@ -708,7 +702,7 @@ test("returns direct viewer balances without transitive third-party netting", as
   ).toBe(0);
 });
 
-test("reports per-expense settlement coverage in the selected view and after reversals", async () => {
+test("payments reduce outstanding expenses only in their selected view and reverse cleanly", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", undefined, 120, "shared-dinner");
   await expense(
@@ -733,19 +727,16 @@ test("reports per-expense settlement coverage in the selected view and after rev
     asOfDate: TODAY,
   });
   let result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(result.paid.currencies[0].expensePayments).toContainEqual({
-    expenseSlug: "shared-dinner",
-    memberId: members[1].id,
-    share: 40,
-    paid: 10,
-  });
-  expect(result.upcoming.currencies[0]?.expensePayments).toEqual([]);
-  expect(result.all.currencies[0].expensePayments).toContainEqual({
-    expenseSlug: "shared-dinner",
-    memberId: members[1].id,
-    share: 40,
-    paid: 10,
-  });
+  const outstanding = (view: "paid" | "upcoming" | "all") =>
+    result[view].currencies[0]?.members
+      .find((member) => member.memberId === members[1].id)
+      ?.expenses.map((expense) => [expense.expenseSlug, expense.outstanding]);
+  expect(outstanding("paid")).toEqual([["shared-dinner", 30]]);
+  expect(outstanding("upcoming")).toEqual([["upcoming-dinner", 40]]);
+  expect(outstanding("all")).toEqual([
+    ["shared-dinner", 30],
+    ["upcoming-dinner", 40],
+  ]);
 
   await owner.mutation(api.settlements.record, {
     slug: "trip",
@@ -758,12 +749,6 @@ test("reports per-expense settlement coverage in the selected view and after rev
     asOfDate: TODAY,
   });
   result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(result.paid.currencies[0].expensePayments).toContainEqual({
-    expenseSlug: "shared-dinner",
-    memberId: members[1].id,
-    share: 40,
-    paid: 40,
-  });
   expect(
     result.paid.currencies[0].members.find((member) => member.memberId === members[1].id)?.expenses,
   ).toEqual([]);
@@ -771,12 +756,9 @@ test("reports per-expense settlement coverage in the selected view and after rev
   const finalPayment = result.paid.history.find((payment) => payment.amount === 30)!;
   await owner.mutation(api.settlements.reverse, { slug: "trip", settlementId: finalPayment.id });
   result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
-  expect(result.paid.currencies[0].expensePayments).toContainEqual({
-    expenseSlug: "shared-dinner",
-    memberId: members[1].id,
-    share: 40,
-    paid: 10,
-  });
+  expect(
+    result.paid.currencies[0].members.find((member) => member.memberId === members[1].id)?.expenses,
+  ).toMatchObject([{ expenseSlug: "shared-dinner", outstanding: 30 }]);
 });
 
 test("marks members who share an expense with the viewer separately for each currency", async () => {

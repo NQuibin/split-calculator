@@ -36,6 +36,7 @@ test("renders only the viewer balance through the shared row", () => {
   expect(markup).toContain("col-start-3 row-start-2");
   expect(markup).toContain('class="block text-sm text-ink-soft">You lent');
   expect(markup).toContain("@min-[38rem]:col-start-3 @min-[38rem]:flex");
+  expect(markup).toContain('class="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5"');
   expect(markup).toContain('class="font-numeric text-sm">CA$20.00');
 });
 

@@ -8,7 +8,7 @@ import { ExpenseDetailsDialog } from "./ExpenseDetailsDialog";
 
 afterEach(() => document.body.replaceChildren());
 
-test("shows Settled only for fully covered shares", () => {
+test("shows shared member names and amounts without status sublabels", () => {
   const zero = { mode: "amount" as const, value: 0 };
   const expense: TabExpenseSummary = {
     mode: "simple",
@@ -52,18 +52,85 @@ test("shows Settled only for fully covered shares", () => {
           { id: "p5", name: "P5" },
           { id: "sam", name: "Sam" },
         ],
-        paymentStatuses: [
-          { memberId: "nikki", share: 10, paid: 10, currency: "CAD" },
-          { memberId: "sam", share: 10, paid: 4, currency: "CAD" },
-        ],
       }),
     ),
   );
 
   const text = document.body.textContent ?? "";
-  expect(text).toContain("Settled");
-  expect(text).not.toContain("Partial");
-  expect(text).not.toContain("paid)");
-  expect(text).toContain("Payer");
+  expect(text).toContain("Nikki Q");
+  expect(text).toContain("Sam");
+  expect(text).toContain("P5");
+  expect(text).toContain("Paid by");
+  expect(text).toContain("10.00");
+  expect(text).not.toContain("Payer");
+  expect(text).not.toContain("Settled");
+  root.unmount();
+});
+
+test("opens item details with adjustments and member shares, then goes back", () => {
+  const expense: TabExpenseSummary = {
+    mode: "itemized",
+    date: "2026-09-26",
+    createdBy: { id: "nikki", name: "Nikki Q" },
+    slug: "dinner",
+    name: "Dinner",
+    payerId: "nikki",
+    people: [
+      { id: "nikki", name: "Nikki Q" },
+      { id: "sam", name: "Sam" },
+    ],
+    items: [
+      {
+        id: "meal",
+        name: "Meal",
+        cost: 20,
+        discount: { mode: "amount", value: 2 },
+        tax: { mode: "percent", value: 10 },
+        tip: { mode: "amount", value: 3 },
+        splitWith: ["nikki", "sam"],
+      },
+    ],
+    currency: "CAD",
+    settlementCurrency: "CAD",
+    createdAt: 0,
+  };
+  const root = createRoot(document.createElement("div"));
+  flushSync(() =>
+    root.render(
+      createElement(ExpenseDetailsDialog, {
+        open: true,
+        onOpenChange: () => undefined,
+        expense,
+        slug: "trip",
+        defaultCurrency: "CAD",
+        canManage: false,
+        members: [
+          { id: "nikki", name: "Nikki Q" },
+          { id: "sam", name: "Sam" },
+        ],
+      }),
+    ),
+  );
+
+  const viewItems = [...document.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("View items"),
+  );
+  expect(viewItems).toBeDefined();
+  expect(document.body.textContent).not.toContain("Item total");
+  flushSync(() => viewItems?.click());
+  expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe("Dinner");
+  expect(document.body.textContent).toContain("CAD · 1 item");
+  expect(document.body.textContent).toContain("Meal");
+  expect(document.body.textContent).toContain("Discount ·");
+  expect(document.body.textContent).toContain("Tax · 10%");
+  expect(document.body.textContent).toContain("Tip");
+  expect(document.body.textContent).toContain("11.40");
+  expect(document.body.textContent).toContain("22.80");
+
+  flushSync(() =>
+    document.querySelector<HTMLButtonElement>('[aria-label="Back to expense details"]')?.click(),
+  );
+  expect(document.body.textContent).toContain("View items");
+  expect(document.body.textContent).not.toContain("Item total");
   root.unmount();
 });

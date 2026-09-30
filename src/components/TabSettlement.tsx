@@ -41,12 +41,6 @@ export type SettlementSummaryData = {
   }[];
   currencies: {
     currency: string;
-    expensePayments?: {
-      expenseSlug: string;
-      memberId: string;
-      share: number;
-      paid: number;
-    }[];
     members: {
       memberId: string;
       name: string;
@@ -380,8 +374,8 @@ export function TabSettlement({
                   <DialogTitle>{selectedMember?.name ?? "Member expenses"}</DialogTitle>
                   <DialogDescription className="mt-1 text-xs">
                     {selectedBreakdown
-                      ? `${selectedBreakdown.expenses.filter((line) => line.sharedWithViewer).length} ${selectedBreakdown.expenses.filter((line) => line.sharedWithViewer).length === 1 ? "expense" : "expenses"} · ${selectedMember?.currency}`
-                      : `${selectedMember?.currency ?? ""} expenses`}
+                      ? `${selectedBreakdown.expenses.filter((line) => line.sharedWithViewer).length} ${selectedBreakdown.expenses.filter((line) => line.sharedWithViewer).length === 1 ? "expense" : "expenses"}`
+                      : "Expenses"}
                   </DialogDescription>
                 </div>
               </div>
@@ -400,21 +394,26 @@ export function TabSettlement({
               </p>
             ) : selectedBreakdown && selectedMember ? (
               <>
-                {selectedBalance && memberDirectBalance(selectedBalance) !== 0 && (
-                  <p className="pb-4 text-right text-sm">
-                    <span className="text-ink-soft">
-                      {memberDirectBalance(selectedBalance) > 0 ? "You are owed" : "You owe"}
-                    </span>{" "}
-                    <span
-                      className={`font-numeric font-semibold ${memberDirectBalance(selectedBalance) > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
-                    >
-                      {currency(
-                        Math.abs(memberDirectBalance(selectedBalance)),
-                        selectedMember.currency,
-                      )}
-                    </span>
-                  </p>
-                )}
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 pb-4">
+                  <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
+                    {selectedMember.currency}
+                  </span>
+                  {selectedBalance && memberDirectBalance(selectedBalance) !== 0 && (
+                    <p className="text-right text-sm">
+                      <span className="text-ink-soft">
+                        {memberDirectBalance(selectedBalance) > 0 ? "You are owed" : "You owe"}
+                      </span>{" "}
+                      <span
+                        className={`font-numeric font-semibold ${memberDirectBalance(selectedBalance) > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
+                      >
+                        {currency(
+                          Math.abs(memberDirectBalance(selectedBalance)),
+                          selectedMember.currency,
+                        )}
+                      </span>
+                    </p>
+                  )}
+                </div>
                 <TabMemberBreakdown
                   member={selectedBreakdown}
                   currencyCode={selectedMember.currency}
@@ -440,15 +439,6 @@ export function TabSettlement({
         defaultCurrency={defaultCurrency}
         canManage={canManage}
         members={members}
-        paymentStatuses={
-          selectedExpense
-            ? (data.currencies
-                .find((group) => group.currency === selectedExpense.settlementCurrency)
-                ?.expensePayments?.filter((status) => status.expenseSlug === selectedExpense.slug)
-                .map((status) => ({ ...status, currency: selectedExpense.settlementCurrency })) ??
-              [])
-            : []
-        }
       />
     </Panel>
   );
@@ -491,23 +481,22 @@ export function SettlementActions({
         <History aria-hidden="true" className="h-4 w-4" />
         Payment history
       </Button>
-      {expenseView !== "upcoming" &&
-        (canRecordPayment ? (
-          <Button
-            size="touch"
-            nativeButton={false}
-            className="min-w-0 w-full md:w-auto"
-            render={<Link to="/t/$slug/payment" params={{ slug }} search={{ view: expenseView }} />}
-          >
-            <Banknote aria-hidden="true" className="h-4 w-4" />
-            Record payment
-          </Button>
-        ) : (
-          <Button size="touch" className="min-w-0 w-full md:w-auto" disabled>
-            <Banknote aria-hidden="true" className="h-4 w-4" />
-            Record payment
-          </Button>
-        ))}
+      {expenseView !== "upcoming" && canRecordPayment ? (
+        <Button
+          size="touch"
+          nativeButton={false}
+          className="min-w-0 w-full md:w-auto"
+          render={<Link to="/t/$slug/payment" params={{ slug }} search={{ view: expenseView }} />}
+        >
+          <Banknote aria-hidden="true" className="h-4 w-4" />
+          Record payment
+        </Button>
+      ) : (
+        <Button size="touch" className="min-w-0 w-full md:w-auto" disabled>
+          <Banknote aria-hidden="true" className="h-4 w-4" />
+          Record payment
+        </Button>
+      )}
       <Dialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen}>
         <DialogContent className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
           <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
@@ -527,50 +516,83 @@ export function SettlementActions({
               </DialogClose>
             </div>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto card-inset">
+          <div className="min-h-0 flex-1 overflow-y-auto card-inset pt-0">
             {data.history.length === 0 ? (
               <p className="text-sm text-ink-soft">No payments recorded.</p>
             ) : (
-              <ul className="bleed divide-y divide-rule border-y border-edge bg-field">
-                {[...historyByDate].map(([date, payments]) => (
-                  <li key={date}>
-                    <h3 className="bleed-px border-b border-rule bg-surface py-2 text-sm font-semibold text-ink">
-                      <time dateTime={date}>{formatExpenseDate(date) ?? date}</time>
-                    </h3>
-                    <ul className="divide-y divide-rule">
-                      {payments.map((payment) => (
-                        <li
-                          key={payment.id}
-                          className="flex min-w-0 items-center justify-between gap-4 py-3 bleed-px"
-                        >
-                          <div className="min-w-0">
-                            <p className="break-words text-sm text-ink">
-                              <span className="font-medium">
-                                {members.find((member) => member.id === payment.fromMemberId)
-                                  ?.name ?? "Former member"}
-                              </span>{" "}
-                              paid{" "}
-                              <span className="font-medium">
-                                {members.find((member) => member.id === payment.toMemberId)?.name ??
-                                  "Former member"}
+              <ul className="bleed bg-field">
+                {[...historyByDate].map(([date, payments]) => {
+                  const currencyGroups = [
+                    ...payments.reduce<Map<string, typeof payments>>((groups, payment) => {
+                      const group = groups.get(payment.currency) ?? [];
+                      group.push(payment);
+                      groups.set(payment.currency, group);
+                      return groups;
+                    }, new Map()),
+                  ];
+                  return (
+                    <li key={date}>
+                      <h3 className="bleed-px border-b border-rule bg-surface py-2 text-sm font-semibold text-ink">
+                        <time dateTime={date}>{formatExpenseDate(date) ?? date}</time>
+                      </h3>
+                      <ul className="bg-field">
+                        {currencyGroups.map(([currencyCode, currencyPayments], groupIndex) => (
+                          <li
+                            key={currencyCode}
+                            className={groupIndex > 0 ? "border-t border-rule" : ""}
+                          >
+                            <div className="flex justify-start bg-surface py-2 bleed-px">
+                              <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
+                                {currencyCode}
                               </span>
-                            </p>
-                            {(payment.view === "upcoming" || payment.reversed) && (
-                              <p className="mt-1 text-xs text-ink-soft">
-                                {payment.view === "upcoming" && "Upcoming expenses"}
-                                {payment.view === "upcoming" && payment.reversed && " · "}
-                                {payment.reversed && "Reversed"}
-                              </p>
-                            )}
-                          </div>
-                          <span className="shrink-0 font-numeric font-semibold text-ink">
-                            {currency(payment.amount, payment.currency)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
+                            </div>
+                            <ul
+                              className={`divide-y divide-rule ${groupIndex === 0 ? "border-t border-edge" : ""} ${groupIndex === currencyGroups.length - 1 ? "border-b border-edge" : ""}`}
+                            >
+                              {currencyPayments.map((payment) => {
+                                const payerName =
+                                  members.find((member) => member.id === payment.fromMemberId)
+                                    ?.name ?? "Former member";
+                                return (
+                                  <li
+                                    key={payment.id}
+                                    className="flex min-w-0 items-center gap-3 py-3 bleed-px"
+                                  >
+                                    <MemberAvatar
+                                      id={payment.fromMemberId}
+                                      name={payerName}
+                                      size="md"
+                                    />
+                                    <div className="min-w-0 flex-1 text-left">
+                                      <p className="break-words text-sm text-ink">
+                                        <span className="font-medium">{payerName}</span> paid{" "}
+                                        <span className="font-medium">
+                                          {members.find(
+                                            (member) => member.id === payment.toMemberId,
+                                          )?.name ?? "Former member"}
+                                        </span>
+                                      </p>
+                                      {(payment.view === "upcoming" || payment.reversed) && (
+                                        <p className="mt-1 text-xs text-ink-soft">
+                                          {payment.view === "upcoming" && "Upcoming expenses"}
+                                          {payment.view === "upcoming" && payment.reversed && " · "}
+                                          {payment.reversed && "Reversed"}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <span className="shrink-0 font-numeric text-sm font-semibold text-ink">
+                                      {currency(payment.amount, payment.currency)}
+                                    </span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

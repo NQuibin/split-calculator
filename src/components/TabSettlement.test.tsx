@@ -348,6 +348,9 @@ test("shows the selected member balance above the modal expense list", () => {
 
   expect(document.body.textContent).toContain("You are owed");
   expect(document.body.textContent).toContain("CA$1,674.33");
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog?.querySelector('[data-slot="dialog-description"]')?.textContent).toBe("0 expenses");
+  expect(dialog?.querySelector("span.bg-chip-neutral")?.textContent).toBe("CAD");
   root.unmount();
   container.remove();
 });
@@ -383,7 +386,7 @@ test("places actions above view controls on mobile and beside them on desktop", 
   expect(markup).toContain('class="order-1 md:order-none"');
 });
 
-test("hides record payment in the upcoming view", () => {
+test("disables record payment in the upcoming view", () => {
   mocks.results = [{ paid: data, upcoming: data, all: data }];
   const markup = renderMarkup(
     createElement(SettlementActions, {
@@ -392,7 +395,9 @@ test("hides record payment in the upcoming view", () => {
       expenseView: "upcoming",
     }),
   );
-  expect(markup).not.toContain("Record payment");
+  expect(markup).toContain("Record payment");
+  expect(markup).toMatch(/<button[^>]*disabled[^>]*>[\s\S]*?Record payment/);
+  expect(markup).not.toContain('href="/t/trip/payment?view=upcoming"');
   expect(markup).toContain("Payment history");
 });
 
@@ -430,6 +435,16 @@ test("keeps payment history in its modal", () => {
         reversed: false,
         view: "paid",
       },
+      {
+        id: "payment-4",
+        fromMemberId: "viewer",
+        toMemberId: "p2",
+        amount: 7,
+        currency: "USD",
+        date: "2026-09-05",
+        reversed: false,
+        view: "paid",
+      },
     ],
   };
   const response = { paid: historyData, upcoming: historyData, all: historyData };
@@ -457,11 +472,22 @@ test("keeps payment history in its modal", () => {
   expect(dialog?.textContent).toContain("Nikki Q paid P2");
   expect(dialog?.textContent).toContain("CA$30.00");
   expect(dialog?.textContent).toContain("CA$5.00");
+  expect(dialog?.textContent).toContain("$7.00");
   expect(dialog?.textContent).toContain("Upcoming expenses · Reversed");
+  expect(dialog?.querySelectorAll('[role="img"][aria-label="P2"]')).toHaveLength(2);
+  expect(dialog?.querySelectorAll('[role="img"][aria-label="Nikki Q"]')).toHaveLength(2);
+  expect(dialog?.querySelectorAll(".min-w-0.flex-1.text-left")).toHaveLength(4);
+  expect(dialog?.querySelectorAll(".font-numeric.text-sm.font-semibold")).toHaveLength(4);
   expect(dialog?.querySelector('[aria-label="Close payment history"]')).not.toBeNull();
   expect(dialog?.querySelectorAll("header")).toHaveLength(1);
   expect(dialog?.querySelectorAll('time[datetime="2026-09-04"]')).toHaveLength(1);
   expect(dialog?.querySelectorAll('time[datetime="2026-09-05"]')).toHaveLength(1);
+  const sep5 = dialog?.querySelector('time[datetime="2026-09-05"]')?.closest("li");
+  expect(sep5?.querySelectorAll(":scope > ul > li")).toHaveLength(2);
+  expect(sep5?.querySelectorAll("span.rounded-full.border-rule.bg-chip-neutral")).toHaveLength(2);
+  expect(sep5?.querySelector("ul.border-t.border-edge")).not.toBeNull();
+  expect(sep5?.querySelector("ul.border-b.border-edge")).not.toBeNull();
+  expect(sep5?.querySelector("ul.divide-y.divide-rule")).not.toBeNull();
   expect(dialog?.querySelector(".overflow-y-auto")).not.toBeNull();
   expect(dialog?.textContent).not.toContain("Done");
   root.unmount();
