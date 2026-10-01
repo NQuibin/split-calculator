@@ -154,6 +154,9 @@ default for prose, labels, list rows, and buttons. Use only these steps:
 (`ui/Input.tsx`). `SectionTitle` and `GroupTitle` take `as` so the document
 outline stays correct wherever they sit.
 
+`Label` accepts `subtext` for short supporting copy directly below a field
+label; it uses the 12px caption style.
+
 The rule separating the two 14px steps: a **heading** labels a block of content
 and is `font-semibold`; a **field label** names one control, is `font-medium`,
 and renders a real `<label>`.
@@ -289,6 +292,16 @@ content reflow within a column.
 
 ## 5. Components
 
+### Switch
+
+`src/components/ui/Switch.tsx` is the reusable switch control. Use it for a
+binary setting that takes effect immediately. It exposes `role="switch"` and
+`aria-checked`, toggles with Space/Enter through native button behavior, and
+supports `disabled`. Give it an accessible name with `aria-label` or
+`aria-labelledby`. Its 44px hit target surrounds a compact track; checked uses
+`--forest` with a `--surface` thumb; unchecked uses `--field` with an `--edge`
+border and a forest thumb. Keyboard focus uses the forest outline.
+
 ### Buttons
 
 `src/components/ui/Button.tsx` is the canonical button. Import it; do not
@@ -401,11 +414,10 @@ Binding rules:
 Use `Input`, `Textarea`, `Select`, `Label` and `FieldError` from `ui/Input.tsx`. They
 carry the canonical `fieldClass`; don't hand-roll a bordered field.
 
-A filter box with a leading magnifier is `SearchField` from `ui/SearchField.tsx`.
+A filter box with a magnifier beside its label is `SearchField` from `ui/SearchField.tsx`.
 Its required accessible name is displayed above by default. In a compact,
 visibly labelled region such as the tab expenses card, pass `showLabel={false}`;
-the component still requires the `aria-label`, and its icon and placeholder
-communicate the search action visually.
+the component still requires the `aria-label` and omits the decorative icon.
 
 Form labels sit **above** their controls with an 8px gap, including date,
 currency, payer and adjustment fields. Keep labels visible when values are
@@ -418,9 +430,9 @@ inline from `sm` upward and preserves the stacked layout below it. In a compact,
 clearly described settings region, `showLabel={false}` may hide the visible
 label only when the control also has its own `aria-label`.
 
-`Input` accepts an optional decorative leading `icon`. Date and currency
-pickers include a leading icon and trailing disclosure chevron; their whole
-field is the trigger. Icons supplement the label and are `aria-hidden`.
+Decorative field icons sit to the left of visible label text, outside the
+control. Date and currency pickers keep their trailing disclosure chevron;
+their whole field is the trigger. Icons supplement the label and are `aria-hidden`.
 Use icons where they help recognition, without forcing them into notes or
 every text field. Fields keep the flat `bg-field`, `border-edge`, `rounded-md`
 treatment, with no shadow. Composite adjustment fields retain their 44px

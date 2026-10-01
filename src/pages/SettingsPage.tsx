@@ -1,9 +1,9 @@
 import { type FormEvent, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
-import { Check, Coins, Loader2, UserRound } from "lucide-react";
+import { Banknote, Check, Coins, Loader2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
-import { Field, Input } from "@/components/ui/Input";
+import { Field, Input, Label } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { api } from "../../convex/_generated/api";
@@ -63,7 +63,7 @@ function DefaultCurrencySettings() {
         New expenses you start outside of a tab begin in this currency.
       </p>
       <div className="flex flex-wrap items-end gap-2">
-        <Field label="Default currency" htmlFor="settings-currency" showLabel={false}>
+        <Field label="Default currency" htmlFor="settings-currency" icon={Banknote}>
           <CurrencyPicker
             id="settings-currency"
             value={currency}
@@ -119,13 +119,15 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
           showLabel={false}
           className="min-w-0 flex-1 sm:max-w-sm"
         >
+          <Label htmlFor="settings-name" icon={UserRound}>
+            Your name
+          </Label>
           <Input
             id="settings-name"
             type="text"
             required
             aria-label="Your name"
             placeholder="Your name"
-            icon={UserRound}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

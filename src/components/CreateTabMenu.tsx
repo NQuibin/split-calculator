@@ -141,13 +141,14 @@ function CreateTabModal({
         </DialogDescription>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <Label htmlFor="create-tab-name">Tab name</Label>
+            <Label htmlFor="create-tab-name" icon={Users2}>
+              Tab name
+            </Label>
             <Input
               id="create-tab-name"
               type="text"
               required
               placeholder="e.g. Weekend trip"
-              icon={Users2}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -156,12 +157,13 @@ function CreateTabModal({
             {memberDrafts.map((draft, i) => (
               <div key={draft.id} className="flex items-end gap-1.5">
                 <div className="min-w-0 flex-1">
-                  <Label htmlFor={`member-draft-${draft.id}`}>Member {i + 1} (optional)</Label>
+                  <Label htmlFor={`member-draft-${draft.id}`} icon={UserRound}>
+                    Member {i + 1} (optional)
+                  </Label>
                   <Input
                     id={`member-draft-${draft.id}`}
                     type="text"
                     placeholder="Other member (optional)"
-                    icon={UserRound}
                     value={draft.name}
                     onChange={(e) =>
                       setMemberDrafts((prev) =>

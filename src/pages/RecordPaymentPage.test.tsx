@@ -124,7 +124,7 @@ async function submit() {
   const form = document.querySelector("form");
   if (!form) throw new Error("Missing payment form");
   flushSync(() => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
-  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 test("records a payment without expense allocations and preserves the selected view", async () => {
@@ -157,11 +157,11 @@ test("records a payment without expense allocations and preserves the selected v
     }),
   );
   expect(mocks.record.mock.calls[0]?.[0].payments[0]).not.toHaveProperty("allocations");
-  expect(mocks.navigate).toHaveBeenCalledWith({
-    to: "/t/$slug",
-    params: { slug: "trip" },
-    replace: true,
-  });
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Payment recorded");
+  expect(document.body.querySelector('[role="dialog"] a[href="/t/trip"]')?.textContent).toContain(
+    "Back to Trip",
+  );
+  expect(mocks.navigate).not.toHaveBeenCalled();
   root.unmount();
 });
 

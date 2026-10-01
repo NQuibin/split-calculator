@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, ChevronDown, FileText, ImagePlus, Loader2, Paperclip, Trash2 } from "lucide-react";
+import { Camera, FileText, ImagePlus, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { IMAGE_ACCEPT } from "../../convex/imageFormats";
 import { CameraCapture } from "@/components/CameraCapture";
 import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
 import { assertUploadableImage } from "@/lib/expenseSync";
 
 const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
@@ -150,41 +151,34 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
         />
       )}
 
-      <div className="mt-4 rounded-md border border-rule transition has-[>button:hover]:border-forest">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
-        >
-          <span className="flex items-center gap-1.5">
-            <Paperclip className="h-4 w-4 text-brass" strokeWidth={2.25} />
+      <section aria-label="Receipt" className="mt-5 border-t border-rule pt-5">
+        <div className="flex items-center justify-between gap-3">
+          <span id="receipt-toggle-label" className="text-sm font-medium text-ink">
+            <Paperclip
+              aria-hidden="true"
+              className="mr-1.5 inline-block h-4 w-4 align-middle text-brass"
+              strokeWidth={2.25}
+            />
             {receipt ? "Receipt" : "Add a receipt"}
+            <span className="block text-xs font-normal text-ink-soft">
+              Optional — a photo or PDF of the receipt, up to 5MB.
+            </span>
           </span>
-          <motion.span
-            animate={{ rotate: open ? 180 : 0 }}
-            transition={collapseTransition}
-            className="shrink-0"
-          >
-            <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
-          </motion.span>
-        </button>
+          <Switch checked={open} onCheckedChange={setOpen} aria-labelledby="receipt-toggle-label" />
+        </div>
         <AnimatePresence initial={false}>
           {open && (
             <motion.div
+              id="receipt-panel"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={collapseTransition}
-              className="overflow-hidden border-t border-rule"
+              className="overflow-hidden"
             >
-              <div className="space-y-3 px-4 py-3">
+              <div className="mt-3 space-y-3">
                 {canUpload ? (
                   <>
-                    <p className="text-xs text-ink-soft">
-                      Optional — a photo or PDF of the receipt, up to 5MB.
-                    </p>
-
                     {receipt &&
                       (isPdf || !previewUrl ? (
                         <ReceiptFileRow name={receipt.name} href={receipt.url} />
@@ -273,7 +267,7 @@ export function ExpenseImageField({ receipt, onPick, canUpload }: ExpenseImageFi
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </section>
     </>
   );
 }

@@ -56,7 +56,7 @@ export function RateInput({
         fullWidth ? "sm:flex-1" : "sm:w-auto sm:flex-none"
       }`}
     >
-      <Label htmlFor={inputId} className="mb-0 min-w-0 truncate">
+      <Label htmlFor={inputId} icon={Icon} className="mb-0 min-w-0 truncate">
         {label}
       </Label>
       {/* Anything under the field shares its column, so it starts at the input
@@ -71,9 +71,6 @@ export function RateInput({
             fullWidth ? "" : "sm:w-auto sm:flex-none"
           }`}
         >
-          <span className="pointer-events-none flex items-center pl-3">
-            <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-brass" strokeWidth={2.25} />
-          </span>
           <input
             id={inputId}
             type="text"

@@ -13,20 +13,15 @@ export const fieldClass =
   "min-h-11 w-full min-w-0 rounded-md border border-edge bg-field px-3 py-2 text-base text-ink outline-none transition placeholder:text-ink-soft/70 focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-forest/20 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 sm:text-sm";
 
 interface InputProps extends ComponentProps<"input"> {
-  icon?: LucideIcon;
   wrapperClassName?: string;
 }
 
-export function Input({ className, wrapperClassName, icon: Icon, ...props }: InputProps) {
-  if (!Icon) return <input data-slot="input" className={cn(fieldClass, className)} {...props} />;
-
-  return (
-    <span className={cn("relative block min-w-0", wrapperClassName)}>
-      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-        <Icon aria-hidden="true" className="h-4 w-4 text-brass" />
-      </span>
-      <input data-slot="input" className={cn(fieldClass, "pl-10", className)} {...props} />
-    </span>
+export function Input({ className, wrapperClassName, ...props }: InputProps) {
+  const input = <input data-slot="input" className={cn(fieldClass, className)} {...props} />;
+  return wrapperClassName ? (
+    <span className={cn("block min-w-0", wrapperClassName)}>{input}</span>
+  ) : (
+    input
   );
 }
 
@@ -41,14 +36,25 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
 }
 
 /** A field label. Pair with the control's id, or wrap the control. */
-export function Label({ className, ...props }: ComponentProps<"label">) {
+interface LabelProps extends ComponentProps<"label"> {
+  icon?: LucideIcon;
+  subtext?: ReactNode;
+}
+
+export function Label({ className, icon: Icon, subtext, children, ...props }: LabelProps) {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: generic label primitive - htmlFor and children come from the caller, so the association is only checkable at the call site
     <label
       data-slot="label"
       className={cn("mb-2 block text-sm font-medium text-ink", className)}
       {...props}
-    />
+    >
+      {Icon && (
+        <Icon aria-hidden="true" className="mr-1.5 inline-block h-4 w-4 align-middle text-brass" />
+      )}
+      {children}
+      {subtext && <span className="block text-xs font-normal text-ink-soft">{subtext}</span>}
+    </label>
   );
 }
 
@@ -56,6 +62,7 @@ interface FieldProps {
   label: ReactNode;
   htmlFor: string;
   children: ReactNode;
+  icon?: LucideIcon;
   /** Labels normally sit above controls; use `start` for concise metadata fields. */
   labelPosition?: "top" | "start";
   /** Hide the visible label only when the control has its own accessible name. */
@@ -69,6 +76,7 @@ export function Field({
   label,
   htmlFor,
   children,
+  icon,
   labelPosition = "top",
   showLabel = true,
   className,
@@ -85,7 +93,11 @@ export function Field({
       )}
     >
       {showLabel && (
-        <Label htmlFor={htmlFor} className={cn(isStart && "mb-0 sm:shrink-0", labelClassName)}>
+        <Label
+          htmlFor={htmlFor}
+          icon={icon}
+          className={cn(isStart && "mb-0 sm:shrink-0", labelClassName)}
+        >
           {label}
         </Label>
       )}

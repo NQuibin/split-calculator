@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Dialog";
 import { ExpenseTabField } from "@/components/ExpenseTabField";
 import { StageExpense } from "@/components/StageExpense";
+import { Field, FieldError, Input } from "@/components/ui/Input";
 import { StageResults } from "@/components/StageResults";
 import { api } from "../../convex/_generated/api";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
@@ -64,6 +65,9 @@ function ExpenseEditor() {
   const { state: stored, loading } = useStoredExpense(slug);
   const { save, remove } = useExpenseActions();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [expenseSettingsOpen, setExpenseSettingsOpen] = useState(false);
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [isNavigating, startNavigation] = useTransition();
 
@@ -299,19 +303,12 @@ function ExpenseEditor() {
               ? undefined
               : "Saved only in this browser. Guest expenses stay separate from your account."
           }
-          headerAction={
-            stored ? (
-              <Button
-                type="button"
-                variant="destructive"
-                size="touch"
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            ) : undefined
-          }
+          savedExpense={!!stored}
+          onOpenSettings={() => {
+            setSettingsName(state.name);
+            setSettingsError(null);
+            setExpenseSettingsOpen(true);
+          }}
           onCancel={() => (dirty ? setConfirmDiscard(true) : leave())}
           cancelLabel={stored ? "Close" : "Cancel"}
           onRenameExpense={(name) => dispatch({ type: "RENAME_EXPENSE", name })}
@@ -418,6 +415,68 @@ function ExpenseEditor() {
               Delete expense
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={expenseSettingsOpen}
+        onOpenChange={(open) => {
+          setExpenseSettingsOpen(open);
+          if (!open) setSettingsError(null);
+        }}
+      >
+        <DialogContent aria-label="Expense settings">
+          <DialogTitle>Expense settings</DialogTitle>
+          <DialogDescription className="mt-1">Manage this expense.</DialogDescription>
+          <form
+            className="mt-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const trimmed = settingsName.trim();
+              if (!trimmed) {
+                setSettingsError("Give this expense a name.");
+                return;
+              }
+              dispatch({ type: "RENAME_EXPENSE", name: trimmed });
+              setExpenseSettingsOpen(false);
+            }}
+          >
+            <Field label="Expense name" htmlFor="expense-settings-name">
+              <Input
+                id="expense-settings-name"
+                value={settingsName}
+                aria-invalid={!!settingsError}
+                aria-describedby={settingsError ? "expense-settings-error" : undefined}
+                onChange={(event) => {
+                  setSettingsName(event.target.value);
+                  setSettingsError(null);
+                }}
+              />
+            </Field>
+            {settingsError && <FieldError id="expense-settings-error">{settingsError}</FieldError>}
+            <div className="-mx-5 -mb-5 mt-6 flex flex-col-reverse gap-3 border-t border-rule px-5 py-5 sm:-mx-6 sm:-mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <Button
+                type="button"
+                variant="destructive"
+                size="touch"
+                onClick={() => {
+                  setExpenseSettingsOpen(false);
+                  setConfirmDelete(true);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete expense
+              </Button>
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <DialogClose render={<Button type="button" variant="secondary" size="touch" />}>
+                  Cancel
+                </DialogClose>
+                <Button type="submit" size="touch">
+                  Save changes
+                </Button>
+              </div>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </Page>

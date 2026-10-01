@@ -5,7 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
-import { Check, X, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
+import { Banknote, Check, X, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
@@ -380,7 +380,12 @@ function TabSettingsDialog({
                 }}
               />
             </Field>
-            <Field label="Tab currency" htmlFor="tab-default-currency" className="w-full">
+            <Field
+              label="Tab currency"
+              htmlFor="tab-default-currency"
+              icon={Banknote}
+              className="w-full"
+            >
               <CurrencyPicker
                 id="tab-default-currency"
                 value={draftCurrency}

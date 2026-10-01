@@ -179,7 +179,9 @@ function SignInMenu() {
 
             <form onSubmit={handleSendCode} className="space-y-3">
               <div>
-                <Label htmlFor="signin-email">Email</Label>
+                <Label htmlFor="signin-email" icon={Mail}>
+                  Email
+                </Label>
                 <Input
                   id="signin-email"
                   type="email"
@@ -188,12 +190,13 @@ function SignInMenu() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
-                  icon={Mail}
                 />
               </div>
               {flow !== "reset" && (
                 <div>
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="signin-password" icon={KeyRound}>
+                    Password
+                  </Label>
                   <Input
                     id="signin-password"
                     type="password"
@@ -206,7 +209,6 @@ function SignInMenu() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete={flow === "signUp" ? "new-password" : "current-password"}
-                    icon={KeyRound}
                   />
                 </div>
               )}
@@ -286,7 +288,9 @@ function SignInMenu() {
               </p>
               {flow === "reset" && (
                 <div>
-                  <Label htmlFor="reset-password">New password</Label>
+                  <Label htmlFor="reset-password" icon={KeyRound}>
+                    New password
+                  </Label>
                   <Input
                     id="reset-password"
                     type="password"
@@ -296,7 +300,6 @@ function SignInMenu() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     autoComplete="new-password"
-                    icon={KeyRound}
                   />
                 </div>
               )}

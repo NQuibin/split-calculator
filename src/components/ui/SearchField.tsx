@@ -23,8 +23,12 @@ export function SearchField({ className, showLabel = true, ...props }: SearchFie
   const inputId = props.id ?? generatedId;
   return (
     <div className={cn("min-w-0", className)}>
-      {showLabel && <Label htmlFor={inputId}>{label}</Label>}
-      <Input {...props} id={inputId} icon={Search} data-slot="search-field" />
+      {showLabel && (
+        <Label htmlFor={inputId} icon={Search}>
+          {label}
+        </Label>
+      )}
+      <Input {...props} id={inputId} data-slot="search-field" />
     </div>
   );
 }

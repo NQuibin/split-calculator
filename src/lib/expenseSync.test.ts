@@ -2,6 +2,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { renderHook } from "@/test/render";
 import { toExpenseStateArgs, useExpenseActions, useExpenseList } from "./expenseSync";
+import { expenseReducer } from "./reducer";
 
 const mocks = vi.hoisted(() => ({
   auth: { isAuthenticated: false, isLoading: false },
@@ -69,6 +70,12 @@ test("local expenses are hidden during login and while account data loads", () =
 test("editor stage is never included in a saved expense", () => {
   expect(toExpenseStateArgs(state)).not.toHaveProperty("stage");
   expect(toExpenseStateArgs({ ...state, stage: "results" })).toEqual(toExpenseStateArgs(state));
+});
+
+test("note draft keeps typing spaces and saves the latest text", () => {
+  const draft = expenseReducer(state, { type: "SET_NOTE", note: "Dinner with  friends " });
+  expect(draft.note).toBe("Dinner with  friends ");
+  expect(toExpenseStateArgs(draft).note).toBe("Dinner with  friends");
 });
 
 test("payer is preserved in remote writes and can be cleared without leaking read metadata", () => {

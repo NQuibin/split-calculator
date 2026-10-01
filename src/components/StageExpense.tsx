@@ -5,18 +5,21 @@ import {
   ArrowRight,
   Asterisk,
   Banknote,
+  DollarSign,
+  CalendarDays,
   Calculator,
   Check,
   ChevronDown,
+  Coins,
   ListChecks,
   Loader2,
   Pencil,
+  Settings,
   Percent,
   Plus,
   StickyNote,
   TicketPercent,
   X,
-  Trash2,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -25,13 +28,7 @@ import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { RateInput } from "@/components/ui/RateInput";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/Dialog";
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
 import { MenuOption } from "@/components/ui/MenuOption";
 import { Panel } from "@/components/ui/Page";
@@ -49,8 +46,8 @@ import type {
 } from "@/lib/types";
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
-import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { TipRateInput } from "@/components/ui/TipRateInput";
+import { Switch } from "@/components/ui/Switch";
 
 const zeroAdjustments: ExpenseAdjustments = {
   discount: { mode: "amount", value: 0 },
@@ -65,13 +62,14 @@ const collapseTransition = { duration: 0.2, ease: "easeInOut" as const };
 interface StageExpenseProps {
   expenseName: string;
   description?: string;
-  headerAction?: ReactNode;
   tabField?: ReactNode;
   continueDisabled?: boolean;
   showPeople?: boolean;
   onCancel?: () => void;
   cancelLabel?: string;
   onRenameExpense: (name: string) => void;
+  savedExpense?: boolean;
+  onOpenSettings?: () => void;
   people: Person[];
   /** The signed-in user's own id, if any - their person row is tied to their real account name, so it's locked from renaming here just like a claimed tab member. */
   viewerId?: string;
@@ -110,13 +108,14 @@ interface StageExpenseProps {
 export function StageExpense({
   expenseName,
   description,
-  headerAction,
   tabField,
   continueDisabled = false,
   showPeople = true,
   onCancel,
   cancelLabel = "Cancel",
   onRenameExpense,
+  savedExpense = false,
+  onOpenSettings,
   people,
   viewerId,
   inTab = false,
@@ -318,7 +317,9 @@ export function StageExpense({
   const expenseMetadata = (
     <div className="grid min-w-0 gap-4 md:grid-cols-2">
       <div className="min-w-0">
-        <Label htmlFor="expense-date">Date</Label>
+        <Label htmlFor="expense-date" icon={CalendarDays}>
+          Date
+        </Label>
         <DatePicker
           id="expense-date"
           value={date ?? ""}
@@ -328,7 +329,9 @@ export function StageExpense({
         />
       </div>
       <div className="min-w-0">
-        <Label htmlFor="expense-currency">Currency</Label>
+        <Label htmlFor="expense-currency" icon={Banknote}>
+          Currency
+        </Label>
         <CurrencyPicker
           id="expense-currency"
           value={currencyCode}
@@ -338,8 +341,8 @@ export function StageExpense({
         />
       </div>
       <div className="min-w-0 md:col-span-2">
-        <Label id="expense-payer-label" htmlFor="expense-payer">
-          {isUpcoming(date) ? "Will be paid by" : "Paid by"} <span aria-hidden="true">*</span>
+        <Label id="expense-payer-label" htmlFor="expense-payer" icon={User}>
+          {isUpcoming(date) ? "Will be paid by" : "Paid by"}
         </Label>
         <Popover open={payerOpen} onOpenChange={setPayerOpen}>
           <PopoverTrigger
@@ -350,14 +353,11 @@ export function StageExpense({
                 aria-labelledby="expense-payer-label expense-payer-value"
                 aria-required="true"
                 aria-invalid={payerError ? "true" : undefined}
-                aria-describedby={
-                  payerError ? "expense-payer-help expense-payer-error" : "expense-payer-help"
-                }
+                aria-describedby={payerError ? "expense-payer-error" : undefined}
                 className="group min-h-11 w-full justify-between rounded-md px-3 py-2 text-base sm:text-sm"
               />
             }
           >
-            <User aria-hidden="true" className="h-4 w-4 shrink-0 text-brass" />
             <span id="expense-payer-value" className="min-w-0 flex-1 truncate text-left">
               {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
             </span>
@@ -383,11 +383,6 @@ export function StageExpense({
             </ul>
           </PopoverContent>
         </Popover>
-        <p id="expense-payer-help" className="mt-2 text-xs text-ink-soft">
-          {people.find((person) => person.id === payerId)
-            ? `${people.find((person) => person.id === payerId)!.name} ${isUpcoming(date) ? "will pay" : "paid"} the full expense. They can pay without being in the split.`
-            : "Required before saving. Choose who covers the full expense. They can pay without being in the split."}
-        </p>
         {payerError && <FieldError id="expense-payer-error">{payerError}</FieldError>}
       </div>
     </div>
@@ -454,79 +449,121 @@ export function StageExpense({
       </div>
     ) : null;
 
+  const draftItemSplitItem: ExpenseItem = {
+    id: editingId ?? "item-preview",
+    name: name.trim(),
+    cost: Number(cost) || 0,
+    discount: adjustmentsOpen ? discount : zeroRate,
+    tax: adjustmentsOpen ? tax : zeroRate,
+    tip: adjustmentsOpen ? tip : zeroRate,
+    tipAfterTax: adjustmentsOpen && tipAfterTax,
+    splitWith,
+    overrideAdjustments: adjustmentsOpen,
+  };
+  const draftItems = editingId
+    ? items.map((item) => (item.id === editingId ? draftItemSplitItem : item))
+    : [...items, draftItemSplitItem];
+  const draftItemSplit = computeSplit(people, draftItems, globalAdjustments);
+  const draftItemShares = new Map(
+    draftItemSplit.people.map((person) => {
+      const line = person.lines.find((entry) => entry.itemId === draftItemSplitItem.id);
+      return [person.personId, line ? line.share + line.taxShare + line.tipShare : 0];
+    }),
+  );
+
   const itemEditor = (
-    <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-      <div className="min-w-0">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(9rem,0.6fr)]">
-          <Label className="mb-0 min-w-0">
-            Item name
-            <Input
-              autoFocus
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Nachos"
-              className="mt-2"
-            />
-          </Label>
-          <Label className="mb-0 min-w-0">
-            Amount · {currencyCode}
-            <Input
-              icon={Banknote}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.01}
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              placeholder="0.00"
-              className="font-numeric"
-              wrapperClassName="mt-2"
-            />
-          </Label>
-        </div>
-        <div className="mt-3">
-          <CheckboxRow
-            selected={adjustmentsOpen}
-            onCheckedChange={setAdjustmentsOpen}
-            ground="plain"
-            className="py-3"
-          >
-            Use individual discount, tax &amp; tip
-          </CheckboxRow>
-          <p className="mb-3 text-xs text-ink-soft">Override global adjustments for this item.</p>
-          {adjustmentsOpen && (
-            <>
-              <div className="rate-inputs-container">
-                <div className="rate-inputs rate-inputs-global">
-                  <RateInput
-                    label="Discount"
-                    icon={TicketPercent}
-                    rate={discount}
-                    onChange={setDiscount}
-                    fullWidth
-                  />
-                  <div className="rate-inputs-tax-tip">
-                    <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} fullWidth />
-                    <TipRateInput
-                      rate={tip}
-                      onChange={setTip}
-                      afterTax={tipAfterTax}
-                      onAfterTaxChange={setTipAfterTax}
-                      fullWidth
-                    />
-                  </div>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-ink-soft">Discount applies before tax and tip.</p>
-            </>
-          )}
-        </div>
+    <div className="grid gap-4">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+        <Label className="mb-0 min-w-0">
+          Item name
+          <Input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Nachos"
+            className="mt-2"
+          />
+        </Label>
+        <Label icon={DollarSign} className="mb-0 min-w-0">
+          Amount · {currencyCode}
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={0.01}
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            placeholder="0.00"
+            className="font-numeric"
+            wrapperClassName="mt-2"
+          />
+        </Label>
       </div>
-      <div className="min-w-0">
-        <GroupTitle>Split this item</GroupTitle>
-        <p className="mt-1 text-xs text-ink-soft">Equally among selected people</p>
-        <div className="mt-3 space-y-2">
+
+      <section className="border-y border-rule py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-ink">Use individual discount, tax &amp; tip</p>
+            <p className="text-xs text-ink-soft">Override global adjustments for this item.</p>
+          </div>
+          <Switch
+            checked={adjustmentsOpen}
+            onCheckedChange={setAdjustmentsOpen}
+            aria-label="Use individual discount, tax and tip"
+          />
+        </div>
+        <AnimatePresence initial={false}>
+          {adjustmentsOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={collapseTransition}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 grid items-start gap-4 border-t border-rule pt-4 sm:grid-cols-3">
+                <RateInput
+                  label="Discount"
+                  icon={TicketPercent}
+                  rate={discount}
+                  onChange={setDiscount}
+                  fullWidth
+                />
+                <RateInput label="Tax" icon={Percent} rate={tax} onChange={setTax} fullWidth />
+                <RateInput
+                  label="Tip"
+                  icon={Coins}
+                  rate={tip}
+                  onChange={setTip}
+                  fullWidth
+                  footer={
+                    tip.mode === "percent" ? (
+                      <div className="mt-3 flex min-h-11 items-center justify-between gap-2">
+                        <span className="text-sm text-ink">Apply tip after tax</span>
+                        <Switch
+                          checked={tipAfterTax}
+                          onCheckedChange={setTipAfterTax}
+                          aria-label="Apply tip after tax"
+                        />
+                      </div>
+                    ) : undefined
+                  }
+                />
+                <p className="text-xs text-ink-soft sm:col-span-3">
+                  Discount applies before tax and tip.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+
+      <section>
+        <div className="mb-3">
+          <GroupTitle>Split this item</GroupTitle>
+        </div>
+        <div className="space-y-2">
           {people.map((person) => (
             <MemberSelectionRow
               key={person.id}
@@ -534,16 +571,23 @@ export function StageExpense({
               name={person.name}
               selected={splitWith.includes(person.id)}
               onToggle={() => togglePerson(person.id)}
+              endContent={
+                <span className="font-numeric shrink-0">
+                  {splitWith.includes(person.id)
+                    ? currency(draftItemShares.get(person.id) ?? 0, currencyCode)
+                    : "—"}
+                </span>
+              }
             />
           ))}
         </div>
-      </div>
+      </section>
       {error && (
-        <p role="alert" className="text-sm text-margin-red-ink md:col-span-2">
+        <p role="alert" className="text-sm text-margin-red-ink">
           {error}
         </p>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between md:col-span-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button
           type="button"
           variant="secondary"
@@ -563,13 +607,26 @@ export function StageExpense({
 
   return (
     <div className="w-full">
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <ExpenseTitle name={expenseName} onRename={onRenameExpense} />
+      <header className="mb-6">
+        <div className="min-w-0">
+          <div className="flex w-full min-w-0 items-center gap-2">
+            <ExpenseTitle name={expenseName} onRename={onRenameExpense} saved={savedExpense} />
+            {savedExpense && (
+              <Button
+                type="button"
+                variant="menu-icon"
+                size="icon-touch"
+                aria-label="Expense settings"
+                onClick={onOpenSettings}
+                className="ml-auto shrink-0"
+              >
+                <Settings aria-hidden="true" className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
           {tabField}
           {description && <PageDescription>{description}</PageDescription>}
         </div>
-        {headerAction}
       </header>
 
       <Panel bleedOnMobile className="card-inset">
@@ -608,7 +665,7 @@ export function StageExpense({
           <>
             <section aria-label="Global adjustments" className="mb-4 border-b border-rule pb-4">
               <GroupTitle as="h2" className="mb-3">
-                Global discount, tax &amp; tip
+                Discount, Tax &amp; Tip
               </GroupTitle>
               <div className="rate-inputs-container">
                 <div className="rate-inputs rate-inputs-global">
@@ -641,10 +698,6 @@ export function StageExpense({
                   </div>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-ink-soft">
-                Applies to items without individual adjustments. Fixed amounts are shared
-                proportionally. Discount applies before tax and tip.
-              </p>
             </section>
             <div className="flex items-center justify-between gap-3">
               <GroupTitle as="h2">
@@ -669,7 +722,7 @@ export function StageExpense({
                 if (!open) closeItemEditor();
               }}
             >
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-4xl">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <DialogTitle>{editingId ? "Edit item" : "New item"}</DialogTitle>
                   <DialogClose
@@ -679,9 +732,6 @@ export function StageExpense({
                     <X className="h-4 w-4" />
                   </DialogClose>
                 </div>
-                <DialogDescription className="mb-5">
-                  Enter the item details and choose who shares it.
-                </DialogDescription>
                 {itemEditor}
               </DialogContent>
             </Dialog>
@@ -693,6 +743,9 @@ export function StageExpense({
                     key={item.id}
                     item={resolvedItems[i]}
                     hasOverrides={hasIndividualAdjustments(item)}
+                    discountRate={
+                      hasIndividualAdjustments(item) ? item.discount : globalAdjustments.discount
+                    }
                     index={i}
                     people={people}
                     currency={currencyCode}
@@ -714,40 +767,37 @@ export function StageExpense({
             )}
             <div className="mt-5 border-t border-rule pt-5">
               <section className="min-w-0">
-                <GroupTitle as="h2">
-                  Total, including adjustments{" "}
-                  <span className="text-ink-soft">({currencyCode})</span>
-                </GroupTitle>
-                <p className="font-numeric mt-2 break-words text-3xl text-ink">
-                  {currency(totals.grandTotal, currencyCode)}
-                </p>
-                <p className="mt-1 text-xs text-ink-soft">
-                  Calculated from {items.length} {items.length === 1 ? "item" : "items"}
-                </p>
-                {(totals.taxTotal > 0 || totals.tipTotal > 0) && (
-                  <dl className="mt-4 space-y-2 border-t border-rule pt-3 text-sm text-ink-soft">
+                <dl className="space-y-2 text-sm text-ink-soft">
+                  <div className="flex justify-between gap-3">
+                    <dt>
+                      {resolvedItems.some((item) => item.discount.value > 0)
+                        ? "Subtotal after discounts"
+                        : "Subtotal"}
+                    </dt>
+                    <dd className="font-numeric">{currency(totals.subtotal, currencyCode)}</dd>
+                  </div>
+                  {totals.taxTotal > 0 && (
                     <div className="flex justify-between gap-3">
-                      <dt>
-                        {resolvedItems.some((item) => item.discount.value > 0)
-                          ? "Subtotal after discounts"
-                          : "Subtotal"}
-                      </dt>
-                      <dd className="font-numeric">{currency(totals.subtotal, currencyCode)}</dd>
+                      <dt>Tax</dt>
+                      <dd className="font-numeric">{currency(totals.taxTotal, currencyCode)}</dd>
                     </div>
-                    {totals.taxTotal > 0 && (
-                      <div className="flex justify-between gap-3">
-                        <dt>Tax</dt>
-                        <dd className="font-numeric">{currency(totals.taxTotal, currencyCode)}</dd>
-                      </div>
-                    )}
-                    {totals.tipTotal > 0 && (
-                      <div className="flex justify-between gap-3">
-                        <dt>Tip</dt>
-                        <dd className="font-numeric">{currency(totals.tipTotal, currencyCode)}</dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
+                  )}
+                  {totals.tipTotal > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <dt>Tip</dt>
+                      <dd className="font-numeric">{currency(totals.tipTotal, currencyCode)}</dd>
+                    </div>
+                  )}
+                </dl>
+                <div className="mt-4 border-t border-rule pt-4">
+                  <GroupTitle as="h2">
+                    Total, including adjustments{" "}
+                    <span className="text-ink-soft">({currencyCode})</span>
+                  </GroupTitle>
+                  <p className="font-numeric mt-2 break-words text-3xl text-ink">
+                    {currency(totals.grandTotal, currencyCode)}
+                  </p>
+                </div>
               </section>
               {peopleManagement}
             </div>
@@ -793,48 +843,20 @@ export function StageExpense({
 
 function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: string) => void }) {
   const [open, setOpen] = useState(() => !!note);
-  const [draft, setDraft] = useState(note ?? "");
-  const [syncedNote, setSyncedNote] = useState(note ?? "");
-
-  // The stored note can change out from under this field - a Convex live
-  // query landing, or another device editing the same expense - so adopt the
-  // new value whenever it differs from the one this draft was seeded with.
-  if ((note ?? "") !== syncedNote) {
-    setSyncedNote(note ?? "");
-    setDraft(note ?? "");
-  }
-
-  // Typing is kept local and only saved on blur, so a note costs one write
-  // instead of one per keystroke. A blank note deletes it (see the reducer).
-  function commit() {
-    if (draft.trim() !== (note ?? "").trim()) onSetNote(draft);
-  }
-
-  function handleRemove() {
-    setDraft("");
-    onSetNote("");
-  }
 
   return (
-    <div className="mt-4 rounded-md border border-rule transition has-[>button:hover]:border-forest">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
-      >
-        <span className="flex items-center gap-1.5">
-          <StickyNote className="h-4 w-4 text-brass" strokeWidth={2.25} />
-          {note ? "Note" : "Add a note"}
-        </span>
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={collapseTransition}
-          className="shrink-0"
+    <section aria-label="Note" className="mt-5 border-t border-rule pt-5">
+      <div className="flex items-center justify-between gap-3">
+        <Label
+          htmlFor="expense-note"
+          icon={StickyNote}
+          subtext="Optional — anything worth remembering about this expense."
+          className="mb-0"
         >
-          <ChevronDown className="h-4 w-4" strokeWidth={2.5} />
-        </motion.span>
-      </button>
+          Note
+        </Label>
+        <Switch checked={open} onCheckedChange={setOpen} aria-label="Note" />
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -842,33 +864,20 @@ function NoteField({ note, onSetNote }: { note?: string; onSetNote: (note: strin
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={collapseTransition}
-            className="overflow-hidden border-t border-rule"
+            className="overflow-hidden"
           >
-            <div className="space-y-2 px-4 py-3">
-              <p className="text-xs text-ink-soft">
-                Optional — anything worth remembering about this expense.
-              </p>
-              <Label htmlFor="expense-note">Note (optional)</Label>
-              <Textarea
-                id="expense-note"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={commit}
-                rows={3}
-                placeholder="e.g. Dan covered the cab home, settle that separately."
-                aria-label="Expense note"
-              />
-              {note && (
-                <Button type="button" variant="destructive" size="touch" onClick={handleRemove}>
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
-                  Delete note
-                </Button>
-              )}
-            </div>
+            <Textarea
+              id="expense-note"
+              value={note ?? ""}
+              onChange={(e) => onSetNote(e.target.value)}
+              rows={3}
+              placeholder="e.g. Dan covered the cab home, settle that separately."
+              className="mt-3"
+            />
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </section>
   );
 }
 
@@ -964,12 +973,11 @@ function SimpleTotalForm({
   return (
     <div className="grid gap-5 md:grid-cols-2 md:gap-6">
       <div className="min-w-0">
-        <label htmlFor="expense-total" className="mb-2 block text-sm font-medium text-ink">
+        <Label htmlFor="expense-total" icon={DollarSign}>
           Total amount <span className="text-ink-soft">({currencyCode})</span>
-        </label>
+        </Label>
         <Input
           id="expense-total"
-          icon={Banknote}
           type="number"
           inputMode="decimal"
           min={0}
@@ -1016,70 +1024,37 @@ function SimpleTotalForm({
   );
 }
 
-function ExpenseTitle({ name, onRename }: { name: string; onRename: (name: string) => void }) {
+function ExpenseTitle({
+  name,
+  onRename,
+  saved,
+}: {
+  name: string;
+  onRename: (name: string) => void;
+  saved: boolean;
+}) {
   // A brand-new expense has no name yet - there's nothing valid to show in
   // display mode, so it starts straight in the editing form.
-  const [editing, setEditing] = useState(() => !name);
-  const [value, setValue] = useState(name);
-
-  function commit() {
-    const trimmed = value.trim();
-    if (trimmed) {
-      onRename(trimmed);
-      setEditing(false);
-    } else if (name) {
-      // Nothing typed - revert to the existing name rather than save blank.
-      setValue(name);
-      setEditing(false);
-    }
-    // Still no name at all: stay in editing mode, since a name is required.
-  }
-
-  if (editing) {
+  if (!saved) {
     return (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          commit();
-        }}
-      >
+      <div className="min-w-0 flex-1">
         {/* An expense with no name yet never leaves edit mode, so without this
             the page would render no <h1> at all and open on an orphan <h2>. */}
         <PageTitle className="sr-only">{name || "New expense"}</PageTitle>
         <Label htmlFor="expense-name">Expense name</Label>
         <Input
           id="expense-name"
-          autoFocus
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
+          value={name}
+          onChange={(e) => onRename(e.target.value)}
           placeholder="Name this expense"
           aria-label="Expense name"
           required
           className="font-display max-w-md font-medium"
         />
-      </form>
+      </div>
     );
   }
-
-  return (
-    <div className="flex items-center gap-2">
-      <PageTitle className="min-w-0">{name}</PageTitle>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-touch"
-        onClick={() => {
-          setValue(name);
-          setEditing(true);
-        }}
-        aria-label="Rename expense"
-        className="shrink-0 text-ink-soft hover:text-forest active:text-forest"
-      >
-        <Pencil className="h-4 w-4" strokeWidth={2.25} />
-      </Button>
-    </div>
-  );
+  return <PageTitle className="min-w-0">{name}</PageTitle>;
 }
 
 function PersonRow({
@@ -1113,10 +1088,9 @@ function PersonRow({
             commit();
           }}
         >
-          <Label>
+          <Label icon={User}>
             Person name
             <Input
-              icon={User}
               wrapperClassName="mt-2"
               autoFocus
               aria-label={`Rename ${person.name}`}

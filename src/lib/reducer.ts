@@ -85,12 +85,8 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
           ? action.payerId
           : undefined,
       };
-    case "SET_NOTE": {
-      // A blank note is no note at all - drop the field entirely so adding,
-      // updating and deleting a note are all this one action.
-      const note = action.note.trim();
-      return { ...state, note: note || undefined };
-    }
+    case "SET_NOTE":
+      return { ...state, note: action.note || undefined };
     case "SET_IMAGE":
       // Removing an image drops the field; the save mutation deletes the
       // now-unreferenced file from storage.

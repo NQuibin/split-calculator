@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
+import { Link, getRouteApi } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
@@ -9,6 +9,7 @@ import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { FieldError, Input, Label } from "@/components/ui/Input";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { Page, Panel } from "@/components/ui/Page";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { GroupTitle, PageTitle, SectionTitle } from "@/components/ui/Typography";
@@ -55,13 +56,13 @@ export function RecordPaymentPage() {
     | null
     | undefined;
   const recordSettlement = useMutation(api.settlements.recordMany);
-  const navigate = useNavigate();
   const { currency } = useLocaleFormatters();
   const [stage, setStage] = useState<"select" | "details">("select");
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, PaymentDraft>>({});
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recordedCount, setRecordedCount] = useState(0);
 
   const data = response ? ("paid" in response ? response[view] : response) : undefined;
   const choices: PaymentMember[] =
@@ -155,7 +156,7 @@ export function RecordPaymentPage() {
           requestId: crypto.randomUUID(),
         })),
       });
-      await navigate({ to: "/t/$slug", params: { slug }, replace: true });
+      setRecordedCount(sections.length);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not record payment.");
     } finally {
@@ -344,6 +345,49 @@ export function RecordPaymentPage() {
           </form>
         )}
       </Panel>
+      <Dialog open={recordedCount > 0} onOpenChange={() => {}}>
+        <DialogContent
+          aria-describedby="payment-success-description"
+          className="max-w-sm text-center"
+        >
+          <div
+            aria-hidden="true"
+            className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-ledger-green/10 text-ledger-green"
+          >
+            <div className="flex h-14 w-14 animate-in zoom-in-50 items-center justify-center rounded-full border-2 border-ledger-green/40 duration-500">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-8 w-8"
+                fill="none"
+                role="img"
+                aria-label="Saved"
+              >
+                <path
+                  d="m5 12 4 4L19 6"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  className="[stroke-dasharray:24] [stroke-dashoffset:24] animate-[payment-check_500ms_ease-out_250ms_forwards]"
+                />
+              </svg>
+            </div>
+          </div>
+          <DialogTitle className="text-center">
+            {recordedCount === 1 ? "Payment recorded" : "Payments recorded"}
+          </DialogTitle>
+          <DialogDescription id="payment-success-description" className="mt-2">
+            {recordedCount} {recordedCount === 1 ? "payment has" : "payments have"} been saved.
+          </DialogDescription>
+          <Link
+            to="/t/$slug"
+            params={{ slug }}
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-medium text-forest underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          >
+            Back to {tab?.name ?? "tab"}
+          </Link>
+        </DialogContent>
+      </Dialog>
     </Page>
   );
 }

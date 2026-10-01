@@ -230,9 +230,7 @@ body {
   max-width: 50%;
 }
 
-/* Global adjustments share a row when the form is wide enough, then wrap each
-   control at a usable width as the form narrows. Item-level overrides keep the
-   compact two-row layout above. */
+/* Global adjustments use three columns from 768px and wrap below that width. */
 .rate-inputs-global {
   display: flex;
   flex-wrap: wrap;
@@ -258,6 +256,21 @@ body {
 .rate-inputs-tax-tip > .rate-input-row {
   flex: 1 1 16rem;
   min-width: min(100%, 16rem);
+}
+
+@media (min-width: 48rem) {
+  .rate-inputs-global {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rate-inputs-tax-tip {
+    display: contents;
+  }
+
+  .rate-inputs-global .rate-input-row {
+    min-width: 0;
+  }
 }
 
 /* Chevron motion.
@@ -310,6 +323,12 @@ details[open] .chevron-flip,
 /* Perforated rule between an item list and its total, like a receipt tear line. */
 .perforated-top {
   border-top: 2px dashed color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+@keyframes payment-check {
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* The reduced-motion escape hatch has to outrank every Tailwind duration

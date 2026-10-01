@@ -1,6 +1,6 @@
 import { Coins } from "lucide-react";
 import { RateInput } from "@/components/ui/RateInput";
-import { CheckboxRow } from "@/components/ui/CheckboxRow";
+import { Switch } from "@/components/ui/Switch";
 import type { RateSetting } from "@/lib/types";
 
 interface TipRateInputProps {
@@ -32,14 +32,14 @@ export function TipRateInput({
       fullWidth={fullWidth}
       footer={
         rate.mode === "percent" ? (
-          <CheckboxRow
-            selected={afterTax}
-            onCheckedChange={onAfterTaxChange}
-            ground="plain"
-            className="gap-2 text-xs text-ink-soft"
-          >
-            Apply tip after tax
-          </CheckboxRow>
+          <div className="mt-3 flex min-h-11 items-center justify-between gap-2">
+            <span className="text-sm text-ink">Apply tip after tax</span>
+            <Switch
+              checked={afterTax}
+              onCheckedChange={onAfterTaxChange}
+              aria-label="Apply tip after tax"
+            />
+          </div>
         ) : undefined
       }
     />

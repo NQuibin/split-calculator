@@ -6,7 +6,6 @@ import { SearchField } from "@/components/ui/SearchField";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { CURRENCIES } from "@/lib/currencies";
 import { cn } from "@/lib/utils";
-import { Banknote } from "lucide-react";
 
 interface CurrencyPickerProps {
   id?: string;
@@ -57,7 +56,6 @@ export function CurrencyPicker({ value, onChange, ...props }: CurrencyPickerProp
         }
       >
         <span className="flex w-full min-w-0 items-center gap-2 text-base sm:text-sm">
-          <Banknote aria-hidden="true" className="h-4 w-4 shrink-0 text-brass" />
           <span className="font-numeric font-semibold">{value}</span>
           {selectedCurrency && (
             <span className="min-w-0 flex-1 truncate text-left text-ink-soft">
