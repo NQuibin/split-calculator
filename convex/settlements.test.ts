@@ -275,6 +275,13 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
   const first = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: "2026-09-12" }))!;
   expect(first.paid.history).toHaveLength(1);
   expect(first.paid.currencies[0].members.map((m) => m.balance)).toEqual([40, 0, -40]);
+  await expect(
+    outsider.mutation(api.settlements.reverse, {
+      slug: "trip",
+      settlementId: first.paid.history[0].id,
+      date: "2026-02-30",
+    }),
+  ).rejects.toThrow("Invalid reversal date");
   await outsider.mutation(api.settlements.reverse, {
     slug: "trip",
     settlementId: first.paid.history[0].id,
@@ -289,6 +296,21 @@ test("record is authorized, exact, idempotent, guarded, and reversible", async (
   }))!;
   expect(reversed.paid.history[0].reversed).toBe(true);
   expect(reversed.paid.currencies[0].members.map((m) => m.balance)).toEqual([80, -40, -40]);
+  const fullHistory = (await owner.query(api.settlements.get, {
+    slug: "trip",
+    asOfDate: new Date().toISOString().slice(0, 10),
+  }))!;
+  const reversal = fullHistory.paid.history.find(
+    (payment) => payment.reversalOf === first.paid.history[0].id,
+  )!;
+  expect(fullHistory.paid.history).toHaveLength(2);
+  expect(reversal.date).toBe(new Date().toISOString().slice(0, 10));
+  expect(reversal.fromMemberId).toBe(first.paid.history[0].toMemberId);
+  expect(reversal.toMemberId).toBe(first.paid.history[0].fromMemberId);
+  expect(reversal.amount).toBe(first.paid.history[0].amount);
+  await expect(
+    outsider.mutation(api.settlements.reverse, { slug: "trip", settlementId: reversal.id }),
+  ).rejects.toThrow("cannot be reversed");
 });
 
 test("recordMany writes all payments atomically and retries idempotently", async () => {

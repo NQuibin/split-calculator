@@ -133,9 +133,11 @@ export default defineSchema({
     view: v.optional(v.union(v.literal("paid"), v.literal("upcoming"), v.literal("all"))),
     reversedAt: v.optional(v.number()),
     reversedBy: v.optional(v.id("users")),
+    reversesSettlementId: v.optional(v.id("settlements")),
   })
     .index("by_tabId_and_requestId", ["tabId", "requestId"])
     .index("by_tabId", ["tabId"])
     .index("by_tabId_and_fromMemberId", ["tabId", "fromMemberId"])
-    .index("by_tabId_and_toMemberId", ["tabId", "toMemberId"]),
+    .index("by_tabId_and_toMemberId", ["tabId", "toMemberId"])
+    .index("by_tabId_and_reversesSettlementId", ["tabId", "reversesSettlementId"]),
 });

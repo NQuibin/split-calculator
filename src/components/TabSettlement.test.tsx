@@ -10,8 +10,10 @@ import { ExpenseViewTabs } from "@/components/ExpenseViewTabs";
 const mocks = vi.hoisted(() => ({
   results: [] as unknown[],
   query: vi.fn(),
+  reverse: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("convex/react", () => ({
+  useMutation: () => mocks.reverse,
   useQuery: (...args: unknown[]) => {
     mocks.query(...args);
     return mocks.results.shift();
@@ -57,6 +59,7 @@ import {
 afterEach(() => {
   mocks.results = [];
   mocks.query.mockClear();
+  mocks.reverse.mockClear();
   document.body.replaceChildren();
 });
 
@@ -440,14 +443,27 @@ test("returns from an expense to its member balance modal", () => {
       ?.click(),
   );
   expect(document.querySelector('[aria-label="Back to balance"]')).not.toBeNull();
-  expect(popupFor("First expense")?.className).not.toContain("data-open:animate-in");
+  expect(popupFor("First expense")?.className).toContain("data-open:animate-in");
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("Delete"))
+      ?.click(),
+  );
+  expect(document.querySelector('[aria-label="Delete this expense?"]')).not.toBeNull();
+  expect(document.body.textContent).toContain("Delete expense");
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent === "Cancel")
+      ?.click(),
+  );
 
   flushSync(() =>
     document.querySelector<HTMLButtonElement>('[aria-label="Back to balance"]')?.click(),
   );
-  expect(document.querySelector('[aria-label="Back to balance"]')).toBeNull();
-  expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe("P2");
-  expect(popupFor("P2")?.className).not.toContain("data-open:animate-in");
+  expect(popupFor("First expense")?.hasAttribute("data-closed")).toBe(true);
+  expect(popupFor("First expense")?.textContent).toContain("First expense");
+  expect(popupFor("P2")?.hasAttribute("data-open")).toBe(true);
+  expect(popupFor("P2")?.className).toContain("data-open:animate-in");
   root.unmount();
   container.remove();
 });
@@ -614,5 +630,98 @@ test("keeps payment history in its modal", () => {
   expect(sep5?.querySelector("ul.divide-y.divide-rule")).not.toBeNull();
   expect(dialog?.querySelector(".overflow-y-auto")).not.toBeNull();
   expect(dialog?.textContent).not.toContain("Done");
+  root.unmount();
+});
+
+test("confirms a payment reversal and shows its linked history entry", async () => {
+  const historyData: SettlementSummaryData = {
+    ...data,
+    history: [
+      {
+        id: "reversal-1",
+        fromMemberId: "viewer",
+        toMemberId: "p2",
+        amount: 1,
+        currency: "CAD",
+        date: "2026-10-01",
+        reversed: false,
+        reversalOf: "payment-1",
+      },
+      {
+        id: "payment-1",
+        fromMemberId: "p2",
+        toMemberId: "viewer",
+        amount: 1,
+        currency: "CAD",
+        date: "2026-09-30",
+        reversed: true,
+        reversedAt: Date.parse("2026-10-01T12:00:00Z"),
+      },
+      {
+        id: "payment-2",
+        fromMemberId: "p2",
+        toMemberId: "viewer",
+        amount: 2,
+        currency: "CAD",
+        date: "2026-09-30",
+        reversed: false,
+      },
+    ],
+  };
+  const response = { paid: historyData, upcoming: historyData, all: historyData };
+  mocks.results = Array.from({ length: 8 }, () => response);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [
+          { id: "viewer", name: "Nikki Q" },
+          { id: "p2", name: "P2" },
+        ],
+        expenseView: "paid",
+      }),
+    ),
+  );
+  flushSync(() =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("Payment history"))
+      ?.click(),
+  );
+  const history = document.querySelector('[role="dialog"]');
+  expect(history?.textContent).toContain("P2 reversed payment to Nikki Q");
+  expect(history?.textContent).toContain("Reverses CA$1.00 payment from Sep 30, 2026");
+  expect(history?.querySelectorAll('button[aria-label^="Reverse "]')).toHaveLength(1);
+  flushSync(() =>
+    history?.querySelector<HTMLButtonElement>('button[aria-label^="Reverse "]')?.click(),
+  );
+  const confirmDialog = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
+    (dialog) => dialog.textContent?.includes("Reverse this payment?"),
+  );
+  expect(confirmDialog).toBeDefined();
+  expect(history?.hasAttribute("data-open")).toBe(true);
+  expect(confirmDialog?.querySelector("header")?.textContent).toContain("Reverse this payment?");
+  expect(confirmDialog?.querySelector("header")?.textContent).toContain(
+    "This creates a new payment record",
+  );
+  expect(
+    confirmDialog?.querySelector("header")?.querySelector("button")?.getAttribute("aria-label"),
+  ).toBe("Back to payment history");
+  expect(confirmDialog?.querySelector("footer")?.textContent).toBe("Reverse payment");
+  expect(confirmDialog?.textContent).not.toContain("Cancel");
+  const reverseButton = confirmDialog?.querySelector<HTMLButtonElement>("footer button");
+  expect(reverseButton?.className).toContain("w-full");
+  expect(reverseButton?.className).toContain("sm:w-auto");
+  flushSync(() => reverseButton?.click());
+  await vi.waitFor(() =>
+    expect(mocks.reverse).toHaveBeenCalledWith(
+      expect.objectContaining({ slug: "trip", settlementId: "payment-2" }),
+    ),
+  );
+  expect(history?.hasAttribute("data-open")).toBe(true);
+  await vi.waitFor(() => expect(confirmDialog?.hasAttribute("data-closed")).toBe(true));
+  expect(confirmDialog?.textContent).toContain("This creates a new payment record");
+  expect(confirmDialog?.textContent).not.toContain("already been reversed");
   root.unmount();
 });

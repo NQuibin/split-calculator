@@ -309,7 +309,12 @@ async function readBalances(
     for (const payment of payments) {
       const paymentView = payment.view ?? "paid";
       if (!appliesToView(paymentView, expenseView)) continue;
-      if (payment.date > asOfDate || payment.reversedAt !== undefined) continue;
+      if (
+        payment.date > asOfDate ||
+        payment.reversedAt !== undefined ||
+        payment.reversesSettlementId !== undefined
+      )
+        continue;
       if (!memberIds.has(payment.fromMemberId) || !memberIds.has(payment.toMemberId)) {
         throw new Error("A settlement references a missing member");
       }
@@ -399,6 +404,9 @@ const settlementSummary = v.object({
       date: v.string(),
       note: v.optional(v.string()),
       reversed: v.boolean(),
+      reversedAt: v.optional(v.number()),
+      reversalOf: v.optional(v.string()),
+      createdAt: v.number(),
       view: v.optional(expenseViewValidator),
     }),
   ),
@@ -469,7 +477,13 @@ export const get = query({
         missingPayers,
         history: payments
           .filter((payment) => payment.date <= asOfDate)
-          .sort((a, b) => b.date.localeCompare(a.date) || b._creationTime - a._creationTime)
+          .sort(
+            (a, b) =>
+              b.date.localeCompare(a.date) ||
+              Number(a.reversesSettlementId !== undefined) -
+                Number(b.reversesSettlementId !== undefined) ||
+              b._creationTime - a._creationTime,
+          )
           .map((payment) => ({
             id: payment._id,
             fromMemberId: payment.fromMemberId,
@@ -479,6 +493,9 @@ export const get = query({
             date: payment.date,
             note: payment.note,
             reversed: payment.reversedAt !== undefined,
+            reversedAt: payment.reversedAt,
+            reversalOf: payment.reversesSettlementId,
+            createdAt: payment._creationTime,
             view: payment.view,
           })),
         viewerMemberId,
@@ -605,17 +622,36 @@ export const recordMany = mutation({
 });
 
 export const reverse = mutation({
-  args: { slug: v.string(), settlementId: v.id("settlements") },
+  args: { slug: v.string(), settlementId: v.id("settlements"), date: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx, { slug, settlementId }) => {
+  handler: async (ctx, { slug, settlementId, date }) => {
+    if (date !== undefined && !isValidISODate(date)) throw new Error("Invalid reversal date");
     const tab = await findTab(ctx, slug);
     if (!tab) throw new Error("Tab not found");
     const userId = await requireTabViewer(ctx, tab);
     const settlement = await ctx.db.get(settlementId);
     if (!settlement || settlement.tabId !== tab._id) throw new Error("Settlement not found");
-    if (settlement.reversedAt === undefined) {
-      await ctx.db.patch(settlementId, { reversedAt: Date.now(), reversedBy: userId });
-    }
+    if (settlement.reversesSettlementId !== undefined)
+      throw new Error("A reversal payment cannot be reversed");
+    if (settlement.reversedAt !== undefined) return null;
+    const reversedAt = Date.now();
+    const utcDate = new Date(reversedAt).toISOString().slice(0, 10);
+    if (date && Math.abs(Date.parse(date) - Date.parse(utcDate)) > 86_400_000)
+      throw new Error("Reversal date must be today");
+    await ctx.db.patch(settlementId, { reversedAt, reversedBy: userId });
+    await ctx.db.insert("settlements", {
+      tabId: tab._id,
+      fromMemberId: settlement.toMemberId,
+      toMemberId: settlement.fromMemberId,
+      amountCents: settlement.amountCents,
+      currency: settlement.currency,
+      date: date ?? utcDate,
+      note: `Reverses payment from ${settlement.date}`,
+      recordedBy: userId,
+      requestId: `reversal:${settlementId}`,
+      view: settlement.view,
+      reversesSettlementId: settlementId,
+    });
     return null;
   },
 });

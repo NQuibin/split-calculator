@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -23,6 +23,8 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  details,
+  backButton = false,
   confirmLabel,
   pendingLabel,
   onConfirm,
@@ -31,6 +33,8 @@ export function ConfirmDialog({
   onOpenChange: (open: boolean) => void;
   title: string;
   description: ReactNode;
+  details?: ReactNode;
+  backButton?: boolean;
   confirmLabel: string;
   pendingLabel?: string;
   onConfirm: () => void | Promise<void>;
@@ -51,6 +55,26 @@ export function ConfirmDialog({
     }
   }
 
+  const confirmButton = (
+    <Button
+      type="button"
+      variant="destructive"
+      size="touch"
+      className={backButton ? "w-full sm:w-auto" : undefined}
+      disabled={pending}
+      aria-busy={pending}
+      onClick={handleConfirm}
+    >
+      {pending && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
+      {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
+    </Button>
+  );
+  const errorMessage = error && (
+    <p role="alert" className="mt-3 text-sm text-margin-red-ink">
+      {error}
+    </p>
+  );
+
   return (
     <Dialog
       open={open}
@@ -60,30 +84,43 @@ export function ConfirmDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent aria-label={title}>
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription className="mt-2">{description}</DialogDescription>
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-margin-red-ink">
-            {error}
-          </p>
+      <DialogContent aria-label={title} className={backButton ? "p-0 sm:p-0" : undefined}>
+        {backButton ? (
+          <>
+            <header className="flex items-start gap-2 border-b border-rule p-5 sm:p-6">
+              <DialogClose
+                disabled={pending}
+                aria-label="Back to payment history"
+                render={<Button variant="ghost" size="icon-touch" className="-ml-2" />}
+              >
+                <ArrowLeft aria-hidden="true" />
+              </DialogClose>
+              <div className="min-w-0 pt-2">
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription className="mt-2">{description}</DialogDescription>
+              </div>
+            </header>
+            <div className="p-5 sm:p-6">
+              {details}
+              {errorMessage}
+            </div>
+            <footer className="flex justify-end border-t border-rule p-5 sm:p-6">
+              {confirmButton}
+            </footer>
+          </>
+        ) : (
+          <>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription className="mt-2">{description}</DialogDescription>
+            {errorMessage}
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <DialogClose disabled={pending} render={<Button variant="secondary" size="touch" />}>
+                Cancel
+              </DialogClose>
+              {confirmButton}
+            </div>
+          </>
         )}
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <DialogClose disabled={pending} render={<Button variant="secondary" size="touch" />}>
-            Cancel
-          </DialogClose>
-          <Button
-            type="button"
-            variant="destructive"
-            size="touch"
-            disabled={pending}
-            aria-busy={pending}
-            onClick={handleConfirm}
-          >
-            {pending && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
-            {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   );

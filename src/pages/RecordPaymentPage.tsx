@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
+import { ArrowLeft } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
@@ -379,13 +380,15 @@ export function RecordPaymentPage() {
           <DialogDescription id="payment-success-description" className="mt-2">
             {recordedCount} {recordedCount === 1 ? "payment has" : "payments have"} been saved.
           </DialogDescription>
-          <Link
-            to="/t/$slug"
-            params={{ slug }}
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-medium text-forest underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+          <Button
+            size="touch"
+            nativeButton={false}
+            className="mt-5 w-full sm:w-auto"
+            render={<Link to="/t/$slug" params={{ slug }} />}
           >
-            Back to {tab?.name ?? "tab"}
-          </Link>
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            Back to tab overview
+          </Button>
         </DialogContent>
       </Dialog>
     </Page>

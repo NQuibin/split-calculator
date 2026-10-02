@@ -16,14 +16,13 @@ type Member = { id: string; name: string; resolvedId?: string };
 export function ExpenseDetailsDialog({
   open,
   onOpenChange,
-  expense,
+  expense: currentExpense,
   slug,
   defaultCurrency,
   canManage,
   members,
   onDelete,
   onBack,
-  instant = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,9 +33,11 @@ export function ExpenseDetailsDialog({
   members: Member[];
   onDelete?: (slug: string) => void;
   onBack?: () => void;
-  instant?: boolean;
 }) {
   const { currency, formatExpenseDate } = useLocaleFormatters();
+  const [lastExpense, setLastExpense] = useState(currentExpense);
+  if (open && currentExpense && lastExpense !== currentExpense) setLastExpense(currentExpense);
+  const expense = open ? (currentExpense ?? lastExpense) : lastExpense;
   const split = expense
     ? computeSplit(expense.people, expense.items, expense.globalAdjustments)
     : null;
@@ -57,7 +58,6 @@ export function ExpenseDetailsDialog({
         <DialogContent
           key={expense.slug}
           aria-label={showingItems ? "Item details for this expense" : "Expense details"}
-          instant={instant}
           className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
         >
           <header
@@ -97,7 +97,10 @@ export function ExpenseDetailsDialog({
           </header>
           {showingItems ? (
             <>
-              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div
+                key="items"
+                className="min-h-0 flex-1 overflow-y-auto animate-in fade-in-0 slide-in-from-right-2 duration-150"
+              >
                 <ul>
                   {split.items.map((item) => {
                     const original = expense.items.find((entry) => entry.id === item.itemId);
@@ -196,7 +199,10 @@ export function ExpenseDetailsDialog({
             </>
           ) : (
             <>
-              <div className="min-h-0 flex-1 overflow-y-auto card-inset">
+              <div
+                key="expense"
+                className="min-h-0 flex-1 overflow-y-auto card-inset animate-in fade-in-0 slide-in-from-left-2 duration-150"
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-numeric text-2xl font-semibold">

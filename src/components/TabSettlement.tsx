@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Banknote, ChevronRight, History, X } from "lucide-react";
+import { Banknote, ChevronRight, History, Undo2, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   Dialog,
   DialogClose,
@@ -37,6 +38,9 @@ export type SettlementSummaryData = {
     currency: string;
     date: string;
     reversed: boolean;
+    reversedAt?: number;
+    reversalOf?: string;
+    createdAt?: number;
     view?: ExpenseView;
   }[];
   currencies: {
@@ -292,7 +296,8 @@ export function TabSettlement({
   const { currency } = useLocaleFormatters();
   const [day, setDay] = useState(todayISODate);
   const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
-  const [returningFromExpense, setReturningFromExpense] = useState(false);
+  const [deletingExpenseSlug, setDeletingExpenseSlug] = useState<string | null>(null);
+  const removeExpense = useMutation(api.expenses.remove);
   const [selectedMember, setSelectedMember] = useState<{
     memberId: string;
     currency: string;
@@ -343,7 +348,6 @@ export function TabSettlement({
       .find((group) => group.currency === currencyCode)
       ?.members.find((row) => row.memberId === memberId);
     if (member) {
-      setReturningFromExpense(false);
       setSelectedMember({ memberId, currency: currencyCode, name: member.name });
       setMemberBreakdownOpen(true);
     }
@@ -360,17 +364,8 @@ export function TabSettlement({
         canManage={canManage}
         onMemberClick={openMemberExpenses}
       />
-      <Dialog
-        open={memberBreakdownOpen}
-        onOpenChange={(nextOpen) => {
-          setMemberBreakdownOpen(nextOpen);
-          if (!nextOpen) setReturningFromExpense(false);
-        }}
-      >
-        <DialogContent
-          instant={selectedExpenseSlug !== null || returningFromExpense}
-          className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0"
-        >
+      <Dialog open={memberBreakdownOpen} onOpenChange={setMemberBreakdownOpen}>
+        <DialogContent className="flex max-h-[calc(100dvh-5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:p-0">
           <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -429,7 +424,6 @@ export function TabSettlement({
                   member={selectedBreakdown}
                   currencyCode={selectedMember.currency}
                   onExpenseClick={(expenseSlug) => {
-                    setReturningFromExpense(false);
                     setMemberBreakdownOpen(false);
                     setSelectedExpenseSlug(expenseSlug);
                   }}
@@ -443,12 +437,10 @@ export function TabSettlement({
       </Dialog>
       <ExpenseDetailsDialog
         open={selectedExpenseSlug !== null}
-        instant={selectedExpenseSlug !== null || returningFromExpense}
         onOpenChange={(next) => {
           if (!next) setSelectedExpenseSlug(null);
         }}
         onBack={() => {
-          setReturningFromExpense(true);
           setSelectedExpenseSlug(null);
           setMemberBreakdownOpen(true);
         }}
@@ -457,6 +449,26 @@ export function TabSettlement({
         defaultCurrency={defaultCurrency}
         canManage={canManage}
         members={members}
+        onDelete={canManage ? setDeletingExpenseSlug : undefined}
+      />
+      <ConfirmDialog
+        open={deletingExpenseSlug !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingExpenseSlug(null);
+        }}
+        title="Delete this expense?"
+        description={
+          deletingExpenseSlug
+            ? `“${expenses.find((expense) => expense.slug === deletingExpenseSlug)?.name ?? "Untitled expense"}” and its itemized split will be deleted permanently. This can’t be undone.`
+            : null
+        }
+        confirmLabel="Delete expense"
+        pendingLabel="Deleting…"
+        onConfirm={async () => {
+          if (!deletingExpenseSlug) return;
+          await removeExpense({ slug: deletingExpenseSlug });
+          setSelectedExpenseSlug(null);
+        }}
       />
     </Panel>
   );
@@ -472,7 +484,11 @@ export function SettlementActions({
   expenseView: ExpenseView;
 }) {
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
-  const { currency, formatExpenseDate } = useLocaleFormatters();
+  const [paymentToReverse, setPaymentToReverse] = useState<
+    SettlementSummaryData["history"][number] | null
+  >(null);
+  const reversePayment = useMutation(api.settlements.reverse);
+  const { currency, formatExpenseDate, locale } = useLocaleFormatters();
   const response = useQuery(api.settlements.get, { slug, asOfDate: todayISODate() });
   if (!response) return null;
   const data = "paid" in response ? response[expenseView] : response;
@@ -487,6 +503,11 @@ export function SettlementActions({
       (member) => member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
     ),
   );
+  const selectedPayment = data.history.find((payment) => payment.id === paymentToReverse?.id);
+  const selectedPayerName =
+    members.find((member) => member.id === selectedPayment?.fromMemberId)?.name ?? "Former member";
+  const selectedRecipientName =
+    members.find((member) => member.id === selectedPayment?.toMemberId)?.name ?? "Former member";
   if (!data.viewerMemberId) return null;
   return (
     <>
@@ -571,36 +592,82 @@ export function SettlementActions({
                                 const payerName =
                                   members.find((member) => member.id === payment.fromMemberId)
                                     ?.name ?? "Former member";
+                                const recipientName =
+                                  members.find((member) => member.id === payment.toMemberId)
+                                    ?.name ?? "Former member";
+                                const originalPayment = data.history.find(
+                                  (original) => original.id === payment.reversalOf,
+                                );
+                                const originalPayerName = originalPayment
+                                  ? (members.find(
+                                      (member) => member.id === originalPayment.fromMemberId,
+                                    )?.name ?? "Former member")
+                                  : payerName;
+                                const originalRecipientName = originalPayment
+                                  ? (members.find(
+                                      (member) => member.id === originalPayment.toMemberId,
+                                    )?.name ?? "Former member")
+                                  : recipientName;
                                 return (
                                   <li
                                     key={payment.id}
                                     className="flex min-w-0 items-center gap-3 py-3 bleed-px"
                                   >
-                                    <MemberAvatar
-                                      id={payment.fromMemberId}
-                                      name={payerName}
-                                      size="md"
-                                    />
+                                    {payment.reversalOf ? (
+                                      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-margin-red-ink">
+                                        <Undo2 aria-hidden="true" className="size-5" />
+                                      </span>
+                                    ) : (
+                                      <MemberAvatar
+                                        id={payment.fromMemberId}
+                                        name={payerName}
+                                        size="md"
+                                      />
+                                    )}
                                     <div className="min-w-0 flex-1 text-left">
                                       <p className="break-words text-sm text-ink">
-                                        <span className="font-medium">{payerName}</span> paid{" "}
                                         <span className="font-medium">
-                                          {members.find(
-                                            (member) => member.id === payment.toMemberId,
-                                          )?.name ?? "Former member"}
+                                          {payment.reversalOf ? originalPayerName : payerName}
+                                        </span>{" "}
+                                        {payment.reversalOf ? "reversed payment to" : "paid"}{" "}
+                                        <span className="font-medium">
+                                          {payment.reversalOf
+                                            ? originalRecipientName
+                                            : recipientName}
                                         </span>
                                       </p>
-                                      {(payment.view === "upcoming" || payment.reversed) && (
+                                      {(payment.view === "upcoming" ||
+                                        payment.reversed ||
+                                        payment.reversalOf) && (
                                         <p className="mt-1 text-xs text-ink-soft">
                                           {payment.view === "upcoming" && "Upcoming expenses"}
-                                          {payment.view === "upcoming" && payment.reversed && " · "}
-                                          {payment.reversed && "Reversed"}
+                                          {payment.view === "upcoming" &&
+                                            (payment.reversed || payment.reversalOf) &&
+                                            " · "}
+                                          {payment.reversalOf
+                                            ? `Reverses ${currency(payment.amount, payment.currency)} payment from ${formatExpenseDate(originalPayment?.date) ?? "original date"}`
+                                            : payment.reversed
+                                              ? `Reversed${payment.reversedAt ? ` ${new Date(payment.reversedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}` : ""}`
+                                              : null}
                                         </p>
                                       )}
                                     </div>
-                                    <span className="shrink-0 font-numeric text-sm font-semibold text-ink">
+                                    <span
+                                      className={`shrink-0 font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
+                                    >
+                                      {payment.reversalOf && "−"}
                                       {currency(payment.amount, payment.currency)}
                                     </span>
+                                    {!payment.reversalOf && !payment.reversed && (
+                                      <Button
+                                        variant="quiet-icon"
+                                        size="icon-touch"
+                                        aria-label={`Reverse ${currency(payment.amount, payment.currency)} payment from ${payerName} to ${recipientName}`}
+                                        onClick={() => setPaymentToReverse(payment)}
+                                      >
+                                        <Undo2 aria-hidden="true" className="size-5" />
+                                      </Button>
+                                    )}
                                   </li>
                                 );
                               })}
@@ -616,6 +683,64 @@ export function SettlementActions({
           </div>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={paymentToReverse !== null}
+        onOpenChange={(open) => {
+          if (!open) setPaymentToReverse(null);
+        }}
+        title="Reverse this payment?"
+        backButton
+        description={
+          selectedPayment
+            ? `This creates a new payment record to reverse the ${currency(selectedPayment.amount, selectedPayment.currency)} payment from ${selectedPayerName} to ${selectedRecipientName}.`
+            : "This payment has already been reversed."
+        }
+        details={
+          selectedPayment && (
+            <div className="rounded-md bg-field p-4 text-sm text-ink">
+              <div className="flex justify-between gap-3">
+                <span>Amount</span>
+                <span className="font-numeric font-semibold">
+                  {currency(selectedPayment.amount, selectedPayment.currency)}{" "}
+                  {selectedPayment.currency}
+                </span>
+              </div>
+              <div className="mt-2 flex justify-between gap-3">
+                <span>Paid by</span>
+                <span className="text-right font-medium">{selectedPayerName}</span>
+              </div>
+              <div className="mt-2 flex justify-between gap-3">
+                <span>Paid to</span>
+                <span className="text-right font-medium">{selectedRecipientName}</span>
+              </div>
+              <div className="mt-2 flex justify-between gap-3">
+                <span>Original payment date</span>
+                <span className="text-right font-medium">
+                  {selectedPayment.createdAt
+                    ? new Date(selectedPayment.createdAt).toLocaleString(locale, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })
+                    : formatExpenseDate(selectedPayment.date)}
+                </span>
+              </div>
+            </div>
+          )
+        }
+        confirmLabel="Reverse payment"
+        pendingLabel="Reversing…"
+        onConfirm={async () => {
+          if (!selectedPayment || selectedPayment.reversed)
+            throw new Error("Payment already reversed.");
+          await reversePayment({
+            slug,
+            settlementId: selectedPayment.id as Parameters<
+              typeof reversePayment
+            >[0]["settlementId"],
+            date: todayISODate(),
+          });
+        }}
+      />
     </>
   );
 }

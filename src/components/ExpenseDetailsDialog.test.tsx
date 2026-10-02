@@ -64,6 +64,22 @@ test("shows shared member names and amounts without status sublabels", () => {
   expect(text).toContain("10.00");
   expect(text).not.toContain("Payer");
   expect(text).not.toContain("Settled");
+  flushSync(() =>
+    root.render(
+      createElement(ExpenseDetailsDialog, {
+        open: false,
+        onOpenChange: () => undefined,
+        expense: undefined,
+        slug: "trip",
+        defaultCurrency: "CAD",
+        canManage: false,
+        members: [],
+      }),
+    ),
+  );
+  const closingDialog = document.querySelector('[data-slot="dialog-content"]');
+  expect(closingDialog?.hasAttribute("data-closed")).toBe(true);
+  expect(closingDialog?.textContent).toContain("Nikki Q");
   root.unmount();
 });
 
@@ -120,6 +136,9 @@ test("opens item details with adjustments and member shares, then goes back", ()
   expect(viewItems).toBeDefined();
   expect(document.body.textContent).not.toContain("Item total");
   flushSync(() => viewItems?.click());
+  const pane = document.querySelector<HTMLElement>('[class*="slide-in-from-right-2"]');
+  expect(pane?.className).toContain("animate-in");
+  expect(pane?.className).toContain("fade-in-0");
   expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe("Dinner");
   expect(document.body.textContent).toContain("CAD · 1 item");
   expect(document.body.textContent).toContain("Meal");
@@ -132,6 +151,9 @@ test("opens item details with adjustments and member shares, then goes back", ()
   flushSync(() =>
     document.querySelector<HTMLButtonElement>('[aria-label="Back to expense details"]')?.click(),
   );
+  expect(
+    document.querySelector('[class*="slide-in-from-left-2"][class*="animate-in"]'),
+  ).not.toBeNull();
   expect(document.body.textContent).toContain("View items");
   expect(document.body.textContent).not.toContain("Item total");
   expect(onBack).not.toHaveBeenCalled();

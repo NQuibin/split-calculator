@@ -25,11 +25,17 @@ vi.mock("@tanstack/react-router", async () => {
       children,
       to,
       params,
+      ...props
     }: {
       children: React.ReactNode;
       to: string;
       params?: { slug: string };
-    }) => React.createElement("a", { href: to.replace("$slug", params?.slug ?? "") }, children),
+    } & React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
+      React.createElement(
+        "a",
+        { href: to.replace("$slug", params?.slug ?? ""), ...props },
+        children,
+      ),
     getRouteApi: () => ({
       useParams: () => ({ slug: "trip" }),
       useSearch: () => ({ view: mocks.view }),
@@ -158,9 +164,12 @@ test("records a payment without expense allocations and preserves the selected v
   );
   expect(mocks.record.mock.calls[0]?.[0].payments[0]).not.toHaveProperty("allocations");
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Payment recorded");
-  expect(document.body.querySelector('[role="dialog"] a[href="/t/trip"]')?.textContent).toContain(
-    "Back to Trip",
+  const overviewButton = document.body.querySelector<HTMLAnchorElement>(
+    '[role="dialog"] a[href="/t/trip"]',
   );
+  expect(overviewButton?.textContent).toContain("Back to tab overview");
+  expect(overviewButton?.className).toContain("bg-primary");
+  expect(overviewButton?.querySelector("svg")).not.toBeNull();
   expect(mocks.navigate).not.toHaveBeenCalled();
   root.unmount();
 });
