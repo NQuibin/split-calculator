@@ -140,19 +140,22 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
 }
 
 function TabBreadcrumb({ name }: { name?: string }) {
+  if (!name)
+    return (
+      <Breadcrumb>
+        <span aria-current="page" className="flex h-5 items-center">
+          <span className="sr-only">Loading tab</span>
+          <Skeleton className="h-5 w-40 rounded-md" />
+        </span>
+      </Breadcrumb>
+    );
+
   return (
     <Breadcrumb>
       <Link to="/tabs" className={crumbLinkClass}>
         Tabs
       </Link>
-      {name ? (
-        <BreadcrumbCurrent>{name}</BreadcrumbCurrent>
-      ) : (
-        <span aria-current="page" className="flex h-5 items-center">
-          <span className="sr-only">Loading tab</span>
-          <Skeleton className="h-5 w-24 rounded-md" />
-        </span>
-      )}
+      <BreadcrumbCurrent>{name}</BreadcrumbCurrent>
     </Breadcrumb>
   );
 }

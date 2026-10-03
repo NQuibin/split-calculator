@@ -27,7 +27,8 @@ import {
 } from "@/lib/expenseSync";
 import type { ExpenseState } from "@/lib/types";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
-import { Page } from "@/components/ui/Page";
+import { Page, Panel } from "@/components/ui/Page";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const route = getRouteApi("/e/$slug");
 
@@ -45,15 +46,45 @@ export function ExpensePage() {
     if (changedIdentity) void navigate({ to: "/expenses", replace: true });
   }, [changedIdentity, navigate]);
   const { slug } = route.useParams();
-  if (identity === null || changedIdentity)
-    return (
-      <Page>
-        <p role="status" className="text-sm text-ink-soft">
-          Loading expense…
-        </p>
-      </Page>
-    );
+  if (identity === null || changedIdentity) return <ExpenseFormSkeleton />;
   return <ExpenseEditor key={`${identity}:${slug}`} />;
+}
+
+function ExpenseFormSkeleton() {
+  return (
+    <Page>
+      <div role="status" className="grid gap-6">
+        <span className="sr-only">Loading expense…</span>
+        <div aria-hidden="true" className="space-y-6">
+          <Skeleton className="h-5 w-40 rounded-md" />
+          <Skeleton className="h-9 w-56 max-w-full rounded-md" />
+        </div>
+        <Panel aria-hidden="true" className="card-inset py-6">
+          <div className="mb-5 flex gap-4 border-b border-rule pb-4">
+            <Skeleton className="h-11 w-28 rounded-lg" />
+            <Skeleton className="h-11 w-28 rounded-lg" />
+          </div>
+          <div className="grid gap-4 border-b border-rule pb-5 md:grid-cols-2">
+            {["date", "currency", "payer"].map((field) => (
+              <div key={field} className={field === "payer" ? "md:col-span-2" : undefined}>
+                <Skeleton className="mb-2 h-4 w-24 rounded-md" />
+                <Skeleton className="h-11 w-full rounded-md" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 space-y-4">
+            <Skeleton className="h-5 w-32 rounded-md" />
+            <Skeleton className="h-11 w-full rounded-md" />
+            <Skeleton className="h-11 w-full rounded-md" />
+            <Skeleton className="h-16 w-full rounded-md" />
+          </div>
+          <div className="mt-6 flex justify-end border-t border-rule pt-5">
+            <Skeleton className="h-11 w-full rounded-lg sm:w-40" />
+          </div>
+        </Panel>
+      </div>
+    </Page>
+  );
 }
 
 function ExpenseEditor() {
@@ -125,7 +156,15 @@ function ExpenseEditor() {
   // tab's default currency, falling back to the user's preference, then USD.
   // Follow tab changes until the user explicitly picks a currency.
   const viewer = useQuery(api.users.viewer);
-  const hasEditedCurrency = useRef(false);
+  const [hasEditedCurrency, setHasEditedCurrency] = useState(false);
+  const tabCurrency = tabSlug ? tab?.defaultCurrency : undefined;
+  const resolvedCurrency = tabCurrency ?? viewer?.defaultCurrency ?? DEFAULT_CURRENCY;
+  const currencyReady =
+    !!stored ||
+    !isAuthenticated ||
+    ((!tabSlug || tab !== undefined) &&
+      (hasEditedCurrency || tabCurrency !== undefined || viewer !== undefined) &&
+      (hasEditedCurrency || state?.currency === resolvedCurrency));
 
   const draftRef = useRef(draft);
   useEffect(() => {
@@ -133,25 +172,16 @@ function ExpenseEditor() {
   }, [draft]);
 
   useEffect(() => {
-    if (stored || hasEditedCurrency.current) return;
+    if (stored || hasEditedCurrency) return;
     if (tabSlug && tab === undefined) return;
-    if (viewer === undefined) return;
-    const resolved =
-      (tabSlug ? tab?.defaultCurrency : undefined) ?? viewer?.defaultCurrency ?? DEFAULT_CURRENCY;
+    if (tabCurrency === undefined && viewer === undefined) return;
     const current = draftRef.current;
-    if (current && current.currency !== resolved) {
-      setDraft({ ...current, currency: resolved });
+    if (current && current.currency !== resolvedCurrency) {
+      setDraft({ ...current, currency: resolvedCurrency });
     }
-  }, [stored, tabSlug, tab, viewer]);
+  }, [stored, hasEditedCurrency, tabSlug, tab, tabCurrency, viewer, resolvedCurrency]);
 
-  if (loading || !state)
-    return (
-      <Page>
-        <p role="status" className="text-sm text-ink-soft">
-          Loading expense…
-        </p>
-      </Page>
-    );
+  if (loading || !state || !currencyReady) return <ExpenseFormSkeleton />;
 
   function dispatch(action: Action) {
     if (!state) return;
@@ -333,7 +363,7 @@ function ExpenseEditor() {
           onSetMode={(mode) => dispatch({ type: "SET_MODE", mode })}
           onSetDate={(date) => dispatch({ type: "SET_DATE", date })}
           onSetCurrency={(currency) => {
-            hasEditedCurrency.current = true;
+            setHasEditedCurrency(true);
             dispatch({ type: "SET_CURRENCY", currency });
           }}
           onAddItem={(item) => dispatch({ type: "ADD_ITEM", item })}
@@ -394,30 +424,6 @@ function ExpenseEditor() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent aria-label="Delete expense">
-          <DialogTitle>Delete this expense?</DialogTitle>
-          <DialogDescription className="mt-2">
-            This permanently deletes the expense and its itemized split. This can&rsquo;t be undone.
-          </DialogDescription>
-          <div className="mt-6 flex flex-wrap justify-end gap-2">
-            <DialogClose render={<Button variant="secondary" size="touch" />}>Cancel</DialogClose>
-            <Button
-              type="button"
-              variant="destructive"
-              size="touch"
-              onClick={() => {
-                remove(slug);
-                if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
-                else void navigate({ to: "/expenses" });
-              }}
-            >
-              Delete expense
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Dialog
         open={expenseSettingsOpen}
         onOpenChange={(open) => {
@@ -460,7 +466,6 @@ function ExpenseEditor() {
                 variant="destructive"
                 size="touch"
                 onClick={() => {
-                  setExpenseSettingsOpen(false);
                   setConfirmDelete(true);
                 }}
               >
@@ -477,6 +482,29 @@ function ExpenseEditor() {
               </div>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent aria-label="Delete expense">
+          <DialogTitle>Delete this expense?</DialogTitle>
+          <DialogDescription className="mt-2">
+            This permanently deletes the expense and its itemized split. This can&rsquo;t be undone.
+          </DialogDescription>
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <DialogClose render={<Button variant="secondary" size="touch" />}>Cancel</DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              size="touch"
+              onClick={() => {
+                remove(slug);
+                if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
+                else void navigate({ to: "/expenses" });
+              }}
+            >
+              Delete expense
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </Page>

@@ -44,7 +44,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-test("keeps the breadcrumb visible and withholds both data sections until all queries resolve", () => {
+test("skeletonizes the whole breadcrumb and withholds both data sections until all queries resolve", () => {
   const expenses: unknown[] = [];
   mocks.queryResults = [expenses, undefined, undefined];
 
@@ -55,8 +55,10 @@ test("keeps the breadcrumb visible and withholds both data sections until all qu
 
   const loadingCrumb = container.querySelector('nav[aria-label="Breadcrumb"] .bg-chip-neutral');
   expect(loadingCrumb?.classList.contains("h-5")).toBe(true);
+  expect(loadingCrumb?.classList.contains("w-40")).toBe(true);
+  expect(container.querySelectorAll('nav[aria-label="Breadcrumb"] li')).toHaveLength(1);
   expect(container.querySelector('nav[aria-label="Breadcrumb"]')?.textContent).not.toContain(
-    "trip",
+    "Tabs",
   );
   expect(container.textContent).not.toContain("Loaded settlement content");
   expect(container.textContent).not.toContain("No expenses yet");
