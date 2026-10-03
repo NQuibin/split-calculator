@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="650" viewBox="0 0 393 650">
+  <rect width="393" height="650" fill="#edf1e4"/>
+  <g font-family="IBM Plex Sans, Arial, sans-serif" fill="#1e2a22">
+    <text x="20" y="59" font-family="Space Grotesk, Arial, sans-serif" font-size="30" font-weight="600">Tabs</text>
+    <text x="20" y="84" font-size="14" fill="#4b5a4f">Your tabs, all in one place.</text>
+    <rect x="20" y="112" width="353" height="330" rx="12" fill="#f7f5ec" fill-opacity=".6" stroke="#ccd5bd" stroke-dasharray="6 6"/>
+    <g transform="translate(173 178)" stroke="#2f4a3c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="0" y="0" width="48" height="48" rx="10"/>
+      <path d="M24 12v24M12 24h24"/>
+    </g>
+    <text x="196.5" y="267" text-anchor="middle" font-family="Space Grotesk, Arial, sans-serif" font-size="18" font-weight="600">No tabs yet</text>
+    <text x="196.5" y="297" text-anchor="middle" font-size="14" fill="#4b5a4f">Create a tab to start sharing expenses</text>
+    <text x="196.5" y="318" text-anchor="middle" font-size="14" fill="#4b5a4f">and tracking balances.</text>
+    <rect x="121.5" y="349" width="150" height="44" rx="8" fill="#2f4a3c"/>
+    <text x="196.5" y="377" text-anchor="middle" font-size="14" font-weight="600" fill="#f7f5ec">Create a tab</text>
+  </g>
+</svg>

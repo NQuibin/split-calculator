@@ -30,7 +30,7 @@ test("every read follows the rows", async () => {
   const tab = (await user.query(api.tabs.getBySlug, { slug: "trip" }))!;
   expect(tab.members.map((m) => m.name)).toEqual(["Alex", "Samantha"]);
 
-  const summary = (await user.query(api.tabs.listWithSummary))[0];
+  const summary = (await user.query(api.tabs.listWithSummary, { asOfDate: "2026-10-03" }))[0];
   expect(summary.memberCount).toBe(2);
   expect(summary.members.map((m) => m.name)).toEqual(["Alex", "Samantha"]);
 

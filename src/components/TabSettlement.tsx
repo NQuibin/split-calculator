@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -25,8 +25,7 @@ import { useTabBreakdown, type TabExpenseSummary } from "@/lib/tabSync";
 import type { ExpenseView } from "@/components/ExpenseViewTabs";
 
 type Member = { id: string; name: string };
-type SettlementResponse = NonNullable<FunctionReturnType<typeof api.settlements.get>>;
-type SettlementQueryResponse = SettlementResponse | SettlementResponse["paid"];
+export type TabSettlementResponse = FunctionReturnType<typeof api.settlements.get>;
 export type SettlementSummaryData = {
   viewerMemberId: string | null;
   missingPayers: { slug: string; name: string }[];
@@ -285,6 +284,8 @@ export function TabSettlement({
   defaultCurrency = "USD",
   expenses = [],
   expenseView = "paid",
+  asOfDate,
+  response,
 }: {
   slug: string;
   members: Member[];
@@ -292,9 +293,10 @@ export function TabSettlement({
   defaultCurrency?: string;
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
+  asOfDate: string;
+  response: TabSettlementResponse;
 }) {
   const { currency } = useLocaleFormatters();
-  const [day, setDay] = useState(todayISODate);
   const [memberBreakdownOpen, setMemberBreakdownOpen] = useState(false);
   const [deletingExpenseSlug, setDeletingExpenseSlug] = useState<string | null>(null);
   const removeExpense = useMutation(api.expenses.remove);
@@ -304,30 +306,8 @@ export function TabSettlement({
     name: string;
   } | null>(null);
   const [selectedExpenseSlug, setSelectedExpenseSlug] = useState<string | null>(null);
-  const response = useQuery(api.settlements.get, { slug, asOfDate: day }) as
-    | SettlementQueryResponse
-    | null
-    | undefined;
-  const breakdown = useTabBreakdown(slug, expenseView, day);
+  const breakdown = useTabBreakdown(slug, expenseView, asOfDate);
 
-  useEffect(() => {
-    const refresh = () => setDay(todayISODate());
-    const timer = window.setInterval(refresh, 60_000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, []);
-
-  if (response === undefined)
-    return (
-      <Panel bleedOnMobile className="@container card-inset" role="region" aria-label="Balances">
-        <p role="status" className="text-sm text-ink-soft">
-          Loading settlement balances…
-        </p>
-      </Panel>
-    );
   if (response === null) return null;
 
   const data = "paid" in response ? response[expenseView] : response;
@@ -360,7 +340,7 @@ export function TabSettlement({
         viewerName={members.find((member) => member.id === data.viewerMemberId)?.name}
         expenses={expenses}
         expenseView={expenseView}
-        asOfDate={day}
+        asOfDate={asOfDate}
         canManage={canManage}
         onMemberClick={openMemberExpenses}
       />
@@ -433,6 +413,29 @@ export function TabSettlement({
               <p className="text-sm text-ink-soft">No expenses available.</p>
             )}
           </div>
+          {selectedMember && (
+            <footer className="flex shrink-0 justify-end border-t border-rule/70 bg-surface px-5 py-4 sm:px-6">
+              <Button
+                size="touch"
+                nativeButton={false}
+                className="w-full sm:w-auto"
+                render={
+                  <Link
+                    to="/t/$slug/payment"
+                    params={{ slug }}
+                    search={{
+                      view: expenseView,
+                      memberId: selectedMember.memberId,
+                      currency: selectedMember.currency,
+                    }}
+                  />
+                }
+              >
+                <Banknote aria-hidden="true" className="h-4 w-4" />
+                Record payment
+              </Button>
+            </footer>
+          )}
         </DialogContent>
       </Dialog>
       <ExpenseDetailsDialog
@@ -478,10 +481,12 @@ export function SettlementActions({
   slug,
   members,
   expenseView,
+  response,
 }: {
   slug: string;
   members: Member[];
   expenseView: ExpenseView;
+  response?: TabSettlementResponse;
 }) {
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [paymentToReverse, setPaymentToReverse] = useState<
@@ -489,9 +494,13 @@ export function SettlementActions({
   >(null);
   const reversePayment = useMutation(api.settlements.reverse);
   const { currency, formatExpenseDate, locale } = useLocaleFormatters();
-  const response = useQuery(api.settlements.get, { slug, asOfDate: todayISODate() });
-  if (!response) return null;
-  const data = "paid" in response ? response[expenseView] : response;
+  const queriedResponse = useQuery(
+    api.settlements.get,
+    response === undefined ? { slug, asOfDate: todayISODate() } : "skip",
+  );
+  const result = response === undefined ? queriedResponse : response;
+  if (!result) return null;
+  const data = "paid" in result ? result[expenseView] : result;
   const historyByDate = data.history.reduce<Map<string, typeof data.history>>((groups, payment) => {
     const group = groups.get(payment.date) ?? [];
     group.push(payment);

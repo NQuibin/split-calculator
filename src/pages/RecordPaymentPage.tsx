@@ -49,7 +49,7 @@ function paymentId(key: string) {
 
 export function RecordPaymentPage() {
   const { slug } = route.useParams();
-  const { view } = route.useSearch();
+  const { view, memberId, currency: selectedCurrency } = route.useSearch();
   const tab = useTab(slug);
   const [day] = useState(todayISODate);
   const response = useQuery(api.settlements.get, { slug, asOfDate: day }) as
@@ -59,7 +59,9 @@ export function RecordPaymentPage() {
   const recordSettlement = useMutation(api.settlements.recordMany);
   const { currency } = useLocaleFormatters();
   const [stage, setStage] = useState<"select" | "details">("select");
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>(() =>
+    memberId && selectedCurrency ? [`${memberId}:${selectedCurrency}`] : [],
+  );
   const [drafts, setDrafts] = useState<Record<string, PaymentDraft>>({});
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

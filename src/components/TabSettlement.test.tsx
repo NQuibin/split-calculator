@@ -32,7 +32,7 @@ vi.mock("@tanstack/react-router", async () => {
       children: React.ReactNode;
       params: { slug: string };
       to: string;
-      search?: { view?: string };
+      search?: { view?: string; memberId?: string; currency?: string };
       className?: string;
     }) =>
       React.createElement(
@@ -41,7 +41,11 @@ vi.mock("@tanstack/react-router", async () => {
           href:
             to === "/e/$slug"
               ? `/e/${params.slug}`
-              : `/t/${params.slug}/payment${search?.view ? `?view=${search.view}` : ""}`,
+              : `/t/${params.slug}/payment?${new URLSearchParams(
+                  Object.entries(search ?? {}).filter(
+                    (entry): entry is [string, string] => typeof entry[1] === "string",
+                  ),
+                )}`,
           className,
         },
         children,
@@ -54,6 +58,7 @@ import {
   SettlementSummary,
   TabSettlement,
   type SettlementSummaryData,
+  type TabSettlementResponse,
 } from "./TabSettlement";
 
 afterEach(() => {
@@ -287,27 +292,30 @@ test("lets tab members open expenses that need a payer", () => {
 });
 
 test("keeps the selected expense view and removes payment and breakdown controls", () => {
-  mocks.results = [
-    { paid: data, upcoming: data, all: data },
-    { currencies: [], expenseCount: 0, tab: { name: "Trip", slug: "trip" } },
-  ];
+  const response = { paid: data, upcoming: data, all: data } as unknown as TabSettlementResponse;
+  mocks.results = [{ currencies: [], expenseCount: 0, tab: { name: "Trip", slug: "trip" } }];
   const markup = renderMarkup(
     createElement(TabSettlement, {
       slug: "trip",
       members: [{ id: "viewer", name: "Nikki Q" }],
       canManage: true,
       expenseView: "upcoming",
+      asOfDate: "2026-10-03",
+      response,
     }),
   );
-  expect(mocks.query).toHaveBeenCalledTimes(2);
-  expect(mocks.query.mock.calls[0]?.[1]).toMatchObject({ slug: "trip" });
-  expect(mocks.query.mock.calls[1]?.[1]).toMatchObject({ slug: "trip", view: "upcoming" });
+  expect(mocks.query).toHaveBeenCalledTimes(1);
+  expect(mocks.query.mock.calls[0]?.[1]).toMatchObject({
+    slug: "trip",
+    view: "upcoming",
+    asOfDate: "2026-10-03",
+  });
   expect(markup).not.toContain("View payments");
   expect(markup).not.toContain("Breakdown</a>");
 });
 
 test("shows the selected member balance above the modal expense list", () => {
-  const response = { paid: data, upcoming: data, all: data };
+  const response = { paid: data, upcoming: data, all: data } as unknown as TabSettlementResponse;
   const breakdownResult = {
     currencies: [
       {
@@ -330,7 +338,7 @@ test("shows the selected member balance above the modal expense list", () => {
     expenseCount: 0,
     tab: { name: "Trip", slug: "trip" },
   };
-  mocks.results = [response, breakdownResult, response, breakdownResult];
+  mocks.results = [breakdownResult, breakdownResult];
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -340,6 +348,8 @@ test("shows the selected member balance above the modal expense list", () => {
         slug: "trip",
         members: [{ id: "viewer", name: "Nikki Q" }],
         canManage: true,
+        asOfDate: "2026-10-03",
+        response,
       }),
     ),
   );
@@ -354,12 +364,16 @@ test("shows the selected member balance above the modal expense list", () => {
   const dialog = document.querySelector('[role="dialog"]');
   expect(dialog?.querySelector('[data-slot="dialog-description"]')?.textContent).toBe("0 expenses");
   expect(dialog?.querySelector("span.bg-chip-neutral")?.textContent).toBe("CAD");
+  expect(
+    dialog?.querySelector('a[href="/t/trip/payment?view=paid&memberId=p2&currency=CAD"]'),
+  ).not.toBeNull();
+  expect(dialog?.querySelector("footer a")?.className).toContain("w-full sm:w-auto");
   root.unmount();
   container.remove();
 });
 
 test("returns from an expense to its member balance modal", () => {
-  const response = { paid: data, upcoming: data, all: data };
+  const response = { paid: data, upcoming: data, all: data } as unknown as TabSettlementResponse;
   const breakdownResult = {
     currencies: [
       {
@@ -395,9 +409,7 @@ test("returns from an expense to its member balance modal", () => {
     expenseCount: 1,
     tab: { name: "Trip", slug: "trip" },
   };
-  mocks.results = Array.from({ length: 12 }, (_, index) =>
-    index % 2 ? breakdownResult : response,
-  );
+  mocks.results = Array.from({ length: 12 }, () => breakdownResult);
   const expense = {
     ...thirdPartyExpense,
     slug: "first",
@@ -427,6 +439,8 @@ test("returns from an expense to its member balance modal", () => {
         canManage: true,
         defaultCurrency: "CAD",
         expenses: [expense],
+        asOfDate: "2026-10-03",
+        response,
       }),
     ),
   );

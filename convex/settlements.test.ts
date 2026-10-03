@@ -101,6 +101,29 @@ test("breakdown lines expose converted member balances", async () => {
   expect(membersByName.get("Bea")?.expenses[0].balance).toBe(-60);
 });
 
+test("tab summaries split viewer amounts owed and owing per currency after payments", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b"], 120, "viewer-paid");
+  await expense(owner, members, members[2].id, "USD", ["a", "c"], 120, "other-paid");
+
+  const summary = (await owner.query(api.tabs.listWithSummary, { asOfDate: TODAY }))[0];
+  expect(summary.balances).toEqual([{ currency: "USD", owed: 60, owe: 60 }]);
+
+  await owner.mutation(api.settlements.record, {
+    slug: "trip",
+    asOfDate: TODAY,
+    fromMemberId: members[1].id as Id<"tabMembers">,
+    toMemberId: members[0].id as Id<"tabMembers">,
+    amount: 20,
+    currency: "USD",
+    date: TODAY,
+    requestId: "summary-payment",
+  });
+  expect((await owner.query(api.tabs.listWithSummary, { asOfDate: TODAY }))[0].balances).toEqual([
+    { currency: "USD", owed: 40, owe: 60 },
+  ]);
+});
+
 test("breakdown lines expose viewer-relative balances only when the viewer is involved", async () => {
   const { owner, members } = await setup();
   const [viewer, paidByOther] = members;

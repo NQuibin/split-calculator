@@ -17,6 +17,7 @@ import type * as imageFormats from "../imageFormats.js";
 import type * as otp_PasswordOTP from "../otp/PasswordOTP.js";
 import type * as otp_ResendOTP from "../otp/ResendOTP.js";
 import type * as payerMigration from "../payerMigration.js";
+import type * as seatNames from "../seatNames.js";
 import type * as settlements from "../settlements.js";
 import type * as tabs from "../tabs.js";
 import type * as users from "../users.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   "otp/PasswordOTP": typeof otp_PasswordOTP;
   "otp/ResendOTP": typeof otp_ResendOTP;
   payerMigration: typeof payerMigration;
+  seatNames: typeof seatNames;
   settlements: typeof settlements;
   tabs: typeof tabs;
   users: typeof users;

@@ -8,7 +8,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireTabViewer } from "./authz";
 import { orderExpensePeople } from "./expenseMembers";
-import { resolveSeatName } from "./tabs";
+import { resolveSeatName } from "./seatNames";
 
 // Never return partial balances. A larger tab needs a paginated ledger before
 // it can be settled; the extra row detects that boundary explicitly.
@@ -356,6 +356,31 @@ async function readBalances(
     views[expenseView] = { byCurrency, expenseDebts, missingPayers };
   }
   return { roster, people, views, payments };
+}
+
+/** The viewer's direct amounts owed and owing per currency after payments. */
+export async function viewerBalancesByCurrency(
+  ctx: QueryCtx,
+  tab: Doc<"tabs">,
+  viewerUserId: Id<"users">,
+  asOfDate: string,
+) {
+  const { roster, views } = await readBalances(ctx, tab, asOfDate, viewerUserId);
+  const viewerMemberId = roster.find((seat) => seat.userId === viewerUserId)?._id;
+  if (!viewerMemberId) return [];
+  return [...views.all.byCurrency]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, totals]) => {
+      let owed = 0;
+      let owe = 0;
+      for (const member of roster) {
+        if (member._id === viewerMemberId) continue;
+        const directBalance = directBalanceWithViewer(totals, member._id, viewerMemberId);
+        if (directBalance > 0) owed = addCents(owed, directBalance);
+        else if (directBalance < 0) owe = addCents(owe, -directBalance);
+      }
+      return { currency, owed: owed / 100, owe: owe / 100 };
+    });
 }
 
 const settlementSummary = v.object({

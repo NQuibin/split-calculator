@@ -6,6 +6,8 @@ import { v } from "convex/values";
 import { computeShares, computeSplit, round2 } from "../src/lib/calculations";
 import { expenseAdjustments, person, expenseItem, expenseMode, expenseState } from "./schema";
 import { normalizeMemberName } from "../src/lib/tabMembers";
+import { viewerBalancesByCurrency } from "./settlements";
+import { resolveSeatName } from "./seatNames";
 import { isValidISODate } from "../src/lib/format";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { isInviteToken, requireTabOwner, requireTabViewer, requireUserId } from "./authz";
@@ -94,15 +96,6 @@ function requireUniqueName(seats: Seat[], name: string, excludeId?: string) {
 async function getDisplayName(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
   const user = await ctx.db.get(userId);
   return user?.name?.trim() || user?.email?.trim() || "You";
-}
-
-// A claimed seat shows its account's current name (falling back to email)
-// rather than the name frozen in when they were added or claimed - so a later
-// Settings rename is reflected everywhere they appear.
-export async function resolveSeatName(ctx: QueryCtx | MutationCtx, seat: Seat) {
-  if (!seat.userId) return seat.name;
-  const user = await ctx.db.get(seat.userId);
-  return user?.name?.trim() || user?.email?.trim() || seat.name;
 }
 
 // Every tab the user belongs to. One indexed query now that the owner holds a
@@ -355,7 +348,7 @@ export const list = query({
 // time). Fanning out here instead keeps it to a single transaction of local
 // reads, so the whole page resolves at once.
 export const listWithSummary = query({
-  args: {},
+  args: { asOfDate: v.string() },
   returns: v.array(
     v.object({
       slug: v.string(),
@@ -376,16 +369,18 @@ export const listWithSummary = query({
       // currencies together would be meaningless. Sorted by code so the row
       // renders in a stable order without the client re-sorting.
       totals: v.array(v.object({ currency: v.string(), total: v.number() })),
+      balances: v.array(v.object({ currency: v.string(), owed: v.number(), owe: v.number() })),
     }),
   ),
-  handler: async (ctx) => {
+  handler: async (ctx, { asOfDate }) => {
+    if (!isValidISODate(asOfDate)) throw new Error("Use a real YYYY-MM-DD as-of date");
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    return await summarizeTabsForUser(ctx, userId);
+    return await summarizeTabsForUser(ctx, userId, asOfDate);
   },
 });
 
-export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
+export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">, asOfDate: string) {
   const tabs = await listTabsForUser(ctx, userId);
   return await Promise.all(
     tabs.map(async (tab) => {
@@ -415,6 +410,7 @@ export async function summarizeTabsForUser(ctx: QueryCtx, userId: Id<"users">) {
         defaultCurrency: tab.defaultCurrency ?? "USD",
         members,
         expenseCount: expenses.length,
+        balances: await viewerBalancesByCurrency(ctx, tab, userId, asOfDate),
         totals: [...totals]
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([currency, total]) => ({ currency, total: round2(total) })),

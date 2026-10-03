@@ -21,13 +21,14 @@ import {
 } from "@/components/ui/Dialog";
 import { BASE_PATH } from "@/lib/basePath";
 import { computeSplit } from "@/lib/calculations";
-import { isUpcoming } from "@/lib/format";
+import { isUpcoming, todayISODate } from "@/lib/format";
 import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@/lib/tabSync";
 import { useExpenseActions } from "@/lib/expenseSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
 import { generateSlug } from "@/lib/slug";
 import { PageTitle, SectionTitle } from "@/components/ui/Typography";
-import { Page } from "@/components/ui/Page";
+import { Page, Panel } from "@/components/ui/Page";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -54,9 +55,10 @@ export function TabPage() {
   if (isLoading || claim.status === "claiming") {
     return (
       <Page>
-        <p role="status" className="text-sm text-ink-soft">
-          {claim.status === "claiming" ? "Joining tab…" : "Loading tab…"}
-        </p>
+        <TabBreadcrumb />
+        <TabHeaderSkeleton />
+        <TabActionsSkeleton />
+        <TabContentSkeleton label={claim.status === "claiming" ? "Joining tab…" : "Loading tab…"} />
       </Page>
     );
   }
@@ -137,25 +139,169 @@ function InviteSignIn({ slug, token }: { slug: string; token: string }) {
   );
 }
 
+function TabBreadcrumb({ name }: { name?: string }) {
+  return (
+    <Breadcrumb>
+      <Link to="/tabs" className={crumbLinkClass}>
+        Tabs
+      </Link>
+      {name ? (
+        <BreadcrumbCurrent>{name}</BreadcrumbCurrent>
+      ) : (
+        <span aria-current="page" className="flex h-5 items-center">
+          <span className="sr-only">Loading tab</span>
+          <Skeleton className="h-5 w-24 rounded-md" />
+        </span>
+      )}
+    </Breadcrumb>
+  );
+}
+
+function TabHeaderSkeleton() {
+  return (
+    <header className="mb-7 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-3">
+      <PageTitle className="sr-only">Tab</PageTitle>
+      <div aria-hidden="true">
+        <Skeleton className="h-9 w-48 rounded-md" />
+      </div>
+      <div aria-hidden="true" className="flex justify-end gap-2">
+        <Skeleton className="hidden h-11 w-32 rounded-lg md:block" />
+        <Skeleton className="size-11 rounded-lg" />
+      </div>
+      <div aria-hidden="true" className="col-start-1 row-start-2 flex gap-2">
+        <Skeleton className="size-8 rounded-full" />
+        <Skeleton className="size-8 rounded-full" />
+        <Skeleton className="size-8 rounded-full" />
+      </div>
+    </header>
+  );
+}
+
+function TabActionsSkeleton() {
+  return (
+    <div aria-hidden="true" className="mb-6 grid grid-cols-2 gap-2 md:flex md:justify-end">
+      <Skeleton className="col-span-2 h-11 w-full rounded-lg md:hidden" />
+      <Skeleton className="h-11 w-full rounded-lg md:w-40" />
+      <Skeleton className="h-11 w-full rounded-lg md:w-40" />
+    </div>
+  );
+}
+
+function TabContentSkeleton({ label = "Loading tab…" }: { label?: string }) {
+  return (
+    <div role="status" className="grid gap-6">
+      <span className="sr-only">{label}</span>
+      <Panel aria-hidden="true" className="card-inset space-y-5 py-6">
+        <div className="flex items-center justify-between gap-4">
+          <Skeleton className="h-5 w-28 rounded-md" />
+          <Skeleton className="h-6 w-14 rounded-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-16 rounded-md" />
+          <Skeleton className="h-16 rounded-md" />
+        </div>
+        <Skeleton className="h-12 rounded-md" />
+      </Panel>
+      <section
+        aria-hidden="true"
+        className={`${mobileRaisedSurfaceClass} border border-rule/70 bg-surface card-inset py-6`}
+      >
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <Skeleton className="h-5 w-28 rounded-md" />
+          <Skeleton className="h-11 w-36 rounded-lg" />
+        </div>
+        <div className="bleed divide-y divide-rule border-y border-edge bg-field">
+          {["first", "second", "third"].map((row) => (
+            <div key={row} className="flex items-center justify-between gap-4 bleed-px py-5">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-40 max-w-full rounded-md" />
+                <Skeleton className="h-3 w-24 rounded-md" />
+              </div>
+              <Skeleton className="h-4 w-24 rounded-md" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   const tab = useTab(slug);
   const expenses = useQuery(api.tabs.expensesForTab, { slug });
+  const viewer = useQuery(api.users.viewer);
+  const [day, setDay] = useState(todayISODate);
+  const settlement = useQuery(api.settlements.get, tab ? { slug, asOfDate: day } : "skip");
   const [expenseView, setExpenseView] = useState<ExpenseView>("paid");
   const hasUpcoming = expenses?.some((expense) => isUpcoming(expense.date)) ?? false;
   if (!hasUpcoming && expenseView !== "paid") setExpenseView("paid");
 
-  if (tab === undefined || expenses === undefined)
-    return (
-      <Page>
-        <p role="status" className="text-sm text-ink-soft">
-          Loading tab…
-        </p>
-      </Page>
-    );
+  useEffect(() => {
+    const refresh = () => setDay(todayISODate());
+    const timer = window.setInterval(refresh, 60_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
   if (tab === null) {
     return (
       <Page width="narrow" center className="text-center">
         <p className="text-ink-soft">This tab doesn&rsquo;t exist.</p>
+      </Page>
+    );
+  }
+
+  const breadcrumb = <TabBreadcrumb name={tab?.name} />;
+  const claimNotice = claimError && (
+    <p role="status" className="mb-6 rounded-md border border-rule bg-surface p-4 text-sm text-ink">
+      {claimError}
+    </p>
+  );
+  const header = tab ? (
+    <header className="mb-7 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-3">
+      <div className="min-w-0">
+        <PageTitle className="sm:text-4xl">{tab.name}</PageTitle>
+      </div>
+      {expenses === undefined ? (
+        <div aria-hidden="true" className="flex items-center gap-2">
+          <Skeleton className="hidden h-11 w-32 rounded-lg md:block" />
+          <Skeleton className="size-11 rounded-lg" />
+        </div>
+      ) : (
+        <TabOwnerActions
+          slug={slug}
+          members={tab.members}
+          defaultCurrency={tab.defaultCurrency}
+          name={tab.name}
+          expenseCount={expenses.length}
+          isOwner={tab.isOwner}
+          ownerName={tab.ownerName}
+        />
+      )}
+      <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
+        <Roster slug={slug} members={tab.members} />
+      </div>
+    </header>
+  ) : (
+    <TabHeaderSkeleton />
+  );
+
+  if (
+    tab === undefined ||
+    expenses === undefined ||
+    settlement === undefined ||
+    viewer === undefined
+  ) {
+    return (
+      <Page>
+        {breadcrumb}
+        {claimNotice}
+        {header}
+        <TabActionsSkeleton />
+        <TabContentSkeleton />
       </Page>
     );
   }
@@ -169,6 +315,8 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         defaultCurrency={tab.defaultCurrency}
         expenses={expenses}
         expenseView={hasUpcoming ? expenseView : "paid"}
+        asOfDate={day}
+        response={settlement}
       />
       <ExpenseList
         expenseView={expenseView}
@@ -177,49 +325,27 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         canManage
         members={tab.members}
         expenses={expenses}
+        viewerId={viewer?._id}
       />
     </div>
   );
   const pageActions = (view: ExpenseView) => (
     <div className="mb-6 grid grid-cols-2 gap-2 md:flex md:justify-end">
       <ExpenseActions slug={slug} members={tab.members} className="col-span-2 w-full md:hidden" />
-      <SettlementActions slug={slug} members={tab.members} expenseView={view} />
+      <SettlementActions
+        slug={slug}
+        members={tab.members}
+        expenseView={view}
+        response={settlement}
+      />
     </div>
   );
 
   return (
     <Page>
-      <Breadcrumb>
-        <Link to="/tabs" className={crumbLinkClass}>
-          Tabs
-        </Link>
-        <BreadcrumbCurrent>{tab.name}</BreadcrumbCurrent>
-      </Breadcrumb>
-      {claimError && (
-        <p
-          role="status"
-          className="mb-6 rounded-md border border-rule bg-surface p-4 text-sm text-ink"
-        >
-          {claimError}
-        </p>
-      )}
-      <header className="mb-7 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-3">
-        <div className="min-w-0">
-          <PageTitle className="sm:text-4xl">{tab.name}</PageTitle>
-        </div>
-        <TabOwnerActions
-          slug={slug}
-          members={tab.members}
-          defaultCurrency={tab.defaultCurrency}
-          name={tab.name}
-          expenseCount={expenses.length}
-          isOwner={tab.isOwner}
-          ownerName={tab.ownerName}
-        />
-        <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-          <Roster slug={slug} members={tab.members} />
-        </div>
-      </header>
+      {breadcrumb}
+      {claimNotice}
+      {header}
       {hasUpcoming ? (
         <ExpenseViewTabs
           value={expenseView}
@@ -843,6 +969,7 @@ function ExpenseList({
   members,
   expenses,
   expenseView,
+  viewerId,
 }: {
   expenseView: ExpenseView;
   defaultCurrency: string;
@@ -850,9 +977,9 @@ function ExpenseList({
   canManage: boolean;
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
+  viewerId: string | undefined;
 }) {
   const { remove } = useExpenseActions();
-  const viewer = useQuery(api.users.viewer);
   const [search, setSearch] = useState("");
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
@@ -873,7 +1000,7 @@ function ExpenseList({
   // its seat or its account, so match on both before deciding the viewer isn't
   // in a split. The settlement column is only worth a track when at least one
   // expense here is actually the viewer's.
-  const viewerMember = members.find((member) => member.resolvedId === viewer?._id);
+  const viewerMember = members.find((member) => member.resolvedId === viewerId);
   const viewerIds = new Set(viewerMember ? [viewerMember.id, viewerMember.resolvedId] : []);
   const showSettlement =
     viewerIds.size > 0 && expenses.some((e) => e.people.some((p) => viewerIds.has(p.id)));

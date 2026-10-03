@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   record: vi.fn(async (_args: { payments: Record<string, unknown>[] }) => null),
   navigate: vi.fn(async () => undefined),
   view: "paid",
+  memberId: undefined as string | undefined,
+  currency: undefined as string | undefined,
 }));
 
 vi.mock("convex/react", () => ({
@@ -38,7 +40,11 @@ vi.mock("@tanstack/react-router", async () => {
       ),
     getRouteApi: () => ({
       useParams: () => ({ slug: "trip" }),
-      useSearch: () => ({ view: mocks.view }),
+      useSearch: () => ({
+        view: mocks.view,
+        memberId: mocks.memberId,
+        currency: mocks.currency,
+      }),
     }),
     useNavigate: () => mocks.navigate,
   };
@@ -49,6 +55,8 @@ import { RecordPaymentPage } from "./RecordPaymentPage";
 afterEach(() => {
   mocks.response = null;
   mocks.view = "paid";
+  mocks.memberId = undefined;
+  mocks.currency = undefined;
   mocks.record.mockReset();
   mocks.record.mockResolvedValue(null);
   mocks.navigate.mockClear();
@@ -171,6 +179,15 @@ test("records a payment without expense allocations and preserves the selected v
   expect(overviewButton?.className).toContain("bg-primary");
   expect(overviewButton?.querySelector("svg")).not.toBeNull();
   expect(mocks.navigate).not.toHaveBeenCalled();
+  root.unmount();
+});
+
+test("preselects the member and currency passed in the route search", () => {
+  mocks.memberId = "p2";
+  mocks.currency = "CAD";
+  const { container, root } = mount();
+  expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+  expect(container.querySelector("label")?.textContent).toContain("P2 owes you");
   root.unmount();
 });
 

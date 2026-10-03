@@ -68,9 +68,9 @@ export function EmptyState({
   status = true,
   children,
   ...props
-}: ComponentProps<"p"> & { status?: boolean; children: ReactNode }) {
+}: ComponentProps<"div"> & { status?: boolean; children: ReactNode }) {
   return (
-    <p
+    <div
       role={status ? "status" : undefined}
       className={cn(
         "rounded-xl border border-dashed border-rule bg-surface/60 px-6 py-10 text-center text-sm text-ink-soft",
@@ -79,6 +79,6 @@ export function EmptyState({
       {...props}
     >
       {children}
-    </p>
+    </div>
   );
 }

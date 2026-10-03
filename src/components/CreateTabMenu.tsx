@@ -103,27 +103,14 @@ function CreateTabModal({
         <DialogTrigger
           render={
             variant === "primary" ? (
-              <Button type="button" size="touch" />
+              <Button type="button" size="touch" className="w-full sm:w-auto" />
             ) : (
-              // The empty-state call to action: `secondary` (DESIGN.md § 5)
-              // rather than the hand-written forest border and invert hover it
-              // used to carry. `border-2` is geometry - the hero pill wants a
-              // heavier edge - and leaves the variant's hover intact.
-              <Button
-                type="button"
-                variant="secondary"
-                size="hero"
-                className="mx-auto rounded-full border-2"
-              />
+              <Button type="button" size="hero" />
             )
           }
         >
-          {variant === "primary" ? (
-            <Plus className="h-5 w-5" strokeWidth={2} />
-          ) : (
-            <Users2 className="h-4 w-4" strokeWidth={2.5} />
-          )}
-          New tab
+          {variant === "primary" && <Plus className="h-5 w-5" strokeWidth={2} />}
+          {variant === "primary" ? "New tab" : "Create a tab"}
         </DialogTrigger>
       )}
       <DialogContent>
