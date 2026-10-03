@@ -53,7 +53,19 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
     people: state.people.map(({ id, name }) => ({ id, name })),
     ...(state.payerId ? { payerId: state.payerId } : {}),
     items: state.items.map(
-      ({ id, name, cost, discount, tax, tip, tipAfterTax, splitWith, overrideAdjustments }) => ({
+      ({
+        id,
+        name,
+        cost,
+        discount,
+        tax,
+        tip,
+        tipAfterTax,
+        splitWith,
+        splitType,
+        splitValues,
+        overrideAdjustments,
+      }) => ({
         id,
         name,
         cost,
@@ -62,6 +74,8 @@ export function toExpenseStateArgs(state: ExpenseState): ExpenseStateArgs {
         tip: rate(tip),
         ...(tipAfterTax === undefined ? {} : { tipAfterTax }),
         splitWith,
+        ...(splitType === undefined ? {} : { splitType }),
+        ...(splitValues === undefined ? {} : { splitValues }),
         ...(overrideAdjustments === undefined ? {} : { overrideAdjustments }),
       }),
     ),

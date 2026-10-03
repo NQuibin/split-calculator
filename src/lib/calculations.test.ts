@@ -30,6 +30,33 @@ test("global percentages apply after discount and follow each item's sharers", (
   expect(result.people.map((p) => p.total)).toEqual([117, 58.5]);
 });
 
+test("percentage and amount splits distribute item adjustments by each member's share", () => {
+  const percentage: ExpenseItem = {
+    ...item("a", 100),
+    splitWith: ["a", "b"],
+    splitType: "percentage",
+    splitValues: [
+      { memberId: "a", value: 75 },
+      { memberId: "b", value: 25 },
+    ],
+    tax: { mode: "percent", value: 10 },
+    overrideAdjustments: true,
+  };
+  expect(computeSplit(people, [percentage]).people.map((person) => person.total)).toEqual([
+    82.5, 27.5,
+  ]);
+
+  const amount = {
+    ...percentage,
+    splitType: "amount" as const,
+    splitValues: [
+      { memberId: "a", value: 30 },
+      { memberId: "b", value: 70 },
+    ],
+  };
+  expect(computeSplit(people, [amount]).people.map((person) => person.total)).toEqual([33, 77]);
+});
+
 test("fixed globals apply once and exclude an explicit zero override", () => {
   const result = computeSplit(people, [item("a", 100), item("b", 50), item("exempt", 80, true)], {
     discount: { mode: "amount", value: 30 },

@@ -28,6 +28,8 @@ export const expenseItem = v.object({
   tip: rateSetting,
   tipAfterTax: v.optional(v.boolean()),
   splitWith: v.array(v.string()),
+  splitType: v.optional(v.union(v.literal("equal"), v.literal("percentage"), v.literal("amount"))),
+  splitValues: v.optional(v.array(v.object({ memberId: v.string(), value: v.number() }))),
   overrideAdjustments: v.optional(v.boolean()),
 });
 

@@ -580,6 +580,10 @@ export const createExpense = mutation({
     const items = expense.items.map((item) => ({
       ...item,
       splitWith: item.splitWith.map(remapId),
+      splitValues: item.splitValues?.map(({ memberId, ...value }) => ({
+        ...value,
+        memberId: remapId(memberId),
+      })),
     }));
     const payerId = state.payerId ? remapId(state.payerId) : undefined;
     await assertExpenseMembers(ctx, { tabId: tab._id, items, payerId });

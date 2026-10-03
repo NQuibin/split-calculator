@@ -65,6 +65,26 @@ export async function assertExpenseMembers(
       throw new Error("Each expense item must be split with at least one tab member");
     if (new Set(item.splitWith).size !== item.splitWith.length)
       throw new Error("An expense item cannot list the same member twice");
+    if (item.splitType === "percentage" || item.splitType === "amount") {
+      const values = item.splitValues ?? [];
+      if (
+        values.length !== item.splitWith.length ||
+        new Set(values.map(({ memberId }) => memberId)).size !== values.length ||
+        values.some(
+          ({ memberId, value }) =>
+            !item.splitWith.includes(memberId) || !Number.isFinite(value) || value < 0,
+        )
+      )
+        throw new Error("Enter a valid split for every selected member");
+      const total = values.reduce((sum, { value }) => sum + value, 0);
+      const expected = item.splitType === "percentage" ? 100 : item.cost;
+      if (!Number.isFinite(item.cost) || Math.round(total * 100) !== Math.round(expected * 100))
+        throw new Error(
+          item.splitType === "percentage"
+            ? "Percentages must total 100%"
+            : "Amounts must total the item cost",
+        );
+    }
   }
   if (expense.payerId !== undefined && !ids.has(expense.payerId))
     throw new Error("Payer must belong to this tab");

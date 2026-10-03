@@ -72,6 +72,24 @@ test("editor stage is never included in a saved expense", () => {
   expect(toExpenseStateArgs({ ...state, stage: "results" })).toEqual(toExpenseStateArgs(state));
 });
 
+test("custom split type and values survive expense serialization", () => {
+  const item = {
+    id: "item-1",
+    name: "Dinner",
+    cost: 80,
+    discount: { mode: "percent" as const, value: 0 },
+    tax: { mode: "percent" as const, value: 0 },
+    tip: { mode: "percent" as const, value: 0 },
+    splitWith: ["alice", "bob"],
+    splitType: "amount" as const,
+    splitValues: [
+      { memberId: "alice", value: 50 },
+      { memberId: "bob", value: 30 },
+    ],
+  };
+  expect(toExpenseStateArgs({ ...state, items: [item] }).items).toEqual([item]);
+});
+
 test("note draft keeps typing spaces and saves the latest text", () => {
   const draft = expenseReducer(state, { type: "SET_NOTE", note: "Dinner with  friends " });
   expect(draft.note).toBe("Dinner with  friends ");

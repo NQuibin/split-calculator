@@ -177,13 +177,23 @@ export function computeSplit(
     const n = sharers.length;
     if (n === 0) continue;
 
+    const values = new Map(item.splitValues?.map(({ memberId, value }) => [memberId, value]));
+    const valueTotal = sharers.reduce((sum, id) => sum + (values.get(id) ?? 0), 0);
+    const shareOf = (id: string) => {
+      if (item.splitType === "percentage") return (values.get(id) ?? 0) / 100;
+      if (item.splitType === "amount")
+        return valueTotal > 0 ? (values.get(id) ?? 0) / valueTotal : 0;
+      return 1 / n;
+    };
+
     const appliedDiscount = item.cost - itemCost;
-    const perPersonCost = itemCost / n;
-    const perPersonDiscount = appliedDiscount / n;
-    const perPersonTax = itemTax / n;
-    const perPersonTip = itemTip / n;
 
     for (const personId of sharers) {
+      const share = shareOf(personId);
+      const perPersonCost = itemCost * share;
+      const perPersonDiscount = appliedDiscount * share;
+      const perPersonTax = itemTax * share;
+      const perPersonTip = itemTip * share;
       const entry = raw.get(personId)!;
       entry.itemsSubtotal += perPersonCost;
       entry.taxShare += perPersonTax;

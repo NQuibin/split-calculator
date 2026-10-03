@@ -46,6 +46,7 @@ import type {
 } from "@/lib/types";
 import { GroupTitle, PageDescription, PageTitle } from "@/components/ui/Typography";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { TipRateInput } from "@/components/ui/TipRateInput";
 import { Switch } from "@/components/ui/Switch";
 
@@ -170,6 +171,8 @@ export function StageExpense({
   const [tip, setTip] = useState<RateSetting>(zeroRate);
   const [tipAfterTax, setTipAfterTax] = useState(tipAfterTaxDefault);
   const [splitWith, setSplitWith] = useState<string[]>(allIds);
+  const [splitType, setSplitType] = useState<"equal" | "percentage" | "amount">("equal");
+  const [splitValues, setSplitValues] = useState<{ memberId: string; value: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
   const [continueError, setContinueError] = useState<string | null>(null);
@@ -200,6 +203,12 @@ export function StageExpense({
       setContinueError("Finish or cancel the open item before saving the expense.");
       return;
     }
+    if (items.some((item) => !isSplitValid(item))) {
+      setContinueError(
+        "Each percentage split must total 100%, and each amount split must equal its item cost.",
+      );
+      return;
+    }
     setContinuing(true);
     try {
       await onContinue();
@@ -208,10 +217,6 @@ export function StageExpense({
     } finally {
       setContinuing(false);
     }
-  }
-
-  function togglePerson(id: string) {
-    setSplitWith((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   }
 
   function handleRemovePerson(id: string) {
@@ -242,6 +247,8 @@ export function StageExpense({
     setTip(zeroRate);
     setTipAfterTax(tipAfterTaxDefault);
     setSplitWith(allIds);
+    setSplitType("equal");
+    setSplitValues([]);
     setError(null);
   }
 
@@ -260,7 +267,13 @@ export function StageExpense({
     setTax(item.tax);
     setTip(item.tip);
     setTipAfterTax(item.tipAfterTax ?? tipAfterTaxDefault);
-    setSplitWith(item.splitWith);
+    setSplitWith(
+      item.splitType && item.splitType !== "equal"
+        ? (item.splitValues ?? []).filter((entry) => entry.value > 0).map((entry) => entry.memberId)
+        : item.splitWith,
+    );
+    setSplitType(item.splitType ?? "equal");
+    setSplitValues(item.splitValues ?? []);
     setError(null);
   }
 
@@ -295,6 +308,20 @@ export function StageExpense({
       setError("Pick who's sharing this item.");
       return;
     }
+    const assigned = splitValues.filter((entry) => splitWith.includes(entry.memberId));
+    if (
+      splitType !== "equal" &&
+      (assigned.length !== splitWith.length ||
+        Math.round(assigned.reduce((sum, entry) => sum + entry.value, 0) * 100) !==
+          Math.round((splitType === "percentage" ? 100 : parsedCost) * 100))
+    ) {
+      setError(
+        splitType === "percentage"
+          ? "Percentages must total 100%."
+          : "Amounts must equal the item cost.",
+      );
+      return;
+    }
     const item: ExpenseItem = {
       id: editingId ?? crypto.randomUUID(),
       name: name.trim(),
@@ -304,6 +331,8 @@ export function StageExpense({
       tip,
       tipAfterTax,
       splitWith,
+      splitType,
+      splitValues: splitValues.filter((entry) => splitWith.includes(entry.memberId)),
       overrideAdjustments: adjustmentsOpen,
     };
     if (editingId) {
@@ -458,6 +487,8 @@ export function StageExpense({
     tip: adjustmentsOpen ? tip : zeroRate,
     tipAfterTax: adjustmentsOpen && tipAfterTax,
     splitWith,
+    splitType,
+    splitValues,
     overrideAdjustments: adjustmentsOpen,
   };
   const draftItems = editingId
@@ -563,24 +594,30 @@ export function StageExpense({
         <div className="mb-3">
           <GroupTitle>Split this item</GroupTitle>
         </div>
-        <div className="space-y-2">
-          {people.map((person) => (
-            <MemberSelectionRow
-              key={person.id}
-              id={person.id}
-              name={person.name}
-              selected={splitWith.includes(person.id)}
-              onToggle={() => togglePerson(person.id)}
-              endContent={
-                <span className="font-numeric shrink-0">
-                  {splitWith.includes(person.id)
-                    ? currency(draftItemShares.get(person.id) ?? 0, currencyCode)
-                    : "—"}
-                </span>
-              }
-            />
-          ))}
-        </div>
+        <SplitEditor
+          hideTypeLabel
+          people={people}
+          splitWith={splitWith}
+          splitType={splitType}
+          splitValues={splitValues}
+          total={Number(cost) || 0}
+          currencyCode={currencyCode}
+          shares={draftItemShares}
+          onSelectionChange={setSplitWith}
+          onTypeChange={(type, values) => {
+            setSplitType(type);
+            setSplitValues(values);
+            if (type !== "equal") {
+              setSplitWith(
+                values.filter((entry) => entry.value > 0).map((entry) => entry.memberId),
+              );
+            }
+          }}
+          onValuesChange={(values) => {
+            setSplitValues(values);
+            setSplitWith(values.filter((entry) => entry.value > 0).map((entry) => entry.memberId));
+          }}
+        />
       </section>
       {error && (
         <p role="alert" className="text-sm text-margin-red-ink">
@@ -935,13 +972,25 @@ function SimpleTotalForm({
   onSave: (item: ExpenseItem) => void;
   onRemove: (id: string) => void;
 }) {
-  const { currency } = useLocaleFormatters();
   // A one-total item has no name of its own - it's always named after the
   // expense - so this form only needs to capture the amount.
   const [cost, setCost] = useState(item ? String(item.cost) : "");
-  const [splitWith, setSplitWith] = useState<string[]>(item?.splitWith ?? people.map((p) => p.id));
+  const [splitWith, setSplitWith] = useState<string[]>(
+    item?.splitType && item.splitType !== "equal"
+      ? (item.splitValues ?? []).filter((entry) => entry.value > 0).map((entry) => entry.memberId)
+      : (item?.splitWith ?? people.map((p) => p.id)),
+  );
+  const [splitType, setSplitType] = useState<"equal" | "percentage" | "amount">(
+    item?.splitType ?? "equal",
+  );
+  const [splitValues, setSplitValues] = useState(item?.splitValues ?? []);
 
-  function commit(nextCost: string, nextSplitWith: string[]) {
+  function commit(
+    nextCost: string,
+    nextSplitWith: string[],
+    nextType = splitType,
+    nextValues = splitValues,
+  ) {
     const parsed = Number(nextCost);
     if (!(parsed > 0)) {
       if (item) onRemove(item.id);
@@ -955,6 +1004,8 @@ function SimpleTotalForm({
       tax: zeroRate,
       tip: zeroRate,
       splitWith: nextSplitWith,
+      splitType: nextType,
+      splitValues: nextValues.filter((entry) => nextSplitWith.includes(entry.memberId)),
     });
   }
 
@@ -963,15 +1014,26 @@ function SimpleTotalForm({
     commit(value, splitWith);
   }
 
-  function toggleSplitWith(id: string) {
-    const next = splitWith.includes(id) ? splitWith.filter((p) => p !== id) : [...splitWith, id];
-    if (next.length === 0) return;
-    setSplitWith(next);
-    commit(cost, next);
+  function changeType(type: "equal" | "percentage" | "amount", values: SplitValue[]) {
+    const nextSplitWith =
+      type === "equal"
+        ? splitWith
+        : values.filter((entry) => entry.value > 0).map((entry) => entry.memberId);
+    setSplitType(type);
+    setSplitValues(values);
+    setSplitWith(nextSplitWith);
+    commit(cost, nextSplitWith, type, values);
+  }
+
+  function changeValues(values: SplitValue[]) {
+    const nextSplitWith = values.filter((entry) => entry.value > 0).map((entry) => entry.memberId);
+    setSplitWith(nextSplitWith);
+    setSplitValues(values);
+    commit(cost, nextSplitWith, splitType, values);
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 md:gap-6">
+    <div className="grid gap-5">
       <div className="min-w-0">
         <Label htmlFor="expense-total" icon={DollarSign}>
           Total amount <span className="text-ink-soft">({currencyCode})</span>
@@ -989,36 +1051,207 @@ function SimpleTotalForm({
           className="font-numeric min-h-16 py-3 text-3xl sm:text-3xl"
         />
       </div>
-      <div className="min-w-0 border-t border-rule pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <GroupTitle as="h2">Split with</GroupTitle>
-          <span className="text-sm text-ink-soft">Equally</span>
-        </div>
-        <p className="mb-2 text-xs text-ink-soft">
-          {splitWith.length} {splitWith.length === 1 ? "person" : "people"} selected
-        </p>
-        <div className="space-y-2">
-          {people.map((p) => (
+      <div className="min-w-0 border-t border-rule pt-5">
+        <GroupTitle as="h2" className="mb-3">
+          Split with
+        </GroupTitle>
+        <SplitEditor
+          hideTypeLabelOnDesktop
+          people={people}
+          splitWith={splitWith}
+          splitType={splitType}
+          splitValues={splitValues}
+          total={Number(cost) || 0}
+          currencyCode={currencyCode}
+          shares={new Map(split.people.map((row) => [row.personId, row.total]))}
+          onSelectionChange={(next) => {
+            setSplitWith(next);
+            commit(cost, next);
+          }}
+          onTypeChange={changeType}
+          onValuesChange={changeValues}
+        />
+        {peopleManagement}
+      </div>
+    </div>
+  );
+}
+
+type SplitType = "equal" | "percentage" | "amount";
+type SplitValue = { memberId: string; value: number };
+
+function isSplitValid(item: ExpenseItem) {
+  const type = item.splitType ?? "equal";
+  if (type === "equal") return true;
+  const values = item.splitValues ?? [];
+  return (
+    values.length === item.splitWith.length &&
+    values.every(
+      (entry) =>
+        item.splitWith.includes(entry.memberId) && Number.isFinite(entry.value) && entry.value >= 0,
+    ) &&
+    Math.round(values.reduce((sum, entry) => sum + entry.value, 0) * 100) ===
+      Math.round((type === "percentage" ? 100 : item.cost) * 100)
+  );
+}
+
+function SplitEditor({
+  hideTypeLabel = false,
+  hideTypeLabelOnDesktop = false,
+  people,
+  splitWith,
+  splitType,
+  splitValues,
+  total,
+  currencyCode,
+  shares,
+  onSelectionChange,
+  onTypeChange,
+  onValuesChange,
+}: {
+  hideTypeLabel?: boolean;
+  hideTypeLabelOnDesktop?: boolean;
+  people: Person[];
+  splitWith: string[];
+  splitType: SplitType;
+  splitValues: SplitValue[];
+  total: number;
+  currencyCode: string;
+  shares: Map<string, number>;
+  onSelectionChange: (ids: string[]) => void;
+  onTypeChange: (type: SplitType, values: SplitValue[]) => void;
+  onValuesChange: (values: SplitValue[]) => void;
+}) {
+  const { currency } = useLocaleFormatters();
+  const valueFor = (id: string) => splitValues.find((entry) => entry.memberId === id)?.value ?? 0;
+  const selected = people.filter((person) => splitWith.includes(person.id));
+  const sum = selected.reduce((acc, person) => acc + valueFor(person.id), 0);
+
+  function updateValue(id: string, value: number) {
+    onValuesChange([
+      ...splitValues.filter((entry) => entry.memberId !== id),
+      { memberId: id, value },
+    ]);
+  }
+
+  function toggle(id: string, checked: boolean) {
+    const next = checked ? [...splitWith, id] : splitWith.filter((personId) => personId !== id);
+    if (next.length > 0) onSelectionChange(next);
+  }
+
+  function selectType(type: SplitType) {
+    if (type === splitType) {
+      onTypeChange(type, splitValues);
+      return;
+    }
+    const target = type === "percentage" ? 100 : total;
+    const weights = selected.map((person) => (splitType === "equal" ? 1 : valueFor(person.id)));
+    const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+    let allocated = 0;
+    const values =
+      type === "equal"
+        ? splitValues
+        : selected.map((person, index) => {
+            const value =
+              index === selected.length - 1
+                ? Math.round((target - allocated) * 100) / 100
+                : Math.round(((target * weights[index]) / (weightTotal || selected.length)) * 100) /
+                  100;
+            allocated += value;
+            return { memberId: person.id, value };
+          });
+    onTypeChange(type, values);
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div>
+        {!hideTypeLabel && (
+          <span
+            className={`mb-2 block text-sm font-medium text-ink ${hideTypeLabelOnDesktop ? "md:sr-only" : ""}`}
+          >
+            Split type
+          </span>
+        )}
+        <fieldset className="grid grid-cols-3 gap-2">
+          <legend className="sr-only">Split type</legend>
+          {(["equal", "percentage", "amount"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={splitType === type}
+              onClick={() => selectType(type)}
+              className={`min-h-11 rounded-lg border px-2 text-sm font-medium capitalize focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
+                splitType === type
+                  ? "border-forest bg-forest text-surface"
+                  : "border-edge bg-field text-ink hover:bg-wash active:bg-wash"
+              }`}
+            >
+              {type === "equal" ? "Equally" : type === "percentage" ? "Percent" : "Amount"}
+            </button>
+          ))}
+        </fieldset>
+      </div>
+      <div className="flex items-center justify-between gap-2 text-xs text-ink-soft">
+        <span>
+          {splitType === "equal"
+            ? "Selected people pay equal shares."
+            : splitType === "percentage"
+              ? "Set each person's percentage."
+              : "Set each person's amount."}
+        </span>
+        <span>
+          {splitType === "equal"
+            ? "Amount each"
+            : splitType === "percentage"
+              ? `Remaining: ${Math.max(0, Math.round((100 - sum) * 100) / 100)}%`
+              : `Remaining: ${currency(Math.max(0, total - sum), currencyCode)}`}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {people.map((person) => {
+          const isSelected = splitWith.includes(person.id);
+          const share = shares.get(person.id) ?? 0;
+          return splitType === "equal" ? (
             <MemberSelectionRow
-              key={p.id}
-              id={p.id}
-              name={p.name}
-              selected={splitWith.includes(p.id)}
-              onToggle={() => toggleSplitWith(p.id)}
+              key={person.id}
+              id={person.id}
+              name={person.name}
+              selected={isSelected}
+              onToggle={() => toggle(person.id, !isSelected)}
               endContent={
-                <span className="font-numeric shrink-0">
-                  {splitWith.includes(p.id)
-                    ? currency(
-                        split.people.find((row) => row.personId === p.id)?.total ?? 0,
-                        currencyCode,
-                      )
-                    : "—"}
+                <span className="shrink-0 font-numeric">
+                  {isSelected ? currency(share, currencyCode) : "—"}
                 </span>
               }
             />
-          ))}
-        </div>
-        {peopleManagement}
+          ) : (
+            <div
+              key={person.id}
+              className={`flex min-h-[50px] items-center gap-2 overflow-hidden rounded-md border border-edge pl-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest ${valueFor(person.id) > 0 ? "bg-field" : "bg-surface"}`}
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-3">
+                <MemberAvatar id={person.id} name={person.name} />
+                <span className="min-w-0 break-words text-sm text-ink">{person.name}</span>
+              </span>
+              {splitType === "percentage" && (
+                <span className="w-20 shrink-0 text-right font-numeric text-sm text-ink-soft">
+                  {currency((total * valueFor(person.id)) / 100, currencyCode)}
+                </span>
+              )}
+              <Input
+                aria-label={`${person.name} ${splitType === "percentage" ? "percentage" : "amount"}`}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                value={valueFor(person.id) || ""}
+                onChange={(event) => updateValue(person.id, Number(event.target.value) || 0)}
+                className="w-24 shrink-0 self-stretch rounded-none border-y-0 border-r-0 bg-field px-2 text-right font-numeric"
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

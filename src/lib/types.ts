@@ -28,6 +28,10 @@ export interface ExpenseItem {
   /** See `ExpenseAdjustments.tipAfterTax`. */
   tipAfterTax?: boolean;
   splitWith: string[];
+  /** Missing on older expenses, which continue to use equal shares. */
+  splitType?: "equal" | "percentage" | "amount";
+  /** Per-member percentages or currency amounts for non-equal splits. */
+  splitValues?: { memberId: string; value: number }[];
   overrideAdjustments?: boolean;
 }
 

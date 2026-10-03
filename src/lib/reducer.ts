@@ -118,7 +118,34 @@ export function expenseReducer(state: ExpenseState, action: Action): ExpenseStat
         payerId: state.payerId === action.id ? undefined : state.payerId,
         items: state.items.map((item) => {
           const splitWith = item.splitWith.filter((id) => id !== action.id);
-          return { ...item, splitWith: splitWith.length > 0 ? splitWith : remainingIds };
+          const nextSplitWith = splitWith.length > 0 ? splitWith : remainingIds;
+          const splitType = item.splitType ?? "equal";
+          if (splitType === "equal") return { ...item, splitWith: nextSplitWith };
+
+          if (splitWith.length === 0) {
+            const total = splitType === "percentage" ? 100 : item.cost;
+            return {
+              ...item,
+              splitWith: nextSplitWith,
+              splitValues: nextSplitWith.map((memberId, index) => ({
+                memberId,
+                value: index === 0 ? total : 0,
+              })),
+            };
+          }
+
+          const removedValue =
+            item.splitValues?.find((entry) => entry.memberId === action.id)?.value ?? 0;
+          const splitValues = (item.splitValues ?? [])
+            .filter((entry) => nextSplitWith.includes(entry.memberId))
+            .map((entry) => ({ ...entry }));
+          if (nextSplitWith.length && removedValue) {
+            const receiver = nextSplitWith.find((id) => id !== action.id) ?? nextSplitWith[0];
+            const existing = splitValues.find((entry) => entry.memberId === receiver);
+            if (existing) existing.value += removedValue;
+            else splitValues.push({ memberId: receiver, value: removedValue });
+          }
+          return { ...item, splitWith: nextSplitWith, splitValues };
         }),
       };
     }
