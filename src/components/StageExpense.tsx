@@ -1,5 +1,5 @@
-import { type ReactNode, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { type ReactNode, useId, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
@@ -1123,6 +1123,8 @@ function SplitEditor({
   onValuesChange: (values: SplitValue[]) => void;
 }) {
   const { currency } = useLocaleFormatters();
+  const splitTypeName = useId();
+  const reduceMotion = useReducedMotion();
   const valueFor = (id: string) => splitValues.find((entry) => entry.memberId === id)?.value ?? 0;
   const selected = people.filter((person) => splitWith.includes(person.id));
   const sum = selected.reduce((acc, person) => acc + valueFor(person.id), 0);
@@ -1173,22 +1175,40 @@ function SplitEditor({
             Split type
           </span>
         )}
-        <fieldset className="grid grid-cols-3 gap-2">
+        <fieldset className="flex rounded-full border border-edge bg-field p-0.5">
           <legend className="sr-only">Split type</legend>
           {(["equal", "percentage", "amount"] as const).map((type) => (
-            <button
+            <label
               key={type}
-              type="button"
-              aria-pressed={splitType === type}
-              onClick={() => selectType(type)}
-              className={`min-h-11 rounded-lg border px-2 text-sm font-medium capitalize focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
-                splitType === type
-                  ? "border-forest bg-forest text-surface"
-                  : "border-edge bg-field text-ink hover:bg-wash active:bg-wash"
+              className={`relative flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full px-2 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-forest ${
+                splitType === type ? "text-surface" : "text-ink hover:bg-wash active:bg-wash"
               }`}
             >
-              {type === "equal" ? "Equally" : type === "percentage" ? "Percent" : "Amount"}
-            </button>
+              {splitType === type && (
+                <motion.span
+                  layoutId={`${splitTypeName}-selected`}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
+                  className="absolute inset-0 rounded-full bg-forest"
+                />
+              )}
+              <input
+                type="radio"
+                name={splitTypeName}
+                value={type}
+                checked={splitType === type}
+                onChange={() => selectType(type)}
+                className="sr-only"
+              />
+              <span
+                aria-hidden="true"
+                className={`relative flex size-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${splitType === type ? "border-surface" : "border-edge"}`}
+              >
+                {splitType === type && <span className="size-1.5 rounded-full bg-surface" />}
+              </span>
+              <span className="relative">
+                {type === "equal" ? "Equally" : type === "percentage" ? "Percent" : "Amount"}
+              </span>
+            </label>
           ))}
         </fieldset>
       </div>
