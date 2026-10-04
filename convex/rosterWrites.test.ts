@@ -85,6 +85,19 @@ test("a tab member can add, rename and remove roster entries", async () => {
   expect((await seats(t)).some((s) => s._id === added._id)).toBe(false);
 });
 
+test("a claimed member's name is controlled by their account", async () => {
+  const { t, user } = await setup();
+  await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: ["Sam"] });
+  const samId = await t.run((ctx) => ctx.db.insert("users", { name: "Sam" }));
+  const sam = t.withIdentity({ subject: `${samId}|session` });
+  const seat = (await seats(t)).find((member) => member.name === "Sam")!;
+  await sam.mutation(api.tabs.claimMember, { slug: "trip", token: seat.inviteToken });
+
+  await expect(
+    sam.mutation(api.tabs.renameMember, { slug: "trip", memberId: seat._id, name: "Samuel" }),
+  ).rejects.toThrow("claimed member's name cannot be changed");
+});
+
 test("a duplicate name is refused against the rows", async () => {
   const { user } = await setup();
   await user.mutation(api.tabs.create, { slug: "trip", name: "Trip", memberNames: ["Sam"] });

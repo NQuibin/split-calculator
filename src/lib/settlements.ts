@@ -39,9 +39,8 @@ export function computeExpenseBalances(
  * isn't resolved yet, in which case nobody's balance is defined either way -
  * fall back to the full candidate list rather than showing no one.
  *
- * Shared between the client (the tab's expense list) and the server (the
- * expenses directory, `convex/expenses.ts`) so both surfaces draw the same
- * line around "who's in this split" from the same rule.
+ * Used by the server's expense summary in `convex/expenses.ts` to identify
+ * the people who actually share a balance.
  */
 export function splitParticipants<P extends { id: string }>(
   people: P[],

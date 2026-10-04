@@ -251,6 +251,7 @@ export const renameMember = mutation({
     const seats = await tabSeats(ctx, tab._id);
     const seat = seats.find((s) => s._id === memberId);
     if (!seat) throw new Error("Member not found");
+    if (seat.userId) throw new Error("A claimed member's name cannot be changed");
     requireUniqueName(seats, trimmedName, memberId);
 
     await ctx.db.patch(seat._id, { name: trimmedName });

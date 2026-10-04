@@ -127,7 +127,7 @@ function SignInMenu() {
         <LogIn className="h-3.5 w-3.5" strokeWidth={2.25} />
         Sign in
       </DialogTrigger>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm" screenKey={`${flow}-${step}`}>
         <div className="mb-2 flex items-center justify-between gap-3">
           <DialogTitle>
             {step === "email"

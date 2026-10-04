@@ -5,7 +5,18 @@ import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
 import { useConvexAuth, useQuery } from "convex/react";
-import { Banknote, Check, X, Link2, Pencil, Plus, Receipt, Settings, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  Check,
+  X,
+  Link2,
+  Pencil,
+  Plus,
+  Receipt,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
@@ -26,7 +37,7 @@ import { useTab, useTabActions, useTabInviteLinks, type useTabExpenses } from "@
 import { useExpenseActions } from "@/lib/expenseSync";
 import { encodeDraftParams } from "@/lib/expenseDraft";
 import { generateSlug } from "@/lib/slug";
-import { PageTitle, SectionTitle } from "@/components/ui/Typography";
+import { GroupTitle, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { Page, Panel } from "@/components/ui/Page";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
@@ -57,7 +68,6 @@ export function TabPage() {
       <Page>
         <TabBreadcrumb />
         <TabHeaderSkeleton />
-        <TabActionsSkeleton />
         <TabContentSkeleton label={claim.status === "claiming" ? "Joining tab…" : "Loading tab…"} />
       </Page>
     );
@@ -168,13 +178,15 @@ function TabHeaderSkeleton() {
         <Skeleton className="h-9 w-48 rounded-md" />
       </div>
       <div aria-hidden="true" className="flex justify-end gap-2">
-        <Skeleton className="hidden h-11 w-32 rounded-lg md:block" />
         <Skeleton className="size-11 rounded-lg" />
       </div>
-      <div aria-hidden="true" className="col-start-1 row-start-2 flex gap-2">
-        <Skeleton className="size-8 rounded-full" />
-        <Skeleton className="size-8 rounded-full" />
-        <Skeleton className="size-8 rounded-full" />
+      <div className="col-span-2 row-start-2 flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
+        <div aria-hidden="true" className="flex shrink-0 gap-2">
+          <Skeleton className="size-8 rounded-full" />
+          <Skeleton className="size-8 rounded-full" />
+          <Skeleton className="size-8 rounded-full" />
+        </div>
+        <TabActionsSkeleton />
       </div>
     </header>
   );
@@ -182,10 +194,11 @@ function TabHeaderSkeleton() {
 
 function TabActionsSkeleton() {
   return (
-    <div aria-hidden="true" className="mb-6 grid grid-cols-2 gap-2 md:flex md:justify-end">
-      <Skeleton className="col-span-2 h-11 w-full rounded-lg md:hidden" />
-      <Skeleton className="h-11 w-full rounded-lg md:w-40" />
-      <Skeleton className="h-11 w-full rounded-lg md:w-40" />
+    <div aria-hidden="true" className="min-w-0 flex-1 overflow-x-auto py-1">
+      <div className="flex w-full min-w-max gap-2 md:w-max md:min-w-full md:justify-end">
+        <Skeleton className="h-11 min-w-36 flex-1 rounded-lg md:w-36 md:flex-none" />
+        <Skeleton className="h-11 min-w-40 flex-1 rounded-lg md:w-40 md:flex-none" />
+      </div>
     </div>
   );
 }
@@ -237,6 +250,14 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
   const settlement = useQuery(api.settlements.get, tab ? { slug, asOfDate: day } : "skip");
   const [expenseView, setExpenseView] = useState<ExpenseView>("paid");
   const hasUpcoming = expenses?.some((expense) => isUpcoming(expense.date)) ?? false;
+  const participatingMemberIds = expenses
+    ? new Set(
+        expenses.flatMap((expense) => [
+          expense.payerId,
+          ...expense.items.flatMap((item) => item.splitWith),
+        ]),
+      )
+    : null;
   if (!hasUpcoming && expenseView !== "paid") setExpenseView("paid");
 
   useEffect(() => {
@@ -270,13 +291,13 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       </div>
       {expenses === undefined ? (
         <div aria-hidden="true" className="flex items-center gap-2">
-          <Skeleton className="hidden h-11 w-32 rounded-lg md:block" />
           <Skeleton className="size-11 rounded-lg" />
         </div>
       ) : (
         <TabOwnerActions
           slug={slug}
           members={tab.members}
+          participatingMemberIds={participatingMemberIds}
           defaultCurrency={tab.defaultCurrency}
           name={tab.name}
           expenseCount={expenses.length}
@@ -284,8 +305,29 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
           ownerName={tab.ownerName}
         />
       )}
-      <div className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-soft">
-        <Roster slug={slug} members={tab.members} />
+      <div className="col-span-2 row-start-2 flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
+        <div className="shrink-0 text-sm text-ink-soft">
+          <Roster
+            slug={slug}
+            members={tab.members}
+            participatingMemberIds={participatingMemberIds}
+          />
+        </div>
+        {expenses === undefined || settlement === undefined || viewer === undefined ? (
+          <TabActionsSkeleton />
+        ) : (
+          <div className="min-w-0 flex-1 overflow-x-auto py-1">
+            <div className="flex w-full min-w-max gap-2 md:w-max md:min-w-full md:justify-end">
+              <ExpenseActions slug={slug} members={tab.members} className="flex-1 md:flex-none" />
+              <SettlementActions
+                slug={slug}
+                members={tab.members}
+                expenseView={hasUpcoming ? expenseView : "paid"}
+                response={settlement}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </header>
   ) : (
@@ -303,7 +345,6 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         {breadcrumb}
         {claimNotice}
         {header}
-        <TabActionsSkeleton />
         <TabContentSkeleton />
       </Page>
     );
@@ -332,49 +373,27 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
       />
     </div>
   );
-  const pageActions = (view: ExpenseView) => (
-    <div className="mb-6 grid grid-cols-2 gap-2 md:flex md:justify-end">
-      <ExpenseActions slug={slug} members={tab.members} className="col-span-2 w-full md:hidden" />
-      <SettlementActions
-        slug={slug}
-        members={tab.members}
-        expenseView={view}
-        response={settlement}
-      />
-    </div>
-  );
-
   return (
     <Page>
       {breadcrumb}
       {claimNotice}
       {header}
       {hasUpcoming ? (
-        <ExpenseViewTabs
-          value={expenseView}
-          onChange={setExpenseView}
-          label="Tab expense date"
-          actions={pageActions(expenseView)}
-        >
+        <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Tab expense date">
           {tabContent}
         </ExpenseViewTabs>
       ) : (
-        <>
-          {pageActions("paid")}
-          {tabContent}
-        </>
+        tabContent
       )}
     </Page>
   );
 }
 
-/**
- * The owner's action cluster. "Add expense" is the one action that earns a
- * button of its own; tab management lives behind the settings dialog.
- */
+/** Tab management lives beside the title; expense and payment actions share the member row. */
 function TabOwnerActions({
   slug,
   members,
+  participatingMemberIds,
   defaultCurrency,
   name,
   expenseCount,
@@ -383,6 +402,7 @@ function TabOwnerActions({
 }: {
   slug: string;
   members: { resolvedId: string; id: string; name: string; claimed: boolean }[];
+  participatingMemberIds: Set<string> | null;
   defaultCurrency: string;
   name: string;
   expenseCount: number;
@@ -391,9 +411,10 @@ function TabOwnerActions({
 }) {
   return (
     <div className="flex w-auto items-center justify-end gap-2 md:justify-start">
-      <ExpenseActions slug={slug} members={members} className="hidden md:inline-flex" />
       <TabSettingsDialog
         slug={slug}
+        members={members}
+        participatingMemberIds={participatingMemberIds}
         name={name}
         defaultCurrency={defaultCurrency}
         expenseCount={expenseCount}
@@ -406,6 +427,8 @@ function TabOwnerActions({
 
 function TabSettingsDialog({
   slug,
+  members,
+  participatingMemberIds,
   name,
   defaultCurrency,
   expenseCount,
@@ -413,6 +436,8 @@ function TabSettingsDialog({
   ownerName,
 }: {
   slug: string;
+  members: { resolvedId: string; id: string; name: string; claimed: boolean }[];
+  participatingMemberIds: Set<string> | null;
   name: string;
   defaultCurrency: string;
   expenseCount: number;
@@ -420,6 +445,7 @@ function TabSettingsDialog({
   ownerName: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [draftCurrency, setDraftCurrency] = useState(defaultCurrency);
@@ -465,113 +491,144 @@ function TabSettingsDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (pending) return;
-        if (next) reset();
-        setOpen(next);
-      }}
-    >
-      <DialogTrigger
-        render={
-          <Button type="button" variant="menu-icon" size="icon-touch" aria-label="Tab settings" />
-        }
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (pending) return;
+          if (next) reset();
+          setOpen(next);
+        }}
       >
-        <Settings aria-hidden="true" className="h-5 w-5" />
-      </DialogTrigger>
-      <DialogContent>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <DialogTitle>Tab settings</DialogTitle>
-            <DialogDescription className="mt-1">Manage this tab.</DialogDescription>
-          </div>
-          <DialogClose
-            aria-label="Close tab settings"
-            render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
-          >
-            <X className="h-5 w-5" />
-          </DialogClose>
-        </div>
-        <form onSubmit={save} className="mt-5">
-          <div className="space-y-4">
-            <Field label="Tab name" htmlFor="tab-name-settings">
-              <Input
-                id="tab-name-settings"
-                value={draftName}
-                disabled={pending}
-                aria-busy={pending}
-                aria-describedby={error ? "tab-settings-error" : undefined}
-                aria-invalid={Boolean(error)}
-                onChange={(event) => {
-                  setDraftName(event.target.value);
-                  if (error) setError(null);
-                }}
-              />
-            </Field>
-            <Field
-              label="Tab currency"
-              htmlFor="tab-default-currency"
-              icon={Banknote}
-              className="w-full"
-            >
-              <CurrencyPicker
-                id="tab-default-currency"
-                value={draftCurrency}
-                aria-label="Tab currency"
-                onChange={setDraftCurrency}
-                className="min-w-0 w-full justify-between"
-              />
-            </Field>
-            {error && <FieldError id="tab-settings-error">{error}</FieldError>}
-          </div>
-          <div className="-mx-5 -mb-5 mt-6 flex flex-col-reverse gap-3 border-t border-rule px-5 py-5 sm:-mx-6 sm:-mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <Button
-              type="button"
-              variant="destructive"
-              size="touch"
-              className="w-full sm:w-auto"
-              disabled={!isOwner}
-              onClick={() => setConfirming(true)}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete tab
-            </Button>
-            {!isOwner && (
-              <p className="text-sm text-ink-soft">Only {ownerName} can delete this tab.</p>
-            )}
-            <div className="grid grid-cols-2 gap-2 sm:flex">
-              <DialogClose
-                disabled={pending}
-                render={<Button type="button" variant="secondary" size="touch" />}
-              >
-                Cancel
-              </DialogClose>
-              <Button type="submit" size="touch" disabled={pending} aria-busy={pending}>
-                {pending ? "Saving…" : "Save changes"}
-              </Button>
+        <DialogTrigger
+          render={
+            <Button type="button" variant="menu-icon" size="icon-touch" aria-label="Tab settings" />
+          }
+        >
+          <Settings aria-hidden="true" className="h-5 w-5" />
+        </DialogTrigger>
+        <DialogContent className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-rule/70 p-5 sm:p-6">
+            <div>
+              <DialogTitle>Tab settings</DialogTitle>
+              <DialogDescription className="mt-1">Manage this tab.</DialogDescription>
             </div>
-          </div>
-        </form>
-        <DeleteTabDialog
-          slug={slug}
-          expenseCount={expenseCount}
-          open={confirming}
-          onOpenChange={setConfirming}
-        />
-      </DialogContent>
-    </Dialog>
+            <DialogClose
+              aria-label="Close tab settings"
+              render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+            >
+              <X className="h-5 w-5" />
+            </DialogClose>
+          </header>
+          <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+              <div className="space-y-4">
+                <Field label="Tab name" htmlFor="tab-name-settings">
+                  <Input
+                    id="tab-name-settings"
+                    value={draftName}
+                    disabled={pending}
+                    aria-busy={pending}
+                    aria-describedby={error ? "tab-settings-error" : undefined}
+                    aria-invalid={Boolean(error)}
+                    onChange={(event) => {
+                      setDraftName(event.target.value);
+                      if (error) setError(null);
+                    }}
+                  />
+                </Field>
+                <div className="space-y-2">
+                  <GroupTitle as="h3">Members</GroupTitle>
+                  <RosterControl
+                    members={members}
+                    onClick={() => {
+                      setOpen(false);
+                      setMembersOpen(true);
+                    }}
+                  />
+                </div>
+                <Field
+                  label="Tab currency"
+                  htmlFor="tab-default-currency"
+                  icon={Banknote}
+                  className="w-full"
+                >
+                  <CurrencyPicker
+                    id="tab-default-currency"
+                    value={draftCurrency}
+                    aria-label="Tab currency"
+                    onChange={setDraftCurrency}
+                    className="min-w-0 w-full justify-between"
+                  />
+                </Field>
+                {error && <FieldError id="tab-settings-error">{error}</FieldError>}
+              </div>
+              <section className="mt-6 border-t border-rule pt-5">
+                <h3 className="font-display text-lg font-semibold">Delete tab</h3>
+                <p className="mt-1 text-sm text-ink-soft">
+                  This permanently deletes the tab
+                  {expenseCount > 0 &&
+                    ` and its ${expenseCount} ${expenseCount === 1 ? "expense" : "expenses"}`}
+                  .
+                </p>
+                {!isOwner && (
+                  <p className="mt-2 text-sm text-ink-soft">
+                    Only {ownerName} can delete this tab.
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="touch"
+                  className="mt-4 w-full sm:w-auto"
+                  disabled={!isOwner}
+                  onClick={() => setConfirming(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete tab
+                </Button>
+              </section>
+            </div>
+            <footer className="shrink-0 border-t border-rule/70 p-5 sm:p-6">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                <DialogClose
+                  disabled={pending}
+                  render={<Button type="button" variant="secondary" size="touch" />}
+                >
+                  Cancel
+                </DialogClose>
+                <Button type="submit" size="touch" disabled={pending} aria-busy={pending}>
+                  {pending ? "Saving…" : "Save changes"}
+                </Button>
+              </div>
+            </footer>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Roster
+        slug={slug}
+        members={members}
+        participatingMemberIds={participatingMemberIds}
+        open={membersOpen}
+        onOpenChange={setMembersOpen}
+        onBack={() => {
+          setMembersOpen(false);
+          setOpen(true);
+        }}
+      />
+      <DeleteTabDialog slug={slug} name={name} open={confirming} onOpenChange={setConfirming} />
+    </>
   );
 }
 
 function DeleteTabDialog({
   slug,
-  expenseCount,
+  name,
   open,
   onOpenChange,
 }: {
   slug: string;
-  expenseCount: number;
+  name: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -583,9 +640,10 @@ function DeleteTabDialog({
       onOpenChange={onOpenChange}
       title="Delete this tab?"
       description={
-        expenseCount === 0
-          ? "This permanently deletes the tab. This can’t be undone."
-          : `This permanently deletes the tab and its ${expenseCount} ${expenseCount === 1 ? "expense" : "expenses"}. This can’t be undone.`
+        <>
+          You are deleting <strong className="font-semibold text-ink">{name}</strong>, this can’t be
+          undone.
+        </>
       }
       confirmLabel="Delete tab"
       pendingLabel="Deleting…"
@@ -597,16 +655,58 @@ function DeleteTabDialog({
   );
 }
 
+type RosterMember = { id: string; name: string; claimed: boolean; resolvedId: string };
+
+function RosterControl({ members, onClick }: { members: RosterMember[]; onClick?: () => void }) {
+  return (
+    <Button
+      type="button"
+      variant="link"
+      size="touch"
+      className="group gap-2.5 pl-0 hover:no-underline active:no-underline"
+      onClick={onClick}
+    >
+      {members.length > 0 && (
+        <span aria-hidden="true" className="flex -space-x-2">
+          {members.slice(0, 5).map((member) => (
+            <MemberAvatar
+              key={member.id}
+              id={member.id}
+              name={member.name}
+              className="ring-2 ring-paper"
+            />
+          ))}
+          {members.length > 5 && (
+            <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface text-xs font-semibold ring-2 ring-paper">
+              +{members.length - 5}
+            </span>
+          )}
+        </span>
+      )}
+      <span className="group-hover:underline group-active:underline">Manage</span>
+    </Button>
+  );
+}
+
 function Roster({
   slug,
   members,
+  participatingMemberIds,
+  open: controlledOpen,
+  onOpenChange,
+  onBack,
 }: {
   slug: string;
-  members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
+  members: RosterMember[];
+  participatingMemberIds: Set<string> | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onBack?: () => void;
 }) {
   const { addMember, renameMember, removeMember } = useTabActions();
   const inviteLinks = useTabInviteLinks(slug, true);
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
@@ -640,16 +740,8 @@ function Roster({
   }
 
   async function handleRemove(memberId: string) {
-    setPending(true);
-    setError(null);
-    try {
-      await removeMember({ slug, memberId });
-      resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't remove the member.");
-    } finally {
-      setPending(false);
-    }
+    await removeMember({ slug, memberId });
+    resetForm();
   }
 
   async function copyInvite(memberId: string, token: string) {
@@ -665,8 +757,11 @@ function Roster({
   }
 
   const memberForm = (
-    <form onSubmit={saveMember} className="mt-3 flex flex-wrap items-end gap-2">
-      <div className="min-w-0 flex-1 basis-40">
+    <form
+      onSubmit={saveMember}
+      className={adding ? "space-y-5" : "mt-3 flex flex-wrap items-end gap-2"}
+    >
+      <div className={adding ? "min-w-0" : "min-w-0 flex-1 basis-40"}>
         <Label htmlFor="member-name">Member name</Label>
         <Input
           id="member-name"
@@ -679,187 +774,259 @@ function Roster({
           className="w-full"
         />
       </div>
-      <Button type="submit" size="lg" disabled={pending || !name.trim()} aria-busy={pending}>
-        {pending ? "Saving…" : adding ? "Add" : "Save"}
-      </Button>
-      <Button type="button" variant="secondary" size="lg" disabled={pending} onClick={resetForm}>
-        Cancel
-      </Button>
+      <div className={adding ? "flex justify-end gap-3" : "contents"}>
+        {adding && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="touch"
+            disabled={pending}
+            onClick={resetForm}
+          >
+            Cancel
+          </Button>
+        )}
+        <Button
+          type="submit"
+          size={adding ? "touch" : "lg"}
+          disabled={pending || !name.trim()}
+          aria-busy={pending}
+        >
+          {pending ? "Saving…" : adding ? "Add" : "Save"}
+        </Button>
+        {!adding && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            disabled={pending}
+            onClick={resetForm}
+          >
+            Cancel
+          </Button>
+        )}
+      </div>
     </form>
   );
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!pending) {
-          setOpen(next);
-          resetForm();
-        }
-      }}
-    >
-      <DialogTrigger
-        render={
-          <Button
-            variant="link"
-            size="touch"
-            className="group gap-2.5 pl-0 hover:no-underline active:no-underline"
-          />
-        }
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!pending) {
+            (onOpenChange ?? setLocalOpen)(next);
+            resetForm();
+          }
+        }}
       >
-        {members.length > 0 && (
-          <span aria-hidden="true" className="flex -space-x-2">
-            {members.slice(0, 5).map((member) => (
-              <MemberAvatar
-                key={member.id}
-                id={member.id}
-                name={member.name}
-                className="ring-2 ring-paper"
-              />
-            ))}
-            {members.length > 5 && (
-              <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface text-xs font-semibold ring-2 ring-paper">
-                +{members.length - 5}
-              </span>
-            )}
-          </span>
+        {controlledOpen === undefined && (
+          <DialogTrigger render={<RosterControl members={members} />} />
         )}
-        <span className="group-hover:underline group-active:underline">Manage</span>
-      </DialogTrigger>
-      <DialogContent>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <DialogTitle>Members</DialogTitle>
-            <DialogDescription className="mt-1">
-              {members.length} {members.length === 1 ? "person" : "people"} in this tab
-            </DialogDescription>
-          </div>
-          <DialogClose
-            disabled={pending}
-            aria-label="Close members"
-            render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
-          >
-            <X className="h-5 w-5" />
-          </DialogClose>
-        </div>
-        <ul className="mt-5 space-y-3">
-          {members.map((member) => {
-            const invite = inviteLinks.find((link) => link.memberId === member.id);
-            return (
-              <li key={member.id} className="rounded-lg border border-rule/70 p-3">
-                {/* Name, badge and invite link share one column so the action
+        <DialogContent className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-rule/70 p-5 sm:p-6">
+            <div className="flex min-w-0 items-start gap-2">
+              {onBack && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-touch"
+                  aria-label="Back to tab settings"
+                  disabled={pending}
+                  onClick={() => {
+                    resetForm();
+                    onBack();
+                  }}
+                  className="shrink-0 text-ink-soft"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              )}
+              <div>
+                <DialogTitle>Members</DialogTitle>
+                <DialogDescription className="mt-1">
+                  {members.length} {members.length === 1 ? "person" : "people"} in this tab
+                </DialogDescription>
+              </div>
+            </div>
+            <DialogClose
+              disabled={pending}
+              aria-label="Close members"
+              render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+            >
+              <X className="h-5 w-5" />
+            </DialogClose>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto py-5 sm:py-6">
+            <ul className="divide-y divide-rule border-y border-edge bg-field">
+              {members.map((member) => {
+                const invite = inviteLinks.find((link) => link.memberId === member.id);
+                return (
+                  <li key={member.id} className="px-5 py-3 sm:px-6">
+                    {/* Name, badge and invite link share one column so the action
                 group centres against the whole block, not just the name row. */}
-                <div className="flex items-center gap-3">
-                  <MemberAvatar id={member.id} name={member.name} size="lg" />
-                  <div className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="min-w-0 break-words text-sm font-medium">{member.name}</span>
-                      {!member.claimed && <AnonymousBadge />}
-                    </span>
-                    {!member.claimed && invite && (
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="xs"
-                        onClick={() => void copyInvite(member.id, invite.token)}
-                        className="mt-2 h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline active:text-ink active:no-underline"
-                      >
-                        {copiedId === member.id ? (
-                          <Check className="h-3.5 w-3.5" />
-                        ) : (
-                          <Link2 className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-3">
+                      <MemberAvatar id={member.id} name={member.name} size="lg" />
+                      <div className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="min-w-0 break-words text-sm font-medium">
+                            {member.name}
+                          </span>
+                          {!member.claimed && <AnonymousBadge />}
+                        </span>
+                        {!member.claimed && invite && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="xs"
+                            onClick={() => void copyInvite(member.id, invite.token)}
+                            className="mt-2 h-auto px-0 text-xs no-underline hover:text-ink hover:no-underline active:text-ink active:no-underline"
+                          >
+                            {copiedId === member.id ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Link2 className="h-3.5 w-3.5" />
+                            )}
+                            {copiedId === member.id ? "Copied" : "Copy invite"}
+                          </Button>
                         )}
-                        {copiedId === member.id ? "Copied" : "Copy invite"}
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center">
-                    <Button
-                      type="button"
-                      variant="quiet-icon"
-                      size="icon-touch"
-                      disabled={pending}
-                      aria-label={`Edit ${member.name}`}
-                      onClick={() => {
-                        resetForm();
-                        setEditingId(member.id);
-                        setName(member.name);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive-icon"
-                      size="icon-touch"
-                      disabled={pending}
-                      aria-label={`Remove ${member.name}`}
-                      onClick={() => {
-                        resetForm();
-                        setRemovingId(member.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {editingId === member.id && memberForm}
-                {removingId === member.id && (
-                  <div className="mt-3 text-sm">
-                    <p>Remove {member.name} from this tab?</p>
-                    <div className="mt-2 flex gap-3">
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="xs"
-                        disabled={pending}
-                        onClick={() => void handleRemove(member.id)}
-                        className="h-auto px-0 text-sm font-semibold text-margin-red-ink no-underline"
-                      >
-                        {pending ? "Removing…" : "Remove member"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="xs"
-                        disabled={pending}
-                        onClick={resetForm}
-                        className="h-auto px-0 text-sm text-ink-soft no-underline"
-                      >
-                        Cancel
-                      </Button>
+                      </div>
+                      <div className="flex shrink-0 items-center">
+                        {!member.claimed && (
+                          <Button
+                            type="button"
+                            variant="quiet-icon"
+                            size="icon-touch"
+                            disabled={pending}
+                            aria-label={`Edit ${member.name}`}
+                            onClick={() => {
+                              resetForm();
+                              setEditingId(member.id);
+                              setName(member.name);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive-icon"
+                          size="icon-touch"
+                          disabled={
+                            pending ||
+                            !participatingMemberIds ||
+                            participatingMemberIds.has(member.id)
+                          }
+                          aria-label={`Remove ${member.name}`}
+                          aria-describedby={
+                            participatingMemberIds?.has(member.id)
+                              ? "member-removal-note"
+                              : undefined
+                          }
+                          onClick={() => {
+                            resetForm();
+                            setRemovingId(member.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        {!members.length && <p className="mt-4 text-sm text-ink-soft">No members yet.</p>}
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-margin-red-ink">
-            {error}
-          </p>
-        )}
-        {adding ? (
-          memberForm
-        ) : (
-          <Button
-            type="button"
-            size="touch"
-            disabled={pending}
-            onClick={() => {
-              resetForm();
-              setAdding(true);
-            }}
-            className="mt-6 w-full"
-          >
-            <Plus className="h-4 w-4" />
-            Add member
-          </Button>
-        )}
-      </DialogContent>
-    </Dialog>
+                    {editingId === member.id && memberForm}
+                  </li>
+                );
+              })}
+            </ul>
+            {members.some((member) => participatingMemberIds?.has(member.id)) && (
+              <p id="member-removal-note" className="mt-4 px-5 text-xs text-ink-soft sm:px-6">
+                Remove expenses involving a member before removing them from the tab.
+              </p>
+            )}
+            {!members.length && (
+              <p className="px-5 text-sm text-ink-soft sm:px-6">No members yet.</p>
+            )}
+            {error && !adding && (
+              <p role="alert" className="mt-3 px-5 text-sm text-margin-red-ink sm:px-6">
+                {error}
+              </p>
+            )}
+          </div>
+          <footer className="shrink-0 border-t border-rule/70 p-5 sm:p-6">
+            <Button
+              type="button"
+              size="touch"
+              disabled={pending}
+              onClick={() => {
+                resetForm();
+                setAdding(true);
+              }}
+              className="w-full"
+            >
+              <Plus className="h-4 w-4" />
+              Add member
+            </Button>
+          </footer>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={adding}
+        onOpenChange={(next) => {
+          if (!next && !pending) resetForm();
+        }}
+      >
+        <DialogContent>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-touch"
+                aria-label="Back to members"
+                disabled={pending}
+                onClick={resetForm}
+                className="shrink-0 text-ink-soft"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <DialogTitle>Add member</DialogTitle>
+            </div>
+            <DialogClose
+              disabled={pending}
+              aria-label="Close add member"
+              render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+            >
+              <X className="h-5 w-5" />
+            </DialogClose>
+          </div>
+          <DialogDescription className="mt-1">Add someone to this tab.</DialogDescription>
+          <div className="mt-5">{adding && memberForm}</div>
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-margin-red-ink">
+              {error}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={removingId !== null}
+        onOpenChange={(next) => {
+          if (!next) setRemovingId(null);
+        }}
+        title="Remove this member?"
+        description={
+          <>
+            You are removing{" "}
+            <strong className="font-semibold text-ink">
+              {members.find((member) => member.id === removingId)?.name}
+            </strong>{" "}
+            from this tab, this can’t be undone.
+          </>
+        }
+        confirmLabel="Remove member"
+        pendingLabel="Removing…"
+        onConfirm={() => handleRemove(removingId!)}
+      />
+    </>
   );
 }
 
@@ -888,7 +1055,7 @@ function ExpenseActions({
     <Button
       type="button"
       size="touch"
-      className={`${className ?? ""} min-w-0 flex-1 md:flex-none`}
+      className={`${className ?? ""} min-w-0`}
       onClick={handleNewExpense}
     >
       <Plus className="h-4 w-4" />
@@ -1078,9 +1245,15 @@ function ExpenseList({
         }}
         title="Delete this expense?"
         description={
-          deletingSlug
-            ? `“${expenses.find((e) => e.slug === deletingSlug)?.name ?? "Untitled expense"}” and its itemized split will be deleted permanently. This can’t be undone.`
-            : null
+          deletingSlug ? (
+            <>
+              You are deleting{" "}
+              <strong className="font-semibold text-ink">
+                {expenses.find((e) => e.slug === deletingSlug)?.name ?? "Untitled expense"}
+              </strong>
+              , this can’t be undone.
+            </>
+          ) : null
         }
         confirmLabel="Delete expense"
         pendingLabel="Deleting…"

@@ -23,7 +23,12 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
 
 // Backdrop + a scrollable viewport wrap the popup, so a tall dialog scrolls the
 // page-level overlay rather than trapping its own overflow.
-function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.Props) {
+function DialogContent({
+  className,
+  children,
+  screenKey,
+  ...props
+}: DialogPrimitive.Popup.Props & { screenKey?: string | number }) {
   const open = useContext(DialogOpenContext);
   const [lastOpenChildren, setLastOpenChildren] = useState(children);
   if (open !== false && lastOpenChildren !== children) setLastOpenChildren(children);
@@ -35,6 +40,7 @@ function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.
       />
       <DialogPrimitive.Viewport className="fixed inset-0 z-50 flex justify-center overflow-y-auto sm:p-4 sm:py-10">
         <DialogPrimitive.Popup
+          key={screenKey}
           data-slot="dialog-content"
           className={cn(
             "relative m-auto w-full max-w-lg rounded-none border border-rule/70 bg-surface p-5 text-ink shadow-xl outline-hidden sm:rounded-xl sm:p-6",

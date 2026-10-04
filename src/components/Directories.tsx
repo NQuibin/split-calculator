@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useConvexAuth } from "convex/react";
 import { useQuery } from "@tanstack/react-query";
@@ -8,12 +8,7 @@ import { ChevronRight, Plus, X } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
-import { NewExpenseButton } from "@/components/NewExpenseButton";
-import { UpcomingExpenseIcon, UpcomingExpenseLegend } from "@/components/UpcomingExpenseIcon";
-import { useExpenseList } from "@/lib/expenseSync";
-import { computeSplit } from "@/lib/calculations";
-import { computeExpenseBalances, splitParticipants } from "@/lib/settlements";
-import { isUpcoming, todayISODate } from "@/lib/format";
+import { todayISODate } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { EmptyState, Page } from "@/components/ui/Page";
@@ -21,7 +16,6 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
-import { SearchField } from "@/components/ui/SearchField";
 import {
   Dialog,
   DialogClose,
@@ -107,11 +101,6 @@ function TabsListSkeleton() {
 }
 
 const directoryListClass = `${mobileRaisedSurfaceClass} divide-y divide-rule/70 overflow-hidden border border-rule/70 bg-surface`;
-// The whole row is one link, carrying no actions of its own - so it needs no
-// overlay and no actions track. If a row ever does gain actions, see
-// DESIGN.md § 5, "Interactive rows": a button cannot nest inside this link.
-const directoryRowClass =
-  "group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-4 px-5 py-6 transition-colors hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid-cols-[minmax(0,1fr)_minmax(0,auto)_auto] sm:px-6";
 const tabRowClass =
   "group relative block rounded-xl border border-rule/70 bg-surface px-5 py-6 transition-colors hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_auto] sm:items-center sm:gap-6 sm:rounded-none sm:border-0 sm:px-6 sm:py-8";
 
@@ -261,131 +250,6 @@ function TabDirectoryRow({ tab }: { tab: TabRow }) {
         />
       </Link>
     </li>
-  );
-}
-
-export function ExpensesDirectory() {
-  const { currency, formatExpenseDate } = useLocaleFormatters();
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const { data: remoteRows } = useQuery(
-    convexQuery(api.expenses.directory, isAuthenticated ? {} : "skip"),
-  );
-  const localExpenses = useExpenseList();
-  const [search, setSearch] = useState("");
-  // Signed out, the only expenses that exist are the ones in local storage -
-  // shaped here to match what the server returns for a signed-in user.
-  const localRows = useMemo(
-    () =>
-      localExpenses.map(({ slug, state }) => {
-        const split = computeSplit(state.people, state.items, state.globalAdjustments);
-        const balances = computeExpenseBalances(state.people, split, state.payerId);
-        return {
-          key: `own-${slug}`,
-          kind: "own" as const,
-          slug,
-          tabSlug: undefined,
-          name: state.name,
-          tabName: "Personal expense",
-          // Same "who's actually splitting" rule the server applies for a
-          // signed-in user (see `summarizeExpense` in `convex/expenses.ts`) -
-          // someone added to the split with no share ending up nonzero isn't
-          // really part of it, even though they're still in `state.people`.
-          people: splitParticipants(state.people, balances),
-          itemCount: state.items.length,
-          currency: state.currency,
-          total: split.grandTotal,
-          date: state.date,
-          updatedAt: state.updatedAt ?? 0,
-        };
-      }),
-    [localExpenses],
-  );
-  const loading = isLoading || (isAuthenticated && remoteRows === undefined);
-  const rows = isAuthenticated ? (remoteRows ?? []) : localRows;
-  const filtered = rows.filter((row) =>
-    `${row.name} ${row.tabName}`.toLowerCase().includes(search.trim().toLowerCase()),
-  );
-  return (
-    <Directory
-      title="Expenses"
-      description={
-        isAuthenticated
-          ? "All your expenses across all tabs, together in one place."
-          : "Guest expenses saved in this browser. These stay separate from your account."
-      }
-      action={<NewExpenseButton variant="primary" />}
-    >
-      <SearchField
-        aria-label="Search expenses or tabs"
-        placeholder="Search expenses or tabs…"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        className="mb-5"
-      />
-      {loading ? (
-        <Notice>Loading expenses…</Notice>
-      ) : !filtered.length ? (
-        <Notice>
-          {rows.length
-            ? "No expenses match your search."
-            : "No expenses yet. Split an expense to get started."}
-        </Notice>
-      ) : (
-        <>
-          <ul className={directoryListClass}>
-            {filtered.map((row) => (
-              <li key={row.key}>
-                <Link
-                  {...(row.kind === "own"
-                    ? ({ to: "/e/$slug", params: { slug: row.slug } } as const)
-                    : ({ to: "/t/$slug", params: { slug: row.tabSlug! } } as const))}
-                  className={directoryRowClass}
-                >
-                  <div className="min-w-0">
-                    <SectionTitle>{row.name}</SectionTitle>
-                    <p className="mt-1 text-sm text-ink-soft break-words">{row.tabName}</p>
-                    {/* This list has no date column, so the date rides along under the
-                tab name. The icon only joins it when the expense is still
-                ahead - on its own it would say "later" without saying when. */}
-                    {formatExpenseDate(row.date) && (
-                      <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-soft">
-                        <UpcomingExpenseIcon date={row.date} />
-                        <time dateTime={row.date}>{formatExpenseDate(row.date)}</time>
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      {/* Hidden for the same reason as the tab row above: the
-                          count names the group, and this is all one link. */}
-                      <span aria-hidden="true" className="flex flex-wrap items-center gap-1.5">
-                        {row.people.map((person) => (
-                          <MemberAvatar key={person.id} id={person.id} name={person.name} />
-                        ))}
-                      </span>
-                      <span className="ml-2 text-xs text-ink-soft">
-                        {row.people.length} {row.people.length === 1 ? "person" : "people"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="col-start-1 row-start-2 flex flex-wrap items-center justify-between gap-3 text-sm sm:col-start-2 sm:row-start-1 sm:flex-col sm:items-end sm:gap-2">
-                    <span className="text-ink-soft">
-                      {row.itemCount} {row.itemCount === 1 ? "item" : "items"}
-                    </span>
-                    <span className="font-numeric font-semibold">
-                      {currency(row.total, row.currency)}
-                    </span>
-                  </div>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="col-start-2 row-start-1 h-5 w-5 text-ink-soft chevron-x sm:col-start-3"
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {filtered.some((row) => isUpcoming(row.date)) && <UpcomingExpenseLegend />}
-        </>
-      )}
-    </Directory>
   );
 }
 

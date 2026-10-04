@@ -468,6 +468,21 @@ viewport, `max-w-lg` popup, `rounded-xl border-rule/70 bg-surface`, and
 - Footer: actions right-aligned, `flex justify-end gap-3`, cancel as `secondary`
   to the left of the confirm.
 - Destructive confirmations state what will be lost and use the item's name.
+  For a tab or expense deletion, use “Delete this tab/expense?” and
+  “You are deleting **name**, this can’t be undone.” Render
+  the actual name in bold.
+- A confirmation opened over another modal stays simple: title, description,
+  optional details, and Cancel/confirm actions together in the content. It
+  does not need a fixed header or footer. Cancel closes only the confirmation,
+  leaving the previous modal in place without replaying its open animation.
+- When an action presents a new screen *within the same modal*, put a back
+  button immediately to the left of that screen's title. It returns to the
+  previous screen and has an accessible label naming that destination.
+- Opening a modal, including one over another modal, and changing screens
+  within an open modal (forward or back) use the standard dialog open animation
+  (`fade-in-0 zoom-in-95`, 150ms). Pass a distinct `screenKey` to
+  `DialogContent` for in-place screen changes. Dismissing an overlaid modal
+  does not change the underlying screen key. Keep shared reduced-motion behavior.
 
 ### Navigation
 
@@ -477,8 +492,8 @@ font-semibold text-forest`, inactive = `text-ink-soft hover:bg-rule/20`, with
 `--brass` alone (§ 1).
 
 Expense view selector (`ExpenseViewTabs`): a compact segmented control with
-`inline-flex gap-1 rounded-xl border border-edge bg-field p-1`. Segments use
-`min-h-[calc(2.75rem-10px)] min-w-11 rounded-lg border border-transparent px-4
+`inline-flex gap-1 rounded-full border border-edge bg-field p-1`. Segments use
+`min-h-[calc(2.75rem-10px)] min-w-11 rounded-full px-4
 font-display text-sm font-medium text-ink-soft`; the 34px segment plus group
 padding and border matches the 44px input height. Each segment extends its hit
 area vertically by 5px with an absolutely positioned pseudo-element, preserving
@@ -535,8 +550,8 @@ The shape, as used by `ExpenseLineItem` and the tab expense grid:
   takes a background because "open" is a persistent state rather than a
   pointer hint.
 
-**A row with no actions stays a plain link.** The `/tabs` and `/expenses`
-directory rows are one `<Link>` wrapping the whole row — no overlay, no actions
+**A row with no actions stays a plain link.** The `/tabs` directory rows
+are one `<Link>` wrapping the whole row — no overlay, no actions
 track. Reach for the pattern above only when a row genuinely needs its own
 actions; it exists to make a nested button legal, not because it is the better
 row.
@@ -1000,7 +1015,7 @@ reintroduce them.
 - ~~Sub-44px targets~~: the wordmark, the sidebar sign-in and sign-out
   controls, the currency/date pickers, the currency filters and the Friends
   tab chips. Verified **signed in, with data**, at
-  393×852 across `/tabs`, `/expenses`, `/friends`, `/settings` and a tab
+  393×852 across `/tabs`, `/friends`, `/settings` and a tab
   detail page: no interactive box under 44px. The one exception is a
   breadcrumb crumb (29×36) — inline text links are exempt under WCAG 2.5.8,
   and `crumbLinkClass` grows the hit area as far as it can without changing

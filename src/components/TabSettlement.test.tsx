@@ -5,7 +5,6 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { renderMarkup } from "@/test/render";
 import type { TabExpenseSummary } from "@/lib/tabSync";
-import { ExpenseViewTabs } from "@/components/ExpenseViewTabs";
 
 const mocks = vi.hoisted(() => ({
   results: [] as unknown[],
@@ -464,6 +463,9 @@ test("returns from an expense to its member balance modal", () => {
       ?.click(),
   );
   expect(document.querySelector('[aria-label="Delete this expense?"]')).not.toBeNull();
+  expect(document.querySelector('[aria-label="Delete this expense?"] strong')?.textContent).toBe(
+    "First expense",
+  );
   expect(document.body.textContent).toContain("Delete expense");
   flushSync(() =>
     [...document.querySelectorAll<HTMLButtonElement>("button")]
@@ -482,55 +484,61 @@ test("returns from an expense to its member balance modal", () => {
   container.remove();
 });
 
-test("links to record payment beside payment history and keeps the active view", () => {
-  mocks.results = [{ paid: data, upcoming: data, all: data }];
-  const markup = renderMarkup(
-    createElement(SettlementActions, {
-      slug: "trip",
-      members: [{ id: "viewer", name: "Nikki Q" }],
-      expenseView: "all",
-    }),
+test("opens payment management and keeps the active view on the record link", () => {
+  mocks.results = Array.from({ length: 8 }, () => ({ paid: data, upcoming: data, all: data }));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [{ id: "viewer", name: "Nikki Q" }],
+        expenseView: "all",
+      }),
+    ),
   );
-  expect(markup).toContain('href="/t/trip/payment?view=all"');
-  expect(markup).toContain("Payment history");
-  expect(markup.match(/min-w-0 w-full md:w-auto/g)).toHaveLength(2);
-  expect(markup.match(/<svg/g)).toHaveLength(2);
-});
-
-test("places actions above view controls on mobile and beside them on desktop", () => {
-  const markup = renderMarkup(
-    <ExpenseViewTabs
-      value="paid"
-      onChange={() => undefined}
-      label="Expense view"
-      actions={<span>Actions</span>}
-    >
-      <span>Content</span>
-    </ExpenseViewTabs>,
+  expect(container.textContent).toContain("Manage payments");
+  expect(container.textContent).not.toContain("Payment history");
+  flushSync(() =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("Manage payments"))
+      ?.click(),
   );
-  expect(markup).toContain("flex flex-col md:flex-row md:items-start md:justify-between md:gap-3");
-  expect(markup).toContain("order-2 mb-6");
-  expect(markup).toContain('class="order-1 md:order-none"');
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog?.textContent).toContain("Record payment");
+  expect(dialog?.textContent).toContain("View payment history");
+  expect(dialog?.querySelector('a[href="/t/trip/payment?view=all"]')).not.toBeNull();
+  root.unmount();
 });
 
 test("disables record payment in the upcoming view", () => {
-  mocks.results = [{ paid: data, upcoming: data, all: data }];
-  const markup = renderMarkup(
-    createElement(SettlementActions, {
-      slug: "trip",
-      members: [{ id: "viewer", name: "Nikki Q" }],
-      expenseView: "upcoming",
-    }),
+  mocks.results = Array.from({ length: 8 }, () => ({ paid: data, upcoming: data, all: data }));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [{ id: "viewer", name: "Nikki Q" }],
+        expenseView: "upcoming",
+      }),
+    ),
   );
-  expect(markup).toContain("Record payment");
-  expect(markup).toMatch(/<button[^>]*disabled[^>]*>[\s\S]*?Record payment/);
-  expect(markup).not.toContain('href="/t/trip/payment?view=upcoming"');
-  expect(markup).toContain("Payment history");
+  flushSync(() =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("Manage payments"))
+      ?.click(),
+  );
+  const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog?.querySelector("button[disabled]")?.textContent).toContain("Record payment");
+  expect(dialog?.querySelector('a[href*="/payment"]')).toBeNull();
+  expect(dialog?.textContent).toContain("View payment history");
+  root.unmount();
 });
 
 test("adds top padding when payment history is empty", () => {
   const response = { paid: data, upcoming: data, all: data };
-  mocks.results = [response, response];
+  mocks.results = Array.from({ length: 8 }, () => response);
   const container = document.createElement("div");
   const root = createRoot(container);
   flushSync(() =>
@@ -544,7 +552,12 @@ test("adds top padding when payment history is empty", () => {
   );
   flushSync(() =>
     [...container.querySelectorAll("button")]
-      .find((button) => button.textContent?.includes("Payment history"))
+      .find((button) => button.textContent?.includes("Manage payments"))
+      ?.click(),
+  );
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("View payment history"))
       ?.click(),
   );
   const empty = [...document.querySelectorAll("p")].find(
@@ -617,11 +630,19 @@ test("keeps payment history in its modal", () => {
       }),
     ),
   );
-  const historyButton = [...container.querySelectorAll("button")].find((button) =>
-    button.textContent?.includes("Payment history"),
+  const manageButton = [...container.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Manage payments"),
   );
-  flushSync(() => historyButton?.click());
+  flushSync(() => manageButton?.click());
+  const manageDialog = document.querySelector('[role="dialog"]');
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("View payment history"))
+      ?.click(),
+  );
   const dialog = document.querySelector('[role="dialog"]');
+  expect(dialog).not.toBe(manageDialog);
+  expect(dialog?.className).toContain("animate-in");
   expect(dialog?.textContent).toContain("P2 paid Nikki Q");
   expect(dialog?.textContent).toContain("Nikki Q paid P2");
   expect(dialog?.textContent).toContain("CA$30.00");
@@ -633,17 +654,31 @@ test("keeps payment history in its modal", () => {
   expect(dialog?.querySelectorAll(".min-w-0.flex-1.text-left")).toHaveLength(4);
   expect(dialog?.querySelectorAll(".font-numeric.text-sm.font-semibold")).toHaveLength(4);
   expect(dialog?.querySelector('[aria-label="Close payment history"]')).not.toBeNull();
-  expect(dialog?.querySelectorAll("header")).toHaveLength(1);
-  expect(dialog?.querySelectorAll('time[datetime="2026-09-04"]')).toHaveLength(1);
-  expect(dialog?.querySelectorAll('time[datetime="2026-09-05"]')).toHaveLength(1);
-  const sep5 = dialog?.querySelector('time[datetime="2026-09-05"]')?.closest("li");
+  flushSync(() =>
+    dialog?.querySelector<HTMLButtonElement>('[aria-label="Back to manage payments"]')?.click(),
+  );
+  const returnedDialog = document.querySelector('[role="dialog"]');
+  expect(returnedDialog).not.toBe(dialog);
+  expect(returnedDialog?.className).toContain("animate-in");
+  expect(returnedDialog?.textContent).toContain("View payment history");
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("View payment history"))
+      ?.click(),
+  );
+  const historyDialog = document.querySelector('[role="dialog"]');
+  expect(historyDialog).not.toBe(returnedDialog);
+  expect(historyDialog?.querySelectorAll("header")).toHaveLength(1);
+  expect(historyDialog?.querySelectorAll('time[datetime="2026-09-04"]')).toHaveLength(1);
+  expect(historyDialog?.querySelectorAll('time[datetime="2026-09-05"]')).toHaveLength(1);
+  const sep5 = historyDialog?.querySelector('time[datetime="2026-09-05"]')?.closest("li");
   expect(sep5?.querySelectorAll(":scope > ul > li")).toHaveLength(2);
   expect(sep5?.querySelectorAll("span.rounded-full.border-rule.bg-chip-neutral")).toHaveLength(2);
   expect(sep5?.querySelector("ul.border-t.border-edge")).not.toBeNull();
   expect(sep5?.querySelector("ul.border-b.border-edge")).not.toBeNull();
   expect(sep5?.querySelector("ul.divide-y.divide-rule")).not.toBeNull();
-  expect(dialog?.querySelector(".overflow-y-auto")).not.toBeNull();
-  expect(dialog?.textContent).not.toContain("Done");
+  expect(historyDialog?.querySelector(".overflow-y-auto")).not.toBeNull();
+  expect(historyDialog?.textContent).not.toContain("Done");
   root.unmount();
 });
 
@@ -700,7 +735,12 @@ test("confirms a payment reversal and shows its linked history entry", async () 
   );
   flushSync(() =>
     [...container.querySelectorAll("button")]
-      .find((button) => button.textContent?.includes("Payment history"))
+      .find((button) => button.textContent?.includes("Manage payments"))
+      ?.click(),
+  );
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("View payment history"))
       ?.click(),
   );
   const history = document.querySelector('[role="dialog"]');
@@ -715,18 +755,28 @@ test("confirms a payment reversal and shows its linked history entry", async () 
   );
   expect(confirmDialog).toBeDefined();
   expect(history?.hasAttribute("data-open")).toBe(true);
-  expect(confirmDialog?.querySelector("header")?.textContent).toContain("Reverse this payment?");
-  expect(confirmDialog?.querySelector("header")?.textContent).toContain(
-    "This creates a new payment record",
+  expect(confirmDialog?.querySelector("header, footer")).toBeNull();
+  expect(confirmDialog?.textContent).toContain("Reverse this payment?");
+  expect(confirmDialog?.textContent).toContain("This creates a new payment record");
+  const cancelButton = [
+    ...(confirmDialog?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find((button) => button.textContent?.includes("Cancel"));
+  expect(cancelButton).toBeDefined();
+  flushSync(() => cancelButton?.click());
+  await vi.waitFor(() => expect(confirmDialog?.hasAttribute("data-closed")).toBe(true));
+  expect(document.querySelector('[role="dialog"]')).toBe(history);
+  expect(history?.hasAttribute("data-open")).toBe(true);
+
+  flushSync(() =>
+    history?.querySelector<HTMLButtonElement>('button[aria-label^="Reverse "]')?.click(),
   );
-  expect(
-    confirmDialog?.querySelector("header")?.querySelector("button")?.getAttribute("aria-label"),
-  ).toBe("Back to payment history");
-  expect(confirmDialog?.querySelector("footer")?.textContent).toBe("Reverse payment");
-  expect(confirmDialog?.textContent).not.toContain("Cancel");
-  const reverseButton = confirmDialog?.querySelector<HTMLButtonElement>("footer button");
-  expect(reverseButton?.className).toContain("w-full");
-  expect(reverseButton?.className).toContain("sm:w-auto");
+  const reopenedConfirm = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
+    (dialog) => dialog.textContent?.includes("Reverse this payment?"),
+  );
+  expect(reopenedConfirm).toBeDefined();
+  const reverseButton = [
+    ...(reopenedConfirm?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find((button) => button.textContent?.includes("Reverse payment"));
   flushSync(() => reverseButton?.click());
   await vi.waitFor(() =>
     expect(mocks.reverse).toHaveBeenCalledWith(
@@ -734,8 +784,8 @@ test("confirms a payment reversal and shows its linked history entry", async () 
     ),
   );
   expect(history?.hasAttribute("data-open")).toBe(true);
-  await vi.waitFor(() => expect(confirmDialog?.hasAttribute("data-closed")).toBe(true));
-  expect(confirmDialog?.textContent).toContain("This creates a new payment record");
-  expect(confirmDialog?.textContent).not.toContain("already been reversed");
+  await vi.waitFor(() => expect(reopenedConfirm?.hasAttribute("data-closed")).toBe(true));
+  expect(reopenedConfirm?.textContent).toContain("This creates a new payment record");
+  expect(reopenedConfirm?.textContent).not.toContain("already been reversed");
   root.unmount();
 });

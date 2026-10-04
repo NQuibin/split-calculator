@@ -133,12 +133,14 @@ test("opens item details with adjustments and member shares, then goes back", ()
   const viewItems = [...document.querySelectorAll("button")].find((button) =>
     button.textContent?.includes("View items"),
   );
+  const initialPopup = document.querySelector('[data-slot="dialog-content"][data-open]');
   expect(viewItems).toBeDefined();
   expect(document.body.textContent).not.toContain("Item total");
   flushSync(() => viewItems?.click());
-  const pane = document.querySelector<HTMLElement>('[class*="slide-in-from-right-2"]');
-  expect(pane?.className).toContain("animate-in");
-  expect(pane?.className).toContain("fade-in-0");
+  const itemsPopup = document.querySelector<HTMLElement>('[data-slot="dialog-content"][data-open]');
+  expect(itemsPopup).not.toBe(initialPopup);
+  expect(itemsPopup?.className).toContain("animate-in");
+  expect(itemsPopup?.className).toContain("zoom-in-95");
   expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe("Dinner");
   expect(document.body.textContent).toContain("CAD · 1 item");
   expect(document.body.textContent).toContain("Meal");
@@ -151,9 +153,11 @@ test("opens item details with adjustments and member shares, then goes back", ()
   flushSync(() =>
     document.querySelector<HTMLButtonElement>('[aria-label="Back to expense details"]')?.click(),
   );
-  expect(
-    document.querySelector('[class*="slide-in-from-left-2"][class*="animate-in"]'),
-  ).not.toBeNull();
+  const detailsPopup = document.querySelector<HTMLElement>(
+    '[data-slot="dialog-content"][data-open]',
+  );
+  expect(detailsPopup).not.toBe(itemsPopup);
+  expect(detailsPopup?.className).toContain("animate-in");
   expect(document.body.textContent).toContain("View items");
   expect(document.body.textContent).not.toContain("Item total");
   expect(onBack).not.toHaveBeenCalled();

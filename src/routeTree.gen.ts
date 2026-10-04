@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as SRouteImport } from './routes/s'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -22,11 +21,6 @@ import { Route as TSlugPaymentRouteImport } from './routes/t.$slug.payment'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExpensesRoute = ExpensesRouteImport.update({
-  id: '/expenses',
-  path: '/expenses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FriendsRoute = FriendsRouteImport.update({
@@ -67,7 +61,6 @@ const TSlugPaymentRoute = TSlugPaymentRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/expenses': typeof ExpensesRoute
   '/friends': typeof FriendsRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
@@ -78,7 +71,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/expenses': typeof ExpensesRoute
   '/friends': typeof FriendsRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
@@ -90,7 +82,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/expenses': typeof ExpensesRoute
   '/friends': typeof FriendsRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
@@ -103,7 +94,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/expenses'
     | '/friends'
     | '/s'
     | '/settings'
@@ -114,7 +104,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/expenses'
     | '/friends'
     | '/s'
     | '/settings'
@@ -125,7 +114,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/expenses'
     | '/friends'
     | '/s'
     | '/settings'
@@ -137,7 +125,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ExpensesRoute: typeof ExpensesRoute
   FriendsRoute: typeof FriendsRoute
   SRoute: typeof SRoute
   SettingsRoute: typeof SettingsRoute
@@ -154,13 +141,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/expenses': {
-      id: '/expenses'
-      path: '/expenses'
-      fullPath: '/expenses'
-      preLoaderRoute: typeof ExpensesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/friends': {
@@ -217,7 +197,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ExpensesRoute: ExpensesRoute,
   FriendsRoute: FriendsRoute,
   SRoute: SRoute,
   SettingsRoute: SettingsRoute,

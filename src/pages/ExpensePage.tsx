@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Link, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -43,7 +43,7 @@ export function ExpensePage() {
   const changedIdentity =
     identity !== null && initialIdentity !== null && identity !== initialIdentity;
   useEffect(() => {
-    if (changedIdentity) void navigate({ to: "/expenses", replace: true });
+    if (changedIdentity) void navigate({ to: "/tabs", replace: true });
   }, [changedIdentity, navigate]);
   const { slug } = route.useParams();
   if (identity === null || changedIdentity) return <ExpenseFormSkeleton />;
@@ -149,7 +149,7 @@ function ExpenseEditor() {
         : baseState;
 
   useEffect(() => {
-    if (!loading && state === null) void navigate({ to: "/expenses", replace: true });
+    if (!loading && state === null) void navigate({ to: "/tabs", replace: true });
   }, [loading, state, navigate]);
 
   // A brand-new expense's starting currency defaults to its destination
@@ -196,7 +196,7 @@ function ExpenseEditor() {
 
   function leave() {
     if (destinedTab) void navigate({ to: "/t/$slug", params: { slug: destinedTab.slug } });
-    else void navigate({ to: "/expenses" });
+    else void navigate({ to: "/tabs" });
   }
 
   // The file is only held here - uploading now would strand it in storage if
@@ -264,8 +264,8 @@ function ExpenseEditor() {
             <BreadcrumbCurrent>New Expense</BreadcrumbCurrent>
           ) : (
             [
-              <Link key="root" to={destinedTab ? "/tabs" : "/expenses"} className={crumbLinkClass}>
-                {destinedTab ? "Tabs" : "Expenses"}
+              <Link key="root" to="/tabs" className={crumbLinkClass}>
+                Tabs
               </Link>,
               destinedTab ? (
                 <Link
@@ -431,11 +431,24 @@ function ExpenseEditor() {
           if (!open) setSettingsError(null);
         }}
       >
-        <DialogContent aria-label="Expense settings">
-          <DialogTitle>Expense settings</DialogTitle>
-          <DialogDescription className="mt-1">Manage this expense.</DialogDescription>
+        <DialogContent
+          aria-label="Expense settings"
+          className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
+        >
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-rule/70 p-5 sm:p-6">
+            <div>
+              <DialogTitle>Expense settings</DialogTitle>
+              <DialogDescription className="mt-1">Manage this expense.</DialogDescription>
+            </div>
+            <DialogClose
+              aria-label="Close expense settings"
+              render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+            >
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
           <form
-            className="mt-5"
+            className="flex min-h-0 flex-1 flex-col"
             onSubmit={(event) => {
               event.preventDefault();
               const trimmed = settingsName.trim();
@@ -447,32 +460,41 @@ function ExpenseEditor() {
               setExpenseSettingsOpen(false);
             }}
           >
-            <Field label="Expense name" htmlFor="expense-settings-name">
-              <Input
-                id="expense-settings-name"
-                value={settingsName}
-                aria-invalid={!!settingsError}
-                aria-describedby={settingsError ? "expense-settings-error" : undefined}
-                onChange={(event) => {
-                  setSettingsName(event.target.value);
-                  setSettingsError(null);
-                }}
-              />
-            </Field>
-            {settingsError && <FieldError id="expense-settings-error">{settingsError}</FieldError>}
-            <div className="-mx-5 -mb-5 mt-6 flex flex-col-reverse gap-3 border-t border-rule px-5 py-5 sm:-mx-6 sm:-mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <Button
-                type="button"
-                variant="destructive"
-                size="touch"
-                onClick={() => {
-                  setConfirmDelete(true);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete expense
-              </Button>
-              <div className="grid grid-cols-2 gap-2 sm:flex">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+              <Field label="Expense name" htmlFor="expense-settings-name">
+                <Input
+                  id="expense-settings-name"
+                  value={settingsName}
+                  aria-invalid={!!settingsError}
+                  aria-describedby={settingsError ? "expense-settings-error" : undefined}
+                  onChange={(event) => {
+                    setSettingsName(event.target.value);
+                    setSettingsError(null);
+                  }}
+                />
+              </Field>
+              {settingsError && (
+                <FieldError id="expense-settings-error">{settingsError}</FieldError>
+              )}
+              <section className="mt-6 border-t border-rule pt-5">
+                <h3 className="font-display text-lg font-semibold">Delete expense</h3>
+                <p className="mt-1 text-sm text-ink-soft">
+                  This permanently deletes the expense and its itemized split.
+                </p>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="touch"
+                  className="mt-4 w-full sm:w-auto"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete expense
+                </Button>
+              </section>
+            </div>
+            <footer className="shrink-0 border-t border-rule/70 p-5 sm:p-6">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
                 <DialogClose render={<Button type="button" variant="secondary" size="touch" />}>
                   Cancel
                 </DialogClose>
@@ -480,7 +502,7 @@ function ExpenseEditor() {
                   Save changes
                 </Button>
               </div>
-            </div>
+            </footer>
           </form>
         </DialogContent>
       </Dialog>
@@ -488,7 +510,9 @@ function ExpenseEditor() {
         <DialogContent aria-label="Delete expense">
           <DialogTitle>Delete this expense?</DialogTitle>
           <DialogDescription className="mt-2">
-            This permanently deletes the expense and its itemized split. This can&rsquo;t be undone.
+            You are deleting{" "}
+            <strong className="font-semibold text-ink">{state.name || "Untitled expense"}</strong>,
+            this can&rsquo;t be undone.
           </DialogDescription>
           <div className="mt-6 flex flex-wrap justify-end gap-2">
             <DialogClose render={<Button variant="secondary" size="touch" />}>Cancel</DialogClose>
@@ -499,7 +523,7 @@ function ExpenseEditor() {
               onClick={() => {
                 remove(slug);
                 if (state.tab) void navigate({ to: "/t/$slug", params: { slug: state.tab.slug } });
-                else void navigate({ to: "/expenses" });
+                else void navigate({ to: "/tabs" });
               }}
             >
               Delete expense

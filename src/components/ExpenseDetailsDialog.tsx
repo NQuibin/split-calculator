@@ -57,6 +57,7 @@ export function ExpenseDetailsDialog({
       {expense && split && (
         <DialogContent
           key={expense.slug}
+          screenKey={`${expense.slug}:${showingItems ? "items" : "details"}`}
           aria-label={showingItems ? "Item details for this expense" : "Expense details"}
           className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
         >
@@ -97,10 +98,7 @@ export function ExpenseDetailsDialog({
           </header>
           {showingItems ? (
             <>
-              <div
-                key="items"
-                className="min-h-0 flex-1 overflow-y-auto animate-in fade-in-0 slide-in-from-right-2 duration-150"
-              >
+              <div key="items" className="min-h-0 flex-1 overflow-y-auto">
                 <ul>
                   {split.items.map((item) => {
                     const original = expense.items.find((entry) => entry.id === item.itemId);
@@ -199,10 +197,7 @@ export function ExpenseDetailsDialog({
             </>
           ) : (
             <>
-              <div
-                key="expense"
-                className="min-h-0 flex-1 overflow-y-auto card-inset animate-in fade-in-0 slide-in-from-left-2 duration-150"
-              >
+              <div key="expense" className="min-h-0 flex-1 overflow-y-auto card-inset">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-numeric text-2xl font-semibold">

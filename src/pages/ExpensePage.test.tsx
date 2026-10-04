@@ -34,8 +34,18 @@ vi.mock("@/lib/expenseSync", () => ({
   toExpenseStateArgs: () => ({}),
 }));
 vi.mock("@/components/StageExpense", () => ({
-  StageExpense: ({ currency }: { currency: string }) =>
-    createElement("div", { "data-testid": "expense-form" }, currency),
+  StageExpense: ({ currency, onOpenSettings }: { currency: string; onOpenSettings?: () => void }) =>
+    createElement(
+      "div",
+      { "data-testid": "expense-form" },
+      currency,
+      onOpenSettings &&
+        createElement("button", {
+          type: "button",
+          "aria-label": "Expense settings",
+          onClick: onOpenSettings,
+        }),
+    ),
 }));
 
 import { ExpensePage } from "./ExpensePage";
@@ -82,5 +92,45 @@ test("shows the same skeleton while a saved expense loads", async () => {
   };
   await act(async () => root.render(createElement(ExpensePage)));
   expect(container.querySelector('[data-testid="expense-form"]')?.textContent).toBe("EUR");
+  root.unmount();
+});
+
+test("shows the named delete confirmation from expense settings", async () => {
+  mocks.stored = {
+    stage: "receipt",
+    name: "Dinner",
+    people: [{ id: "p1", name: "Alex" }],
+    mode: "simple",
+    items: [],
+    date: "2026-10-03",
+    currency: "EUR",
+  };
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () => root.render(createElement(ExpensePage)));
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[aria-label="Expense settings"]')?.click(),
+  );
+  const settings = document.querySelector<HTMLElement>(
+    '[role="dialog"][aria-label="Expense settings"]',
+  );
+  expect(settings?.querySelector("header")?.classList.contains("shrink-0")).toBe(true);
+  expect(settings?.querySelector(".overflow-y-auto")).not.toBeNull();
+  expect(settings?.querySelector(".overflow-y-auto section button")?.textContent).toContain(
+    "Delete expense",
+  );
+  await act(async () =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("Delete expense"))
+      ?.click(),
+  );
+
+  const confirmation = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
+    (dialog) => dialog.getAttribute("aria-label") === "Delete expense",
+  );
+  expect(confirmation?.textContent).toContain("Delete this expense?");
+  expect(confirmation?.querySelector("strong")?.textContent).toBe("Dinner");
+  expect(confirmation?.textContent).toContain("You are deleting Dinner, this can’t be undone.");
   root.unmount();
 });

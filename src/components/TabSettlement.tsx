@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { Banknote, ChevronRight, History, Undo2, X } from "lucide-react";
+import { ArrowLeft, Banknote, ChevronRight, History, Undo2, X } from "lucide-react";
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
@@ -461,9 +461,16 @@ export function TabSettlement({
         }}
         title="Delete this expense?"
         description={
-          deletingExpenseSlug
-            ? `“${expenses.find((expense) => expense.slug === deletingExpenseSlug)?.name ?? "Untitled expense"}” and its itemized split will be deleted permanently. This can’t be undone.`
-            : null
+          deletingExpenseSlug ? (
+            <>
+              You are deleting{" "}
+              <strong className="font-semibold text-ink">
+                {expenses.find((expense) => expense.slug === deletingExpenseSlug)?.name ??
+                  "Untitled expense"}
+              </strong>
+              , this can’t be undone.
+            </>
+          ) : null
         }
         confirmLabel="Delete expense"
         pendingLabel="Deleting…"
@@ -488,7 +495,7 @@ export function SettlementActions({
   expenseView: ExpenseView;
   response?: TabSettlementResponse;
 }) {
-  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const [paymentDialogView, setPaymentDialogView] = useState<"manage" | "history" | null>(null);
   const [paymentToReverse, setPaymentToReverse] = useState<
     SettlementSummaryData["history"][number] | null
   >(null);
@@ -521,175 +528,233 @@ export function SettlementActions({
   return (
     <>
       <Button
-        variant="secondary"
         size="touch"
-        className="min-w-0 w-full md:w-auto"
-        onClick={() => setPaymentHistoryOpen(true)}
+        className="flex-1 md:flex-none"
+        onClick={() => setPaymentDialogView("manage")}
       >
-        <History aria-hidden="true" className="h-4 w-4" />
-        Payment history
+        <Banknote aria-hidden="true" className="h-4 w-4" />
+        Manage payments
       </Button>
-      {expenseView !== "upcoming" && canRecordPayment ? (
-        <Button
-          size="touch"
-          nativeButton={false}
-          className="min-w-0 w-full md:w-auto"
-          render={<Link to="/t/$slug/payment" params={{ slug }} search={{ view: expenseView }} />}
+      <Dialog
+        open={paymentDialogView !== null}
+        onOpenChange={(open) => {
+          if (!open) setPaymentDialogView(null);
+        }}
+      >
+        <DialogContent
+          screenKey={paymentDialogView ?? undefined}
+          className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
         >
-          <Banknote aria-hidden="true" className="h-4 w-4" />
-          Record payment
-        </Button>
-      ) : (
-        <Button size="touch" className="min-w-0 w-full md:w-auto" disabled>
-          <Banknote aria-hidden="true" className="h-4 w-4" />
-          Record payment
-        </Button>
-      )}
-      <Dialog open={paymentHistoryOpen} onOpenChange={setPaymentHistoryOpen}>
-        <DialogContent className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0">
-          <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <DialogTitle>Payment history</DialogTitle>
-                <DialogDescription className="mt-1">
-                  {data.history.length} recorded{" "}
-                  {data.history.length === 1 ? "payment" : "payments"}.
-                </DialogDescription>
-              </div>
-              <DialogClose
-                aria-label="Close payment history"
-                render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
-              >
-                <X aria-hidden="true" />
-              </DialogClose>
-            </div>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto card-inset pt-0">
-            {data.history.length === 0 ? (
-              <p className="pt-5 text-sm text-ink-soft sm:pt-6">No payments recorded.</p>
-            ) : (
-              <ul className="bleed bg-field">
-                {[...historyByDate].map(([date, payments]) => {
-                  const currencyGroups = [
-                    ...payments.reduce<Map<string, typeof payments>>((groups, payment) => {
-                      const group = groups.get(payment.currency) ?? [];
-                      group.push(payment);
-                      groups.set(payment.currency, group);
-                      return groups;
-                    }, new Map()),
-                  ];
-                  return (
-                    <li key={date}>
-                      <h3 className="bleed-px border-b border-rule bg-surface py-2 text-sm font-semibold text-ink">
-                        <time dateTime={date}>{formatExpenseDate(date) ?? date}</time>
-                      </h3>
-                      <ul className="bg-field">
-                        {currencyGroups.map(([currencyCode, currencyPayments], groupIndex) => (
-                          <li
-                            key={currencyCode}
-                            className={groupIndex > 0 ? "border-t border-rule" : ""}
-                          >
-                            <div className="flex justify-start bg-surface py-2 bleed-px">
-                              <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                                {currencyCode}
-                              </span>
-                            </div>
-                            <ul
-                              className={`divide-y divide-rule ${groupIndex === 0 ? "border-t border-edge" : ""} ${groupIndex === currencyGroups.length - 1 ? "border-b border-edge" : ""}`}
-                            >
-                              {currencyPayments.map((payment) => {
-                                const payerName =
-                                  members.find((member) => member.id === payment.fromMemberId)
-                                    ?.name ?? "Former member";
-                                const recipientName =
-                                  members.find((member) => member.id === payment.toMemberId)
-                                    ?.name ?? "Former member";
-                                const originalPayment = data.history.find(
-                                  (original) => original.id === payment.reversalOf,
-                                );
-                                const originalPayerName = originalPayment
-                                  ? (members.find(
-                                      (member) => member.id === originalPayment.fromMemberId,
-                                    )?.name ?? "Former member")
-                                  : payerName;
-                                const originalRecipientName = originalPayment
-                                  ? (members.find(
-                                      (member) => member.id === originalPayment.toMemberId,
-                                    )?.name ?? "Former member")
-                                  : recipientName;
-                                return (
-                                  <li
-                                    key={payment.id}
-                                    className="flex min-w-0 items-center gap-3 py-3 bleed-px"
-                                  >
-                                    {payment.reversalOf ? (
-                                      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-margin-red-ink">
-                                        <Undo2 aria-hidden="true" className="size-5" />
-                                      </span>
-                                    ) : (
-                                      <MemberAvatar
-                                        id={payment.fromMemberId}
-                                        name={payerName}
-                                        size="md"
-                                      />
-                                    )}
-                                    <div className="min-w-0 flex-1 text-left">
-                                      <p className="break-words text-sm text-ink">
-                                        <span className="font-medium">
-                                          {payment.reversalOf ? originalPayerName : payerName}
-                                        </span>{" "}
-                                        {payment.reversalOf ? "reversed payment to" : "paid"}{" "}
-                                        <span className="font-medium">
-                                          {payment.reversalOf
-                                            ? originalRecipientName
-                                            : recipientName}
-                                        </span>
-                                      </p>
-                                      {(payment.view === "upcoming" ||
-                                        payment.reversed ||
-                                        payment.reversalOf) && (
-                                        <p className="mt-1 text-xs text-ink-soft">
-                                          {payment.view === "upcoming" && "Upcoming expenses"}
-                                          {payment.view === "upcoming" &&
-                                            (payment.reversed || payment.reversalOf) &&
-                                            " · "}
-                                          {payment.reversalOf
-                                            ? `Reverses ${currency(payment.amount, payment.currency)} payment from ${formatExpenseDate(originalPayment?.date) ?? "original date"}`
-                                            : payment.reversed
-                                              ? `Reversed${payment.reversedAt ? ` ${new Date(payment.reversedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}` : ""}`
-                                              : null}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <span
-                                      className={`shrink-0 font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
-                                    >
-                                      {payment.reversalOf && "−"}
-                                      {currency(payment.amount, payment.currency)}
-                                    </span>
-                                    {!payment.reversalOf && !payment.reversed && (
-                                      <Button
-                                        variant="quiet-icon"
-                                        size="icon-touch"
-                                        aria-label={`Reverse ${currency(payment.amount, payment.currency)} payment from ${payerName} to ${recipientName}`}
-                                        onClick={() => setPaymentToReverse(payment)}
+          {paymentDialogView === "history" ? (
+            <>
+              <header className="shrink-0 border-b border-rule/70 bg-surface p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon-touch"
+                      aria-label="Back to manage payments"
+                      autoFocus
+                      onClick={() => setPaymentDialogView("manage")}
+                    >
+                      <ArrowLeft aria-hidden="true" />
+                    </Button>
+                    <div className="min-w-0">
+                      <DialogTitle>Payment history</DialogTitle>
+                      <DialogDescription className="mt-1">
+                        {data.history.length} recorded{" "}
+                        {data.history.length === 1 ? "payment" : "payments"}.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <DialogClose
+                    aria-label="Close payment history"
+                    render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+                  >
+                    <X aria-hidden="true" />
+                  </DialogClose>
+                </div>
+              </header>
+              <div className="min-h-0 flex-1 overflow-y-auto card-inset pt-0">
+                {data.history.length === 0 ? (
+                  <p className="pt-5 text-sm text-ink-soft sm:pt-6">No payments recorded.</p>
+                ) : (
+                  <ul className="bleed bg-field">
+                    {[...historyByDate].map(([date, payments]) => {
+                      const currencyGroups = [
+                        ...payments.reduce<Map<string, typeof payments>>((groups, payment) => {
+                          const group = groups.get(payment.currency) ?? [];
+                          group.push(payment);
+                          groups.set(payment.currency, group);
+                          return groups;
+                        }, new Map()),
+                      ];
+                      return (
+                        <li key={date}>
+                          <h3 className="bleed-px border-b border-rule bg-surface py-2 text-sm font-semibold text-ink">
+                            <time dateTime={date}>{formatExpenseDate(date) ?? date}</time>
+                          </h3>
+                          <ul className="bg-field">
+                            {currencyGroups.map(([currencyCode, currencyPayments], groupIndex) => (
+                              <li
+                                key={currencyCode}
+                                className={groupIndex > 0 ? "border-t border-rule" : ""}
+                              >
+                                <div className="flex justify-start bg-surface py-2 bleed-px">
+                                  <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
+                                    {currencyCode}
+                                  </span>
+                                </div>
+                                <ul
+                                  className={`divide-y divide-rule ${groupIndex === 0 ? "border-t border-edge" : ""} ${groupIndex === currencyGroups.length - 1 ? "border-b border-edge" : ""}`}
+                                >
+                                  {currencyPayments.map((payment) => {
+                                    const payerName =
+                                      members.find((member) => member.id === payment.fromMemberId)
+                                        ?.name ?? "Former member";
+                                    const recipientName =
+                                      members.find((member) => member.id === payment.toMemberId)
+                                        ?.name ?? "Former member";
+                                    const originalPayment = data.history.find(
+                                      (original) => original.id === payment.reversalOf,
+                                    );
+                                    const originalPayerName = originalPayment
+                                      ? (members.find(
+                                          (member) => member.id === originalPayment.fromMemberId,
+                                        )?.name ?? "Former member")
+                                      : payerName;
+                                    const originalRecipientName = originalPayment
+                                      ? (members.find(
+                                          (member) => member.id === originalPayment.toMemberId,
+                                        )?.name ?? "Former member")
+                                      : recipientName;
+                                    return (
+                                      <li
+                                        key={payment.id}
+                                        className="flex min-w-0 items-center gap-3 py-3 bleed-px"
                                       >
-                                        <Undo2 aria-hidden="true" className="size-5" />
-                                      </Button>
-                                    )}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                                        {payment.reversalOf ? (
+                                          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-margin-red-ink">
+                                            <Undo2 aria-hidden="true" className="size-5" />
+                                          </span>
+                                        ) : (
+                                          <MemberAvatar
+                                            id={payment.fromMemberId}
+                                            name={payerName}
+                                            size="md"
+                                          />
+                                        )}
+                                        <div className="min-w-0 flex-1 text-left">
+                                          <p className="break-words text-sm text-ink">
+                                            <span className="font-medium">
+                                              {payment.reversalOf ? originalPayerName : payerName}
+                                            </span>{" "}
+                                            {payment.reversalOf ? "reversed payment to" : "paid"}{" "}
+                                            <span className="font-medium">
+                                              {payment.reversalOf
+                                                ? originalRecipientName
+                                                : recipientName}
+                                            </span>
+                                          </p>
+                                          {(payment.view === "upcoming" ||
+                                            payment.reversed ||
+                                            payment.reversalOf) && (
+                                            <p className="mt-1 text-xs text-ink-soft">
+                                              {payment.view === "upcoming" && "Upcoming expenses"}
+                                              {payment.view === "upcoming" &&
+                                                (payment.reversed || payment.reversalOf) &&
+                                                " · "}
+                                              {payment.reversalOf
+                                                ? `Reverses ${currency(payment.amount, payment.currency)} payment from ${formatExpenseDate(originalPayment?.date) ?? "original date"}`
+                                                : payment.reversed
+                                                  ? `Reversed${payment.reversedAt ? ` ${new Date(payment.reversedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}` : ""}`
+                                                  : null}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <span
+                                          className={`shrink-0 font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
+                                        >
+                                          {payment.reversalOf && "−"}
+                                          {currency(payment.amount, payment.currency)}
+                                        </span>
+                                        {!payment.reversalOf && !payment.reversed && (
+                                          <Button
+                                            variant="quiet-icon"
+                                            size="icon-touch"
+                                            aria-label={`Reverse ${currency(payment.amount, payment.currency)} payment from ${payerName} to ${recipientName}`}
+                                            onClick={() => setPaymentToReverse(payment)}
+                                          >
+                                            <Undo2 aria-hidden="true" className="size-5" />
+                                          </Button>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <header className="flex shrink-0 items-start justify-between gap-3 border-b border-rule/70 p-5 sm:p-6">
+                <div className="min-w-0">
+                  <DialogTitle>Manage payments</DialogTitle>
+                  <DialogDescription className="mt-1">
+                    Record a payment or review past payments.
+                  </DialogDescription>
+                </div>
+                <DialogClose
+                  aria-label="Close manage payments"
+                  render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
+                >
+                  <X aria-hidden="true" />
+                </DialogClose>
+              </header>
+              <div className="grid gap-3 p-5 sm:p-6">
+                {expenseView !== "upcoming" && canRecordPayment ? (
+                  <Button
+                    size="touch"
+                    nativeButton={false}
+                    autoFocus
+                    className="w-full justify-start"
+                    render={
+                      <Link
+                        to="/t/$slug/payment"
+                        params={{ slug }}
+                        search={{ view: expenseView }}
+                      />
+                    }
+                  >
+                    <Banknote aria-hidden="true" className="h-4 w-4" />
+                    Record payment
+                  </Button>
+                ) : (
+                  <Button size="touch" className="w-full justify-start" disabled>
+                    <Banknote aria-hidden="true" className="h-4 w-4" />
+                    Record payment
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  size="touch"
+                  autoFocus={expenseView === "upcoming" || !canRecordPayment}
+                  className="w-full justify-start"
+                  onClick={() => setPaymentDialogView("history")}
+                >
+                  <History aria-hidden="true" className="h-4 w-4" />
+                  View payment history
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       <ConfirmDialog
@@ -698,7 +763,6 @@ export function SettlementActions({
           if (!open) setPaymentToReverse(null);
         }}
         title="Reverse this payment?"
-        backButton
         description={
           selectedPayment
             ? `This creates a new payment record to reverse the ${currency(selectedPayment.amount, selectedPayment.currency)} payment from ${selectedPayerName} to ${selectedRecipientName}.`

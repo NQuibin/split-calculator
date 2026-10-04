@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -24,7 +24,6 @@ export function ConfirmDialog({
   title,
   description,
   details,
-  backButton = false,
   confirmLabel,
   pendingLabel,
   onConfirm,
@@ -34,7 +33,6 @@ export function ConfirmDialog({
   title: string;
   description: ReactNode;
   details?: ReactNode;
-  backButton?: boolean;
   confirmLabel: string;
   pendingLabel?: string;
   onConfirm: () => void | Promise<void>;
@@ -60,7 +58,6 @@ export function ConfirmDialog({
       type="button"
       variant="destructive"
       size="touch"
-      className={backButton ? "w-full sm:w-auto" : undefined}
       disabled={pending}
       aria-busy={pending}
       onClick={handleConfirm}
@@ -84,43 +81,17 @@ export function ConfirmDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent aria-label={title} className={backButton ? "p-0 sm:p-0" : undefined}>
-        {backButton ? (
-          <>
-            <header className="flex items-start gap-2 border-b border-rule p-5 sm:p-6">
-              <DialogClose
-                disabled={pending}
-                aria-label="Back to payment history"
-                render={<Button variant="ghost" size="icon-touch" className="-ml-2" />}
-              >
-                <ArrowLeft aria-hidden="true" />
-              </DialogClose>
-              <div className="min-w-0 pt-2">
-                <DialogTitle>{title}</DialogTitle>
-                <DialogDescription className="mt-2">{description}</DialogDescription>
-              </div>
-            </header>
-            <div className="p-5 sm:p-6">
-              {details}
-              {errorMessage}
-            </div>
-            <footer className="flex justify-end border-t border-rule p-5 sm:p-6">
-              {confirmButton}
-            </footer>
-          </>
-        ) : (
-          <>
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription className="mt-2">{description}</DialogDescription>
-            {errorMessage}
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <DialogClose disabled={pending} render={<Button variant="secondary" size="touch" />}>
-                Cancel
-              </DialogClose>
-              {confirmButton}
-            </div>
-          </>
-        )}
+      <DialogContent aria-label={title}>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription className="mt-2">{description}</DialogDescription>
+        {details && <div className="mt-5">{details}</div>}
+        {errorMessage}
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <DialogClose disabled={pending} render={<Button variant="secondary" size="touch" />}>
+            Cancel
+          </DialogClose>
+          {confirmButton}
+        </div>
       </DialogContent>
     </Dialog>
   );

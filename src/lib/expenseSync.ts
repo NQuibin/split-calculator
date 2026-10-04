@@ -175,7 +175,7 @@ export function useStoredExpense(slug: string): { state: ExpenseState | null; lo
   if (authLoading) return { state: null, loading: true };
   if (isAuthenticated) return { state: remoteState ?? null, loading: remoteState === undefined };
   // Stay loading until that check lands, so a guest following someone else's
-  // link doesn't get bounced to /expenses before the refusal arrives.
+  // link doesn't get bounced to /tabs before the refusal arrives.
   return { state: localState, loading: !localState && remoteState === undefined };
 }
 
