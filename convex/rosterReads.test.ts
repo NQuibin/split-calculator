@@ -52,6 +52,41 @@ test("every read follows the rows", async () => {
   ).toEqual(["Alex"]);
 });
 
+test("the friends directory includes only claimed members and their shared tabs", async () => {
+  const { t, user } = await setup();
+  await user.mutation(api.tabs.create, { slug: "weekend", name: "Weekend", memberNames: ["Sam"] });
+
+  expect(await user.query(api.tabs.friends)).toEqual([]);
+
+  const samId = await t.run((ctx) => ctx.db.insert("users", { name: "Sam" }));
+  const sam = t.withIdentity({ subject: `${samId}|session` });
+  const tokens = await t.run(async (ctx) =>
+    Promise.all(
+      (await ctx.db.query("tabMembers").collect())
+        .filter((seat) => seat.name === "Sam")
+        .map(async (seat) => ({
+          slug: (await ctx.db.get(seat.tabId))!.slug,
+          token: seat.inviteToken,
+        })),
+    ),
+  );
+  for (const { slug, token } of tokens) {
+    await sam.mutation(api.tabs.claimMember, { slug, token });
+  }
+
+  expect(await user.query(api.tabs.friends)).toEqual([
+    {
+      id: samId,
+      name: "Sam",
+      claimed: true,
+      tabs: [
+        { slug: "trip", name: "Trip" },
+        { slug: "weekend", name: "Weekend" },
+      ],
+    },
+  ]);
+});
+
 test("a token only opens the tab if a row holds it", async () => {
   const { t } = await setup();
 

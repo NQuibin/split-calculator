@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+<title id="title">Friends directory desktop mockup</title>
+<desc id="desc">Ventura Friends page showing only named account holders. Each friend lists every shared tab by name.</desc>
+<rect width="1440" height="900" fill="#edf1e4"/>
+<rect width="240" height="900" fill="#f7f5ec"/>
+<path d="M240 0v900" stroke="#ccd5bd"/>
+<text x="32" y="66" font-family="Space Grotesk, sans-serif" font-size="28" font-weight="600" fill="#7a611f">ventura</text>
+<g font-family="IBM Plex Sans, sans-serif" font-size="14">
+<text x="56" y="155" fill="#4b5a4f">▤  Tabs</text>
+<rect x="16" y="179" width="208" height="48" rx="12" fill="#e6ebdc"/>
+<text x="56" y="209" fill="#2f4a3c" font-weight="600">◉  Friends</text>
+<text x="56" y="267" fill="#4b5a4f">⚙  Settings</text>
+</g>
+<text x="304" y="122" font-family="Space Grotesk, sans-serif" font-size="30" font-weight="600" fill="#1e2a22">Friends</text>
+<text x="304" y="152" font-family="IBM Plex Sans, sans-serif" font-size="14" fill="#4b5a4f">People you share tabs with</text>
+<text x="304" y="220" font-family="Space Grotesk, sans-serif" font-size="18" font-weight="600" fill="#1e2a22">Your friends</text>
+<text x="1260" y="220" font-family="IBM Plex Mono, monospace" font-size="12" fill="#4b5a4f">3 PEOPLE</text>
+<rect x="304" y="244" width="1072" height="486" rx="12" fill="#f7f5ec" stroke="#ccd5bd"/>
+<path d="M304 406h1072M304 568h1072" stroke="#ccd5bd"/>
+<g font-family="IBM Plex Sans, sans-serif">
+<circle cx="356" cy="325" r="24" fill="#dbe4d6"/><text x="356" y="332" text-anchor="middle" font-size="16" font-weight="600" fill="#2f4a3c">AM</text>
+<text x="400" y="318" font-size="18" font-weight="600" fill="#1e2a22">Alex Morgan</text>
+<text x="400" y="343" font-size="12" fill="#4b5a4f">3 shared tabs</text>
+<text x="720" y="287" font-size="12" font-weight="600" fill="#4b5a4f">TABS YOU SHARE</text>
+<rect x="720" y="306" width="152" height="44" rx="8" fill="#fffdf6" stroke="#788576"/><text x="736" y="333" font-size="14" fill="#2f4a3c">Cottage Weekend  ›</text>
+<rect x="884" y="306" width="120" height="44" rx="8" fill="#fffdf6" stroke="#788576"/><text x="900" y="333" font-size="14" fill="#2f4a3c">Household  ›</text>
+<rect x="1016" y="306" width="140" height="44" rx="8" fill="#fffdf6" stroke="#788576"/><text x="1032" y="333" font-size="14" fill="#2f4a3c">Friday Dinner  ›</text>
+<circle cx="356" cy="487" r="24" fill="#e9dfc5"/><text x="356" y="494" text-anchor="middle" font-size="16" font-weight="600" fill="#7a611f">JL</text>
+<text x="400" y="480" font-size="18" font-weight="600" fill="#1e2a22">Jordan Lee</text>
+<text x="400" y="505" font-size="12" fill="#4b5a4f">2 shared tabs</text>
+<rect x="720" y="468" width="152" height="44" rx="8" fill="#fffdf6" stroke="#788576"/><text x="736" y="495" font-size="14" fill="#2f4a3c">Cottage Weekend  ›</text>
+<rect x="884" y="468" width="140" height="44" rx="8" fill="#fffdf6" stroke="#788576"/><text x="900" y="495" font-size="14" fill="#2f4a3c">Friday Dinner  ›</text>
+<circle cx="356" cy="649" r="24" fill="#dce5e3"/><text x="356" y="656" text-anchor="middle" font-size="16" font-weight="600" fill="#2f4a3c">SP</text>
+<text x="400" y="642" font-size="18" font-weight="600" fill="#1e2a22">Sam Patel</text>
+<text x="400" y="667" font-size="12" fill="#4b5a4f">1 shared tab</text>
+<rect x="720" y="630" width="120" height="44" rx="8" fill="#fffdf6" stroke="#788576"/><text x="736" y="657" font-size="14" fill="#2f4a3c">Household  ›</text>
+</g>
+</svg>

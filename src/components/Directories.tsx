@@ -4,7 +4,7 @@ import { useConvexAuth } from "convex/react";
 import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import type { FunctionReturnType } from "convex/server";
-import { ChevronRight, Plus, X } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { CreateTabMenu } from "@/components/CreateTabMenu";
@@ -14,16 +14,6 @@ import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typogr
 import { EmptyState, Page } from "@/components/ui/Page";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
-import { Button } from "@/components/ui/Button";
-import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/Dialog";
 
 function Directory({
   title,
@@ -100,7 +90,6 @@ function TabsListSkeleton() {
   );
 }
 
-const directoryListClass = `${mobileRaisedSurfaceClass} divide-y divide-rule/70 overflow-hidden border border-rule/70 bg-surface`;
 const tabRowClass =
   "group relative block rounded-xl border border-rule/70 bg-surface px-5 py-6 transition-colors hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_auto] sm:items-center sm:gap-6 sm:rounded-none sm:border-0 sm:px-6 sm:py-8";
 
@@ -253,81 +242,79 @@ function TabDirectoryRow({ tab }: { tab: TabRow }) {
   );
 }
 
-/**
- * One friend. The shared tabs used to sit inline as chips, which disappeared
- * against the card and wrapped badly once someone shared more than two or
- * three. They live behind a dialog now: the row states the count, the dialog
- * lists them — the same shape as the tab page's member roster.
- */
+function FriendsListSkeleton() {
+  return (
+    <ul
+      role="status"
+      aria-label="Loading friends"
+      className="space-y-4 sm:space-y-0 sm:overflow-hidden sm:rounded-xl sm:border sm:border-rule/70"
+    >
+      {[3, 2].map((count) => (
+        <li
+          key={count}
+          aria-hidden="true"
+          className={`${mobileRaisedSurfaceClass} card-inset border border-rule/70 bg-surface sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-6 sm:border-x-0 sm:border-t-0 sm:border-b sm:last:border-b-0`}
+        >
+          <div className="flex items-center gap-3">
+            <Skeleton className="size-11 shrink-0 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32 rounded-md" />
+              <Skeleton className="h-3 w-20 rounded-md" />
+            </div>
+          </div>
+          <div className="mt-5 sm:mt-0">
+            <Skeleton className="mb-3 h-3 w-24 rounded-md" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {["first", "second", "third"].slice(0, count).map((row) => (
+                <Skeleton key={row} className="h-11 rounded-md" />
+              ))}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function FriendRow({
   id,
   name,
-  claimed,
   tabs,
 }: {
   id: string;
   name: string;
-  claimed: boolean;
   tabs: { slug: string; name: string }[];
 }) {
-  const [open, setOpen] = useState(false);
-  const count = `${tabs.length} shared ${tabs.length === 1 ? "tab" : "tabs"}`;
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-5 sm:flex-nowrap sm:px-6">
-      <MemberAvatar id={id} name={name} className={claimed ? "" : "opacity-60"} />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+    <li
+      className={`${mobileRaisedSurfaceClass} card-inset border border-rule/70 bg-surface sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] sm:gap-6 sm:border-x-0 sm:border-t-0 sm:border-b sm:last:border-b-0`}
+    >
+      <div className="flex min-w-0 items-center gap-3 sm:self-start">
+        <MemberAvatar id={id} name={name} size="lg" />
+        <div className="min-w-0">
           <SectionTitle>{name}</SectionTitle>
-          {!claimed && <AnonymousBadge />}
+          <p className="mt-1 text-xs text-ink-soft">
+            {tabs.length} shared {tabs.length === 1 ? "tab" : "tabs"}
+          </p>
         </div>
       </div>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger
-          render={
-            <Button
-              type="button"
-              variant="secondary"
-              size="touch"
-              aria-label={`View the ${count} with ${name}`}
-              className="w-full justify-between sm:w-auto sm:justify-center"
-            />
-          }
-        >
-          {count}
-        </DialogTrigger>
-        <DialogContent className="max-w-sm">
-          <div className="mb-2 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <DialogTitle>{name}</DialogTitle>
-              <DialogDescription className="mt-1">Tabs you both belong to</DialogDescription>
-            </div>
-            <DialogClose
-              aria-label="Close"
-              render={<Button variant="ghost" size="icon-touch" className="text-ink-soft" />}
-            >
-              <X className="h-4 w-4" />
-            </DialogClose>
-          </div>
-          <ul className="mt-4 overflow-hidden rounded-lg border border-edge bg-field">
-            {tabs.map((tab) => (
-              <li key={tab.slug} className="border-b border-rule/70 last:border-b-0">
-                <Link
-                  to="/t/$slug"
-                  params={{ slug: tab.slug }}
-                  onClick={() => setOpen(false)}
-                  className="group flex min-h-11 items-center justify-between gap-3 px-4 py-3 text-sm text-ink transition hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest"
-                >
-                  <span className="min-w-0 break-words font-medium">{tab.name}</span>
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="h-4 w-4 shrink-0 text-ink-soft chevron-x"
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </DialogContent>
-      </Dialog>
+      <div className="mt-5 min-w-0 sm:mt-0">
+        <p className="mb-3 text-xs font-semibold text-ink-soft">TABS YOU SHARE</p>
+        <ul className="bleed divide-y divide-rule border-y border-edge bg-field sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-3 sm:divide-y-0 sm:border-0 sm:bg-transparent lg:grid-cols-3">
+          {tabs.map((tab) => (
+            <li key={tab.slug} className="min-w-0">
+              <Link
+                to="/t/$slug"
+                params={{ slug: tab.slug }}
+                className="group flex min-h-11 min-w-0 items-center justify-between gap-2 py-3 text-sm text-forest transition hover:bg-wash active:bg-wash focus-visible:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest bleed-px sm:rounded-md sm:border sm:border-edge sm:bg-field sm:px-3"
+              >
+                <span className="min-w-0 break-words">{tab.name}</span>
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 chevron-x" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
     </li>
   );
 }
@@ -336,27 +323,19 @@ export function FriendsDirectory() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { data: people } = useQuery(convexQuery(api.tabs.friends, isAuthenticated ? {} : "skip"));
   const loading = isLoading || (isAuthenticated && people === undefined);
+  const friends = people?.filter((person) => person.claimed);
   return (
-    <Directory
-      title="Friends"
-      description="The people you share tabs with. Anonymous friends haven’t claimed an invite yet."
-    >
+    <Directory title="Friends" description="People you share tabs with.">
       {loading ? (
-        <Notice>Loading friends…</Notice>
+        <FriendsListSkeleton />
       ) : !isAuthenticated ? (
         <Notice>Sign in to see your friends across tabs.</Notice>
-      ) : !people?.length ? (
-        <Notice>Friends will appear here when you create or join a tab.</Notice>
+      ) : !friends?.length ? (
+        <Notice>Friends with accounts will appear here when you share a tab.</Notice>
       ) : (
-        <ul className={directoryListClass}>
-          {people.map(({ id, ...person }) => (
-            <FriendRow
-              key={id}
-              id={id}
-              name={person.name}
-              claimed={person.claimed}
-              tabs={person.tabs}
-            />
+        <ul className="space-y-4 sm:space-y-0 sm:overflow-hidden sm:rounded-xl sm:border sm:border-rule/70">
+          {friends.map(({ id, ...person }) => (
+            <FriendRow key={id} id={id} name={person.name} tabs={person.tabs} />
           ))}
         </ul>
       )}

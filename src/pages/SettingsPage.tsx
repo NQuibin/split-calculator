@@ -1,13 +1,14 @@
 import { type FormEvent, useState } from "react";
 import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
-import { Banknote, Check, Coins, Loader2, UserRound } from "lucide-react";
+import { Banknote, Check, Loader2, Mail, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
-import { Field, Input, Label } from "@/components/ui/Input";
+import { Field, Input } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DEFAULT_CURRENCY } from "@/lib/currencies";
 import { api } from "../../convex/_generated/api";
 import { EmptyState, Page, Panel } from "@/components/ui/Page";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export function SettingsPage() {
   return (
@@ -18,70 +19,77 @@ export function SettingsPage() {
       </header>
 
       <AuthLoading>
-        <EmptyState>Loading settings…</EmptyState>
+        <SettingsSkeleton />
       </AuthLoading>
       <Unauthenticated>
         <EmptyState status={false}>Sign in to manage your settings.</EmptyState>
       </Unauthenticated>
       <Authenticated>
-        <Panel className="divide-y divide-rule/70">
-          <NameSettings />
-          <DefaultCurrencySettings />
-        </Panel>
+        <SettingsContent />
       </Authenticated>
     </Page>
   );
 }
 
-function NameSettings() {
-  const viewer = useQuery(api.users.viewer);
-  if (viewer === undefined) return null;
-  return <NameForm key={viewer?._id} initialName={viewer?.name ?? ""} email={viewer?.email} />;
-}
-
-function DefaultCurrencySettings() {
-  const viewer = useQuery(api.users.viewer);
-  const updateDefaultCurrency = useMutation(api.users.updateDefaultCurrency);
-  const [saved, setSaved] = useState(false);
-
-  if (viewer === undefined) return null;
-  const currency = viewer?.defaultCurrency ?? DEFAULT_CURRENCY;
-
-  async function handleChange(code: string) {
-    await updateDefaultCurrency({ currency: code });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
-
+function SettingsSkeleton() {
   return (
-    <div className="px-5 py-6 sm:px-6">
-      <SectionTitle className="mb-2 flex items-center gap-2">
-        <Coins className="h-4 w-4 text-brass" strokeWidth={2.25} />
-        Default currency
-      </SectionTitle>
-      <p className="mb-5 text-sm text-ink-soft">
-        New expenses you start outside of a tab begin in this currency.
-      </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="Default currency" htmlFor="settings-currency" icon={Banknote}>
-          <CurrencyPicker
-            id="settings-currency"
-            value={currency}
-            onChange={handleChange}
-            aria-label="Default currency"
-          />
-        </Field>
-        {saved && <Check className="h-4 w-4 text-forest" strokeWidth={2.5} />}
+    <Panel role="status" aria-label="Loading settings" className="divide-y divide-rule/70">
+      <div className="space-y-4 px-5 py-6 sm:px-6">
+        <Skeleton className="h-5 w-20 rounded-md" />
+        <Skeleton className="h-4 w-72 max-w-full rounded-md" />
+        <div className="max-w-sm space-y-2">
+          <Skeleton className="h-4 w-20 rounded-md" />
+          <Skeleton className="h-11 rounded-md" />
+        </div>
+        <div className="max-w-sm space-y-2">
+          <Skeleton className="h-4 w-16 rounded-md" />
+          <Skeleton className="h-11 rounded-md" />
+        </div>
       </div>
-    </div>
+      <div className="space-y-4 px-5 py-6 sm:px-6">
+        <Skeleton className="h-5 w-28 rounded-md" />
+        <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+        <div className="max-w-sm space-y-2">
+          <Skeleton className="h-4 w-28 rounded-md" />
+          <Skeleton className="h-11 rounded-md" />
+        </div>
+      </div>
+      <div className="flex justify-end px-5 py-5 sm:px-6">
+        <Skeleton className="h-11 w-full rounded-lg sm:w-28" />
+      </div>
+    </Panel>
   );
 }
 
-function NameForm({ initialName, email }: { initialName: string; email?: string }) {
-  const updateName = useMutation(api.users.updateName);
+function SettingsContent() {
+  const viewer = useQuery(api.users.viewer);
+  if (viewer === undefined) return <SettingsSkeleton />;
+  return (
+    <SettingsForm
+      key={viewer?._id}
+      initialName={viewer?.name ?? ""}
+      initialCurrency={viewer?.defaultCurrency ?? DEFAULT_CURRENCY}
+      email={viewer?.email}
+    />
+  );
+}
+
+function SettingsForm({
+  initialName,
+  initialCurrency,
+  email,
+}: {
+  initialName: string;
+  initialCurrency: string;
+  email?: string;
+}) {
+  const updateSettings = useMutation(api.users.updateSettings);
   const [name, setName] = useState(initialName);
+  const [currency, setCurrency] = useState(initialCurrency);
+  const [savedValues, setSavedValues] = useState({ name: initialName, currency: initialCurrency });
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
+  const dirty = name.trim() !== savedValues.name || currency !== savedValues.currency;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -90,62 +98,98 @@ function NameForm({ initialName, email }: { initialName: string; email?: string 
       setError("Name is required");
       return;
     }
+    if (!dirty) return;
     setError(null);
     setStatus("saving");
     try {
-      await updateName({ name: trimmed });
+      await updateSettings({ name: trimmed, currency });
+      setSavedValues({ name: trimmed, currency });
       setStatus("saved");
       setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't update your name.");
+      setError(err instanceof Error ? err.message : "Couldn't update settings.");
       setStatus("idle");
     }
   }
 
   return (
-    <div className="px-5 py-6 sm:px-6">
-      <SectionTitle className="mb-2 flex items-center gap-2">
-        <UserRound className="h-4 w-4 text-brass" strokeWidth={2.25} />
-        Your name
-      </SectionTitle>
-      <p className="mb-5 text-sm text-ink-soft">This is the name shown to friends in your tabs.</p>
-      <form
-        onSubmit={handleSubmit}
-        className="flex max-w-xl flex-wrap items-end gap-3 sm:flex-nowrap"
-      >
-        <Field
-          label="Your name"
-          htmlFor="settings-name"
-          showLabel={false}
-          className="min-w-0 flex-1 sm:max-w-sm"
-        >
-          <Label htmlFor="settings-name" icon={UserRound}>
-            Your name
-          </Label>
-          <Input
-            id="settings-name"
-            type="text"
-            required
-            aria-label="Your name"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </Field>
-        <Button
-          type="submit"
-          size="touch"
-          disabled={status === "saving"}
-          aria-busy={status === "saving"}
-          className="shrink-0"
-        >
-          {status === "saving" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
-          {status === "saved" && <Check className="h-4 w-4" strokeWidth={2.5} />}
-          Save
-        </Button>
+    <Panel>
+      <form onSubmit={handleSubmit} className="divide-y divide-rule/70">
+        <div className="px-5 py-6 sm:px-6">
+          <SectionTitle className="mb-2">Profile</SectionTitle>
+          <p className="mb-5 text-sm text-ink-soft">Your name is shown to friends in your tabs.</p>
+          <div className="max-w-sm space-y-5">
+            <Field label="Your name" htmlFor="settings-name" icon={UserRound}>
+              <Input
+                id="settings-name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setStatus("idle");
+                  setError(null);
+                }}
+              />
+            </Field>
+            <Field label="Email" htmlFor="settings-email" icon={Mail}>
+              <Input
+                id="settings-email"
+                type="email"
+                value={email ?? ""}
+                readOnly
+                className="bg-paper text-ink-soft"
+              />
+            </Field>
+          </div>
+        </div>
+        <div className="px-5 py-6 sm:px-6">
+          <SectionTitle className="mb-2">Preferences</SectionTitle>
+          <p className="mb-5 text-sm text-ink-soft">
+            New expenses you start outside of a tab begin in this currency.
+          </p>
+          <Field
+            label="Default currency"
+            htmlFor="settings-currency"
+            icon={Banknote}
+            className="max-w-sm"
+          >
+            <CurrencyPicker
+              id="settings-currency"
+              value={currency}
+              onChange={(code) => {
+                setCurrency(code);
+                setStatus("idle");
+                setError(null);
+              }}
+              aria-label="Default currency"
+              className="w-full"
+            />
+          </Field>
+        </div>
+        <div className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+          {status === "saved" && (
+            <span role="status" className="flex items-center gap-1 text-sm text-forest">
+              <Check className="size-4" /> Saved
+            </span>
+          )}
+          {error && (
+            <p role="alert" className="text-xs text-margin-red-ink">
+              {error}
+            </p>
+          )}
+          <Button
+            type="submit"
+            size="touch"
+            disabled={!dirty || status === "saving"}
+            aria-busy={status === "saving"}
+            className="w-full sm:w-auto"
+          >
+            {status === "saving" && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.5} />}
+            {status === "saving" ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </form>
-      {error && <p className="mt-2 text-xs text-margin-red-ink">{error}</p>}
-      {email && <p className="mt-4 text-sm text-ink-soft break-words">Signed in as {email}</p>}
-    </div>
+    </Panel>
   );
 }

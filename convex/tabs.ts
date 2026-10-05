@@ -452,10 +452,8 @@ export const friends = query({
 });
 
 export async function friendsForUser(ctx: QueryCtx, userId: Id<"users">) {
-  // `claimed` members have an account behind them, so they merge across tabs
-  // by user id. Anonymous ones are per-tab placeholder slots keyed by their
-  // own member id, so a same-named placeholder in two tabs stays two entries
-  // - there's nothing tying them together until someone claims the invite.
+  // Account members merge across tabs by user id; unclaimed invite slots are
+  // omitted because they aren't friends yet.
   const people = new Map<
     string,
     { name: string; claimed: boolean; tabs: { slug: string; name: string }[] }
@@ -464,6 +462,8 @@ export async function friendsForUser(ctx: QueryCtx, userId: Id<"users">) {
     for (const member of await resolveMembers(ctx, tab)) {
       // You aren't your own friend - skip every slot you've claimed yourself.
       if (member.resolvedId === userId) continue;
+      // The directory is for people with accounts; unclaimed seats aren't friends yet.
+      if (!member.claimed) continue;
       const person = people.get(member.resolvedId) ?? {
         name: member.name,
         claimed: member.claimed,
@@ -476,7 +476,7 @@ export async function friendsForUser(ctx: QueryCtx, userId: Id<"users">) {
 
   return [...people]
     .map(([id, person]) => ({ id, ...person }))
-    .sort((a, b) => Number(b.claimed) - Number(a.claimed) || a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // The one tab read an outsider can make, and only while holding an unclaimed

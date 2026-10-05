@@ -7,6 +7,8 @@ import schema from "./schema";
 const modules = import.meta.glob("./**/*.ts");
 
 test("a valid share token exposes an anonymous read-only breakdown for only its tab", async () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const future = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
   const t = convexTest(schema, modules);
   const ownerId = await t.run((ctx) => ctx.db.insert("users", { name: "Alex" }));
   const owner = t.withIdentity({ subject: `${ownerId}|session` });
@@ -22,7 +24,7 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
     state: {
       name: "Dinner",
       mode: "itemized",
-      date: "2026-10-03",
+      date: today,
       currency: "USD",
       payerId: alex,
       people: [
@@ -48,12 +50,12 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
   });
   await owner.mutation(api.settlements.record, {
     slug: "trip",
-    asOfDate: "2026-10-03",
+    asOfDate: today,
     fromMemberId: sam,
     toMemberId: alex,
     amount: 5,
     currency: "USD",
-    date: "2026-10-03",
+    date: today,
     requestId: "payment-1",
   });
   await owner.mutation(api.tabs.createExpense, {
@@ -62,7 +64,7 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
     state: {
       name: "Future dinner",
       mode: "simple",
-      date: "2026-10-10",
+      date: future,
       currency: "USD",
       payerId: alex,
       people: [
@@ -92,14 +94,14 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
   const emptyShared = await t.query(api.settlements.publicShare, {
     slug: "other",
     shareToken: emptyToken,
-    asOfDate: "2026-10-03",
+    asOfDate: today,
   });
   expect(emptyShared?.currencies).toHaveLength(1);
   expect(emptyShared?.currencies[0]?.members).toHaveLength(1);
   const shared = await t.query(api.settlements.publicShare, {
     slug: "trip",
     shareToken,
-    asOfDate: "2026-10-03",
+    asOfDate: today,
   });
   expect(shared?.tab).toEqual({ slug: "trip", name: "Trip" });
   const members = shared?.currencies[0]?.members ?? [];
@@ -107,7 +109,7 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
     members.find((member) => member.name === "Alex")?.expenses.find((e) => e.key === "dinner"),
   ).toMatchObject({
     name: "Dinner",
-    date: "2026-10-03",
+    date: today,
     amount: 20,
     paid: true,
     paidAmount: 20,
@@ -119,7 +121,7 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
     members.find((member) => member.name === "Sam")?.expenses.find((e) => e.key === "dinner"),
   ).toMatchObject({
     name: "Dinner",
-    date: "2026-10-03",
+    date: today,
     amount: 10,
     paid: false,
     paidAmount: 0,
@@ -145,7 +147,7 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
     await t.query(api.settlements.publicShare, {
       slug: "trip",
       shareToken: "invalid",
-      asOfDate: "2026-10-03",
+      asOfDate: today,
     }),
   ).toBeNull();
   expect(shared?.tab.name).not.toBe("Other");

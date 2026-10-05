@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="393" height="900" viewBox="0 0 393 900" role="img" aria-labelledby="title desc">
+<title id="title">Settings redesign, auto-save mobile</title>
+<desc id="desc">Mobile settings page with icon-free headings and auto-save behavior.</desc>
+<rect x="0" y="0" width="393" height="900" rx="0" fill="#edf1e4"/>
+<rect x="0" y="0" width="393" height="64" rx="0" fill="#f7f5ec"/>
+<path d="M0 64h393" stroke="#ccd5bd"/>
+<text x="18" y="40" font-family="Space Grotesk, sans-serif" font-size="24" font-weight="600" fill="#7a611f">ventura</text>
+<text x="350" y="40" font-family="IBM Plex Sans, sans-serif" font-size="22" font-weight="400" fill="#2f4a3c">☰</text>
+<text x="20" y="121" font-family="Space Grotesk, sans-serif" font-size="30" font-weight="600" fill="#1e2a22">Settings</text>
+<text x="20" y="149" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="400" fill="#4b5a4f">Manage your profile and preferences.</text>
+<rect x="0" y="181" width="393" height="610" rx="0" fill="#f7f5ec" stroke="#ccd5bd"/>
+<text x="20" y="222" font-family="Space Grotesk, sans-serif" font-size="18" font-weight="600" fill="#1e2a22">Profile</text>
+<text x="20" y="250" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="400" fill="#4b5a4f">Your name is shown to friends in your tabs.</text>
+<text x="20" y="294" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="500" fill="#1e2a22">Your name</text>
+<rect x="20" y="308" width="353" height="44" rx="8" fill="#fffdf6" stroke="#788576"/>
+<text x="33" y="336" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="400" fill="#1e2a22">Nikki Quibin</text>
+<text x="20" y="384" font-family="IBM Plex Sans, sans-serif" font-size="12" font-weight="400" fill="#4b5a4f">Signed in as nikki@example.com</text>
+<path d="M0 416h393" stroke="#ccd5bd"/>
+<text x="20" y="459" font-family="Space Grotesk, sans-serif" font-size="18" font-weight="600" fill="#1e2a22">Preferences</text>
+<text x="20" y="487" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="400" fill="#4b5a4f">New expenses outside a tab start in</text>
+<text x="20" y="507" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="400" fill="#4b5a4f">this currency.</text>
+<text x="20" y="551" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="500" fill="#1e2a22">Default currency</text>
+<rect x="20" y="565" width="353" height="44" rx="8" fill="#fffdf6" stroke="#788576"/>
+<text x="33" y="593" font-family="IBM Plex Mono, sans-serif" font-size="14" font-weight="600" fill="#1e2a22">CAD</text>
+<text x="88" y="593" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="400" fill="#4b5a4f">Canadian Dollar</text>
+<text x="342" y="593" font-family="IBM Plex Sans, sans-serif" font-size="18" font-weight="400" fill="#2f4a3c">⌄</text>
+<path d="M0 647h393" stroke="#ccd5bd"/>
+<text x="20" y="687" font-family="IBM Plex Sans, sans-serif" font-size="12" font-weight="400" fill="#4b5a4f">Changes save automatically.</text>
+<text x="20" y="728" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="500" fill="#2f4a3c">✓ Saved</text>
+</svg>
