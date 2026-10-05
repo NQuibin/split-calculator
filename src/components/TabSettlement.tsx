@@ -532,7 +532,6 @@ export function SettlementActions({
         className="flex-1 md:flex-none"
         onClick={() => setPaymentDialogView("manage")}
       >
-        <Banknote aria-hidden="true" className="h-4 w-4" />
         Manage payments
       </Button>
       <Dialog

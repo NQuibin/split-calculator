@@ -182,7 +182,7 @@ function samePayment(prior: Doc<"settlements">, payment: NormalizedPayment, view
 }
 
 /** Read one coherent ledger snapshot, shared by the query and payment mutation. */
-async function readBalances(
+export async function readBalances(
   ctx: ReadCtx,
   tab: Doc<"tabs">,
   asOfDate: string,
@@ -527,6 +527,204 @@ export const get = query({
       };
     };
     return { paid: format("paid"), upcoming: format("upcoming"), all: format("all") };
+  },
+});
+
+/** Read-only tab breakdown for anyone holding the tab's opaque share token. */
+const publicShareResult = v.union(
+  v.null(),
+  v.object({
+    tab: v.object({ slug: v.string(), name: v.string() }),
+    currencies: v.array(
+      v.object({
+        currency: v.string(),
+        members: v.array(
+          v.object({
+            key: v.string(),
+            name: v.string(),
+            balance: v.number(),
+            expenses: v.array(
+              v.object({
+                key: v.string(),
+                name: v.string(),
+                date: v.string(),
+                amount: v.number(),
+                paid: v.boolean(),
+                paidAmount: v.number(),
+                shareAmount: v.number(),
+                total: v.number(),
+                taxTotal: v.number(),
+                tipTotal: v.number(),
+                items: v.array(
+                  v.object({
+                    key: v.string(),
+                    name: v.string(),
+                    total: v.number(),
+                    share: v.number(),
+                  }),
+                ),
+              }),
+            ),
+          }),
+        ),
+        settlements: v.array(v.object({ from: v.string(), to: v.string(), amount: v.number() })),
+      }),
+    ),
+    history: v.array(
+      v.object({
+        key: v.id("settlements"),
+        fromMemberId: v.id("tabMembers"),
+        toMemberId: v.id("tabMembers"),
+        from: v.string(),
+        to: v.string(),
+        amount: v.number(),
+        currency: v.string(),
+        date: v.string(),
+        note: v.optional(v.string()),
+        reversed: v.boolean(),
+        isReversal: v.boolean(),
+        reversedAt: v.optional(v.number()),
+      }),
+    ),
+  }),
+);
+
+export const publicShare = query({
+  args: { slug: v.string(), shareToken: v.string(), asOfDate: v.string() },
+  returns: publicShareResult,
+  handler: async (ctx, { slug, shareToken, asOfDate }) => {
+    if (!isValidISODate(asOfDate)) throw new Error("Use a real YYYY-MM-DD as-of date");
+    const tab = await findTab(ctx, slug);
+    if (!tab?.shareToken || tab.shareToken !== shareToken) return null;
+
+    const { roster, views, payments } = await readBalances(ctx, tab, asOfDate);
+    const people = await Promise.all(
+      roster.map(async (seat) => ({ id: seat._id, name: await resolveSeatName(ctx, seat) })),
+    );
+    const memberIndex = new Map(roster.map((seat, index) => [seat._id, index]));
+    const expenses = await limited(
+      ctx.db
+        .query("expenses")
+        .withIndex("by_tab", (q) => q.eq("tabId", tab._id))
+        .take(READ_LIMIT + 1),
+      "expenses",
+    );
+
+    const expenseRows = expenses.map((expense) => {
+      const rate = activeExchangeRate(expense, tab.defaultCurrency ?? "USD");
+      const currency = rate?.to ?? expense.currency ?? "USD";
+      const split = computeSplit(
+        orderExpensePeople(expense, people),
+        expense.items,
+        expense.globalAdjustments,
+      );
+      const convertedShares = rate
+        ? convertShares(computeShares(split), split.grandTotal, rate.rate)
+        : computeShares(split);
+      const shares = new Map(convertedShares.map((person) => [person.personId, person.fairShare]));
+      const total = rate ? round2(split.grandTotal * rate.rate) : split.grandTotal;
+      const convert = (amount: number) => (rate ? round2(amount * rate.rate) : amount);
+      return {
+        expense,
+        currency,
+        total,
+        shares,
+        taxTotal: convert(split.taxTotal),
+        tipTotal: convert(split.tipTotal),
+        items: (expense.mode === "itemized" ? split.items : []).map((item) => ({
+          key: item.itemId,
+          name: item.itemName,
+          total: convert(item.total),
+          shares: new Map(
+            split.people.map((person) => {
+              const line = person.lines.find((entry) => entry.itemId === item.itemId);
+              return [
+                person.personId,
+                convert((line?.share ?? 0) + (line?.taxShare ?? 0) + (line?.tipShare ?? 0)),
+              ];
+            }),
+          ),
+        })),
+      };
+    });
+
+    const currencyEntries = [...views.all.byCurrency];
+    if (currencyEntries.length === 0)
+      currencyEntries.push([tab.defaultCurrency ?? "USD", blank(roster)]);
+    const currencies = currencyEntries
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([currency, totals]) => ({
+        currency,
+        settlements: people.flatMap((from, index) =>
+          people.slice(index + 1).flatMap((to) => {
+            const balance =
+              (totals.get(from.id)!.directDebts.get(to.id) ?? 0) -
+              (totals.get(to.id)!.directDebts.get(from.id) ?? 0);
+            return balance > 0
+              ? [{ from: from.id, to: to.id, amount: balance / 100 }]
+              : balance < 0
+                ? [{ from: to.id, to: from.id, amount: -balance / 100 }]
+                : [];
+          }),
+        ),
+        members: people.map((person) => {
+          const total = totals.get(person.id)!;
+          const memberExpenses = expenseRows
+            .filter(({ expense, currency: code }) => {
+              if (code !== currency) return false;
+              return (
+                expense.payerId === person.id ||
+                expense.items.some((item) => item.splitWith.includes(person.id))
+              );
+            })
+            .map(({ expense, total, shares, taxTotal, tipTotal, items }) => ({
+              key: expense.slug,
+              name: expense.name,
+              date: expense.date,
+              amount: expense.payerId === person.id ? total : (shares.get(person.id) ?? 0),
+              paid: expense.payerId === person.id,
+              paidAmount: expense.payerId === person.id ? total : 0,
+              shareAmount: shares.get(person.id) ?? 0,
+              total,
+              taxTotal,
+              tipTotal,
+              items: items.map((item) => ({
+                key: item.key,
+                name: item.name,
+                total: item.total,
+                share: item.shares.get(person.id) ?? 0,
+              })),
+            }));
+          return {
+            key: person.id,
+            name: person.name,
+            balance: net(total) / 100,
+            expenses: memberExpenses,
+          };
+        }),
+      }));
+
+    return {
+      tab: { slug: tab.slug, name: tab.name },
+      currencies,
+      history: payments
+        .filter((payment) => payment.date <= asOfDate)
+        .sort((a, b) => b.date.localeCompare(a.date) || b._creationTime - a._creationTime)
+        .map((payment) => ({
+          key: payment._id,
+          fromMemberId: payment.fromMemberId,
+          toMemberId: payment.toMemberId,
+          from: people[memberIndex.get(payment.fromMemberId) ?? -1]?.name ?? "Former member",
+          to: people[memberIndex.get(payment.toMemberId) ?? -1]?.name ?? "Former member",
+          amount: payment.amountCents / 100,
+          currency: payment.currency,
+          date: payment.date,
+          note: payment.note,
+          reversed: payment.reversedAt !== undefined,
+          isReversal: payment.reversesSettlementId !== undefined,
+          reversedAt: payment.reversedAt,
+        })),
+    };
   },
 });
 

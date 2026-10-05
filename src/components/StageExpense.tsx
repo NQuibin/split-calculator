@@ -1056,7 +1056,7 @@ function SimpleTotalForm({
           Split with
         </GroupTitle>
         <SplitEditor
-          hideTypeLabelOnDesktop
+          hideTypeLabel
           people={people}
           splitWith={splitWith}
           splitType={splitType}
@@ -1097,7 +1097,6 @@ function isSplitValid(item: ExpenseItem) {
 
 function SplitEditor({
   hideTypeLabel = false,
-  hideTypeLabelOnDesktop = false,
   people,
   splitWith,
   splitType,
@@ -1110,7 +1109,6 @@ function SplitEditor({
   onValuesChange,
 }: {
   hideTypeLabel?: boolean;
-  hideTypeLabelOnDesktop?: boolean;
   people: Person[];
   splitWith: string[];
   splitType: SplitType;
@@ -1169,11 +1167,7 @@ function SplitEditor({
     <div className="grid gap-3">
       <div>
         {!hideTypeLabel && (
-          <span
-            className={`mb-2 block text-sm font-medium text-ink ${hideTypeLabelOnDesktop ? "md:sr-only" : ""}`}
-          >
-            Split type
-          </span>
+          <span className="mb-2 block text-sm font-medium text-ink">Split type</span>
         )}
         <fieldset className="flex rounded-full border border-edge bg-field p-0.5">
           <legend className="sr-only">Split type</legend>

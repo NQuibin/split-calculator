@@ -110,6 +110,8 @@ export default defineSchema({
     name: v.string(),
     /** ISO 4217 code, e.g. "USD" - the starting currency for a new expense created directly inside this tab. */
     defaultCurrency: v.optional(v.string()),
+    /** Opaque read-only link token. Absent on tabs created before sharing existed. */
+    shareToken: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
   /** Stable identity for splits and payments. Claiming only sets userId. */

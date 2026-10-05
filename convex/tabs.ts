@@ -193,6 +193,18 @@ export const setDefaultCurrency = mutation({
   },
 });
 
+export const getOrCreateShareToken = mutation({
+  args: { slug: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { slug }) => {
+    const { tab } = await memberTab(ctx, slug);
+    if (tab.shareToken) return tab.shareToken;
+    const token = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+    await ctx.db.patch(tab._id, { shareToken: token, updatedAt: Date.now() });
+    return token;
+  },
+});
+
 export const deleteTab = mutation({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {

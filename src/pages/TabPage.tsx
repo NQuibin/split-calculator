@@ -198,6 +198,7 @@ function TabActionsSkeleton() {
       <div className="flex w-full min-w-max gap-2 md:w-max md:min-w-full md:justify-end">
         <Skeleton className="h-11 min-w-36 flex-1 rounded-lg md:w-36 md:flex-none" />
         <Skeleton className="h-11 min-w-40 flex-1 rounded-lg md:w-40 md:flex-none" />
+        <Skeleton className="h-11 min-w-36 flex-1 rounded-lg md:w-36 md:flex-none" />
       </div>
     </div>
   );
@@ -325,6 +326,14 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
                 expenseView={hasUpcoming ? expenseView : "paid"}
                 response={settlement}
               />
+              <Button
+                nativeButton={false}
+                size="touch"
+                className="flex-1 md:flex-none"
+                render={<Link to="/t/$slug/breakdown" params={{ slug }} search={{}} />}
+              >
+                View breakdown
+              </Button>
             </div>
           </div>
         )}

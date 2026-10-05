@@ -16,6 +16,8 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TabsRouteImport } from './routes/tabs'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
 import { Route as TSlugIndexRouteImport } from './routes/t.$slug.index'
+import { Route as TSlugBreakdownRouteImport } from './routes/t.$slug.breakdown'
+import { Route as TSlugHistoryRouteImport } from './routes/t.$slug.history'
 import { Route as TSlugPaymentRouteImport } from './routes/t.$slug.payment'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +55,16 @@ const TSlugIndexRoute = TSlugIndexRouteImport.update({
   path: '/t/$slug/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TSlugBreakdownRoute = TSlugBreakdownRouteImport.update({
+  id: '/t/$slug/breakdown',
+  path: '/t/$slug/breakdown',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TSlugHistoryRoute = TSlugHistoryRouteImport.update({
+  id: '/t/$slug/history',
+  path: '/t/$slug/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TSlugPaymentRoute = TSlugPaymentRouteImport.update({
   id: '/t/$slug/payment',
   path: '/t/$slug/payment',
@@ -66,6 +78,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/t/$slug/breakdown': typeof TSlugBreakdownRoute
+  '/t/$slug/history': typeof TSlugHistoryRoute
   '/t/$slug/payment': typeof TSlugPaymentRoute
   '/t/$slug/': typeof TSlugIndexRoute
 }
@@ -76,6 +90,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/t/$slug/breakdown': typeof TSlugBreakdownRoute
+  '/t/$slug/history': typeof TSlugHistoryRoute
   '/t/$slug/payment': typeof TSlugPaymentRoute
   '/t/$slug': typeof TSlugIndexRoute
 }
@@ -87,6 +103,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/t/$slug/breakdown': typeof TSlugBreakdownRoute
+  '/t/$slug/history': typeof TSlugHistoryRoute
   '/t/$slug/payment': typeof TSlugPaymentRoute
   '/t/$slug/': typeof TSlugIndexRoute
 }
@@ -99,6 +117,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/t/$slug/breakdown'
+    | '/t/$slug/history'
     | '/t/$slug/payment'
     | '/t/$slug/'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +129,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/t/$slug/breakdown'
+    | '/t/$slug/history'
     | '/t/$slug/payment'
     | '/t/$slug'
   id:
@@ -119,6 +141,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/t/$slug/breakdown'
+    | '/t/$slug/history'
     | '/t/$slug/payment'
     | '/t/$slug/'
   fileRoutesById: FileRoutesById
@@ -130,6 +154,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TabsRoute: typeof TabsRoute
   ESlugRoute: typeof ESlugRoute
+  TSlugBreakdownRoute: typeof TSlugBreakdownRoute
+  TSlugHistoryRoute: typeof TSlugHistoryRoute
   TSlugPaymentRoute: typeof TSlugPaymentRoute
   TSlugIndexRoute: typeof TSlugIndexRoute
 }
@@ -185,6 +211,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/t/$slug/breakdown': {
+      id: '/t/$slug/breakdown'
+      path: '/t/$slug/breakdown'
+      fullPath: '/t/$slug/breakdown'
+      preLoaderRoute: typeof TSlugBreakdownRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/t/$slug/history': {
+      id: '/t/$slug/history'
+      path: '/t/$slug/history'
+      fullPath: '/t/$slug/history'
+      preLoaderRoute: typeof TSlugHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/t/$slug/payment': {
       id: '/t/$slug/payment'
       path: '/t/$slug/payment'
@@ -202,6 +242,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TabsRoute: TabsRoute,
   ESlugRoute: ESlugRoute,
+  TSlugBreakdownRoute: TSlugBreakdownRoute,
+  TSlugHistoryRoute: TSlugHistoryRoute,
   TSlugPaymentRoute: TSlugPaymentRoute,
   TSlugIndexRoute: TSlugIndexRoute,
 }

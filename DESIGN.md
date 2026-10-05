@@ -395,7 +395,9 @@ Sizes:
 Binding rules:
 
 - One `default`-variant button per screen region. Everything else is
-  `secondary` or `ghost`.
+  `secondary` or `ghost`. The tab action row is an explicit exception: Add
+  expense, Manage payments, and View breakdown are all primary actions and
+  scroll horizontally together when they do not fit.
 - A destructive action is `destructive` variant *and* lives behind a
   confirmation dialog.
 - Hover is **always** a background change from the table above, except

@@ -8,18 +8,19 @@ const mocks = vi.hoisted(() => ({
   tab: undefined as unknown,
   queryResults: [] as unknown[],
   queryIndex: 0,
+  navigate: vi.fn(),
 }));
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }),
   useQuery: () => mocks.queryResults[mocks.queryIndex++],
-  useMutation: () => vi.fn(async () => undefined),
+  useMutation: () => vi.fn(async () => "share-secret"),
 }));
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) =>
     createElement("a", { href: to }, children),
   getRouteApi: () => ({ useParams: () => ({ slug: "trip" }), useSearch: () => ({}) }),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mocks.navigate,
 }));
 vi.mock("@/lib/tabSync", () => ({
   useTab: () => {
@@ -47,7 +48,32 @@ afterEach(() => {
   mocks.tab = undefined;
   mocks.queryResults = [];
   mocks.queryIndex = 0;
+  mocks.navigate.mockClear();
   document.body.replaceChildren();
+});
+
+test("View breakdown is an immediate link in the scrollable action row", () => {
+  mocks.tab = {
+    name: "Trip",
+    slug: "trip",
+    members: [{ id: "viewer-seat", name: "Nikki", claimed: true, resolvedId: "viewer" }],
+    defaultCurrency: "CAD",
+    isOwner: true,
+    ownerName: "Nikki",
+  };
+  mocks.queryResults = [[], { _id: "viewer" }, { paid: {}, upcoming: {}, all: {} }];
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  flushSync(() => root.render(createElement(TabPage)));
+
+  const link = [...container.querySelectorAll<HTMLAnchorElement>("a")].find(
+    (candidate) => candidate.textContent === "View breakdown",
+  );
+  expect(link?.getAttribute("href")).toBe("/t/$slug/breakdown");
+  expect(link?.closest(".overflow-x-auto")).not.toBeNull();
+  expect(container.textContent).not.toContain("Opening…");
+  root.unmount();
 });
 
 test("skeletonizes the whole breadcrumb and withholds both data sections until all queries resolve", () => {
