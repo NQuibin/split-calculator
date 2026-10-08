@@ -26,13 +26,11 @@ import { Button } from "@/components/ui/Button";
 import { FieldError, Input, Label, Textarea } from "@/components/ui/Input";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { RateInput } from "@/components/ui/RateInput";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { ExpenseLineItem } from "@/components/ui/ExpenseLineItem";
-import { MenuOption } from "@/components/ui/MenuOption";
+import { MemberPicker } from "@/components/ui/MemberPicker";
 import { Panel } from "@/components/ui/Page";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { ExpenseImageField, type ReceiptSummary } from "@/components/ExpenseImageField";
 import { computeSplit, hasIndividualAdjustments, resolveItemAdjustments } from "@/lib/calculations";
 import { isUpcoming } from "@/lib/format";
@@ -161,7 +159,6 @@ export function StageExpense({
 
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
-  const [payerOpen, setPayerOpen] = useState(false);
   const [addingItem, setAddingItem] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -373,45 +370,21 @@ export function StageExpense({
         <Label id="expense-payer-label" htmlFor="expense-payer" icon={User}>
           {isUpcoming(date) ? "Will be paid by" : "Paid by"}
         </Label>
-        <Popover open={payerOpen} onOpenChange={setPayerOpen}>
-          <PopoverTrigger
-            render={
-              <Button
-                id="expense-payer"
-                variant="field"
-                aria-labelledby="expense-payer-label expense-payer-value"
-                aria-required="true"
-                aria-invalid={payerError ? "true" : undefined}
-                aria-describedby={payerError ? "expense-payer-error" : undefined}
-                className="group min-h-11 w-full justify-between rounded-md px-3 py-2 text-base sm:text-sm"
-              />
-            }
-          >
-            <span id="expense-payer-value" className="min-w-0 flex-1 truncate text-left">
-              {people.find((person) => person.id === payerId)?.name ?? "Select a payer"}
-            </span>
-            <DropdownChevron />
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-80 max-w-[calc(100vw-3rem)] rounded-lg p-2">
-            <ul className="max-h-64 space-y-0.5 overflow-y-auto">
-              {people.map((person) => (
-                <li key={person.id}>
-                  <MenuOption
-                    selected={person.id === payerId}
-                    onClick={() => {
-                      setPayerError(null);
-                      setContinueError(null);
-                      onSetPayer(person.id);
-                      setPayerOpen(false);
-                    }}
-                  >
-                    <span className="truncate">{person.name}</span>
-                  </MenuOption>
-                </li>
-              ))}
-            </ul>
-          </PopoverContent>
-        </Popover>
+        <MemberPicker
+          id="expense-payer"
+          labelId="expense-payer-label"
+          value={payerId}
+          placeholder="Select a payer"
+          members={people}
+          onChange={(id) => {
+            setPayerError(null);
+            setContinueError(null);
+            onSetPayer(id);
+          }}
+          aria-required
+          aria-invalid={payerError ? "true" : undefined}
+          aria-describedby={payerError ? "expense-payer-error" : undefined}
+        />
         {payerError && <FieldError id="expense-payer-error">{payerError}</FieldError>}
       </div>
     </div>

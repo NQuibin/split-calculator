@@ -9,6 +9,7 @@ import { computeSplit, hasIndividualAdjustments, round2 } from "@/lib/calculatio
 import { isUpcoming } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { useTabActions, type TabExpenseSummary } from "@/lib/tabSync";
+import { SettlementStatusPill, type TabExpenseSettlementStatus } from "@/components/TabExpenseGrid";
 import { useState } from "react";
 
 type Member = { id: string; name: string; resolvedId?: string };
@@ -23,6 +24,8 @@ export function ExpenseDetailsDialog({
   members,
   onDelete,
   onBack,
+  expenseStatuses,
+  viewerMemberId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,6 +36,8 @@ export function ExpenseDetailsDialog({
   members: Member[];
   onDelete?: (slug: string) => void;
   onBack?: () => void;
+  expenseStatuses?: { expenseSlug: string; memberId: string; status: TabExpenseSettlementStatus }[];
+  viewerMemberId?: string | null;
 }) {
   const { currency, formatExpenseDate } = useLocaleFormatters();
   const [lastExpense, setLastExpense] = useState(currentExpense);
@@ -46,6 +51,14 @@ export function ExpenseDetailsDialog({
   const showingItems = expense?.slug === itemViewExpenseSlug;
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
+  const memberMatches = (memberId: string | undefined, targetId: string | undefined) => {
+    if (!memberId || !targetId) return false;
+    const member = members.find((entry) => entry.id === memberId || entry.resolvedId === memberId);
+    return member
+      ? member.id === targetId || member.resolvedId === targetId
+      : memberId === targetId;
+  };
+  const payerIsViewer = memberMatches(expense?.payerId, viewerMemberId ?? undefined);
   return (
     <Dialog
       open={open}
@@ -254,22 +267,39 @@ export function ExpenseDetailsDialog({
                     </span>
                   </div>
                   <ul className="bleed mt-5 divide-y divide-rule border-b border-edge bg-field">
-                    {sharedPeople.map((person) => (
-                      <li
-                        key={person.personId}
-                        className="flex min-h-11 items-center gap-3 py-3 text-sm bleed-px"
-                      >
-                        <MemberAvatar id={person.personId} name={person.name} size="md" />
-                        <span className="min-w-0 flex-1 break-words">
-                          <span className="block font-medium">{person.name}</span>
-                        </span>
-                        <span className="shrink-0 text-right">
-                          <span className="block font-numeric font-semibold">
-                            {currency(person.total, expense.currency)}
+                    {sharedPeople.map((person) => {
+                      const statusMemberId = payerIsViewer
+                        ? memberMatches(person.personId, viewerMemberId ?? undefined)
+                          ? undefined
+                          : person.personId
+                        : memberMatches(person.personId, viewerMemberId ?? undefined)
+                          ? (viewerMemberId ?? undefined)
+                          : undefined;
+                      const status = statusMemberId
+                        ? expenseStatuses?.find(
+                            (entry) =>
+                              entry.expenseSlug === expense.slug &&
+                              memberMatches(entry.memberId, statusMemberId),
+                          )?.status
+                        : undefined;
+                      return (
+                        <li
+                          key={person.personId}
+                          className="flex min-h-11 items-center gap-3 py-3 text-sm bleed-px"
+                        >
+                          <MemberAvatar id={person.personId} name={person.name} size="md" />
+                          <span className="min-w-0 flex-1 break-words">
+                            <span className="block font-medium">{person.name}</span>
                           </span>
-                        </span>
-                      </li>
-                    ))}
+                          <span className="shrink-0 text-right">
+                            <span className="block font-numeric font-semibold">
+                              {currency(person.total, expense.currency)}
+                            </span>
+                            {status && <SettlementStatusPill status={status} />}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </section>
                 {expense.note && (

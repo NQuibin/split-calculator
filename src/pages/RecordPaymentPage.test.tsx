@@ -70,6 +70,7 @@ const paymentData = {
   currencies: [
     {
       currency: "CAD",
+      directBalances: [{ fromMemberId: "p2", toMemberId: "viewer", amount: 60 }],
       members: [
         { memberId: "viewer", name: "Nikki Q", balance: 0, expenses: [] },
         {
@@ -100,7 +101,11 @@ const paymentData = {
   ],
 };
 
-function mount(response = paymentData) {
+function mount(
+  response: Omit<typeof paymentData, "viewerMemberId"> & {
+    viewerMemberId: string | null;
+  } = paymentData,
+) {
   mocks.response = { paid: response, upcoming: response, all: response };
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -187,7 +192,11 @@ test("preselects the member and currency passed in the route search", () => {
   mocks.currency = "CAD";
   const { container, root } = mount();
   expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
-  expect(container.querySelector("label")?.textContent).toContain("P2 owes you");
+  expect(
+    [...container.querySelectorAll("label")].find((label) =>
+      label.textContent?.includes("P2 owes you"),
+    ),
+  ).toBeDefined();
   root.unmount();
 });
 
@@ -223,6 +232,36 @@ test("shows the direct balance and can fill the full payment amount", async () =
   root.unmount();
 });
 
+test("keeps the submitted form visible behind success after the live balance clears", async () => {
+  const { container, root } = mount();
+  clickCheckboxRow(container, "P2 owes you");
+  clickButton(container, "Continue");
+  enterAmount("p2-CAD", "60");
+  mocks.record.mockImplementationOnce(async () => {
+    const updated = {
+      ...paymentData,
+      currencies: [
+        {
+          ...paymentData.currencies[0],
+          directBalances: [],
+          members: paymentData.currencies[0].members.map((member) =>
+            member.memberId === "p2" ? { ...member, balanceWithViewer: 0 } : member,
+          ),
+        },
+      ],
+    };
+    mocks.response = { paid: updated, upcoming: updated, all: updated };
+    return null;
+  });
+
+  await submit();
+
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Payment recorded");
+  expect(container.textContent).toContain("Payment from P2");
+  expect(container.querySelector<HTMLInputElement>("#payment-amount-p2-CAD")?.value).toBe("60");
+  root.unmount();
+});
+
 test("keeps a nonzero member eligible when they have no expense rows", () => {
   const response = {
     ...paymentData,
@@ -246,6 +285,7 @@ test("records an outgoing payment when the viewer owes the selected member", asy
     currencies: [
       {
         ...paymentData.currencies[0],
+        directBalances: [{ fromMemberId: "viewer", toMemberId: "alex", amount: 30 }],
         members: paymentData.currencies[0].members.map((member) =>
           member.memberId === "p2"
             ? { ...member, balanceWithViewer: 0 }
@@ -287,6 +327,61 @@ test("records an outgoing payment when the viewer owes the selected member", asy
   root.unmount();
 });
 
+test("records a payment for another member with a direct balance", async () => {
+  const response = {
+    ...paymentData,
+    currencies: [
+      {
+        ...paymentData.currencies[0],
+        directBalances: [
+          { fromMemberId: "p2", toMemberId: "viewer", amount: 60 },
+          { fromMemberId: "p2", toMemberId: "alex", amount: 25 },
+        ],
+      },
+    ],
+  };
+  mocks.memberId = "p2";
+  mocks.currency = "CAD";
+  const { container, root } = mount(response);
+  const actor = container.querySelector<HTMLButtonElement>("#payment-actor");
+  expect(actor?.textContent).toContain("Nikki Q");
+  expect(actor?.querySelector('[role="img"][aria-label="Nikki Q"]')).not.toBeNull();
+  flushSync(() => actor?.click());
+  const menu = document.querySelector('[data-slot="popover-content"]');
+  expect(menu?.textContent).toContain("Alex");
+  expect(menu?.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
+  const alex = [...(menu?.querySelectorAll("button") ?? [])].find((button) =>
+    button.textContent?.includes("Alex"),
+  );
+  flushSync(() => alex?.click());
+  expect(actor?.textContent).toContain("Alex");
+  expect(actor?.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
+  expect(document.querySelector('[data-slot="popover-content"]')?.hasAttribute("data-closed")).toBe(
+    true,
+  );
+  expect(container.textContent).toContain("P2 owes Alex CA$25.00");
+  expect(container.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false);
+  clickCheckboxRow(container, "P2 owes Alex");
+  clickButton(container, "Continue");
+  enterAmount("p2-CAD", "10");
+  await submit();
+  expect(mocks.record).toHaveBeenCalledWith(
+    expect.objectContaining({
+      payments: [expect.objectContaining({ fromMemberId: "p2", toMemberId: "alex", amount: 10 })],
+    }),
+  );
+  root.unmount();
+});
+
+test("allows a tab owner without a seat to select a member with an open balance", () => {
+  const { container, root } = mount({ ...paymentData, viewerMemberId: null });
+  expect(container.querySelector<HTMLButtonElement>("#payment-actor")?.textContent).toContain(
+    "Nikki Q",
+  );
+  expect(container.textContent).toContain("P2 owes Nikki Q CA$60.00");
+  root.unmount();
+});
+
 test("groups choices by currency and renders field rows with 32px avatars", () => {
   const { container, root } = mount({
     ...paymentData,
@@ -294,6 +389,7 @@ test("groups choices by currency and renders field rows with 32px avatars", () =
       ...paymentData.currencies,
       {
         currency: "USD",
+        directBalances: [{ fromMemberId: "viewer", toMemberId: "sam", amount: 20 }],
         members: [
           { memberId: "viewer", name: "Nikki Q", balance: 0, expenses: [] },
           {
@@ -336,6 +432,7 @@ test("keeps separate sections and submits the combined payments only when all ar
       ...paymentData.currencies,
       {
         currency: "USD",
+        directBalances: [{ fromMemberId: "viewer", toMemberId: "sam", amount: 20 }],
         members: [
           { memberId: "viewer", name: "Nikki Q", balance: 0, expenses: [] },
           {

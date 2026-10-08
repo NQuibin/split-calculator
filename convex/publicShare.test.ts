@@ -104,6 +104,14 @@ test("a valid share token exposes an anonymous read-only breakdown for only its 
     asOfDate: today,
   });
   expect(shared?.tab).toEqual({ slug: "trip", name: "Trip" });
+  expect(
+    shared?.expenseStatuses
+      .filter(({ expenseSlug }) => expenseSlug === "dinner")
+      .map(({ memberId, status }) => [memberId, status]),
+  ).toEqual([
+    [alex, "partiallySettled"],
+    [sam, "partiallySettled"],
+  ]);
   const members = shared?.currencies[0]?.members ?? [];
   expect(
     members.find((member) => member.name === "Alex")?.expenses.find((e) => e.key === "dinner"),

@@ -403,6 +403,7 @@ export function TabSettlement({
                 <TabMemberBreakdown
                   member={selectedBreakdown}
                   currencyCode={selectedMember.currency}
+                  expenseStatuses={data.expenseStatuses}
                   onExpenseClick={(expenseSlug) => {
                     setMemberBreakdownOpen(false);
                     setSelectedExpenseSlug(expenseSlug);
@@ -448,6 +449,8 @@ export function TabSettlement({
           setMemberBreakdownOpen(true);
         }}
         expense={selectedExpense}
+        expenseStatuses={data.expenseStatuses}
+        viewerMemberId={data.viewerMemberId}
         slug={slug}
         defaultCurrency={defaultCurrency}
         canManage={canManage}

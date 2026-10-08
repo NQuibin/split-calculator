@@ -14,6 +14,19 @@ export type TabExpenseMemberContext = {
   viewerPerspective?: boolean;
 };
 
+export type TabExpenseSettlementStatus = "settled" | "partiallySettled" | "outstanding";
+
+export function SettlementStatusPill({ status }: { status: TabExpenseSettlementStatus }) {
+  if (status === "outstanding") return null;
+  return (
+    <span
+      className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${status === "settled" ? "bg-settled-chip text-forest" : "bg-partially-settled-chip text-brass-ink"}`}
+    >
+      {status === "settled" ? "Settled" : "Partially settled"}
+    </span>
+  );
+}
+
 /** An expense date as "Mar 3", with its year and upcoming marker. */
 export function TabExpenseDate({ date }: { date: string | undefined }) {
   const { formatExpenseDateShort } = useLocaleFormatters();
@@ -138,6 +151,7 @@ export function TabExpenseRow({
   payer,
   upcoming,
   memberContext,
+  settlementStatus,
   onExpenseClick,
 }: {
   name: string;
@@ -147,6 +161,7 @@ export function TabExpenseRow({
   payer: TabExpensePayer;
   upcoming: boolean;
   memberContext?: TabExpenseMemberContext;
+  settlementStatus?: TabExpenseSettlementStatus;
   onExpenseClick?: () => void;
 }) {
   const { row } = expenseListGridClass(memberContext !== undefined);
@@ -214,6 +229,9 @@ export function TabExpenseRow({
             memberName={memberName}
             viewerPerspective={memberContext.viewerPerspective}
           />
+          {(settlementStatus === "settled" || settlementStatus === "partiallySettled") && (
+            <SettlementStatusPill status={settlementStatus} />
+          )}
         </span>
       )}
       <ChevronRight

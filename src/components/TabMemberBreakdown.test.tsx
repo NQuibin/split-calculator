@@ -69,6 +69,23 @@ test("shows an empty state when no expenses are shared with the viewer", () => {
   expect(markup).not.toContain(">Date<");
 });
 
+test("shows the selected member's partial settlement beneath a related expense balance", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member,
+      currencyCode: "CAD",
+      expenseStatuses: [
+        { expenseSlug: "dinner", memberId: "member-1", status: "partiallySettled" },
+        { expenseSlug: "dinner", memberId: "someone-else", status: "settled" },
+      ],
+    }),
+  );
+
+  expect(markup).toContain("Partially settled");
+  expect(markup).toContain("bg-partially-settled-chip");
+  expect(markup).not.toContain(">Settled<");
+});
+
 test("renders headerless expense rows with a desktop payer and balance", () => {
   const markup = renderMarkup(createElement(TabMemberBreakdown, { member, currencyCode: "CAD" }));
 

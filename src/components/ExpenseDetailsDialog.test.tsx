@@ -83,6 +83,115 @@ test("shows shared member names and amounts without status sublabels", () => {
   root.unmount();
 });
 
+test("shows settlement pills beside the relevant member share", () => {
+  const expense: TabExpenseSummary = {
+    mode: "simple",
+    date: "2026-09-26",
+    createdBy: { id: "nikki", name: "Nikki Q" },
+    slug: "dinner",
+    name: "Dinner",
+    payerId: "nikki",
+    people: [
+      { id: "nikki", name: "Nikki Q" },
+      { id: "sam", name: "Sam" },
+    ],
+    items: [
+      {
+        id: "total",
+        name: "Total",
+        cost: 10,
+        discount: { mode: "amount", value: 0 },
+        tax: { mode: "amount", value: 0 },
+        tip: { mode: "amount", value: 0 },
+        splitWith: ["nikki", "sam"],
+      },
+    ],
+    currency: "CAD",
+    settlementCurrency: "CAD",
+    createdAt: 0,
+  };
+  const root = createRoot(document.createElement("div"));
+  flushSync(() =>
+    root.render(
+      createElement(ExpenseDetailsDialog, {
+        open: true,
+        onOpenChange: () => undefined,
+        expense,
+        slug: "trip",
+        defaultCurrency: "CAD",
+        canManage: false,
+        members: [
+          { id: "nikki", name: "Nikki Q" },
+          { id: "sam", name: "Sam" },
+        ],
+        viewerMemberId: "nikki",
+        expenseStatuses: [
+          { expenseSlug: "dinner", memberId: "nikki", status: "settled" },
+          { expenseSlug: "dinner", memberId: "sam", status: "partiallySettled" },
+        ],
+      }),
+    ),
+  );
+  const rows = [...document.querySelectorAll("li")];
+  expect(rows.find((row) => row.textContent?.includes("Sam"))?.textContent).toContain(
+    "Partially settled",
+  );
+  expect(rows.find((row) => row.textContent?.includes("Nikki Q"))?.textContent).not.toContain(
+    "Settled",
+  );
+  expect(document.querySelector(".bg-partially-settled-chip")).not.toBeNull();
+  flushSync(() =>
+    root.render(
+      createElement(ExpenseDetailsDialog, {
+        open: true,
+        onOpenChange: () => undefined,
+        expense,
+        slug: "trip",
+        defaultCurrency: "CAD",
+        canManage: false,
+        members: [
+          { id: "nikki", name: "Nikki Q" },
+          { id: "sam", name: "Sam" },
+        ],
+        viewerMemberId: "nikki",
+        expenseStatuses: [{ expenseSlug: "dinner", memberId: "sam", status: "settled" }],
+      }),
+    ),
+  );
+  expect(document.body.textContent).toContain("Settled");
+  expect(document.querySelector(".bg-settled-chip")).not.toBeNull();
+  expect(document.body.textContent).not.toContain("Partially settled");
+  flushSync(() =>
+    root.render(
+      createElement(ExpenseDetailsDialog, {
+        open: true,
+        onOpenChange: () => undefined,
+        expense: { ...expense, payerId: "sam" },
+        slug: "trip",
+        defaultCurrency: "CAD",
+        canManage: false,
+        members: [
+          { id: "nikki", name: "Nikki Q" },
+          { id: "sam", name: "Sam" },
+        ],
+        viewerMemberId: "nikki",
+        expenseStatuses: [
+          { expenseSlug: "dinner", memberId: "nikki", status: "partiallySettled" },
+          { expenseSlug: "dinner", memberId: "sam", status: "settled" },
+        ],
+      }),
+    ),
+  );
+  const reverseRows = [...document.querySelectorAll("li")];
+  expect(reverseRows.find((row) => row.textContent?.includes("Nikki Q"))?.textContent).toContain(
+    "Partially settled",
+  );
+  expect(reverseRows.find((row) => row.textContent?.includes("Sam"))?.textContent).not.toContain(
+    "Settled",
+  );
+  root.unmount();
+});
+
 test("opens item details with adjustments and member shares, then goes back", () => {
   const onBack = vi.fn();
   const expense: TabExpenseSummary = {

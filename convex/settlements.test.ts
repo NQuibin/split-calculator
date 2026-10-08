@@ -392,6 +392,35 @@ test("recordMany writes all payments atomically and retries idempotently", async
   ).toEqual([]);
 });
 
+test("a tab member can record another member's payment and exposes direct balances", async () => {
+  const { t, owner, outsider, members } = await setup();
+  await expense(owner, members, members[0].id);
+  const token = await t.run(
+    async (ctx) => (await ctx.db.get(members[2].id as Id<"tabMembers">))!.inviteToken,
+  );
+  await outsider.mutation(api.tabs.claimMember, { slug: "trip", token });
+
+  const before = (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  expect(before.paid.currencies[0].directBalances).toEqual([
+    { fromMemberId: members[1].id, toMemberId: members[0].id, amount: 40 },
+    { fromMemberId: members[2].id, toMemberId: members[0].id, amount: 40 },
+  ]);
+  await outsider.mutation(api.settlements.record, {
+    slug: "trip",
+    asOfDate: TODAY,
+    fromMemberId: members[1].id,
+    toMemberId: members[0].id,
+    amount: 40,
+    currency: "USD",
+    date: TODAY,
+    requestId: "on-behalf",
+  });
+  const after = (await outsider.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  expect(after.paid.currencies[0].directBalances).toEqual([
+    { fromMemberId: members[2].id, toMemberId: members[0].id, amount: 40 },
+  ]);
+});
+
 test("rejects cross-tab members and retains a payment-only currency after expense deletion", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "EUR");
@@ -563,6 +592,36 @@ test("payments settle oldest expenses first and reversal restores them", async (
   ]);
 });
 
+test("expense statuses reflect repayments from each member's viewpoint", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b", "c"], 9, "nine-dollar-meal");
+  await owner.mutation(api.settlements.record, {
+    slug: "trip",
+    fromMemberId: members[1].id,
+    toMemberId: members[0].id,
+    amount: 3,
+    currency: "USD",
+    date: TODAY,
+    requestId: "one-share-paid",
+    asOfDate: TODAY,
+  });
+
+  const result = (await owner.query(api.settlements.get, { slug: "trip", asOfDate: TODAY }))!;
+  const statuses = result.paid.expenseStatuses.filter(
+    (status) => status.expenseSlug === "nine-dollar-meal",
+  );
+  expect(
+    statuses.map(({ memberId, status }) => [
+      members.findIndex((member) => member.id === memberId),
+      status,
+    ]),
+  ).toEqual([
+    [0, "partiallySettled"],
+    [1, "settled"],
+    [2, "outstanding"],
+  ]);
+});
+
 test("opposite expenses settle the earliest debt before later expenses", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", ["a", "b"], 30, "first");
@@ -573,6 +632,9 @@ test("opposite expenses settle the earliest debt before later expenses", async (
   const usd = result.paid.currencies[0];
   expect(usd.members.map((member) => member.balanceWithViewer)).toEqual([0, 0, 0]);
   expect(usd.members.every((member) => member.expenses.length === 0)).toBe(true);
+  expect(usd && result.paid.expenseStatuses.every((status) => status.status === "settled")).toBe(
+    true,
+  );
 });
 
 test("invalid dates, currency and precision are refused before creating a settlement", async () => {

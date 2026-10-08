@@ -379,6 +379,7 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         members={tab.members}
         expenses={expenses}
         viewerId={viewer?._id}
+        expenseStatuses={settlement?.[hasUpcoming ? expenseView : "all"].expenseStatuses ?? []}
       />
     </div>
   );
@@ -1149,6 +1150,7 @@ function ExpenseList({
   expenses,
   expenseView,
   viewerId,
+  expenseStatuses,
 }: {
   expenseView: ExpenseView;
   defaultCurrency: string;
@@ -1157,6 +1159,11 @@ function ExpenseList({
   members: { id: string; name: string; claimed: boolean; resolvedId: string }[];
   expenses: ReturnType<typeof useTabExpenses>;
   viewerId: string | undefined;
+  expenseStatuses: {
+    expenseSlug: string;
+    memberId: string;
+    status: "settled" | "partiallySettled" | "outstanding";
+  }[];
 }) {
   const { remove } = useExpenseActions();
   const [search, setSearch] = useState("");
@@ -1237,6 +1244,15 @@ function ExpenseList({
                         }
                       : undefined
                   }
+                  settlementStatus={
+                    typeof viewerBalance === "number" && viewerBalance !== 0
+                      ? expenseStatuses.find(
+                          (entry) =>
+                            entry.expenseSlug === expense.slug &&
+                            entry.memberId === viewerMember?.id,
+                        )?.status
+                      : undefined
+                  }
                   onExpenseClick={() => {
                     setSelectedSlug(expense.slug);
                   }}
@@ -1300,6 +1316,8 @@ function ExpenseList({
           if (!next) setSelectedSlug(null);
         }}
         expense={selected}
+        expenseStatuses={expenseStatuses}
+        viewerMemberId={viewerMember?.id}
         slug={slug}
         defaultCurrency={defaultCurrency}
         canManage={canManage}

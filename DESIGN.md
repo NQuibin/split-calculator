@@ -44,6 +44,8 @@ utilities via `@theme inline`. **Never write a hex literal in a `className`.**
 | `--brass`       | `#b8933a` | `text-brass`        | **Decoration only** — see the contrast warning below          |
 | `--rule`        | `#ccd5bd` | `border-rule`       | Borders, dividers, input outlines                             |
 | `--chip-neutral`| `#e3e5e2` | `bg-chip-neutral`   | Neutral metadata chips; never hover or active state           |
+| `--settled-chip` | `#e5f2e8` | `bg-settled-chip` | Light green fill for the Settled status pill                   |
+| `--partially-settled-chip` | `#fff0cb` | `bg-partially-settled-chip` | Pale yellow fill for the Partially settled status pill |
 | `--wash`        | `#e9dfc5` | `bg-wash`           | Hover/active wash — **warm**, against sage resting grounds      |
 | `--brass-ink`   | `#7a611f` | `text-brass-ink`    | Brass where it must be **readable** — the wordmark, brass text  |
 | `--edge`        | `#788576` | `border-edge`       | The boundary of a floating surface **or a form field**          |

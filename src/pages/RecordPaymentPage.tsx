@@ -10,6 +10,7 @@ import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { FieldError, Input, Label } from "@/components/ui/Input";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { MemberPicker } from "@/components/ui/MemberPicker";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/Dialog";
 import { Page, Panel } from "@/components/ui/Page";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
@@ -21,12 +22,14 @@ import { useTab } from "@/lib/tabSync";
 const route = getRouteApi("/t/$slug/payment");
 type SettlementResponse = NonNullable<FunctionReturnType<typeof api.settlements.get>>;
 type SettlementQueryResponse = SettlementResponse | SettlementResponse["paid"];
+type SettlementCurrency = SettlementResponse["paid"]["currencies"][number];
 type PaymentMember = {
   memberId: string;
   name: string;
   currency: string;
   balance: number;
 };
+type Actor = { memberId: string; name: string };
 type PaymentDraft = { amount: string };
 type PaymentSection = {
   key: string;
@@ -59,6 +62,7 @@ export function RecordPaymentPage() {
   const recordSettlement = useMutation(api.settlements.recordMany);
   const { currency } = useLocaleFormatters();
   const [stage, setStage] = useState<"select" | "details">("select");
+  const [actorId, setActorId] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<string[]>(() =>
     memberId && selectedCurrency ? [`${memberId}:${selectedCurrency}`] : [],
   );
@@ -66,22 +70,69 @@ export function RecordPaymentPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recordedCount, setRecordedCount] = useState(0);
+  const [submittedSections, setSubmittedSections] = useState<PaymentSection[] | null>(null);
+  const [submittedActor, setSubmittedActor] = useState<Actor | null>(null);
 
   const data = response ? ("paid" in response ? response[view] : response) : undefined;
+  const directBalances = (group: SettlementCurrency) => group.directBalances ?? [];
+  const actors: Actor[] = data
+    ? data.currencies
+        .flatMap((group) => group.members)
+        .filter((member, index, members) => {
+          const hasBalance = data.currencies.some((group) =>
+            directBalances(group).some(
+              (balance) =>
+                balance.amount > 0 &&
+                (balance.fromMemberId === member.memberId ||
+                  balance.toMemberId === member.memberId),
+            ),
+          );
+          return (
+            hasBalance && members.findIndex((item) => item.memberId === member.memberId) === index
+          );
+        })
+        .map((member) => ({ memberId: member.memberId, name: member.name }))
+    : [];
+  const selectedActorId =
+    submittedActor?.memberId ??
+    actorId ??
+    actors.find((actor) => actor.memberId === data?.viewerMemberId)?.memberId ??
+    actors[0]?.memberId;
+  const selectedActorName =
+    submittedActor?.name ?? actors.find((actor) => actor.memberId === selectedActorId)?.name;
+  const viewerIsActor = selectedActorId === data?.viewerMemberId;
   const choices: PaymentMember[] =
     data?.currencies.flatMap((group) =>
-      group.members
-        .filter(
-          (member) =>
-            member.memberId !== data.viewerMemberId &&
-            (member.balanceWithViewer ?? member.balance) !== 0,
-        )
-        .map((member) => ({
-          memberId: member.memberId,
-          name: member.name,
-          currency: group.currency,
-          balance: member.balanceWithViewer ?? member.balance,
-        })),
+      directBalances(group).flatMap((balance) => {
+        if (balance.amount <= 0 || !selectedActorId) return [];
+        if (balance.toMemberId === selectedActorId) {
+          const member = group.members.find((item) => item.memberId === balance.fromMemberId);
+          return member
+            ? [
+                {
+                  memberId: member.memberId,
+                  name: member.name,
+                  currency: group.currency,
+                  balance: balance.amount,
+                },
+              ]
+            : [];
+        }
+        if (balance.fromMemberId === selectedActorId) {
+          const member = group.members.find((item) => item.memberId === balance.toMemberId);
+          return member
+            ? [
+                {
+                  memberId: member.memberId,
+                  name: member.name,
+                  currency: group.currency,
+                  balance: -balance.amount,
+                },
+              ]
+            : [];
+        }
+        return [];
+      }),
     ) ?? [];
   const choiceGroups =
     data?.currencies.flatMap(({ currency: code }) => {
@@ -89,36 +140,38 @@ export function RecordPaymentPage() {
       return members.length > 0 ? [{ code, members }] : [];
     }) ?? [];
   const selectedChoices = choices.filter((choice) => selectedKeys.includes(paymentKey(choice)));
-  const sections: PaymentSection[] = selectedChoices.map((choice) => {
-    const key = paymentKey(choice);
-    const draft = drafts[key] ?? { amount: "" };
-    const enteredAmountCents = Number(draft.amount) * 100;
-    const paymentCents = Math.round(enteredAmountCents);
-    const validAmount =
-      Number.isFinite(enteredAmountCents) &&
-      Number.isSafeInteger(paymentCents) &&
-      paymentCents > 0 &&
-      Math.abs(enteredAmountCents - paymentCents) < 1e-6;
-    const memberBalanceCapacity = Math.round(Math.abs(choice.balance) * 100);
-    const error =
-      draft.amount === ""
-        ? null
-        : !validAmount
-          ? "Enter a positive amount with up to two decimal places."
-          : paymentCents > memberBalanceCapacity
-            ? "Payment cannot exceed the direct balance with this member."
-            : null;
-    return {
-      key,
-      choice,
-      draft,
-      paymentCents,
-      validAmount,
-      memberBalanceCapacity,
-      error,
-      valid: validAmount && paymentCents <= memberBalanceCapacity,
-    };
-  });
+  const sections: PaymentSection[] =
+    submittedSections ??
+    selectedChoices.map((choice) => {
+      const key = paymentKey(choice);
+      const draft = drafts[key] ?? { amount: "" };
+      const enteredAmountCents = Number(draft.amount) * 100;
+      const paymentCents = Math.round(enteredAmountCents);
+      const validAmount =
+        Number.isFinite(enteredAmountCents) &&
+        Number.isSafeInteger(paymentCents) &&
+        paymentCents > 0 &&
+        Math.abs(enteredAmountCents - paymentCents) < 1e-6;
+      const memberBalanceCapacity = Math.round(Math.abs(choice.balance) * 100);
+      const error =
+        draft.amount === ""
+          ? null
+          : !validAmount
+            ? "Enter a positive amount with up to two decimal places."
+            : paymentCents > memberBalanceCapacity
+              ? "Payment cannot exceed the direct balance with this member."
+              : null;
+      return {
+        key,
+        choice,
+        draft,
+        paymentCents,
+        validAmount,
+        memberBalanceCapacity,
+        error,
+        valid: validAmount && paymentCents <= memberBalanceCapacity,
+      };
+    });
   const canSubmit = sections.length > 0 && sections.every((section) => section.valid);
 
   function toggleChoice(choice: PaymentMember) {
@@ -138,7 +191,9 @@ export function RecordPaymentPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!data?.viewerMemberId || !canSubmit) return;
+    if (!selectedActorId || !canSubmit) return;
+    setSubmittedSections(sections);
+    setSubmittedActor({ memberId: selectedActorId, name: selectedActorName ?? "Member" });
     setPending(true);
     setError(null);
     try {
@@ -149,10 +204,8 @@ export function RecordPaymentPage() {
         payments: sections.map(({ choice, paymentCents }) => ({
           fromMemberId: (choice.balance > 0
             ? choice.memberId
-            : data.viewerMemberId) as Id<"tabMembers">,
-          toMemberId: (choice.balance > 0
-            ? data.viewerMemberId
-            : choice.memberId) as Id<"tabMembers">,
+            : selectedActorId) as Id<"tabMembers">,
+          toMemberId: (choice.balance > 0 ? selectedActorId : choice.memberId) as Id<"tabMembers">,
           amount: paymentCents / 100,
           currency: choice.currency,
           date: day,
@@ -161,6 +214,8 @@ export function RecordPaymentPage() {
       });
       setRecordedCount(sections.length);
     } catch (cause) {
+      setSubmittedSections(null);
+      setSubmittedActor(null);
       setError(cause instanceof Error ? cause.message : "Could not record payment.");
     } finally {
       setPending(false);
@@ -198,13 +253,33 @@ export function RecordPaymentPage() {
           </p>
         ) : response === null || tab === null ? (
           <p className="text-sm text-ink-soft">This tab doesn’t exist.</p>
-        ) : !data?.viewerMemberId ? (
+        ) : !selectedActorId ? (
           <p className="text-sm text-ink-soft">Payment recording isn’t available.</p>
         ) : stage === "select" ? (
           <div className="space-y-4">
             <div>
               <SectionTitle>Choose a member</SectionTitle>
-              <p className="mt-1 text-sm text-ink-soft">Select one or more balances to record.</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                Choose who the payment is being recorded for.
+              </p>
+            </div>
+            <div>
+              <Label id="payment-actor-label" htmlFor="payment-actor">
+                Record payment for
+              </Label>
+              <MemberPicker
+                id="payment-actor"
+                labelId="payment-actor-label"
+                value={selectedActorId}
+                placeholder="Member"
+                members={actors.map((actor) => ({ id: actor.memberId, name: actor.name }))}
+                onChange={(id) => {
+                  setActorId(id);
+                  setSelectedKeys([]);
+                  setDrafts({});
+                  setStage("select");
+                }}
+              />
             </div>
             {choices.length === 0 ? (
               <p className="text-sm text-ink-soft">No eligible balances to record.</p>
@@ -232,11 +307,13 @@ export function RecordPaymentPage() {
                               <span className="min-w-0 flex-1 break-words">
                                 {choice.balance > 0 ? (
                                   <>
-                                    <span className="font-medium">{choice.name}</span> owes you{" "}
+                                    <span className="font-medium">{choice.name}</span> owes{" "}
+                                    {viewerIsActor ? "you" : selectedActorName}{" "}
                                   </>
                                 ) : (
                                   <>
-                                    You owe <span className="font-medium">{choice.name}</span>{" "}
+                                    {viewerIsActor ? "You owe" : `${selectedActorName} owes`}{" "}
+                                    <span className="font-medium">{choice.name}</span>{" "}
                                   </>
                                 )}
                                 <span
@@ -260,7 +337,7 @@ export function RecordPaymentPage() {
                 size="touch"
                 className="w-full sm:w-auto"
                 onClick={() => setStage("details")}
-                disabled={pending || selectedKeys.length === 0}
+                disabled={pending || selectedChoices.length === 0}
               >
                 Continue →
               </Button>
@@ -284,7 +361,13 @@ export function RecordPaymentPage() {
                       <p
                         className={`mt-1 text-sm ${section.choice.balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
                       >
-                        {section.choice.balance > 0 ? "You are owed" : "You owe"}{" "}
+                        {section.choice.balance > 0
+                          ? viewerIsActor
+                            ? "You are owed"
+                            : `${section.choice.name} owes ${selectedActorName}`
+                          : viewerIsActor
+                            ? "You owe"
+                            : `${selectedActorName} owes ${section.choice.name}`}{" "}
                         <span className="font-numeric font-semibold">
                           {currency(Math.abs(section.choice.balance), section.choice.currency)}
                         </span>

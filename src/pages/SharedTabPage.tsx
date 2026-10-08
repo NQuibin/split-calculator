@@ -133,6 +133,14 @@ export function SharedTabPage({
   const members = data.currencies[0]?.members ?? [];
   const memberName = (key: string) =>
     members.find((member) => member.key === key)?.name ?? "Member";
+  const expenseStatus = (expenseSlug: string, memberId: string): ReactNode => {
+    const status = data.expenseStatuses?.find(
+      (entry) => entry.expenseSlug === expenseSlug && entry.memberId === memberId,
+    )?.status;
+    const label =
+      status === "settled" ? "Settled" : status === "partiallySettled" ? "Partially Settled" : null;
+    return label && <span className="block font-sans text-xs text-ink-soft">{label}</span>;
+  };
   const historyByDate = data.history.reduce<Map<string, typeof data.history>>((groups, payment) => {
     const group = groups.get(payment.date) ?? [];
     group.push(payment);
@@ -337,6 +345,7 @@ export function SharedTabPage({
                                                       {currency(expense.paidAmount, group.currency)}
                                                     </span>
                                                   )}
+                                                  {expenseStatus(expense.key, person.key)}
                                                 </span>
                                               </>
                                             }
@@ -419,6 +428,7 @@ export function SharedTabPage({
                                                   {currency(expense.paidAmount, group.currency)}
                                                 </span>
                                               )}
+                                              {expenseStatus(expense.key, person.key)}
                                             </span>
                                           </div>
                                         )}

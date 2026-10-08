@@ -54,6 +54,42 @@ test("renders another selected member's balance label", () => {
   expect(markup).not.toContain("You borrowed");
 });
 
+test.each([
+  ["settled", "Settled", "bg-settled-chip text-forest"],
+  ["partiallySettled", "Partially settled", "bg-partially-settled-chip text-brass-ink"],
+] as const)("renders %s as a settlement pill", (settlementStatus, label, colors) => {
+  const markup = renderMarkup(
+    createElement(TabExpenseRow, {
+      ...sharedRow,
+      memberContext: { balance: 13.34 },
+      settlementStatus,
+    }),
+  );
+
+  expect(markup).toContain(label);
+  expect(markup).toContain(
+    `class="mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${colors}"`,
+  );
+});
+
+test.each([undefined, "outstanding"] as const)(
+  "does not render a settlement pill for %s",
+  (settlementStatus) => {
+    const markup = renderMarkup(
+      createElement(TabExpenseRow, {
+        ...sharedRow,
+        memberContext: { balance: 13.34 },
+        settlementStatus,
+      }),
+    );
+
+    expect(markup).not.toContain("Settled");
+    expect(markup).not.toContain("Partially settled");
+    expect(markup).not.toContain("bg-settled-chip");
+    expect(markup).not.toContain("bg-partially-settled-chip");
+  },
+);
+
 test("omits the balance column when no member context is supplied", () => {
   const markup = renderMarkup(createElement(TabExpenseRow, sharedRow));
 

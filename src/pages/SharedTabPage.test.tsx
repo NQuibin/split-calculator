@@ -36,7 +36,19 @@ const mocks = vi.hoisted(() => ({
             key: "member-1",
             name: "Sam",
             balance: -25,
-            expenses: [],
+            expenses: [
+              {
+                key: "breakfast",
+                name: "Breakfast",
+                date: "2026-10-02",
+                paidAmount: 0,
+                shareAmount: 12,
+                total: 24,
+                taxTotal: 0,
+                tipTotal: 0,
+                items: [],
+              },
+            ],
           },
         ],
         settlements: [{ from: "member-1", to: "member-0", amount: 25 }],
@@ -49,6 +61,11 @@ const mocks = vi.hoisted(() => ({
         ],
         settlements: [{ from: "member-1", to: "member-0", amount: 12 }],
       },
+    ],
+    expenseStatuses: [
+      { expenseSlug: "dinner", memberId: "member-0", status: "partiallySettled" },
+      { expenseSlug: "breakfast", memberId: "member-1", status: "settled" },
+      { expenseSlug: "dinner", memberId: "member-1", status: "outstanding" },
     ],
     history: [
       {
@@ -124,6 +141,9 @@ test("breakdown shows member totals, currency sections, owes, and itemized expen
   expect(container.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
   expect(container.textContent).toContain("Paid");
   expect(container.textContent).toContain("Share");
+  expect(container.textContent).toContain("Partially Settled");
+  expect(container.textContent).toContain("Settled");
+  expect(container.textContent).not.toContain("outstanding");
   expect(container.textContent).toContain("Total share");
   expect(container.textContent).toContain("Total paid");
   const total = (label: string) =>
@@ -182,6 +202,25 @@ test("breakdown shows member totals, currency sections, owes, and itemized expen
   );
   expect(container.querySelector("h1")?.textContent).toBe("Weekend getaway Breakdown");
   root.unmount();
+});
+
+test("breakdown remains readable while dev returns the older response without statuses", () => {
+  const statuses = mocks.data.expenseStatuses;
+  Reflect.deleteProperty(mocks.data, "expenseStatuses");
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  try {
+    flushSync(() =>
+      root.render(
+        createElement(SharedTabPage, { slug: "trip", share: "secret", view: "breakdown" }),
+      ),
+    );
+    expect(document.body.textContent).toContain("Dinner");
+  } finally {
+    root.unmount();
+    mocks.data.expenseStatuses = statuses;
+  }
 });
 
 test("switching to payment history navigates on the breakdown route with the history view", () => {

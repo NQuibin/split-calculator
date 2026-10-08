@@ -1,4 +1,4 @@
-import { TabExpenseRow } from "@/components/TabExpenseGrid";
+import { TabExpenseRow, type TabExpenseSettlementStatus } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
 import { isUpcoming } from "@/lib/format";
 import type { TabBreakdownMember } from "@/lib/tabSync";
@@ -6,10 +6,16 @@ import type { TabBreakdownMember } from "@/lib/tabSync";
 export function TabMemberBreakdown({
   member,
   currencyCode,
+  expenseStatuses,
   onExpenseClick,
 }: {
   member: TabBreakdownMember;
   currencyCode: string;
+  expenseStatuses?: {
+    expenseSlug: string;
+    memberId: string;
+    status: TabExpenseSettlementStatus;
+  }[];
   onExpenseClick?: (expenseSlug: string) => void;
 }) {
   const expenses = member.expenses.filter((line) => line.sharedWithViewer);
@@ -39,6 +45,15 @@ export function TabMemberBreakdown({
                     memberName: undefined,
                     viewerPerspective: true,
                   }}
+                  settlementStatus={
+                    typeof line.viewerBalance === "number" && line.viewerBalance !== 0
+                      ? expenseStatuses?.find(
+                          (entry) =>
+                            entry.expenseSlug === line.expenseSlug &&
+                            entry.memberId === member.memberId,
+                        )?.status
+                      : undefined
+                  }
                   onExpenseClick={() => onExpenseClick?.(line.expenseSlug)}
                 />
               );

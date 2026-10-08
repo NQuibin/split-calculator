@@ -31,9 +31,20 @@ type CurrencyTotals = Map<string, MemberTotals>;
 type ExpenseDebt = {
   expenseId: Id<"expenses">;
   expenseSlug: string;
+  memberId: string;
   name: string;
   date: string;
+  originalCents: number;
+  outstandingCents: number;
   outstanding: number;
+};
+type ExpenseStatus = {
+  expenseSlug: string;
+  memberId: Id<"tabMembers">;
+  status: "settled" | "partiallySettled" | "outstanding";
+  originalCents: number;
+  outstandingCents: number;
+  isPayer: boolean;
 };
 
 function paymentCents(amount: number) {
@@ -221,6 +232,7 @@ export async function readBalances(
     {
       byCurrency: Map<string, CurrencyTotals>;
       expenseDebts: Map<string, ExpenseDebt[]>;
+      expenseStatuses: ExpenseStatus[];
       missingPayers: { slug: string; name: string }[];
     }
   >;
@@ -228,6 +240,7 @@ export async function readBalances(
   for (const expenseView of ["paid", "upcoming", "all"] as const) {
     const byCurrency = new Map<string, CurrencyTotals>();
     const expenseDebts = new Map<string, ExpenseDebt[]>();
+    const expenseStatuses: ExpenseStatus[] = [];
     const missingPayers: { slug: string; name: string }[] = [];
     for (const expense of expenses) {
       const isUpcoming = expense.date > asOfDate;
@@ -265,19 +278,37 @@ export async function readBalances(
       if (shareAmounts.reduce(addCents, 0) !== totalCents)
         throw new Error(`Expense "${expense.name || expense.slug}" has inconsistent shares`);
       const totals = byCurrency.get(code) ?? blank(roster);
-      for (const [index, share] of shares.entries()) {
-        const shareCents = shareAmounts[index];
-        if (share.personId === expense.payerId || shareCents === 0) continue;
-        const key = expenseDebtKey(code, share.personId, expense.payerId);
-        const debts = expenseDebts.get(key) ?? [];
-        debts.push({
-          expenseId: expense._id,
+      const involved = new Set([
+        expense.payerId,
+        ...expense.items.flatMap((item) => item.splitWith),
+      ]);
+      for (const memberId of involved) {
+        const index = shares.findIndex((share) => share.personId === memberId);
+        const shareCents = index < 0 ? 0 : shareAmounts[index];
+        const status: ExpenseStatus = {
           expenseSlug: expense.slug,
-          name: expense.name,
-          date: expense.date,
-          outstanding: shareCents / 100,
-        });
-        expenseDebts.set(key, debts);
+          memberId: memberId as Id<"tabMembers">,
+          status: shareCents === 0 || memberId === expense.payerId ? "settled" : "outstanding",
+          originalCents: memberId === expense.payerId ? 0 : shareCents,
+          outstandingCents: memberId === expense.payerId ? 0 : shareCents,
+          isPayer: memberId === expense.payerId,
+        };
+        expenseStatuses.push(status);
+        if (memberId !== expense.payerId && shareCents > 0) {
+          const key = expenseDebtKey(code, memberId, expense.payerId);
+          const debts = expenseDebts.get(key) ?? [];
+          debts.push({
+            expenseId: expense._id,
+            expenseSlug: expense.slug,
+            memberId,
+            name: expense.name,
+            date: expense.date,
+            originalCents: shareCents,
+            outstandingCents: shareCents,
+            outstanding: shareCents / 100,
+          });
+          expenseDebts.set(key, debts);
+        }
       }
       if (
         viewerMemberId &&
@@ -344,16 +375,46 @@ export async function readBalances(
       for (const debt of debts) {
         const shareCents = checkedCents(debt.outstanding);
         const paidCents = Math.min(shareCents, remaining);
-        debt.outstanding = (shareCents - paidCents) / 100;
+        debt.outstandingCents = shareCents - paidCents;
+        debt.outstanding = debt.outstandingCents / 100;
         remaining -= paidCents;
       }
+    }
+    const payerDebts = new Map<string, { original: number; outstanding: number }>();
+    const memberDebts = new Map<string, ExpenseDebt>();
+    for (const debt of [...expenseDebts.values()].flat()) {
+      const totals = payerDebts.get(debt.expenseSlug) ?? { original: 0, outstanding: 0 };
+      totals.original = addCents(totals.original, debt.originalCents);
+      totals.outstanding = addCents(totals.outstanding, debt.outstandingCents);
+      payerDebts.set(debt.expenseSlug, totals);
+      memberDebts.set(`${debt.expenseSlug}:${debt.memberId}`, debt);
+    }
+    for (const status of expenseStatuses) {
+      if (!status.isPayer) {
+        const debt = memberDebts.get(`${status.expenseSlug}:${status.memberId}`);
+        if (debt) {
+          status.originalCents = debt.originalCents;
+          status.outstandingCents = debt.outstandingCents;
+        }
+      }
+      if (status.isPayer) {
+        const totals = payerDebts.get(status.expenseSlug) ?? { original: 0, outstanding: 0 };
+        status.originalCents = totals.original;
+        status.outstandingCents = totals.outstanding;
+      }
+      status.status =
+        status.outstandingCents === 0
+          ? "settled"
+          : status.outstandingCents < status.originalCents
+            ? "partiallySettled"
+            : "outstanding";
     }
     for (const [key, debts] of expenseDebts)
       expenseDebts.set(
         key,
         debts.filter((debt) => debt.outstanding > 0),
       );
-    views[expenseView] = { byCurrency, expenseDebts, missingPayers };
+    views[expenseView] = { byCurrency, expenseDebts, expenseStatuses, missingPayers };
   }
   return { roster, people, views, payments };
 }
@@ -409,12 +470,30 @@ const settlementSummary = v.object({
           ),
         }),
       ),
+      directBalances: v.array(
+        v.object({
+          fromMemberId: v.id("tabMembers"),
+          toMemberId: v.id("tabMembers"),
+          amount: v.number(),
+        }),
+      ),
       suggestions: v.array(
         v.object({
           fromMemberId: v.id("tabMembers"),
           toMemberId: v.id("tabMembers"),
           amount: v.number(),
         }),
+      ),
+    }),
+  ),
+  expenseStatuses: v.array(
+    v.object({
+      expenseSlug: v.string(),
+      memberId: v.id("tabMembers"),
+      status: v.union(
+        v.literal("settled"),
+        v.literal("partiallySettled"),
+        v.literal("outstanding"),
       ),
     }),
   ),
@@ -456,7 +535,7 @@ export const get = query({
     const { roster, people, views, payments } = await readBalances(ctx, tab, asOfDate, viewer);
     const viewerMemberId = roster.find((seat) => seat.userId === viewer)?._id ?? null;
     const format = (expenseView: ExpenseView) => {
-      const { byCurrency, expenseDebts, missingPayers } = views[expenseView];
+      const { byCurrency, expenseDebts, expenseStatuses, missingPayers } = views[expenseView];
       return {
         currencies: [...byCurrency]
           .sort(([a], [b]) => a.localeCompare(b))
@@ -486,12 +565,35 @@ export const get = query({
                     ? net(total) / 100
                     : directBalance / 100,
                 hasSharedExpenseWithViewer: total.hasSharedExpenseWithViewer,
-                expenses: key ? (expenseDebts.get(key) ?? []) : [],
+                expenses: key
+                  ? (expenseDebts.get(key) ?? []).map(
+                      ({ expenseId, expenseSlug, name, date, outstanding }) => ({
+                        expenseId,
+                        expenseSlug,
+                        name,
+                        date,
+                        outstanding,
+                      }),
+                    )
+                  : [],
               };
             });
+            const directBalances = people.flatMap((from, index) =>
+              people.slice(index + 1).flatMap((to) => {
+                const balance =
+                  (totals.get(from.id)?.directDebts.get(to.id) ?? 0) -
+                  (totals.get(to.id)?.directDebts.get(from.id) ?? 0);
+                return balance > 0
+                  ? [{ fromMemberId: from.id, toMemberId: to.id, amount: balance / 100 }]
+                  : balance < 0
+                    ? [{ fromMemberId: to.id, toMemberId: from.id, amount: -balance / 100 }]
+                    : [];
+              }),
+            );
             return {
               currency,
               members,
+              directBalances,
               suggestions: suggestSettlements(members).map((suggestion) => ({
                 ...suggestion,
                 fromMemberId: suggestion.fromMemberId as Id<"tabMembers">,
@@ -500,6 +602,11 @@ export const get = query({
             };
           }),
         missingPayers,
+        expenseStatuses: expenseStatuses.map(({ expenseSlug, memberId, status }) => ({
+          expenseSlug,
+          memberId,
+          status,
+        })),
         history: payments
           .filter((payment) => payment.date <= asOfDate)
           .sort(
@@ -535,6 +642,17 @@ const publicShareResult = v.union(
   v.null(),
   v.object({
     tab: v.object({ slug: v.string(), name: v.string() }),
+    expenseStatuses: v.array(
+      v.object({
+        expenseSlug: v.string(),
+        memberId: v.id("tabMembers"),
+        status: v.union(
+          v.literal("settled"),
+          v.literal("partiallySettled"),
+          v.literal("outstanding"),
+        ),
+      }),
+    ),
     currencies: v.array(
       v.object({
         currency: v.string(),
@@ -706,6 +824,11 @@ export const publicShare = query({
 
     return {
       tab: { slug: tab.slug, name: tab.name },
+      expenseStatuses: views.all.expenseStatuses.map(({ expenseSlug, memberId, status }) => ({
+        expenseSlug,
+        memberId,
+        status,
+      })),
       currencies,
       history: payments
         .filter((payment) => payment.date <= asOfDate)

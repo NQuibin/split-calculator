@@ -50,6 +50,10 @@
   /* Neutral resting fill for metadata chips. Kept grey so it cannot read as
      the warm --wash hover/active state. */
   --chip-neutral: #e3e5e2;
+  /* A clear mint fill for the Settled status pill. */
+  --settled-chip: #e5f2e8;
+  /* A pale yellow fill for the Partially settled status pill. */
+  --partially-settled-chip: #fff0cb;
   /* The hover/active wash for rows, list items and quiet buttons.
      Deliberately WARM - brass mixed into --surface - while every resting
      ground in the app is sage. A same-hue wash only reads as "slightly darker
@@ -119,6 +123,8 @@
   --color-brass: var(--brass);
   --color-rule: var(--rule);
   --color-chip-neutral: var(--chip-neutral);
+  --color-settled-chip: var(--settled-chip);
+  --color-partially-settled-chip: var(--partially-settled-chip);
   --color-wash: var(--wash);
   --color-brass-ink: var(--brass-ink);
   --color-edge: var(--edge);
