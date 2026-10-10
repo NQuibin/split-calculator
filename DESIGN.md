@@ -318,6 +318,7 @@ states:
 | `destructive-icon` | transparent, muted icon/text              | transparent, red icon/text | Compact destructive icon-only actions       |
 | `quiet-icon` | transparent, muted icon/text              | transparent, forest icon/text | Compact non-destructive icon-only actions |
 | `menu-icon` | transparent, muted icon                  | faint circular `--wash`, forest icon | 44px vertical three-dot overflow trigger |
+| `row` | Full-width grid row with transparent fill | `--wash` | Clickable list row with a name and right-aligned value |
 | `ghost`       | transparent, no border                     | `bg-accent`          | **Icon-only** buttons and row actions      |
 | `link`        | `text-primary`                             | `underline`          | Inline text actions inside content flow    |
 | `field`       | `border-rule bg-paper`, normal weight      | border → `--forest`  | A trigger that stands in for a form control |
@@ -329,12 +330,13 @@ states:
 3. Is it a compact destructive icon-only action? → `destructive-icon`.
 4. Is it a vertical three-dot overflow trigger? → `menu-icon`.
 5. Is it a compact non-destructive icon-only action? → `quiet-icon`.
-6. Is it icon-only? → `ghost`.
-7. Does it sit inline inside a paragraph or a content block ("Add item",
+6. Is it a full-width list row with a name and right-aligned value? → `row`.
+7. Is it icon-only? → `ghost`.
+8. Does it sit inline inside a paragraph or a content block ("Add item",
    "Copy invite")? → `link`.
-8. Is it a popover trigger that *reads as a form control* — the currency,
+9. Is it a popover trigger that *reads as a form control* — the currency,
    date or tab picker? → `field`.
-9. Otherwise → `secondary`.
+10. Otherwise → `secondary`.
 
 Two rules that follow from this, and are the ones that actually get broken:
 
@@ -390,6 +392,7 @@ Sizes:
 | `touch`       | 44px   | **Any action a user taps on a phone** — the mobile default    |
 | `hero`        | 48px   | The one prominent CTA on a screen; carries `font-display`     |
 | `icon-*`      | —      | Square icon-only equivalents, incl. `icon-touch` (44px)       |
+| `row`         | —      | Full-width list row, `h-auto min-h-16`, with row grid spacing |
 
 `xs` through `lg` are desktop-density and all fall below the 44px minimum in
 § 6. On a touch-reachable surface use `touch` / `icon-touch` / `hero`.

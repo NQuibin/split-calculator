@@ -643,16 +643,17 @@ test("keeps payment history in its modal", () => {
   const dialog = document.querySelector('[role="dialog"]');
   expect(dialog).not.toBe(manageDialog);
   expect(dialog?.className).toContain("animate-in");
-  expect(dialog?.textContent).toContain("P2 paid Nikki Q");
-  expect(dialog?.textContent).toContain("Nikki Q paid P2");
+  expect(dialog?.textContent).toContain("P2 → Nikki Q");
+  expect(dialog?.textContent).toContain("Nikki Q → P2");
   expect(dialog?.textContent).toContain("CA$30.00");
   expect(dialog?.textContent).toContain("CA$5.00");
   expect(dialog?.textContent).toContain("$7.00");
-  expect(dialog?.textContent).toContain("Upcoming expenses · Reversed");
+  expect(dialog?.textContent).toContain("Upcoming expensesReversed");
   expect(dialog?.querySelectorAll('[role="img"][aria-label="P2"]')).toHaveLength(2);
   expect(dialog?.querySelectorAll('[role="img"][aria-label="Nikki Q"]')).toHaveLength(2);
-  expect(dialog?.querySelectorAll(".min-w-0.flex-1.text-left")).toHaveLength(4);
+  expect(dialog?.querySelectorAll(".min-w-0.text-left")).toHaveLength(8);
   expect(dialog?.querySelectorAll(".font-numeric.text-sm.font-semibold")).toHaveLength(4);
+  expect(dialog?.querySelectorAll('button[aria-label^="Reverse "]')).toHaveLength(0);
   expect(dialog?.querySelector('[aria-label="Close payment history"]')).not.toBeNull();
   flushSync(() =>
     dialog?.querySelector<HTMLButtonElement>('[aria-label="Back to manage payments"]')?.click(),
@@ -682,7 +683,7 @@ test("keeps payment history in its modal", () => {
   root.unmount();
 });
 
-test("confirms a payment reversal and shows its linked history entry", async () => {
+test("replaces payment history with details and confirms reversal", async () => {
   const historyData: SettlementSummaryData = {
     ...data,
     history: [
@@ -744,31 +745,69 @@ test("confirms a payment reversal and shows its linked history entry", async () 
       ?.click(),
   );
   const history = document.querySelector('[role="dialog"]');
-  expect(history?.textContent).toContain("P2 reversed payment to Nikki Q");
-  expect(history?.textContent).toContain("Reverses CA$1.00 payment from Sep 30, 2026");
-  expect(history?.querySelectorAll('button[aria-label^="Reverse "]')).toHaveLength(1);
+  expect(history?.textContent).toContain("P2 → Nikki Q");
+  expect(history?.querySelectorAll('button[aria-label^="Reverse "]')).toHaveLength(0);
+  const originalRow = [
+    ...(history?.querySelectorAll<HTMLButtonElement>('button[aria-label^="View payment"]') ?? []),
+  ].find((button) => button.getAttribute("aria-label")?.includes("CA$2.00"));
+  expect(originalRow).toBeDefined();
+  flushSync(() => originalRow?.click());
+  let details = document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(details).not.toBe(history);
+  await vi.waitFor(() => expect(history?.isConnected).toBe(false));
+  expect(details?.textContent).toContain("Payment details");
+  expect(details?.textContent).toContain("paid Nikki Q");
+  expect(details?.textContent).toContain("CA$2.00");
+  expect(details?.querySelector("svg.lucide-calendar-days")).toBeNull();
+  expect(details?.textContent).not.toContain("The original payment is kept in your history.");
+  const activeFooter = details?.querySelector("footer");
+  expect(activeFooter).not.toBeNull();
+  expect(activeFooter?.querySelector('[aria-label="Reverse payment"]')).not.toBeNull();
+  expect(activeFooter?.parentElement?.classList.contains("overflow-y-auto")).toBe(false);
   flushSync(() =>
-    history?.querySelector<HTMLButtonElement>('button[aria-label^="Reverse "]')?.click(),
+    details?.querySelector<HTMLButtonElement>('button[aria-label="Reverse payment"]')?.click(),
   );
   const confirmDialog = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
     (dialog) => dialog.textContent?.includes("Reverse this payment?"),
   );
   expect(confirmDialog).toBeDefined();
-  expect(history?.hasAttribute("data-open")).toBe(true);
+  expect(
+    [...document.querySelectorAll<HTMLElement>('[role="dialog"][data-open]')].some((dialog) =>
+      dialog.textContent?.includes("Payment history"),
+    ),
+  ).toBe(false);
   expect(confirmDialog?.querySelector("header, footer")).toBeNull();
   expect(confirmDialog?.textContent).toContain("Reverse this payment?");
-  expect(confirmDialog?.textContent).toContain("This creates a new payment record");
+  expect(confirmDialog?.textContent).toContain(
+    "A reversal record will be added and balances updated.",
+  );
+  expect(confirmDialog?.querySelector("svg.lucide-calendar-days")).toBeNull();
+  expect(confirmDialog?.textContent).not.toContain("The original payment is kept in your history.");
   const cancelButton = [
     ...(confirmDialog?.querySelectorAll<HTMLButtonElement>("button") ?? []),
   ].find((button) => button.textContent?.includes("Cancel"));
   expect(cancelButton).toBeDefined();
+  mocks.reverse.mockRejectedValueOnce(new Error("Could not reverse payment."));
+  const confirmButton = [
+    ...(confirmDialog?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+  ].find((button) => button.textContent?.includes("Reverse payment"));
+  flushSync(() => confirmButton?.click());
+  await vi.waitFor(() =>
+    expect(confirmDialog?.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not reverse payment.",
+    ),
+  );
+  expect(details?.hasAttribute("data-open")).toBe(true);
   flushSync(() => cancelButton?.click());
   await vi.waitFor(() => expect(confirmDialog?.hasAttribute("data-closed")).toBe(true));
-  expect(document.querySelector('[role="dialog"]')).toBe(history);
-  expect(history?.hasAttribute("data-open")).toBe(true);
+  expect(details?.textContent).toContain("Payment details");
 
+  details =
+    [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find((dialog) =>
+      dialog.textContent?.includes("Payment details"),
+    ) ?? null;
   flushSync(() =>
-    history?.querySelector<HTMLButtonElement>('button[aria-label^="Reverse "]')?.click(),
+    details?.querySelector<HTMLButtonElement>('button[aria-label="Reverse payment"]')?.click(),
   );
   const reopenedConfirm = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
     (dialog) => dialog.textContent?.includes("Reverse this payment?"),
@@ -783,9 +822,211 @@ test("confirms a payment reversal and shows its linked history entry", async () 
       expect.objectContaining({ slug: "trip", settlementId: "payment-2" }),
     ),
   );
-  expect(history?.hasAttribute("data-open")).toBe(true);
+  expect(details?.hasAttribute("data-open")).toBe(true);
   await vi.waitFor(() => expect(reopenedConfirm?.hasAttribute("data-closed")).toBe(true));
-  expect(reopenedConfirm?.textContent).toContain("This creates a new payment record");
-  expect(reopenedConfirm?.textContent).not.toContain("already been reversed");
+  const refreshedData: SettlementSummaryData = {
+    ...historyData,
+    history: historyData.history
+      .map((payment) =>
+        payment.id === "payment-2"
+          ? { ...payment, reversed: true, reversedAt: Date.parse("2026-10-01T12:00:00Z") }
+          : payment,
+      )
+      .concat({
+        id: "reversal-2",
+        fromMemberId: "viewer",
+        toMemberId: "p2",
+        amount: 2,
+        currency: "CAD",
+        date: "2026-10-01",
+        createdAt: Date.parse("2026-10-01T12:00:00Z"),
+        reversed: false,
+        reversalOf: "payment-2",
+      }),
+  };
+  const refreshed = { paid: refreshedData, upcoming: refreshedData, all: refreshedData };
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [
+          { id: "viewer", name: "Nikki Q" },
+          { id: "p2", name: "P2" },
+        ],
+        expenseView: "paid",
+        response: refreshed as unknown as TabSettlementResponse,
+      }),
+    ),
+  );
+  const refreshedDetails = document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(refreshedDetails?.textContent).toContain("Payment details");
+  expect(refreshedDetails?.textContent).toContain("Payment reversed");
+  expect(refreshedDetails?.querySelector('[aria-label="Reverse payment"]')).toBeNull();
+  expect(refreshedDetails?.querySelector("footer")).toBeNull();
+  expect(refreshedDetails?.textContent).not.toContain("Close");
+  expect(document.activeElement).toBe(
+    refreshedDetails?.querySelector('[aria-label="Close payment details"]'),
+  );
+  flushSync(() =>
+    refreshedDetails
+      ?.querySelector<HTMLButtonElement>('[aria-label="Close payment details"]')
+      ?.click(),
+  );
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"][data-open]')).toBeNull());
+  root.unmount();
+});
+
+test("shows a linked reversal timeline and no reverse action for reversed payments", async () => {
+  const historyData: SettlementSummaryData = {
+    ...data,
+    history: [
+      {
+        id: "reversal",
+        fromMemberId: "viewer",
+        toMemberId: "p2",
+        amount: 5,
+        currency: "CAD",
+        date: "2026-10-01",
+        createdAt: Date.parse("2026-10-01T12:00:00Z"),
+        reversed: false,
+        reversalOf: "original",
+      },
+      {
+        id: "original",
+        fromMemberId: "p2",
+        toMemberId: "viewer",
+        amount: 5,
+        currency: "CAD",
+        date: "2026-09-30",
+        createdAt: Date.parse("2026-09-30T12:00:00Z"),
+        reversed: true,
+        reversedAt: Date.parse("2026-10-01T12:00:00Z"),
+      },
+    ],
+  };
+  const response = { paid: historyData, upcoming: historyData, all: historyData };
+  mocks.results = Array.from({ length: 8 }, () => response);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [
+          { id: "viewer", name: "Nikki Q" },
+          { id: "p2", name: "P2" },
+        ],
+        expenseView: "paid",
+      }),
+    ),
+  );
+  flushSync(() =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("Manage payments"))
+      ?.click(),
+  );
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("View payment history"))
+      ?.click(),
+  );
+  const history = document.querySelector<HTMLElement>('[role="dialog"]');
+  const originalRow = [
+    ...(history?.querySelectorAll<HTMLButtonElement>('button[aria-label^="View payment"]') ?? []),
+  ].find((button) => button.getAttribute("aria-label")?.includes("CA$5.00"));
+  flushSync(() => originalRow?.click());
+  const details = document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(details?.textContent).toContain("Reversed");
+  expect(details?.textContent).toContain("Payment recorded");
+  expect(details?.textContent).toContain("Payment reversed");
+  expect(details?.textContent).toContain("+CA$5.00");
+  expect(details?.textContent).toContain("−CA$5.00");
+  expect(details?.querySelector('[aria-label="Reverse payment"]')).toBeNull();
+  expect(details?.querySelector("footer")).toBeNull();
+  expect(details?.textContent).not.toContain("Close");
+  expect(details?.querySelector("svg.lucide-calendar-days")).toBeNull();
+  expect(details?.textContent).not.toContain("The original payment is kept in your history.");
+  expect(details?.querySelector('[aria-label="Close payment details"]')).not.toBeNull();
+  const backToHistory = details?.querySelector<HTMLButtonElement>(
+    '[aria-label="Back to payment history"]',
+  );
+  expect(backToHistory).not.toBeNull();
+  flushSync(() => backToHistory?.click());
+  const returnedHistory = document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(returnedHistory).not.toBe(details);
+  expect(returnedHistory?.textContent).toContain("Payment history");
+  const returnedOriginalRow = [
+    ...(returnedHistory?.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label^="View payment"]',
+    ) ?? []),
+  ].find((button) => button.getAttribute("aria-label")?.includes("CA$5.00"));
+  await vi.waitFor(() => expect(document.activeElement).toBe(returnedOriginalRow));
+  const reversalRow = [
+    ...(returnedHistory?.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label^="View reversal"]',
+    ) ?? []),
+  ][0];
+  flushSync(() => reversalRow?.click());
+  const reversalDetails = document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(reversalDetails?.textContent).toContain("Payment activity");
+  flushSync(() => {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"][data-open]')).toBeNull());
+  root.unmount();
+});
+
+test("shows a reversal-only detail safely when its original is missing", () => {
+  const missingOriginal: SettlementSummaryData = {
+    ...data,
+    history: [
+      {
+        id: "orphan-reversal",
+        fromMemberId: "viewer",
+        toMemberId: "p2",
+        amount: 3,
+        currency: "CAD",
+        date: "2026-10-01",
+        createdAt: Date.parse("2026-10-01T12:00:00Z"),
+        reversed: false,
+        reversalOf: "missing-payment",
+      },
+    ],
+  };
+  const response = { paid: missingOriginal, upcoming: missingOriginal, all: missingOriginal };
+  mocks.results = Array.from({ length: 8 }, () => response);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SettlementActions, {
+        slug: "trip",
+        members: [
+          { id: "viewer", name: "Nikki Q" },
+          { id: "p2", name: "P2" },
+        ],
+        expenseView: "paid",
+      }),
+    ),
+  );
+  flushSync(() =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("Manage payments"))
+      ?.click(),
+  );
+  flushSync(() =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.includes("View payment history"))
+      ?.click(),
+  );
+  const history = document.querySelector<HTMLElement>('[role="dialog"]');
+  flushSync(() =>
+    history?.querySelector<HTMLButtonElement>('button[aria-label^="View reversal"]')?.click(),
+  );
+  const details = document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(details?.textContent).toContain("Payment reversal to");
+  expect(details?.textContent).toContain("−CA$3.00");
+  expect(details?.textContent).toContain("The original payment is no longer available.");
+  expect(details?.querySelector('[aria-label="Reverse payment"]')).toBeNull();
   root.unmount();
 });

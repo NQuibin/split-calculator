@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -26,6 +26,7 @@ export function ConfirmDialog({
   details,
   confirmLabel,
   pendingLabel,
+  finalFocus,
   onConfirm,
 }: {
   open: boolean;
@@ -35,6 +36,7 @@ export function ConfirmDialog({
   details?: ReactNode;
   confirmLabel: string;
   pendingLabel?: string;
+  finalFocus?: RefObject<HTMLElement | null>;
   onConfirm: () => void | Promise<void>;
 }) {
   const [pending, setPending] = useState(false);
@@ -81,7 +83,7 @@ export function ConfirmDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent aria-label={title}>
+      <DialogContent aria-label={title} finalFocus={finalFocus}>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription className="mt-2">{description}</DialogDescription>
         {details && <div className="mt-5">{details}</div>}

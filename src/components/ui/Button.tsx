@@ -42,6 +42,8 @@ const buttonVariants = cva(
         // and signal the action through the forest icon colour on hover.
         "quiet-icon":
           "bg-transparent text-ink-soft hover:bg-transparent hover:text-forest active:bg-transparent active:text-forest",
+        // Full-width, content-first list row with a shared name and amount grid.
+        row: "grid w-full min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_max-content] justify-normal rounded-none text-left whitespace-normal hover:bg-accent active:bg-accent",
         // Overflow/menu trigger: retain the 44px touch target while its
         // hover, pressed, and open states reveal a faint circular wash.
         "menu-icon":
@@ -60,6 +62,8 @@ const buttonVariants = cva(
         // on a screen, and carries the display face like the page titles it
         // sits under.
         touch: "h-11 gap-2 px-5 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
+        // List rows keep their full-width layout while meeting the touch target.
+        row: "h-auto min-h-16 gap-3 px-4 py-3",
         hero: "h-12 gap-2 px-6 font-display text-base has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5",
         icon: "size-8",
         "icon-xs":

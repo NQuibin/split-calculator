@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -487,6 +487,139 @@ export function TabSettlement({
   );
 }
 
+function paymentDateLabel(
+  createdAt: number | undefined,
+  date: string,
+  formatDate: (date: string) => string | undefined,
+  locale: string,
+) {
+  return createdAt
+    ? new Date(createdAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })
+    : (formatDate(date) ?? date);
+}
+
+function PaymentSummary({
+  payerId,
+  payerName,
+  recipientName,
+  amount,
+  currencyCode,
+  createdAt,
+  date,
+  formatDate,
+  locale,
+  reversal = false,
+}: {
+  payerId: string;
+  payerName: string;
+  recipientName: string;
+  amount: number;
+  currencyCode: string;
+  createdAt?: number;
+  date: string;
+  formatDate: (date: string) => string | undefined;
+  locale: string;
+  reversal?: boolean;
+}) {
+  const { currency } = useLocaleFormatters();
+  return (
+    <div className="rounded-lg bg-field p-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <MemberAvatar id={payerId} name={payerName} size="lg" />
+        <div className="min-w-[8rem] flex-1 break-words">
+          <p className="font-medium text-ink">{payerName}</p>
+          <p className="break-words text-sm text-ink-soft">
+            {reversal ? "Payment reversal to" : "paid"} {recipientName}
+          </p>
+        </div>
+        <div className="ml-auto max-w-full shrink-0 text-right">
+          <p
+            className={`whitespace-nowrap font-numeric text-2xl font-semibold ${reversal ? "text-margin-red-ink" : "text-ink"}`}
+          >
+            {reversal && "−"}
+            {currency(amount, currencyCode)}
+          </p>
+          <p className="text-xs text-ink-soft">{currencyCode}</p>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-ink-soft">
+        <time
+          dateTime={createdAt ? new Date(createdAt).toISOString() : date}
+          className="break-words"
+        >
+          {paymentDateLabel(createdAt, date, formatDate, locale)}
+        </time>
+      </p>
+    </div>
+  );
+}
+
+function PaymentActivity({
+  payment,
+  reversal,
+  currency,
+  locale,
+  formatDate,
+}: {
+  payment: SettlementSummaryData["history"][number];
+  reversal?: SettlementSummaryData["history"][number];
+  currency: (amount: number, currencyCode: string) => string;
+  locale: string;
+  formatDate: (date: string) => string | undefined;
+}) {
+  const originalDate = payment.createdAt;
+  const reversalDate = reversal?.createdAt ?? payment.reversedAt;
+  const timestamp = (value: number) =>
+    new Date(value).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
+  return (
+    <section
+      className="mt-4 border-t border-rule pt-4"
+      aria-label="Payment activity"
+      aria-live="polite"
+    >
+      <h3 className="font-display text-lg font-semibold text-ink">Payment activity</h3>
+      <ol className="mt-3 grid gap-4">
+        <li className="grid min-w-0 grid-cols-[0.75rem_minmax(0,1fr)_max-content] items-start gap-3">
+          <span aria-hidden="true" className="mt-1 size-3 rounded-full bg-forest" />
+          <span className="min-w-0">
+            <span className="block text-sm text-ink">Payment recorded</span>
+            <time
+              className="block break-words text-sm text-ink-soft"
+              dateTime={originalDate ? new Date(originalDate).toISOString() : payment.date}
+            >
+              {originalDate ? timestamp(originalDate) : (formatDate(payment.date) ?? payment.date)}
+            </time>
+          </span>
+          <span className="whitespace-nowrap font-numeric text-sm font-semibold text-ink">
+            +{currency(payment.amount, payment.currency)}
+          </span>
+        </li>
+        <li className="grid min-w-0 grid-cols-[0.75rem_minmax(0,1fr)_max-content] items-start gap-3">
+          <span aria-hidden="true" className="mt-1 size-3 rounded-full bg-margin-red" />
+          <span className="min-w-0">
+            <span className="block text-sm text-ink">Payment reversed</span>
+            <time
+              className="block break-words text-sm text-ink-soft"
+              dateTime={
+                reversalDate ? new Date(reversalDate).toISOString() : (reversal?.date ?? "")
+              }
+            >
+              {reversalDate
+                ? timestamp(reversalDate)
+                : reversal
+                  ? (formatDate(reversal.date) ?? reversal.date)
+                  : "Date unavailable"}
+            </time>
+          </span>
+          <span className="whitespace-nowrap font-numeric text-sm font-semibold text-margin-red-ink">
+            −{currency(reversal?.amount ?? payment.amount, reversal?.currency ?? payment.currency)}
+          </span>
+        </li>
+      </ol>
+    </section>
+  );
+}
+
 export function SettlementActions({
   slug,
   members,
@@ -498,10 +631,13 @@ export function SettlementActions({
   expenseView: ExpenseView;
   response?: TabSettlementResponse;
 }) {
-  const [paymentDialogView, setPaymentDialogView] = useState<"manage" | "history" | null>(null);
-  const [paymentToReverse, setPaymentToReverse] = useState<
-    SettlementSummaryData["history"][number] | null
+  const [paymentDialogView, setPaymentDialogView] = useState<
+    "manage" | "history" | "details" | null
   >(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [paymentToReverse, setPaymentToReverse] = useState<string | null>(null);
+  const detailsCloseRef = useRef<HTMLButtonElement>(null);
+  const detailsTriggerRef = useRef<HTMLButtonElement>(null);
   const reversePayment = useMutation(api.settlements.reverse);
   const { currency, formatExpenseDate, locale } = useLocaleFormatters();
   const queriedResponse = useQuery(
@@ -522,7 +658,14 @@ export function SettlementActions({
       (member) => member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
     ),
   );
-  const selectedPayment = data.history.find((payment) => payment.id === paymentToReverse?.id);
+  const selectedEntry = data.history.find((payment) => payment.id === selectedPaymentId);
+  const originalPayment = selectedEntry?.reversalOf
+    ? data.history.find((payment) => payment.id === selectedEntry.reversalOf)
+    : selectedEntry;
+  const linkedReversal = originalPayment
+    ? data.history.find((payment) => payment.reversalOf === originalPayment.id)
+    : undefined;
+  const selectedPayment = originalPayment ?? selectedEntry;
   const selectedPayerName =
     members.find((member) => member.id === selectedPayment?.fromMemberId)?.name ?? "Former member";
   const selectedRecipientName =
@@ -540,11 +683,21 @@ export function SettlementActions({
       <Dialog
         open={paymentDialogView !== null}
         onOpenChange={(open) => {
-          if (!open) setPaymentDialogView(null);
+          if (!open) {
+            setPaymentDialogView(null);
+            setSelectedPaymentId(null);
+          }
         }}
       >
         <DialogContent
           screenKey={paymentDialogView ?? undefined}
+          initialFocus={
+            paymentDialogView === "details"
+              ? detailsCloseRef
+              : paymentDialogView === "history" && selectedPaymentId
+                ? detailsTriggerRef
+                : undefined
+          }
           className="flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden p-0 sm:p-0"
         >
           {paymentDialogView === "history" ? (
@@ -556,8 +709,11 @@ export function SettlementActions({
                       variant="ghost"
                       size="icon-touch"
                       aria-label="Back to manage payments"
-                      autoFocus
-                      onClick={() => setPaymentDialogView("manage")}
+                      autoFocus={!selectedPaymentId}
+                      onClick={() => {
+                        setSelectedPaymentId(null);
+                        setPaymentDialogView("manage");
+                      }}
                     >
                       <ArrowLeft aria-hidden="true" />
                     </Button>
@@ -617,79 +773,80 @@ export function SettlementActions({
                                     const recipientName =
                                       members.find((member) => member.id === payment.toMemberId)
                                         ?.name ?? "Former member";
-                                    const originalPayment = data.history.find(
+                                    const linkedOriginal = data.history.find(
                                       (original) => original.id === payment.reversalOf,
                                     );
-                                    const originalPayerName = originalPayment
+                                    const originalPayerName = linkedOriginal
                                       ? (members.find(
-                                          (member) => member.id === originalPayment.fromMemberId,
+                                          (member) => member.id === linkedOriginal.fromMemberId,
                                         )?.name ?? "Former member")
                                       : payerName;
-                                    const originalRecipientName = originalPayment
+                                    const originalRecipientName = linkedOriginal
                                       ? (members.find(
-                                          (member) => member.id === originalPayment.toMemberId,
+                                          (member) => member.id === linkedOriginal.toMemberId,
                                         )?.name ?? "Former member")
                                       : recipientName;
+                                    const rowPayer = payment.reversalOf
+                                      ? originalPayerName
+                                      : payerName;
+                                    const rowRecipient = payment.reversalOf
+                                      ? originalRecipientName
+                                      : recipientName;
                                     return (
-                                      <li
-                                        key={payment.id}
-                                        className="flex min-w-0 items-center gap-3 py-3 bleed-px"
-                                      >
-                                        {payment.reversalOf ? (
-                                          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-margin-red-ink">
-                                            <Undo2 aria-hidden="true" className="size-5" />
-                                          </span>
-                                        ) : (
-                                          <MemberAvatar
-                                            id={payment.fromMemberId}
-                                            name={payerName}
-                                            size="md"
-                                          />
-                                        )}
-                                        <div className="min-w-0 flex-1 text-left">
-                                          <p className="break-words text-sm text-ink">
-                                            <span className="font-medium">
-                                              {payment.reversalOf ? originalPayerName : payerName}
-                                            </span>{" "}
-                                            {payment.reversalOf ? "reversed payment to" : "paid"}{" "}
-                                            <span className="font-medium">
-                                              {payment.reversalOf
-                                                ? originalRecipientName
-                                                : recipientName}
-                                            </span>
-                                          </p>
-                                          {(payment.view === "upcoming" ||
-                                            payment.reversed ||
-                                            payment.reversalOf) && (
-                                            <p className="mt-1 text-xs text-ink-soft">
-                                              {payment.view === "upcoming" && "Upcoming expenses"}
-                                              {payment.view === "upcoming" &&
-                                                (payment.reversed || payment.reversalOf) &&
-                                                " · "}
-                                              {payment.reversalOf
-                                                ? `Reverses ${currency(payment.amount, payment.currency)} payment from ${formatExpenseDate(originalPayment?.date) ?? "original date"}`
-                                                : payment.reversed
-                                                  ? `Reversed${payment.reversedAt ? ` ${new Date(payment.reversedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}` : ""}`
-                                                  : null}
-                                            </p>
-                                          )}
-                                        </div>
-                                        <span
-                                          className={`shrink-0 font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
+                                      <li key={payment.id} className="min-w-0">
+                                        <Button
+                                          ref={
+                                            selectedPaymentId === payment.id
+                                              ? detailsTriggerRef
+                                              : undefined
+                                          }
+                                          variant="row"
+                                          size="row"
+                                          aria-label={`${payment.reversalOf ? "View reversal" : "View payment"} of ${currency(payment.amount, payment.currency)} from ${rowPayer} to ${rowRecipient} on ${formatExpenseDate(payment.date) ?? payment.date}`}
+                                          autoFocus={selectedPaymentId === payment.id}
+                                          onClick={(event) => {
+                                            detailsTriggerRef.current = event.currentTarget;
+                                            setSelectedPaymentId(payment.id);
+                                            setPaymentDialogView("details");
+                                          }}
                                         >
-                                          {payment.reversalOf && "−"}
-                                          {currency(payment.amount, payment.currency)}
-                                        </span>
-                                        {!payment.reversalOf && !payment.reversed && (
-                                          <Button
-                                            variant="quiet-icon"
-                                            size="icon-touch"
-                                            aria-label={`Reverse ${currency(payment.amount, payment.currency)} payment from ${payerName} to ${recipientName}`}
-                                            onClick={() => setPaymentToReverse(payment)}
+                                          {payment.reversalOf ? (
+                                            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-margin-red-ink">
+                                              <Undo2 aria-hidden="true" className="size-5" />
+                                            </span>
+                                          ) : (
+                                            <MemberAvatar
+                                              id={payment.fromMemberId}
+                                              name={payerName}
+                                              size="lg"
+                                            />
+                                          )}
+                                          <span className="min-w-0 text-left">
+                                            <span className="block break-words text-sm text-ink">
+                                              <span className="font-medium">{rowPayer}</span> →{" "}
+                                              <span className="font-medium">{rowRecipient}</span>
+                                            </span>
+                                            {(payment.view === "upcoming" ||
+                                              payment.reversed ||
+                                              payment.reversalOf) && (
+                                              <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+                                                {payment.view === "upcoming" && "Upcoming expenses"}
+                                                {payment.reversed && (
+                                                  <span className="rounded-full bg-chip-neutral px-2 py-0.5 text-ink">
+                                                    Reversed
+                                                  </span>
+                                                )}
+                                                {payment.reversalOf && "Payment reversal"}
+                                              </span>
+                                            )}
+                                          </span>
+                                          <span
+                                            className={`ml-auto text-right font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
                                           >
-                                            <Undo2 aria-hidden="true" className="size-5" />
-                                          </Button>
-                                        )}
+                                            {payment.reversalOf && "−"}
+                                            {currency(payment.amount, payment.currency)}
+                                          </span>
+                                        </Button>
                                       </li>
                                     );
                                   })}
@@ -703,6 +860,93 @@ export function SettlementActions({
                   </ul>
                 )}
               </div>
+            </>
+          ) : paymentDialogView === "details" ? (
+            <>
+              <header className="flex shrink-0 items-start justify-between gap-3 border-b border-rule/70 p-5 sm:p-6">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon-touch"
+                    aria-label="Back to payment history"
+                    onClick={() => setPaymentDialogView("history")}
+                  >
+                    <ArrowLeft aria-hidden="true" />
+                  </Button>
+                  <div className="min-w-0">
+                    <DialogTitle>Payment details</DialogTitle>
+                    {selectedPayment?.reversed && (
+                      <span className="mt-2 inline-flex rounded-full bg-chip-neutral px-3 py-1 text-xs font-medium text-ink">
+                        Reversed
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <DialogClose
+                  aria-label="Close payment details"
+                  render={
+                    <Button
+                      ref={detailsCloseRef}
+                      variant="ghost"
+                      size="icon-touch"
+                      className="text-ink-soft"
+                    />
+                  }
+                >
+                  <X aria-hidden="true" />
+                </DialogClose>
+              </header>
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+                {selectedPayment ? (
+                  <>
+                    <PaymentSummary
+                      payerId={selectedPayment.fromMemberId}
+                      payerName={selectedPayerName}
+                      recipientName={selectedRecipientName}
+                      amount={selectedPayment.amount}
+                      currencyCode={selectedPayment.currency}
+                      createdAt={selectedPayment.createdAt}
+                      date={selectedPayment.date}
+                      formatDate={formatExpenseDate}
+                      locale={locale}
+                      reversal={Boolean(selectedEntry?.reversalOf && !originalPayment)}
+                    />
+                    {linkedReversal || selectedPayment.reversed ? (
+                      <PaymentActivity
+                        payment={selectedPayment}
+                        reversal={linkedReversal}
+                        currency={currency}
+                        locale={locale}
+                        formatDate={formatExpenseDate}
+                      />
+                    ) : selectedEntry?.reversalOf ? (
+                      <p className="mt-4 text-sm text-ink-soft">
+                        The original payment is no longer available.
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p role="alert" className="text-sm text-margin-red-ink">
+                    This payment is no longer available.
+                  </p>
+                )}
+              </div>
+              {selectedPayment &&
+                !selectedPayment.reversed &&
+                !selectedPayment.reversalOf &&
+                !linkedReversal && (
+                  <footer className="shrink-0 border-t border-rule/70 p-5 sm:p-6">
+                    <Button
+                      variant="destructive"
+                      size="touch"
+                      className="w-full"
+                      aria-label="Reverse payment"
+                      onClick={() => setPaymentToReverse(selectedPayment.id)}
+                    >
+                      Reverse payment
+                    </Button>
+                  </footer>
+                )}
             </>
           ) : (
             <>
@@ -758,64 +1002,50 @@ export function SettlementActions({
             </>
           )}
         </DialogContent>
+        <ConfirmDialog
+          open={paymentToReverse !== null}
+          onOpenChange={(open) => {
+            if (!open) setPaymentToReverse(null);
+          }}
+          title="Reverse this payment?"
+          description="A reversal record will be added and balances updated."
+          finalFocus={detailsCloseRef}
+          details={
+            selectedPayment && (
+              <PaymentSummary
+                payerId={selectedPayment.fromMemberId}
+                payerName={selectedPayerName}
+                recipientName={selectedRecipientName}
+                amount={selectedPayment.amount}
+                currencyCode={selectedPayment.currency}
+                createdAt={selectedPayment.createdAt}
+                date={selectedPayment.date}
+                formatDate={formatExpenseDate}
+                locale={locale}
+              />
+            )
+          }
+          confirmLabel="Reverse payment"
+          pendingLabel="Reversing…"
+          onConfirm={async () => {
+            if (
+              !selectedPayment ||
+              selectedPayment.id !== paymentToReverse ||
+              selectedPayment.reversed ||
+              selectedPayment.reversalOf ||
+              linkedReversal
+            )
+              throw new Error("Payment already reversed.");
+            await reversePayment({
+              slug,
+              settlementId: selectedPayment.id as Parameters<
+                typeof reversePayment
+              >[0]["settlementId"],
+              date: todayISODate(),
+            });
+          }}
+        />
       </Dialog>
-      <ConfirmDialog
-        open={paymentToReverse !== null}
-        onOpenChange={(open) => {
-          if (!open) setPaymentToReverse(null);
-        }}
-        title="Reverse this payment?"
-        description={
-          selectedPayment
-            ? `This creates a new payment record to reverse the ${currency(selectedPayment.amount, selectedPayment.currency)} payment from ${selectedPayerName} to ${selectedRecipientName}.`
-            : "This payment has already been reversed."
-        }
-        details={
-          selectedPayment && (
-            <div className="rounded-md bg-field p-4 text-sm text-ink">
-              <div className="flex justify-between gap-3">
-                <span>Amount</span>
-                <span className="font-numeric font-semibold">
-                  {currency(selectedPayment.amount, selectedPayment.currency)}{" "}
-                  {selectedPayment.currency}
-                </span>
-              </div>
-              <div className="mt-2 flex justify-between gap-3">
-                <span>Paid by</span>
-                <span className="text-right font-medium">{selectedPayerName}</span>
-              </div>
-              <div className="mt-2 flex justify-between gap-3">
-                <span>Paid to</span>
-                <span className="text-right font-medium">{selectedRecipientName}</span>
-              </div>
-              <div className="mt-2 flex justify-between gap-3">
-                <span>Original payment date</span>
-                <span className="text-right font-medium">
-                  {selectedPayment.createdAt
-                    ? new Date(selectedPayment.createdAt).toLocaleString(locale, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })
-                    : formatExpenseDate(selectedPayment.date)}
-                </span>
-              </div>
-            </div>
-          )
-        }
-        confirmLabel="Reverse payment"
-        pendingLabel="Reversing…"
-        onConfirm={async () => {
-          if (!selectedPayment || selectedPayment.reversed)
-            throw new Error("Payment already reversed.");
-          await reversePayment({
-            slug,
-            settlementId: selectedPayment.id as Parameters<
-              typeof reversePayment
-            >[0]["settlementId"],
-            date: todayISODate(),
-          });
-        }}
-      />
     </>
   );
 }
