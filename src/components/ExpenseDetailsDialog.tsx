@@ -246,7 +246,7 @@ export function ExpenseDetailsDialog({
                   )}
                   <span aria-hidden="true" className="h-5 border-l border-rule" />
                   <span className="inline-flex items-center gap-2">
-                    <span>{isUpcoming(expense.date) ? "Planned payer" : "Paid by"}</span>
+                    <span>{isUpcoming(expense.date) ? "Will be covered by" : "Covered by"}</span>
                     {payerFor(expense.payerId) && (
                       <MemberAvatar
                         id={payerFor(expense.payerId)!.id}
@@ -295,7 +295,12 @@ export function ExpenseDetailsDialog({
                             <span className="block font-numeric font-semibold">
                               {currency(person.total, expense.currency)}
                             </span>
-                            {status && <SettlementStatusPill status={status} />}
+                            {status && (
+                              <SettlementStatusPill
+                                status={status}
+                                coversExpense={memberMatches(person.personId, expense.payerId)}
+                              />
+                            )}
                           </span>
                         </li>
                       );

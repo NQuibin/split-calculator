@@ -8,8 +8,8 @@ import {
 } from "./settlements";
 
 test("viewer balance copy follows the viewer's net balance", () => {
-  expect(viewerBalanceLabel(-12)).toBe("You borrowed");
-  expect(viewerBalanceLabel(12)).toBe("You lent");
+  expect(viewerBalanceLabel(-12)).toBe("You owe");
+  expect(viewerBalanceLabel(12)).toBe("You are owed");
 });
 
 const zero = { mode: "amount" as const, value: 0 };

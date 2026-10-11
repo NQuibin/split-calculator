@@ -802,6 +802,7 @@ export function SettlementActions({
                                           }
                                           variant="row"
                                           size="row"
+                                          className="group"
                                           aria-label={`${payment.reversalOf ? "View reversal" : "View payment"} of ${currency(payment.amount, payment.currency)} from ${rowPayer} to ${rowRecipient} on ${formatExpenseDate(payment.date) ?? payment.date}`}
                                           autoFocus={selectedPaymentId === payment.id}
                                           onClick={(event) => {
@@ -840,11 +841,17 @@ export function SettlementActions({
                                               </span>
                                             )}
                                           </span>
-                                          <span
-                                            className={`ml-auto text-right font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
-                                          >
-                                            {payment.reversalOf && "−"}
-                                            {currency(payment.amount, payment.currency)}
+                                          <span className="ml-auto flex items-center gap-3">
+                                            <span
+                                              className={`text-right font-numeric text-sm font-semibold ${payment.reversalOf ? "text-margin-red-ink" : "text-ink"}`}
+                                            >
+                                              {payment.reversalOf && "−"}
+                                              {currency(payment.amount, payment.currency)}
+                                            </span>
+                                            <ChevronRight
+                                              aria-hidden="true"
+                                              className="size-4 text-ink-soft chevron-x"
+                                            />
                                           </span>
                                         </Button>
                                       </li>
@@ -989,7 +996,6 @@ export function SettlementActions({
                   </Button>
                 )}
                 <Button
-                  variant="secondary"
                   size="touch"
                   autoFocus={expenseView === "upcoming" || !canRecordPayment}
                   className="w-full justify-start"

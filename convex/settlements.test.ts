@@ -68,10 +68,10 @@ async function expense(
 test("missing, empty, and foreign payers are rejected when creating an expense", async () => {
   const { owner, members } = await setup();
   await expect(expense(owner, members, undefined)).rejects.toThrow(
-    "Choose who paid before saving the expense",
+    "Choose who covered the expense before saving",
   );
   await expect(expense(owner, members, "")).rejects.toThrow(
-    "Choose who paid before saving the expense",
+    "Choose who covered the expense before saving",
   );
   await expect(expense(owner, members, "foreign")).rejects.toThrow("Payer must belong to this tab");
 });
@@ -470,13 +470,13 @@ test("payer is remapped on create, survives reload, and protects its seat", asyn
       slug: "dinner",
       state: { ...toExpenseStateArgs(loaded), payerId: undefined },
     }),
-  ).rejects.toThrow("Choose who paid before saving the expense");
+  ).rejects.toThrow("Choose who covered the expense before saving");
   await expect(
     owner.mutation(api.expenses.save, {
       slug: "dinner",
       state: { ...toExpenseStateArgs(loaded), payerId: "" },
     }),
-  ).rejects.toThrow("Choose who paid before saving the expense");
+  ).rejects.toThrow("Choose who covered the expense before saving");
   await expect(
     owner.mutation(api.expenses.save, {
       slug: "dinner",

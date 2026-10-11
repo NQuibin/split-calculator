@@ -1,59 +1,44 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { Check, ChevronDown, Copy, Undo2 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Check, Copy } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import { MemberAvatar } from "@/components/MemberAvatar";
+import { SharedPaymentHistory } from "@/components/SharedPaymentHistory";
+import { TabExpenseRow } from "@/components/TabExpenseGrid";
+import { expenseListGridClass } from "@/components/tabExpenseGridClass";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { Button } from "@/components/ui/Button";
+import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { EmptyState, Page, Panel } from "@/components/ui/Page";
+import { Label } from "@/components/ui/Input";
+import { MemberPicker } from "@/components/ui/MemberPicker";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { PageTitle, SectionTitle } from "@/components/ui/Typography";
-import { todayISODate } from "@/lib/format";
+import { GroupTitle, PageTitle } from "@/components/ui/Typography";
+import { isUpcoming, todayISODate } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 
-function AnimatedDisclosure({
-  trigger,
-  children,
-  defaultOpen = false,
-  triggerClassName = "group flex min-h-11 w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm hover:bg-wash focus-visible:outline-2 focus-visible:outline-forest sm:px-6",
+function SummaryAmount({
   label,
+  amount,
+  code,
+  tone,
 }: {
-  trigger: ReactNode;
-  children: ReactNode;
-  defaultOpen?: boolean;
-  triggerClassName?: string;
-  label?: string;
+  label: string;
+  amount: number;
+  code: string;
+  tone?: "owed" | "owes";
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const reduceMotion = useReducedMotion();
+  const { currency } = useLocaleFormatters();
   return (
-    <>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={label}
-        onClick={() => setOpen((current) => !current)}
-        className={triggerClassName}
+    <div>
+      <p className="text-sm text-ink-soft">{label}</p>
+      <p
+        className={`font-numeric text-sm font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
       >
-        {trigger}
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+        {currency(amount, code)}
+      </p>
+    </div>
   );
 }
 
@@ -61,15 +46,16 @@ export function SharedTabPage({
   slug,
   share,
   view,
+  member: memberKey,
 }: {
   slug: string;
   share?: string;
+  member?: string;
   view: "breakdown" | "history";
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const navigate = useNavigate();
   const getOrCreateShareToken = useMutation(api.tabs.getOrCreateShareToken);
-  const { currency, formatExpenseDate } = useLocaleFormatters();
   const [asOfDate] = useState(todayISODate);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -88,12 +74,12 @@ export function SharedTabPage({
         navigate({
           to: "/t/$slug/breakdown",
           params: { slug },
-          search: { share: token, view },
+          search: { share: token, view, ...(memberKey ? { member: memberKey } : {}) },
           replace: true,
         }),
       )
       .catch(() => setShareErrorSlug(slug));
-  }, [share, isLoading, isAuthenticated, slug, view, getOrCreateShareToken, navigate]);
+  }, [share, isLoading, isAuthenticated, slug, view, memberKey, getOrCreateShareToken, navigate]);
 
   if ((!share && !isLoading && !isAuthenticated) || shareErrorSlug === slug || data === null) {
     return (
@@ -105,15 +91,27 @@ export function SharedTabPage({
 
   if (!share || data === undefined) {
     return (
-      <Page>
-        <div role="status" className="space-y-6">
+      <Page data-viewport-loading className="min-h-0 overflow-hidden">
+        <PageTitle className="sr-only">Tab breakdown</PageTitle>
+        <div role="status" className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
           <span className="sr-only">Loading shared tab…</span>
-          <Skeleton className="h-9 w-56 rounded-md" />
-          <Skeleton className="h-11 w-72 max-w-full rounded-full" />
-          <Panel className="space-y-5 p-6">
-            <Skeleton className="h-6 w-20 rounded-full" />
-            <Skeleton className="h-16 w-full rounded-md" />
-            <Skeleton className="h-16 w-full rounded-md" />
+          <Skeleton className="h-9 w-56 shrink-0 rounded-md" />
+          <Skeleton className="h-11 w-72 max-w-full shrink-0 rounded-full" />
+          <Panel className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden card-inset">
+            <Skeleton className="h-11 w-full shrink-0 rounded-md" />
+            <div className="shrink-0 border-t border-rule pt-5">
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[0, 1, 2, 3].map((index) => (
+                  <Skeleton key={index} className="h-12 rounded-md" />
+                ))}
+              </div>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+              {[0, 1, 2, 3, 4, 5, 6, 7].map((index) => (
+                <Skeleton key={index} className="h-20 shrink-0 rounded-md" />
+              ))}
+            </div>
           </Panel>
         </div>
       </Page>
@@ -130,23 +128,12 @@ export function SharedTabPage({
     }
   }
 
-  const members = data.currencies[0]?.members ?? [];
-  const memberName = (key: string) =>
-    members.find((member) => member.key === key)?.name ?? "Member";
-  const expenseStatus = (expenseSlug: string, memberId: string): ReactNode => {
-    const status = data.expenseStatuses?.find(
-      (entry) => entry.expenseSlug === expenseSlug && entry.memberId === memberId,
-    )?.status;
-    const label =
-      status === "settled" ? "Settled" : status === "partiallySettled" ? "Partially Settled" : null;
-    return label && <span className="block font-sans text-xs text-ink-soft">{label}</span>;
-  };
-  const historyByDate = data.history.reduce<Map<string, typeof data.history>>((groups, payment) => {
-    const group = groups.get(payment.date) ?? [];
-    group.push(payment);
-    groups.set(payment.date, group);
-    return groups;
-  }, new Map());
+  const members = [
+    ...new Map(
+      data.currencies.flatMap((group) => group.members).map((member) => [member.key, member]),
+    ).values(),
+  ];
+  const selectedMember = members.find((member) => member.key === memberKey) ?? members[0];
 
   return (
     <Page>
@@ -198,412 +185,148 @@ export function SharedTabPage({
           void navigate({
             to: "/t/$slug/breakdown",
             params: { slug },
-            search: { share, view: next },
+            search: { share, view: next, ...(memberKey ? { member: memberKey } : {}) },
           });
         }}
       >
         {view === "breakdown" ? (
           <div className="space-y-6">
             {members.length === 0 && <EmptyState>No members or expenses yet.</EmptyState>}
-            {members.map((person) => {
-              const sections = data.currencies.flatMap((group) => {
-                const member = group.members.find((entry) => entry.key === person.key);
-                if (!member) return [];
-                const settlements = group.settlements.filter(
-                  (entry) => entry.from === person.key || entry.to === person.key,
-                );
-                if (
-                  member.expenses.length === 0 &&
-                  member.balance === 0 &&
-                  settlements.length === 0
-                )
-                  return [];
-                return [{ group, member, settlements }];
-              });
-              return (
-                <Panel key={person.key}>
-                  <SectionTitle className="sr-only">{person.name}</SectionTitle>
-                  <AnimatedDisclosure
-                    defaultOpen
-                    label={`${person.name} breakdown`}
-                    triggerClassName="group flex min-h-11 w-full items-start gap-3 px-5 py-5 text-left hover:bg-wash focus-visible:outline-2 focus-visible:outline-forest sm:px-6"
-                    trigger={
-                      <>
-                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-                          <MemberAvatar id={person.key} name={person.name} size="lg" />
-                          <span className="min-w-0">
-                            <SectionTitle as="span">{person.name}</SectionTitle>
-                            <span className="block text-xs text-ink-soft">
-                              {sections.reduce(
-                                (count, section) => count + section.member.expenses.length,
-                                0,
-                              )}{" "}
-                              expenses · {sections.length}{" "}
-                              {sections.length === 1 ? "currency" : "currencies"}
-                            </span>
-                          </span>
-                          <span className="flex w-full flex-wrap gap-x-6 gap-y-2 pl-14 sm:ml-auto sm:w-auto sm:pl-0">
-                            {sections.map(({ group, member }) => (
-                              <span key={group.currency}>
-                                <span className="block text-xs text-ink-soft">
-                                  {group.currency} ·{" "}
-                                  {member.balance > 0
-                                    ? "Is owed"
-                                    : member.balance < 0
-                                      ? "Owes"
-                                      : "No balance"}
-                                </span>
-                                {member.balance !== 0 && (
-                                  <span
-                                    className={`block font-numeric text-sm font-semibold ${member.balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
-                                  >
-                                    {currency(Math.abs(member.balance), group.currency)}
-                                  </span>
-                                )}
-                              </span>
-                            ))}
-                          </span>
-                        </span>
-                        <ChevronDown
-                          aria-hidden="true"
-                          className="chevron-flip mt-3 size-4 shrink-0 text-forest"
-                        />
-                      </>
-                    }
-                  >
-                    <div className="pb-5">
-                      {sections.length === 0 && (
-                        <p className="border-t border-rule px-5 py-5 text-sm text-ink-soft sm:px-6">
-                          No expenses or balances for this member.
-                        </p>
-                      )}
-                      {sections.map(({ group, member, settlements }, index) => (
-                        <section
-                          key={group.currency}
-                          className={
-                            index === 0 ? "border-t border-rule" : "md:border-t md:border-rule"
-                          }
-                        >
-                          <div className="flex items-center gap-2 px-5 py-3 sm:px-6">
-                            <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold">
-                              {group.currency}
-                            </span>
-                            <span className="text-xs text-ink-soft">
-                              {member.expenses.length}{" "}
-                              {member.expenses.length === 1 ? "expense" : "expenses"}
-                            </span>
-                          </div>
-                          <div className="grid md:grid-cols-2">
-                            <div className="min-w-0 md:border-r md:border-edge">
-                              <h3 className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-ink-soft sm:px-6">
-                                Expense breakdown
-                              </h3>
-                              {member.expenses.length === 0 ? (
-                                <p className="border-y border-edge bg-field px-5 py-4 text-sm text-ink-soft sm:px-6">
-                                  No expenses.
-                                </p>
-                              ) : (
-                                <>
-                                  <ul className="divide-y divide-rule border-y border-edge bg-field">
-                                    {member.expenses.map((expense) => (
-                                      <li key={expense.key}>
-                                        {expense.items.length > 0 ? (
-                                          <AnimatedDisclosure
-                                            trigger={
-                                              <>
-                                                <span className="min-w-0">
-                                                  <span className="flex items-center gap-1 font-medium">
-                                                    <span className="break-words">
-                                                      {expense.name || "Untitled expense"}
-                                                    </span>
-                                                    <ChevronDown
-                                                      aria-hidden="true"
-                                                      className="chevron-flip size-4 shrink-0 text-forest"
-                                                    />
-                                                  </span>
-                                                  <time
-                                                    className="text-xs text-ink-soft"
-                                                    dateTime={expense.date}
-                                                  >
-                                                    {formatExpenseDate(expense.date) ??
-                                                      expense.date}
-                                                  </time>
-                                                </span>
-                                                <span className="shrink-0 text-right font-numeric text-sm">
-                                                  {expense.shareAmount > 0 && (
-                                                    <span className="block text-ink-soft">
-                                                      Share{" "}
-                                                      {currency(
-                                                        expense.shareAmount,
-                                                        group.currency,
-                                                      )}
-                                                    </span>
-                                                  )}
-                                                  {expense.paidAmount > 0 && (
-                                                    <span className="block">
-                                                      Paid{" "}
-                                                      {currency(expense.paidAmount, group.currency)}
-                                                    </span>
-                                                  )}
-                                                  {expenseStatus(expense.key, person.key)}
-                                                </span>
-                                              </>
-                                            }
-                                          >
-                                            <div className="border-t border-rule bg-field px-5 py-3 text-xs sm:px-6">
-                                              <div className="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] gap-x-3 pb-2 font-semibold text-ink-soft">
-                                                <span>Item</span>
-                                                <span className="text-right">Share</span>
-                                                <span className="text-right">Total cost</span>
-                                              </div>
-                                              {expense.items.map((item) => (
-                                                <div
-                                                  key={item.key}
-                                                  className="grid grid-cols-[minmax(0,1fr)_5.25rem_5.25rem] gap-x-3 py-1"
-                                                >
-                                                  <span className="min-w-0 break-words">
-                                                    {item.name}
-                                                  </span>
-                                                  <span className="text-right font-numeric">
-                                                    {currency(item.share, group.currency)}
-                                                  </span>
-                                                  <span className="text-right font-numeric">
-                                                    {currency(item.total, group.currency)}
-                                                  </span>
-                                                </div>
-                                              ))}
-                                              {expense.taxTotal > 0 && (
-                                                <div className="flex justify-between gap-3 py-1">
-                                                  <span>Tax (included)</span>
-                                                  <span className="font-numeric">
-                                                    {currency(expense.taxTotal, group.currency)}
-                                                  </span>
-                                                </div>
-                                              )}
-                                              {expense.tipTotal > 0 && (
-                                                <div className="flex justify-between gap-3 py-1">
-                                                  <span>Tip (included)</span>
-                                                  <span className="font-numeric">
-                                                    {currency(expense.tipTotal, group.currency)}
-                                                  </span>
-                                                </div>
-                                              )}
-                                              <div className="mt-2 flex justify-between gap-3 border-t border-rule pt-2 font-semibold">
-                                                <span>Expense total</span>
-                                                <span className="font-numeric">
-                                                  {currency(expense.total, group.currency)}
-                                                </span>
-                                              </div>
-                                              <div className="flex justify-between gap-3 py-1 font-semibold">
-                                                <span>{person.name}’s share</span>
-                                                <span className="font-numeric">
-                                                  {currency(expense.shareAmount, group.currency)}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </AnimatedDisclosure>
-                                        ) : (
-                                          <div className="flex min-h-11 items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
-                                            <span className="min-w-0">
-                                              <span className="block break-words font-medium">
-                                                {expense.name || "Untitled expense"}
-                                              </span>
-                                              <time
-                                                className="text-xs text-ink-soft"
-                                                dateTime={expense.date}
-                                              >
-                                                {formatExpenseDate(expense.date) ?? expense.date}
-                                              </time>
-                                            </span>
-                                            <span className="shrink-0 text-right font-numeric text-sm">
-                                              {expense.shareAmount > 0 && (
-                                                <span className="block text-ink-soft">
-                                                  Share{" "}
-                                                  {currency(expense.shareAmount, group.currency)}
-                                                </span>
-                                              )}
-                                              {expense.paidAmount > 0 && (
-                                                <span className="block">
-                                                  Paid{" "}
-                                                  {currency(expense.paidAmount, group.currency)}
-                                                </span>
-                                              )}
-                                              {expenseStatus(expense.key, person.key)}
-                                            </span>
-                                          </div>
-                                        )}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                  <div className="flex flex-wrap justify-end gap-x-6 gap-y-3 border-b border-edge bg-field px-5 py-3 text-right sm:px-6">
-                                    <div>
-                                      <p className="text-sm text-ink-soft">Total share</p>
-                                      <p className="font-numeric text-sm font-semibold">
-                                        {currency(
-                                          member.expenses.reduce(
-                                            (sum, expense) =>
-                                              sum + Math.round(expense.shareAmount * 100),
-                                            0,
-                                          ) / 100,
-                                          group.currency,
-                                        )}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-ink-soft">Total paid</p>
-                                      <p className="font-numeric text-sm font-semibold">
-                                        {currency(
-                                          member.expenses.reduce(
-                                            (sum, expense) =>
-                                              sum + Math.round(expense.paidAmount * 100),
-                                            0,
-                                          ) / 100,
-                                          group.currency,
-                                        )}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-ink-soft sm:px-6">
-                                Who owes whom
-                              </h3>
-                              {settlements.length === 0 ? (
-                                <p className="border-y border-edge bg-field px-5 py-4 text-sm text-ink-soft sm:px-6">
-                                  No outstanding balance.
-                                </p>
-                              ) : (
-                                <ul className="divide-y divide-rule border-y border-edge bg-field">
-                                  {settlements.map((entry) => (
-                                    <li
-                                      key={`${entry.from}-${entry.to}`}
-                                      className="flex min-h-11 items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6"
-                                    >
-                                      <span>
-                                        <span className="font-semibold text-margin-red-ink">
-                                          {memberName(entry.from)}
-                                        </span>{" "}
-                                        owes{" "}
-                                        <span className="font-semibold text-ledger-green">
-                                          {memberName(entry.to)}
-                                        </span>
-                                      </span>
-                                      <span className="shrink-0 font-numeric font-semibold">
-                                        {currency(entry.amount, group.currency)}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        </section>
-                      ))}
-                    </div>
-                  </AnimatedDisclosure>
-                </Panel>
-              );
-            })}
-          </div>
-        ) : (
-          <Panel className="p-0">
-            <div className="px-5 py-4 sm:px-6">
-              <SectionTitle>Payment history</SectionTitle>
-              <p className="mt-1 text-sm text-ink-soft">
-                {data.history.length} recorded {data.history.length === 1 ? "payment" : "payments"}.
-              </p>
-            </div>
-            {data.history.length === 0 ? (
-              <p className="border-t border-rule px-5 py-8 text-sm text-ink-soft sm:px-6">
-                No payments recorded.
-              </p>
-            ) : (
-              <ul className="bg-field">
-                {[...historyByDate].map(([date, payments]) => {
-                  const currencyGroups = [
-                    ...payments.reduce<Map<string, typeof payments>>((groups, payment) => {
-                      const group = groups.get(payment.currency) ?? [];
-                      group.push(payment);
-                      groups.set(payment.currency, group);
-                      return groups;
-                    }, new Map()),
-                  ];
+            {selectedMember && (
+              <Panel className="space-y-5 card-inset">
+                <div className="w-full pb-5">
+                  <Label id="breakdown-member-label" htmlFor="breakdown-member">
+                    Member
+                  </Label>
+                  <MemberPicker
+                    id="breakdown-member"
+                    labelId="breakdown-member-label"
+                    value={selectedMember.key}
+                    placeholder="Choose a member"
+                    members={members.map(({ key, name }) => ({ id: key, name }))}
+                    onChange={(member) => {
+                      void navigate({
+                        to: "/t/$slug/breakdown",
+                        params: { slug },
+                        search: { share, view, member },
+                      });
+                    }}
+                  />
+                </div>
+                {data.currencies.map((group) => {
+                  const member = group.members.find((entry) => entry.key === selectedMember.key);
+                  const expenses = member?.expenses ?? [];
+                  const remaining = (direction: "from" | "to") =>
+                    group.settlements.reduce(
+                      (sum, entry) =>
+                        sum +
+                        (entry[direction] === selectedMember.key
+                          ? Math.round(entry.amount * 100)
+                          : 0),
+                      0,
+                    ) / 100;
+                  const { list } = expenseListGridClass(true, false);
                   return (
-                    <li key={date}>
-                      <h3 className="border-b border-rule bg-surface px-5 py-2 text-sm font-semibold sm:px-6">
-                        <time dateTime={date}>{formatExpenseDate(date) ?? date}</time>
-                      </h3>
-                      <ul>
-                        {currencyGroups.map(([currencyCode, currencyPayments], groupIndex) => (
-                          <li
-                            key={currencyCode}
-                            className={groupIndex > 0 ? "border-t border-rule" : ""}
-                          >
-                            <div className="flex bg-surface px-5 py-2 sm:px-6">
-                              <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                                {currencyCode}
-                              </span>
-                            </div>
-                            <ul
-                              className={`divide-y divide-rule bg-field ${groupIndex === 0 ? "border-t border-edge" : ""} ${groupIndex === currencyGroups.length - 1 ? "border-b border-edge" : ""}`}
-                            >
-                              {currencyPayments.map((payment) => (
-                                <li
-                                  key={payment.key}
-                                  className="flex min-w-0 items-center gap-3 px-5 py-3 sm:px-6"
-                                >
-                                  {payment.isReversal ? (
-                                    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-margin-red-ink">
-                                      <Undo2 aria-hidden="true" className="size-5" />
-                                    </span>
-                                  ) : (
-                                    <MemberAvatar
-                                      id={payment.fromMemberId ?? payment.from}
-                                      name={payment.from}
-                                      size="md"
-                                    />
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="break-words text-sm">
-                                      <span className="font-medium">
-                                        {payment.isReversal ? payment.to : payment.from}
-                                      </span>{" "}
-                                      {payment.isReversal ? "reversed payment to" : "paid"}{" "}
-                                      <span className="font-medium">
-                                        {payment.isReversal ? payment.from : payment.to}
-                                      </span>
-                                    </p>
-                                    {(payment.reversed || payment.isReversal) && (
-                                      <p className="mt-1 text-xs text-ink-soft">
-                                        {payment.isReversal ? "Reversal" : "Reversed"}
-                                      </p>
-                                    )}
-                                    {payment.note && (
-                                      <p className="mt-1 break-words text-xs text-ink-soft">
-                                        {payment.note}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <span
-                                    className={`shrink-0 font-numeric text-sm font-semibold ${payment.isReversal ? "text-margin-red-ink" : "text-ink"}`}
-                                  >
-                                    {payment.isReversal && "−"}
-                                    {currency(payment.amount, payment.currency)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </li>
-                        ))}
-                      </ul>
-                    </li>
+                    <section
+                      key={group.currency}
+                      className="space-y-3 pt-5 first-of-type:pt-0 @container"
+                    >
+                      <div className="flex items-center gap-2">
+                        <GroupTitle as="h2">
+                          <CurrencyPill code={group.currency} />
+                        </GroupTitle>
+                        <span className="text-xs text-ink-soft">
+                          {expenses.length} {expenses.length === 1 ? "expense" : "expenses"}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <SummaryAmount
+                          label="Total share"
+                          amount={
+                            expenses.reduce(
+                              (sum, expense) => sum + Math.round(expense.shareAmount * 100),
+                              0,
+                            ) / 100
+                          }
+                          code={group.currency}
+                        />
+                        <SummaryAmount
+                          label="Total covered"
+                          amount={
+                            expenses.reduce(
+                              (sum, expense) => sum + Math.round(expense.paidAmount * 100),
+                              0,
+                            ) / 100
+                          }
+                          code={group.currency}
+                        />
+                        <SummaryAmount
+                          label="Still owes"
+                          amount={remaining("from")}
+                          code={group.currency}
+                          tone="owes"
+                        />
+                        <SummaryAmount
+                          label="Still owed"
+                          amount={remaining("to")}
+                          code={group.currency}
+                          tone="owed"
+                        />
+                      </div>
+                      {expenses.length === 0 ? (
+                        <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
+                          No expenses for this member.
+                        </p>
+                      ) : (
+                        <div className="overflow-hidden border-y border-edge bg-field bleed">
+                          <ul className={`${list} text-sm`}>
+                            {expenses.map((expense) => {
+                              const payer = group.members.find((candidate) =>
+                                candidate.expenses.some(
+                                  (entry) => entry.key === expense.key && entry.paidAmount > 0,
+                                ),
+                              );
+                              const covering = expense.paidAmount > 0;
+                              return (
+                                <TabExpenseRow
+                                  key={expense.key}
+                                  name={expense.name || "Untitled expense"}
+                                  date={expense.date}
+                                  total={expense.total}
+                                  code={group.currency}
+                                  payer={payer ? { id: payer.key, name: payer.name } : undefined}
+                                  upcoming={isUpcoming(expense.date)}
+                                  shareAmount={expense.shareAmount}
+                                  memberContext={{
+                                    balance:
+                                      (Math.round(expense.paidAmount * 100) -
+                                        Math.round(expense.shareAmount * 100)) /
+                                      100,
+                                    memberName: selectedMember.name,
+                                    neutralPerspective: true,
+                                    coversExpense: covering,
+                                  }}
+                                  settlementStatus={
+                                    data.expenseStatuses?.find(
+                                      (entry) =>
+                                        entry.expenseSlug === expense.key &&
+                                        entry.memberId === selectedMember.key,
+                                    )?.status
+                                  }
+                                />
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </section>
                   );
                 })}
-              </ul>
+              </Panel>
             )}
-          </Panel>
+          </div>
+        ) : (
+          <SharedPaymentHistory history={data.history} />
         )}
       </SegmentedTabs>
     </Page>

@@ -298,6 +298,7 @@ body {
 }
 
 .group:hover .chevron-x,
+.group:focus-visible .chevron-x,
 .group:active .chevron-x {
   transform: translateX(2px);
 }
@@ -321,6 +322,8 @@ details[open] .chevron-flip,
    is dropped entirely instead. */
 @media (prefers-reduced-motion: reduce) {
   .group:hover .chevron-x,
+  .group:focus-visible .chevron-x,
+  .group:active .chevron-x,
   .group:hover .chevron-y {
     transform: none;
   }

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   authenticated: false,
   navigate: vi.fn(),
   getShareToken: vi.fn(async () => "share-secret"),
+  loading: false,
   data: {
     tab: { slug: "trip", name: "Weekend getaway" },
     currencies: [
@@ -48,6 +49,46 @@ const mocks = vi.hoisted(() => ({
                 tipTotal: 0,
                 items: [],
               },
+              {
+                key: "brunch",
+                name: "Brunch",
+                date: "2026-10-02",
+                paidAmount: 0,
+                shareAmount: 10,
+                total: 20,
+                taxTotal: 0,
+                tipTotal: 0,
+                items: [],
+              },
+            ],
+          },
+          {
+            key: "member-2",
+            name: "Pat",
+            balance: 0,
+            expenses: [
+              {
+                key: "breakfast",
+                name: "Breakfast",
+                date: "2026-10-02",
+                paidAmount: 24,
+                shareAmount: 12,
+                total: 24,
+                taxTotal: 0,
+                tipTotal: 0,
+                items: [],
+              },
+              {
+                key: "brunch",
+                name: "Brunch",
+                date: "2026-10-02",
+                paidAmount: 20,
+                shareAmount: 10,
+                total: 20,
+                taxTotal: 0,
+                tipTotal: 0,
+                items: [],
+              },
             ],
           },
         ],
@@ -65,6 +106,7 @@ const mocks = vi.hoisted(() => ({
     expenseStatuses: [
       { expenseSlug: "dinner", memberId: "member-0", status: "partiallySettled" },
       { expenseSlug: "breakfast", memberId: "member-1", status: "settled" },
+      { expenseSlug: "brunch", memberId: "member-1", status: "partiallySettled" },
       { expenseSlug: "dinner", memberId: "member-1", status: "outstanding" },
     ],
     history: [
@@ -86,7 +128,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: mocks.authenticated, isLoading: false }),
-  useQuery: () => mocks.data,
+  useQuery: () => (mocks.loading ? undefined : mocks.data),
   useMutation: () => mocks.getShareToken,
 }));
 vi.mock("@tanstack/react-router", () => ({
@@ -99,6 +141,7 @@ import { SharedTabPage } from "./SharedTabPage";
 
 afterEach(() => {
   mocks.authenticated = false;
+  mocks.loading = false;
   mocks.navigate.mockClear();
   mocks.getShareToken.mockClear();
   document.body.replaceChildren();
@@ -123,7 +166,7 @@ test("a member opens the page immediately, then the page adds its share token", 
   root.unmount();
 });
 
-test("breakdown shows member totals, currency sections, owes, and itemized expense details", () => {
+test("breakdown filters by member and shows per-currency summaries and settlements", () => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -137,39 +180,64 @@ test("breakdown shows member totals, currency sections, owes, and itemized expen
   expect(container.textContent).toContain("Dinner");
   expect(container.textContent).toContain("CAD");
   expect(container.textContent).toContain("USD");
-  expect(container.textContent).toContain("Sam owes Alex");
   expect(container.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
-  expect(container.textContent).toContain("Paid");
-  expect(container.textContent).toContain("Share");
-  expect(container.textContent).toContain("Partially Settled");
-  expect(container.textContent).toContain("Settled");
-  expect(container.textContent).not.toContain("outstanding");
+  expect(container.textContent).toContain("Still owed");
+  expect(container.textContent).toContain("25.00");
   expect(container.textContent).toContain("Total share");
-  expect(container.textContent).toContain("Total paid");
-  const total = (label: string) =>
-    [...container.querySelectorAll("p")].find((row) => row.textContent === label)
-      ?.nextElementSibling?.textContent;
-  expect(total("Total share")).toContain("25.00");
-  expect(total("Total paid")).toContain("57.50");
-  const memberDisclosure = container.querySelector<HTMLButtonElement>(
-    'button[aria-label="Alex breakdown"]',
+  expect(container.textContent).toContain("Total covered");
+  expect(container.textContent).toContain("Share");
+  expect(container.textContent).toContain("Partially repaid");
+  expect(container.textContent).toContain("Are owed");
+  expect(container.textContent).toContain("32.50");
+  expect(container.querySelectorAll("[aria-label$='breakdown']")).toHaveLength(0);
+  expect(container.querySelector("ul [aria-haspopup='dialog']")).toBeNull();
+  const picker = container.querySelector<HTMLButtonElement>("#breakdown-member");
+  expect(picker?.textContent).toContain("Alex");
+  expect(picker?.parentElement?.className).toContain("w-full");
+  expect(picker?.parentElement?.className).not.toContain("bleed");
+  expect(container.querySelector("h2 .rounded-full")?.textContent).toBe("CAD");
+  flushSync(() => picker?.click());
+  const sam = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
+    button.textContent?.includes("Sam"),
   );
-  expect(memberDisclosure?.getAttribute("aria-expanded")).toBe("true");
-  flushSync(() => memberDisclosure?.click());
-  expect(memberDisclosure?.getAttribute("aria-expanded")).toBe("false");
-  flushSync(() => memberDisclosure?.click());
-  expect(memberDisclosure?.getAttribute("aria-expanded")).toBe("true");
-  const disclosure = container.querySelector<HTMLButtonElement>('button[aria-expanded="false"]');
-  expect(disclosure).not.toBeNull();
-  flushSync(() => disclosure?.click());
-  expect(disclosure?.getAttribute("aria-expanded")).toBe("true");
-  expect(container.textContent).toContain("Pasta");
-  expect(container.textContent).toContain("Total cost");
-  expect(container.textContent).toContain("Tax");
-  expect(container.textContent).toContain("Tip");
-  expect(container.textContent).toContain("Expense total");
-  flushSync(() => disclosure?.click());
-  expect(disclosure?.getAttribute("aria-expanded")).toBe("false");
+  expect(sam).toBeDefined();
+  flushSync(() => sam?.click());
+  expect(mocks.navigate).toHaveBeenLastCalledWith({
+    to: "/t/$slug/breakdown",
+    params: { slug: "trip" },
+    search: { share: "secret", view: "breakdown", member: "member-1" },
+  });
+  flushSync(() =>
+    root.render(
+      createElement(SharedTabPage, {
+        slug: "trip",
+        share: "secret",
+        view: "breakdown",
+        member: "member-1",
+      }),
+    ),
+  );
+  expect(container.textContent).toContain("Breakfast");
+  expect(container.textContent).not.toContain("Dinner");
+  expect(container.querySelector('[role="img"][aria-label="Sam"]')).not.toBeNull();
+  expect(container.textContent).toContain("Owe");
+  expect(container.textContent).toContain("Paid");
+  expect(container.textContent).toContain("Partially paid");
+  expect(container.textContent).not.toContain("Repaid");
+  expect(container.textContent).not.toContain("Partially repaid");
+  const samCadSection = [...container.querySelectorAll("section")].find((section) =>
+    section.textContent?.includes("CAD"),
+  );
+  expect(samCadSection?.textContent).toContain("22.00");
+  const samUsdSection = [...container.querySelectorAll("section")].find((section) =>
+    section.textContent?.includes("USD"),
+  );
+  expect(samUsdSection?.textContent).toContain("No expenses for this member.");
+  const samExpenseList = [...(samCadSection?.querySelectorAll("ul") ?? [])].find((list) =>
+    list.textContent?.includes("Breakfast"),
+  );
+  expect(samExpenseList).not.toBeNull();
+  expect(samExpenseList?.querySelector("button")).toBeNull();
   expect(container.querySelector('[role="tablist"][aria-label="Shared tab pages"]')).not.toBeNull();
   expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
     "Breakdown",
@@ -177,7 +245,7 @@ test("breakdown shows member totals, currency sections, owes, and itemized expen
   flushSync(() =>
     root.render(createElement(SharedTabPage, { slug: "trip", share: "secret", view: "history" })),
   );
-  expect(container.textContent).toContain("Sam paid Alex");
+  expect(container.textContent).toContain("Sam → Alex");
   expect(container.textContent).toContain("1 recorded payment.");
   expect(container.querySelector('[role="img"][aria-label="Sam"]')).not.toBeNull();
   expect(container.querySelector("h3 time[datetime]")).not.toBeNull();
@@ -240,5 +308,93 @@ test("switching to payment history navigates on the breakdown route with the his
     params: { slug: "trip" },
     search: { share: "secret", view: "history" },
   });
+  root.unmount();
+});
+
+test("keeps amounts to pay and receive separate within each currency", () => {
+  const settlements = mocks.data.currencies[0].settlements;
+  settlements.push({ from: "member-0", to: "member-2", amount: 5 });
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  try {
+    flushSync(() =>
+      root.render(
+        createElement(SharedTabPage, {
+          slug: "trip",
+          share: "secret",
+          view: "breakdown",
+        }),
+      ),
+    );
+    const cad = container.querySelector("section");
+    const amount = (label: string) =>
+      [...(cad?.querySelectorAll("p") ?? [])].find((element) => element.textContent === label)
+        ?.nextElementSibling?.textContent;
+    expect(amount("Still owes")).toContain("5.00");
+    expect(amount("Still owed")).toContain("25.00");
+  } finally {
+    settlements.pop();
+    root.unmount();
+  }
+});
+
+test("reads the member from the URL and preserves it when switching views", () => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SharedTabPage, {
+        slug: "trip",
+        share: "secret",
+        member: "member-1",
+        view: "breakdown",
+      }),
+    ),
+  );
+  expect(container.querySelector("#breakdown-member")?.textContent).toContain("Sam");
+  expect(container.textContent).toContain("Breakfast");
+  flushSync(() =>
+    (container.querySelector('[role="tab"]:nth-child(2)') as HTMLButtonElement).click(),
+  );
+  expect(mocks.navigate).toHaveBeenLastCalledWith({
+    to: "/t/$slug/breakdown",
+    params: { slug: "trip" },
+    search: { share: "secret", view: "history", member: "member-1" },
+  });
+  flushSync(() =>
+    root.render(
+      createElement(SharedTabPage, {
+        slug: "trip",
+        share: "secret",
+        member: "member-0",
+        view: "breakdown",
+      }),
+    ),
+  );
+  expect(container.querySelector("#breakdown-member")?.textContent).toContain("Alex");
+  expect(container.textContent).toContain("Dinner");
+  root.unmount();
+});
+
+test("uses a viewport-contained loading skeleton with one page heading", () => {
+  mocks.loading = true;
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  flushSync(() =>
+    root.render(
+      createElement(SharedTabPage, {
+        slug: "trip",
+        share: "secret",
+        view: "breakdown",
+      }),
+    ),
+  );
+  expect(container.querySelector("main[data-viewport-loading]")).not.toBeNull();
+  expect(container.querySelectorAll("h1")).toHaveLength(1);
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("Loading shared tab");
+  expect(container.querySelector('[role="status"]')?.className).toContain("overflow-hidden");
   root.unmount();
 });

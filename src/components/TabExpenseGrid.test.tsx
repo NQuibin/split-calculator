@@ -23,7 +23,10 @@ test("renders only the viewer balance through the shared row", () => {
   );
 
   expect(markup).not.toContain("You spent");
-  expect(markup).toContain("You lent");
+  expect(markup).toContain("Nikki Q");
+  expect(markup).toContain(">covered</span>");
+  expect(markup).not.toContain(">paid</span>");
+  expect(markup).toContain("You are owed");
   expect(markup).toContain("CA$13.34");
   expect(markup).toContain("hover:bg-wash");
   expect(markup).toContain("active:bg-wash");
@@ -34,7 +37,7 @@ test("renders only the viewer balance through the shared row", () => {
   expect(markup).toContain('class="flex min-w-0 flex-col items-start gap-y-0.5"');
   expect(markup).toContain("col-start-1 col-span-2 row-start-1");
   expect(markup).toContain("col-start-3 row-start-2");
-  expect(markup).toContain('class="block text-sm text-ink-soft">You lent');
+  expect(markup).toContain('class="block text-sm text-ink-soft">You are owed');
   expect(markup).toContain("@min-[38rem]:col-start-3 @min-[38rem]:flex");
   expect(markup).toContain('class="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5"');
   expect(markup).toContain('class="font-numeric text-sm">CA$20.00');
@@ -51,26 +54,42 @@ test("renders another selected member's balance label", () => {
   expect(markup).not.toContain("Pat spent");
   expect(markup).toContain("Pat owes");
   expect(markup).not.toContain("You spent");
-  expect(markup).not.toContain("You borrowed");
+  expect(markup).not.toContain("You owe");
 });
 
 test.each([
-  ["settled", "Settled", "bg-settled-chip text-forest"],
-  ["partiallySettled", "Partially settled", "bg-partially-settled-chip text-brass-ink"],
-] as const)("renders %s as a settlement pill", (settlementStatus, label, colors) => {
-  const markup = renderMarkup(
-    createElement(TabExpenseRow, {
-      ...sharedRow,
-      memberContext: { balance: 13.34 },
-      settlementStatus,
-    }),
-  );
+  ["settled", "Paid", "Repaid", "bg-settled-chip text-forest"],
+  [
+    "partiallySettled",
+    "Partially paid",
+    "Partially repaid",
+    "bg-partially-settled-chip text-brass-ink",
+  ],
+] as const)(
+  "renders %s with role-aware settlement labels",
+  (settlementStatus, debtorLabel, payerLabel, colors) => {
+    const markup = renderMarkup(
+      createElement(TabExpenseRow, {
+        ...sharedRow,
+        memberContext: { balance: 13.34 },
+        settlementStatus,
+      }),
+    );
 
-  expect(markup).toContain(label);
-  expect(markup).toContain(
-    `class="mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${colors}"`,
-  );
-});
+    expect(markup).toContain(debtorLabel);
+    const coveringMarkup = renderMarkup(
+      createElement(TabExpenseRow, {
+        ...sharedRow,
+        memberContext: { balance: -13.34, coversExpense: true },
+        settlementStatus,
+      }),
+    );
+    expect(coveringMarkup).toContain(payerLabel);
+    expect(markup).toContain(
+      `class="mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${colors}"`,
+    );
+  },
+);
 
 test.each([undefined, "outstanding"] as const)(
   "does not render a settlement pill for %s",
@@ -83,8 +102,8 @@ test.each([undefined, "outstanding"] as const)(
       }),
     );
 
-    expect(markup).not.toContain("Settled");
-    expect(markup).not.toContain("Partially settled");
+    expect(markup).not.toContain("Paid");
+    expect(markup).not.toContain("Partially paid");
     expect(markup).not.toContain("bg-settled-chip");
     expect(markup).not.toContain("bg-partially-settled-chip");
   },
@@ -93,7 +112,7 @@ test.each([undefined, "outstanding"] as const)(
 test("omits the balance column when no member context is supplied", () => {
   const markup = renderMarkup(createElement(TabExpenseRow, sharedRow));
 
-  expect(markup).not.toContain("You lent");
+  expect(markup).not.toContain("You are owed");
   expect(markup).not.toContain("Not in split");
   expect(markup).not.toContain(">Balance<");
 });
@@ -124,6 +143,18 @@ test("styles an upcoming zero balance like No balance", () => {
   );
 });
 
+test("uses covered wording for planned expense funding", () => {
+  const markup = renderMarkup(
+    createElement(TabExpenseRow, {
+      ...sharedRow,
+      payer: undefined,
+      upcoming: true,
+    }),
+  );
+
+  expect(markup).toContain("Not covered yet");
+});
+
 test("renders No balance when the viewer did not participate in the expense", () => {
   const markup = renderMarkup(
     createElement(TabExpenseRow, {
@@ -135,4 +166,27 @@ test("renders No balance when the viewer did not participate in the expense", ()
   expect(markup).toContain("No balance");
   expect(markup).not.toContain("lucide-circle-minus");
   expect(markup).not.toContain("Not in split");
+});
+
+test.each([
+  [12, "Are owed", "text-ledger-green"],
+  [-12, "Owe", "text-margin-red-ink"],
+] as const)("renders a read-only selected-member row for %s", (balance, label, color) => {
+  const markup = renderMarkup(
+    createElement(TabExpenseRow, {
+      ...sharedRow,
+      onExpenseClick: undefined,
+      shareAmount: 8,
+      memberContext: { balance, neutralPerspective: true },
+    }),
+  );
+
+  expect(markup).toContain(label);
+  expect(markup).toContain(color);
+  expect(markup).toContain("CA$8.00");
+  expect(markup).not.toContain("You are owed");
+  expect(markup).not.toContain("You owe");
+  expect(markup).not.toContain("<button");
+  expect(markup).not.toContain("chevron-x");
+  expect(markup).not.toContain("hover:bg-wash");
 });

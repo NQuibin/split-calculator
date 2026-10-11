@@ -12,7 +12,7 @@ export interface SettlementBalance {
 
 /** Copy for a signed-in member's own net balance in an expense row. */
 export function viewerBalanceLabel(balance: number) {
-  return balance < 0 ? "You borrowed" : "You lent";
+  return balance < 0 ? "You owe" : "You are owed";
 }
 
 /** Compute paid, owed, and net balance for one expense. A missing/invalid payer is intentionally unusable. */

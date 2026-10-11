@@ -65,7 +65,7 @@ export function ExpenseBalances({
           <thead className="text-left text-xs text-ink-soft">
             <tr>
               <th className="px-3 py-2 font-medium">Person</th>
-              <th className="px-3 py-2 text-right font-medium">Paid</th>
+              <th className="px-3 py-2 text-right font-medium">Covered</th>
               <th className="px-3 py-2 text-right font-medium">Share</th>
               <th className="px-3 py-2 text-right font-medium">Balance</th>
             </tr>
@@ -90,9 +90,9 @@ export function ExpenseBalances({
                 >
                   <span className="inline-flex items-center justify-end gap-1 whitespace-nowrap">
                     {row.balance > 0
-                      ? `You lent ${formatCurrency(row.balance, currency)}`
+                      ? `You are owed ${formatCurrency(row.balance, currency)}`
                       : row.balance < 0
-                        ? `You borrowed ${formatCurrency(Math.abs(row.balance), currency)}`
+                        ? `You owe ${formatCurrency(Math.abs(row.balance), currency)}`
                         : projected
                           ? "Not due"
                           : "Settled"}

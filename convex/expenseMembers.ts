@@ -51,7 +51,7 @@ export async function assertExpenseMembers(
   },
 ) {
   if (!expense.tabId) throw new Error("Expense must belong to a tab");
-  if (!expense.payerId) throw new Error("Choose who paid before saving the expense");
+  if (!expense.payerId) throw new Error("Choose who covered the expense before saving");
   const seats = await ctx.db
     .query("tabMembers")
     .withIndex("by_tab", (q) => q.eq("tabId", expense.tabId!))

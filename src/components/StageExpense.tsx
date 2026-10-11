@@ -190,7 +190,7 @@ export function StageExpense({
   async function handleContinue() {
     setContinueError(null);
     if (!payerId || !people.some((person) => person.id === payerId)) {
-      const message = "Choose who paid for this expense before saving.";
+      const message = "Choose who covered this expense before saving.";
       setPayerError(message);
       setContinueError(message);
       return;
@@ -368,7 +368,7 @@ export function StageExpense({
       </div>
       <div className="min-w-0 md:col-span-2">
         <Label id="expense-payer-label" htmlFor="expense-payer" icon={User}>
-          {isUpcoming(date) ? "Will be paid by" : "Paid by"}
+          {isUpcoming(date) ? "Will be covered by" : "Covered by"}
         </Label>
         <MemberPicker
           id="expense-payer"

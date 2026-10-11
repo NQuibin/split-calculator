@@ -13,7 +13,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootLayout() {
   return (
     <LocaleProvider>
-      <div className="flex min-h-dvh flex-col lg:flex-row">
+      <div className="flex min-h-dvh flex-col lg:flex-row has-[main[data-viewport-loading]]:h-dvh has-[main[data-viewport-loading]]:overflow-hidden">
         {/* First thing in the tab order, visible only once focused: lets a
           keyboard user skip the nav on every route. */}
         <a
@@ -23,7 +23,7 @@ function RootLayout() {
           Skip to content
         </a>
         <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col has-[main[data-viewport-loading]]:min-h-0">
           <Outlet />
           <Footer />
         </div>

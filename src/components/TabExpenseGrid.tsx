@@ -12,17 +12,32 @@ export type TabExpenseMemberContext = {
   balance: number | null | undefined;
   memberName?: string;
   viewerPerspective?: boolean;
+  coversExpense?: boolean;
+  neutralPerspective?: boolean;
 };
 
 export type TabExpenseSettlementStatus = "settled" | "partiallySettled" | "outstanding";
 
-export function SettlementStatusPill({ status }: { status: TabExpenseSettlementStatus }) {
+export function SettlementStatusPill({
+  status,
+  coversExpense = false,
+}: {
+  status: TabExpenseSettlementStatus;
+  coversExpense?: boolean;
+}) {
   if (status === "outstanding") return null;
+  const label = coversExpense
+    ? status === "settled"
+      ? "Repaid"
+      : "Partially repaid"
+    : status === "settled"
+      ? "Paid"
+      : "Partially paid";
   return (
     <span
       className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${status === "settled" ? "bg-settled-chip text-forest" : "bg-partially-settled-chip text-brass-ink"}`}
     >
-      {status === "settled" ? "Settled" : "Partially settled"}
+      {label}
     </span>
   );
 }
@@ -85,12 +100,14 @@ export function TabExpenseBalance({
   projected,
   memberName,
   viewerPerspective = false,
+  neutralPerspective = false,
 }: {
   balance: number | null | undefined;
   code: string;
   projected: boolean;
   memberName?: string;
   viewerPerspective?: boolean;
+  neutralPerspective?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
   if (balance === null) return <span className="text-sm text-ink-soft">Awaiting payer</span>;
@@ -111,9 +128,13 @@ export function TabExpenseBalance({
       </span>
     );
   const owes = balance < 0;
-  const balanceLabel = memberName
-    ? `${memberName} ${owes ? "owes" : "gets"}`
-    : viewerBalanceLabel(balance);
+  const balanceLabel = neutralPerspective
+    ? owes
+      ? "Owe"
+      : "Are owed"
+    : memberName
+      ? `${memberName} ${owes ? "owes" : "gets"}`
+      : viewerBalanceLabel(balance);
   return (
     <>
       <span className="hidden @min-[38rem]:block">
@@ -152,6 +173,7 @@ export function TabExpenseRow({
   upcoming,
   memberContext,
   settlementStatus,
+  shareAmount,
   onExpenseClick,
 }: {
   name: string;
@@ -162,17 +184,28 @@ export function TabExpenseRow({
   upcoming: boolean;
   memberContext?: TabExpenseMemberContext;
   settlementStatus?: TabExpenseSettlementStatus;
+  shareAmount?: number;
   onExpenseClick?: () => void;
 }) {
-  const { row } = expenseListGridClass(memberContext !== undefined);
-  const title = <span className="block text-sm">{name}</span>;
+  const { currency } = useLocaleFormatters();
+  const { row } = expenseListGridClass(memberContext !== undefined, !!onExpenseClick);
+  const title = (
+    <>
+      <span className="block text-sm">{name}</span>
+      {shareAmount !== undefined && (
+        <span className="mt-0.5 block text-xs font-normal text-ink-soft">
+          Share <span className="font-numeric">{currency(shareAmount, code)}</span>
+        </span>
+      )}
+    </>
+  );
   const memberName = memberContext?.memberName;
   const titleClassName =
     "col-start-1 col-span-2 row-start-1 min-w-0 self-center break-words text-left font-semibold @min-[38rem]:col-start-2 @min-[38rem]:col-span-1 @min-[38rem]:self-auto";
 
   return (
     <li
-      className={`${row} group relative py-4 transition-colors hover:bg-wash active:bg-wash has-[button:focus-visible]:bg-wash`}
+      className={`${row} relative py-4 ${onExpenseClick ? "group transition-colors hover:bg-wash active:bg-wash has-[button:focus-visible]:bg-wash" : ""}`}
     >
       {onExpenseClick ? (
         <button
@@ -192,11 +225,11 @@ export function TabExpenseRow({
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
           {payer ? (
             <span className="min-w-0 break-words">
-              {payer.name} <span className="text-sm text-ink-soft">paid</span>
+              {payer.name} <span className="text-sm text-ink-soft">covered</span>
             </span>
           ) : (
             <span className="text-sm text-ink-soft">
-              {upcoming ? "Not paid yet" : "Payer needed"}
+              {upcoming ? "Not covered yet" : "Payer needed"}
             </span>
           )}
           <TabExpenseAmount total={total} code={code} upcoming={upcoming} compact />
@@ -207,11 +240,11 @@ export function TabExpenseRow({
         <span className="flex min-w-0 flex-col items-start gap-y-0.5">
           {payer ? (
             <span className="break-words text-sm text-ink">
-              {payer.name} <span className="text-sm text-ink-soft">paid</span>
+              {payer.name} <span className="text-sm text-ink-soft">covered</span>
             </span>
           ) : (
             <span className="text-sm text-ink-soft">
-              {upcoming ? "Not paid yet" : "Payer needed"}
+              {upcoming ? "Not covered yet" : "Payer needed"}
             </span>
           )}
           <TabExpenseAmount total={total} code={code} upcoming={upcoming} compact />
@@ -228,16 +261,22 @@ export function TabExpenseRow({
             projected={upcoming}
             memberName={memberName}
             viewerPerspective={memberContext.viewerPerspective}
+            neutralPerspective={memberContext.neutralPerspective}
           />
           {(settlementStatus === "settled" || settlementStatus === "partiallySettled") && (
-            <SettlementStatusPill status={settlementStatus} />
+            <SettlementStatusPill
+              status={settlementStatus}
+              coversExpense={memberContext.coversExpense}
+            />
           )}
         </span>
       )}
-      <ChevronRight
-        aria-hidden="true"
-        className={`-mr-1 col-start-3 row-start-1 h-5 w-5 shrink-0 self-center justify-self-end text-ink-soft chevron-x ${memberContext ? "@min-[38rem]:col-start-5" : "@min-[38rem]:col-start-4"}`}
-      />
+      {onExpenseClick && (
+        <ChevronRight
+          aria-hidden="true"
+          className={`-mr-1 col-start-3 row-start-1 h-5 w-5 shrink-0 self-center justify-self-end text-ink-soft chevron-x ${memberContext ? "@min-[38rem]:col-start-5" : "@min-[38rem]:col-start-4"}`}
+        />
+      )}
     </li>
   );
 }

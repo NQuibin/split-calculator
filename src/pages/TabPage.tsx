@@ -1241,6 +1241,7 @@ function ExpenseList({
                       ? {
                           balance: convertedViewerBalance,
                           viewerPerspective: true,
+                          coversExpense: expense.payerId === viewerMember?.id,
                         }
                       : undefined
                   }

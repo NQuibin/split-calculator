@@ -60,7 +60,7 @@ test("shows shared member names and amounts without status sublabels", () => {
   expect(text).toContain("Nikki Q");
   expect(text).toContain("Sam");
   expect(text).toContain("P5");
-  expect(text).toContain("Paid by");
+  expect(text).toContain("Covered by");
   expect(text).toContain("10.00");
   expect(text).not.toContain("Payer");
   expect(text).not.toContain("Settled");
@@ -134,10 +134,10 @@ test("shows settlement pills beside the relevant member share", () => {
   );
   const rows = [...document.querySelectorAll("li")];
   expect(rows.find((row) => row.textContent?.includes("Sam"))?.textContent).toContain(
-    "Partially settled",
+    "Partially paid",
   );
   expect(rows.find((row) => row.textContent?.includes("Nikki Q"))?.textContent).not.toContain(
-    "Settled",
+    "Repaid",
   );
   expect(document.querySelector(".bg-partially-settled-chip")).not.toBeNull();
   flushSync(() =>
@@ -158,9 +158,9 @@ test("shows settlement pills beside the relevant member share", () => {
       }),
     ),
   );
-  expect(document.body.textContent).toContain("Settled");
+  expect(document.body.textContent).toContain("Paid");
   expect(document.querySelector(".bg-settled-chip")).not.toBeNull();
-  expect(document.body.textContent).not.toContain("Partially settled");
+  expect(document.body.textContent).not.toContain("Partially paid");
   flushSync(() =>
     root.render(
       createElement(ExpenseDetailsDialog, {
@@ -184,10 +184,10 @@ test("shows settlement pills beside the relevant member share", () => {
   );
   const reverseRows = [...document.querySelectorAll("li")];
   expect(reverseRows.find((row) => row.textContent?.includes("Nikki Q"))?.textContent).toContain(
-    "Partially settled",
+    "Partially paid",
   );
   expect(reverseRows.find((row) => row.textContent?.includes("Sam"))?.textContent).not.toContain(
-    "Settled",
+    "Repaid",
   );
   root.unmount();
 });

@@ -44,6 +44,7 @@ export function TabMemberBreakdown({
                     balance: line.viewerBalance,
                     memberName: undefined,
                     viewerPerspective: true,
+                    coversExpense: line.payerId === member.memberId,
                   }}
                   settlementStatus={
                     typeof line.viewerBalance === "number" && line.viewerBalance !== 0

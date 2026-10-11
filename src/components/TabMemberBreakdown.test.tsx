@@ -50,7 +50,7 @@ test("shows only expenses shared with the viewer and keeps expense rows clickabl
 
   expect(markup).toContain("Dinner");
   expect(markup).not.toContain("Lunch");
-  expect(markup).toContain("You lent");
+  expect(markup).toContain("You are owed");
   expect(markup).not.toContain("You spent");
   expect(markup).toContain("CA$20.00");
   expect(markup).not.toContain("Settlement breakdown");
@@ -81,9 +81,25 @@ test("shows the selected member's partial settlement beneath a related expense b
     }),
   );
 
-  expect(markup).toContain("Partially settled");
+  expect(markup).toContain("Partially repaid");
   expect(markup).toContain("bg-partially-settled-chip");
-  expect(markup).not.toContain(">Settled<");
+  expect(markup).not.toContain(">Paid<");
+});
+
+test("uses the selected member's payer role even when viewer balance points the other way", () => {
+  const markup = renderMarkup(
+    createElement(TabMemberBreakdown, {
+      member: {
+        ...member,
+        expenses: [{ ...member.expenses[0], payerId: "someone-else", viewerBalance: 4 }],
+      },
+      currencyCode: "CAD",
+      expenseStatuses: [{ expenseSlug: "dinner", memberId: "member-1", status: "settled" }],
+    }),
+  );
+
+  expect(markup).toContain(">Paid</span>");
+  expect(markup).not.toContain("Repaid");
 });
 
 test("renders headerless expense rows with a desktop payer and balance", () => {
