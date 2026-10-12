@@ -638,6 +638,19 @@ export const get = query({
 });
 
 /** Read-only tab breakdown for anyone holding the tab's opaque share token. */
+const memberViewSummary = v.object({
+  totalShare: v.number(),
+  totalCovered: v.number(),
+  stillOwes: v.number(),
+  stillOwed: v.number(),
+  balances: v.array(v.object({ memberId: v.string(), balance: v.number() })),
+});
+const memberSummaries = v.object({
+  paid: memberViewSummary,
+  upcoming: memberViewSummary,
+  all: memberViewSummary,
+});
+
 const publicShareResult = v.union(
   v.null(),
   v.object({
@@ -661,11 +674,13 @@ const publicShareResult = v.union(
             key: v.string(),
             name: v.string(),
             balance: v.number(),
+            summaries: memberSummaries,
             expenses: v.array(
               v.object({
                 key: v.string(),
                 name: v.string(),
                 date: v.string(),
+                createdAt: v.number(),
                 amount: v.number(),
                 paid: v.boolean(),
                 paidAmount: v.number(),
@@ -769,6 +784,32 @@ export const publicShare = query({
     const currencyEntries = [...views.all.byCurrency];
     if (currencyEntries.length === 0)
       currencyEntries.push([tab.defaultCurrency ?? "USD", blank(roster)]);
+
+    const summarizeMember = (view: ExpenseView, currency: string, memberId: string) => {
+      const viewTotals = views[view].byCurrency.get(currency);
+      if (!viewTotals)
+        return { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] };
+      const member = viewTotals.get(memberId);
+      if (!member) throw new Error("A settlement references a missing member");
+      let stillOwesCents = 0;
+      let stillOwedCents = 0;
+      const balances: { memberId: string; balance: number }[] = [];
+      for (const peer of people) {
+        if (peer.id === memberId) continue;
+        const balance = directBalanceWithViewer(viewTotals, memberId, peer.id);
+        if (balance > 0) stillOwesCents = addCents(stillOwesCents, balance);
+        else if (balance < 0) stillOwedCents = addCents(stillOwedCents, -balance);
+        if (balance !== 0) balances.push({ memberId: peer.id, balance: -balance / 100 });
+      }
+      return {
+        totalShare: member.shareCents / 100,
+        totalCovered: member.paidCents / 100,
+        stillOwes: stillOwesCents / 100,
+        stillOwed: stillOwedCents / 100,
+        balances,
+      };
+    };
+
     const currencies = currencyEntries
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([currency, totals]) => ({
@@ -799,6 +840,7 @@ export const publicShare = query({
               key: expense.slug,
               name: expense.name,
               date: expense.date,
+              createdAt: expense._creationTime,
               amount: expense.payerId === person.id ? total : (shares.get(person.id) ?? 0),
               paid: expense.payerId === person.id,
               paidAmount: expense.payerId === person.id ? total : 0,
@@ -817,6 +859,11 @@ export const publicShare = query({
             key: person.id,
             name: person.name,
             balance: net(total) / 100,
+            summaries: {
+              paid: summarizeMember("paid", currency, person.id),
+              upcoming: summarizeMember("upcoming", currency, person.id),
+              all: summarizeMember("all", currency, person.id),
+            },
             expenses: memberExpenses,
           };
         }),

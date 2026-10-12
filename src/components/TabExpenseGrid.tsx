@@ -1,6 +1,6 @@
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { UpcomingExpenseIcon } from "@/components/UpcomingExpenseIcon";
-import { ChevronRight } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { isUpcoming } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { viewerBalanceLabel } from "@/lib/settlements";
@@ -35,9 +35,10 @@ export function SettlementStatusPill({
       : "Partially paid";
   return (
     <span
-      className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${status === "settled" ? "bg-settled-chip text-forest" : "bg-partially-settled-chip text-brass-ink"}`}
+      className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${status === "settled" ? "bg-settled-chip text-forest" : "bg-partially-settled-chip text-brass-ink"}`}
     >
       {label}
+      {status === "settled" && <Check aria-hidden="true" className="size-3 shrink-0" />}
     </span>
   );
 }

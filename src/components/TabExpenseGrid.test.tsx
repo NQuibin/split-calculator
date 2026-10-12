@@ -85,8 +85,10 @@ test.each([
       }),
     );
     expect(coveringMarkup).toContain(payerLabel);
+    expect(markup.includes("lucide-check")).toBe(settlementStatus === "settled");
+    expect(coveringMarkup.includes("lucide-check")).toBe(settlementStatus === "settled");
     expect(markup).toContain(
-      `class="mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${colors}"`,
+      `class="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${colors}"`,
     );
   },
 );

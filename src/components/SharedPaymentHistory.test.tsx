@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { createElement } from "react";
-import { expect, test } from "vitest";
-import { renderMarkup } from "@/test/render";
+import { flushSync } from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, expect, test, vi } from "vitest";
 import { SharedPaymentHistory } from "./SharedPaymentHistory";
 
 const history = [
@@ -49,26 +50,75 @@ const history = [
   },
 ];
 
-test("renders read-only payment history grouped by date and currency", () => {
-  const markup = renderMarkup(createElement(SharedPaymentHistory, { history }));
+const roots: Root[] = [];
 
-  expect(markup).toContain("3 recorded payments.");
-  expect(markup.match(/Alex<\/span> → <span class="font-medium">Nikki/gu)).toHaveLength(2);
-  expect(markup).toContain("Dinner");
-  expect(markup).toContain("Correction");
-  expect(markup).toContain("Reversed");
-  expect(markup).toContain("Payment reversal");
-  expect(markup.match(/>CAD<|>USD</gu)).toHaveLength(2);
-  expect(markup).toContain('aria-label="Alex"');
-  expect(markup).toContain("grid-cols-[2.75rem_minmax(0,1fr)_max-content]");
-  expect(markup).toContain("h-11 w-11");
-  expect(markup).toContain("lucide-undo-2");
-  expect(markup).not.toContain("<button");
-  expect(markup).not.toContain("chevron-right");
+function mount(defaultOpen = false) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  flushSync(() => root.render(createElement(SharedPaymentHistory, { history, defaultOpen })));
+  return container;
+}
+
+function click(element: Element) {
+  flushSync(() => {
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+}
+
+afterEach(() => {
+  for (const root of roots.splice(0)) flushSync(() => root.unmount());
+  document.body.replaceChildren();
 });
 
-test("shows an empty read-only history state", () => {
-  const markup = renderMarkup(createElement(SharedPaymentHistory, { history: [] }));
+test("opens grouped read-only payment history in a dialog", async () => {
+  const container = mount();
+  const trigger = container.querySelector<HTMLButtonElement>("button");
+  expect(trigger?.textContent).toContain("Payment history");
+  expect(trigger?.className).toContain("flex-1");
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
 
-  expect(markup).toContain("No payments recorded.");
+  click(trigger!);
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+  expect(dialog.querySelector("[data-slot=dialog-title]")?.textContent).toBe("Payment history");
+  expect(dialog.textContent).toContain("3 recorded payments.");
+  expect(dialog.textContent).toContain("Alex");
+  expect(dialog.textContent).toContain("Payment reversal");
+  expect(dialog.textContent).toContain("Reversed");
+  expect(dialog.textContent).toContain("Dinner");
+  expect(dialog.textContent).toContain("Correction");
+  expect(dialog.querySelectorAll('time[datetime="2026-09-05"]')).toHaveLength(1);
+  expect(dialog.querySelectorAll('time[datetime="2026-09-04"]')).toHaveLength(1);
+  expect(dialog.textContent).toContain("CAD");
+  expect(dialog.textContent).toContain("USD");
+  expect(dialog.querySelectorAll("button")).toHaveLength(1);
+  expect(dialog.querySelector("button")?.getAttribute("aria-label")).toBe("Close payment history");
+  expect(dialog.innerHTML).not.toContain("chevron-right");
+});
+
+test("default-opens for a legacy history URL and closes with the close button", async () => {
+  const container = mount(true);
+  const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+
+  const closeButton = document.querySelector<HTMLButtonElement>(
+    '[aria-label="Close payment history"]',
+  )!;
+  click(closeButton);
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+  expect(document.activeElement).toBe(trigger);
+});
+
+test("closes with Escape and restores focus to the trigger", async () => {
+  const container = mount();
+  const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  click(trigger);
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+  expect(document.activeElement).toBe(trigger);
 });

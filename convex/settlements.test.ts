@@ -101,6 +101,181 @@ test("breakdown lines expose converted member balances", async () => {
   expect(membersByName.get("Bea")?.expenses[0].balance).toBe(-60);
 });
 
+test("public share exposes the expense creation time for both payer and split member", async () => {
+  const { t, owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b"], 30, "dated-dinner", "2026-09-01");
+
+  const sourceExpense = await t.run((ctx) =>
+    ctx.db
+      .query("expenses")
+      .withIndex("by_slug", (q) => q.eq("slug", "dated-dinner"))
+      .unique(),
+  );
+  const shareToken = await owner.mutation(api.tabs.getOrCreateShareToken, { slug: "trip" });
+  const shared = await t.query(api.settlements.publicShare, {
+    slug: "trip",
+    shareToken,
+    asOfDate: TODAY,
+  });
+  const membersByName = new Map(
+    shared?.currencies[0]?.members.map((member) => [member.name, member]),
+  );
+
+  expect(sourceExpense).not.toBeNull();
+  expect(membersByName.get("Alex")?.expenses[0]).toMatchObject({
+    key: "dated-dinner",
+    date: "2026-09-01",
+    createdAt: sourceExpense!._creationTime,
+  });
+  expect(membersByName.get("Bea")?.expenses[0]).toMatchObject({
+    key: "dated-dinner",
+    date: "2026-09-01",
+    createdAt: sourceExpense!._creationTime,
+  });
+});
+
+test("public share summarizes paid, upcoming, and all balances per member and currency", async () => {
+  const { owner, members } = await setup();
+  await expense(owner, members, members[0].id, "USD", ["a", "b"], 90, "paid-usd");
+  await expense(owner, members, members[1].id, "USD", ["b", "c"], 30, "upcoming-usd", "2026-09-20");
+  await expense(owner, members, members[2].id, "EUR", ["c", "a"], 20, "paid-eur");
+
+  await owner.mutation(api.settlements.record, {
+    slug: "trip",
+    fromMemberId: members[1].id as Id<"tabMembers">,
+    toMemberId: members[0].id as Id<"tabMembers">,
+    amount: 15,
+    currency: "USD",
+    date: TODAY,
+    requestId: "summary-payment",
+    asOfDate: TODAY,
+    view: "paid",
+  });
+
+  const shareToken = await owner.mutation(api.tabs.getOrCreateShareToken, { slug: "trip" });
+  const query = () =>
+    owner.query(api.settlements.publicShare, { slug: "trip", shareToken, asOfDate: TODAY });
+  let shared = await query();
+  const usd = shared?.currencies.find((currency) => currency.currency === "USD");
+  const eur = shared?.currencies.find((currency) => currency.currency === "EUR");
+  const alexUsd = usd?.members.find((member) => member.name === "Alex")?.summaries;
+  const beaUsd = usd?.members.find((member) => member.name === "Bea")?.summaries;
+  const camUsd = usd?.members.find((member) => member.name === "Cam")?.summaries;
+
+  expect(alexUsd).toEqual({
+    paid: {
+      totalShare: 45,
+      totalCovered: 90,
+      stillOwes: 0,
+      stillOwed: 30,
+      balances: [{ memberId: members[1].id, balance: 30 }],
+    },
+    upcoming: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+    all: {
+      totalShare: 45,
+      totalCovered: 90,
+      stillOwes: 0,
+      stillOwed: 30,
+      balances: [{ memberId: members[1].id, balance: 30 }],
+    },
+  });
+  expect(beaUsd).toEqual({
+    paid: {
+      totalShare: 45,
+      totalCovered: 0,
+      stillOwes: 30,
+      stillOwed: 0,
+      balances: [{ memberId: members[0].id, balance: -30 }],
+    },
+    upcoming: {
+      totalShare: 15,
+      totalCovered: 30,
+      stillOwes: 0,
+      stillOwed: 15,
+      balances: [{ memberId: members[2].id, balance: 15 }],
+    },
+    all: {
+      totalShare: 60,
+      totalCovered: 30,
+      stillOwes: 30,
+      stillOwed: 15,
+      balances: [
+        { memberId: members[0].id, balance: -30 },
+        { memberId: members[2].id, balance: 15 },
+      ],
+    },
+  });
+  expect(camUsd).toEqual({
+    paid: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+    upcoming: {
+      totalShare: 15,
+      totalCovered: 0,
+      stillOwes: 15,
+      stillOwed: 0,
+      balances: [{ memberId: members[1].id, balance: -15 }],
+    },
+    all: {
+      totalShare: 15,
+      totalCovered: 0,
+      stillOwes: 15,
+      stillOwed: 0,
+      balances: [{ memberId: members[1].id, balance: -15 }],
+    },
+  });
+  expect(eur?.members.find((member) => member.name === "Alex")?.summaries).toEqual({
+    paid: {
+      totalShare: 10,
+      totalCovered: 0,
+      stillOwes: 10,
+      stillOwed: 0,
+      balances: [{ memberId: members[2].id, balance: -10 }],
+    },
+    upcoming: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+    all: {
+      totalShare: 10,
+      totalCovered: 0,
+      stillOwes: 10,
+      stillOwed: 0,
+      balances: [{ memberId: members[2].id, balance: -10 }],
+    },
+  });
+  expect(eur?.members.find((member) => member.name === "Bea")?.summaries).toEqual({
+    paid: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+    upcoming: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+    all: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+  });
+
+  const paid = shared?.history.find((payment) => payment.fromMemberId === members[1].id);
+  expect(paid).toBeDefined();
+  await owner.mutation(api.settlements.reverse, {
+    slug: "trip",
+    settlementId: paid!.key,
+  });
+  shared = await query();
+  expect(
+    shared?.currencies
+      .find((currency) => currency.currency === "USD")
+      ?.members.find((member) => member.name === "Alex")?.summaries.paid,
+  ).toEqual({
+    totalShare: 45,
+    totalCovered: 90,
+    stillOwes: 0,
+    stillOwed: 45,
+    balances: [{ memberId: members[1].id, balance: 45 }],
+  });
+  expect(
+    shared?.currencies
+      .find((currency) => currency.currency === "USD")
+      ?.members.find((member) => member.name === "Bea")?.summaries.paid,
+  ).toEqual({
+    totalShare: 45,
+    totalCovered: 0,
+    stillOwes: 45,
+    stillOwed: 0,
+    balances: [{ memberId: members[0].id, balance: -45 }],
+  });
+});
+
 test("tab summaries split viewer amounts owed and owing per currency after payments", async () => {
   const { owner, members } = await setup();
   await expense(owner, members, members[0].id, "USD", ["a", "b"], 120, "viewer-paid");

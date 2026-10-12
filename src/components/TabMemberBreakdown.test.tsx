@@ -98,7 +98,7 @@ test("uses the selected member's payer role even when viewer balance points the 
     }),
   );
 
-  expect(markup).toContain(">Paid</span>");
+  expect(markup).toContain(">Paid<svg");
   expect(markup).not.toContain("Repaid");
 });
 
