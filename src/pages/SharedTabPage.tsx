@@ -143,8 +143,8 @@ export function SharedTabPage({
       ?.expenses.some((expense) => expense.date > asOfDate),
   );
   const activeExpenseView = hasUpcomingExpenses ? expenseView : "all";
-  const currencySections = selectedMember
-    ? data.currencies.map((group, index) => {
+  const currencySummaries = selectedMember
+    ? data.currencies.map((group) => {
         const member = group.members.find((entry) => entry.key === selectedMember.key);
         const expenses = member?.expenses ?? [];
         const visibleExpenses = expenses
@@ -209,157 +209,197 @@ export function SharedTabPage({
             ) / 100);
         const stillOwes = !member ? 0 : (summary?.stillOwes ?? fallbackStillOwes);
         const stillOwed = !member ? 0 : (summary?.stillOwed ?? fallbackStillOwed);
-        const { list } = expenseListGridClass(true, false);
-        return (
-          <section key={group.currency} className="space-y-3 pt-5 first-of-type:pt-0 @container">
-            <div className="flex items-center gap-2">
-              <GroupTitle as="h2">
-                <CurrencyPill code={group.currency} />
-              </GroupTitle>
-              <span className="text-xs text-ink-soft">
-                {expenses.length} {expenses.length === 1 ? "expense" : "expenses"}
-              </span>
-            </div>
-            <section
-              aria-label={`${group.currency} balances for ${selectedMember.name}`}
-              className="space-y-3"
-            >
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <GroupTitle as="h3">Balances</GroupTitle>
-                {((stillOwes ?? 0) > 0 || (stillOwed ?? 0) > 0) && (
-                  <div className="flex gap-5 text-right">
-                    {(stillOwes ?? 0) > 0 && (
-                      <SummaryAmount
-                        label="Still owes"
-                        amount={stillOwes}
-                        code={group.currency}
-                        tone="owes"
-                      />
-                    )}
-                    {(stillOwed ?? 0) > 0 && (
-                      <SummaryAmount
-                        label="Still owed"
-                        amount={stillOwed}
-                        code={group.currency}
-                        tone="owed"
-                      />
-                    )}
-                  </div>
-                )}
+        return {
+          group,
+          expenses,
+          visibleExpenses,
+          balances,
+          totalShare,
+          totalCovered,
+          stillOwes,
+          stillOwed,
+        };
+      })
+    : [];
+  const visibleCurrencySummaries = currencySummaries.filter(
+    ({ visibleExpenses, balances, stillOwes, stillOwed }) =>
+      visibleExpenses.length > 0 ||
+      balances === undefined ||
+      (stillOwes ?? 0) > 0 ||
+      (stillOwed ?? 0) > 0 ||
+      balances.some((entry) => entry.balance !== 0),
+  );
+  const currencySections = selectedMember
+    ? visibleCurrencySummaries.map(
+        (
+          {
+            group,
+            expenses,
+            visibleExpenses,
+            balances,
+            totalShare,
+            totalCovered,
+            stillOwes,
+            stillOwed,
+          },
+          index,
+        ) => {
+          const { list } = expenseListGridClass(true, false);
+          return (
+            <section key={group.currency} className="space-y-3 pt-5 first-of-type:pt-0 @container">
+              <div className="flex items-center gap-2">
+                <GroupTitle as="h2">
+                  <CurrencyPill code={group.currency} />
+                </GroupTitle>
+                <span className="text-xs text-ink-soft">
+                  {visibleExpenses.length} {visibleExpenses.length === 1 ? "expense" : "expenses"}
+                </span>
               </div>
-              {balances === undefined ? (
-                <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
-                  Member balances are unavailable for this view.
-                </p>
-              ) : balances.filter((entry) => entry.balance !== 0).length === 0 ? (
-                <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
-                  No outstanding balances.
-                </p>
-              ) : (
-                <ul className="divide-y divide-rule border-y border-edge bg-field bleed">
-                  {balances
-                    .filter((entry) => entry.balance !== 0)
-                    .map((entry) => {
-                      const peerName =
-                        members.find((candidate) => candidate.key === entry.memberId)?.name ??
-                        "Member";
-                      const positive = entry.balance > 0;
-                      return (
-                        <li
-                          key={entry.memberId}
-                          className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px"
-                        >
-                          <span className="flex min-w-0 items-center gap-3">
-                            <MemberAvatar id={entry.memberId} name={peerName} size="md" />
-                            <span className="min-w-0 break-words text-sm text-ink">
-                              {positive ? (
-                                <>
-                                  <span className="font-medium">{peerName}</span> owes{" "}
-                                  <span className="font-medium">{selectedMember.name}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="font-medium">{selectedMember.name}</span> owes{" "}
-                                  <span className="font-medium">{peerName}</span>
-                                </>
-                              )}{" "}
-                              <span
-                                className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}
-                              >
-                                {currency(Math.abs(entry.balance), group.currency)}
+              <section
+                aria-label={`${group.currency} balances for ${selectedMember.name}`}
+                className="space-y-3"
+              >
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <GroupTitle as="h3">Balances</GroupTitle>
+                  {((stillOwes ?? 0) > 0 || (stillOwed ?? 0) > 0) && (
+                    <div className="flex gap-5 text-right">
+                      {(stillOwes ?? 0) > 0 && (
+                        <SummaryAmount
+                          label="Still owes"
+                          amount={stillOwes}
+                          code={group.currency}
+                          tone="owes"
+                        />
+                      )}
+                      {(stillOwed ?? 0) > 0 && (
+                        <SummaryAmount
+                          label="Still owed"
+                          amount={stillOwed}
+                          code={group.currency}
+                          tone="owed"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+                {balances === undefined ? (
+                  <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
+                    Member balances are unavailable for this view.
+                  </p>
+                ) : balances.filter((entry) => entry.balance !== 0).length === 0 ? (
+                  <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
+                    No outstanding balances.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-rule border-y border-edge bg-field bleed">
+                    {balances
+                      .filter((entry) => entry.balance !== 0)
+                      .map((entry) => {
+                        const peerName =
+                          members.find((candidate) => candidate.key === entry.memberId)?.name ??
+                          "Member";
+                        const positive = entry.balance > 0;
+                        return (
+                          <li
+                            key={entry.memberId}
+                            className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px"
+                          >
+                            <span className="flex min-w-0 items-center gap-3">
+                              <MemberAvatar
+                                id={positive ? entry.memberId : selectedMember.key}
+                                name={positive ? peerName : selectedMember.name}
+                                size="md"
+                              />
+                              <span className="min-w-0 break-words text-sm text-ink">
+                                {positive ? (
+                                  <>
+                                    <span className="font-medium">{peerName}</span> owes{" "}
+                                    <span className="font-medium">{selectedMember.name}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="font-medium">{selectedMember.name}</span> owes{" "}
+                                    <span className="font-medium">{peerName}</span>
+                                  </>
+                                )}{" "}
+                                <span
+                                  className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}
+                                >
+                                  {currency(Math.abs(entry.balance), group.currency)}
+                                </span>
                               </span>
                             </span>
-                          </span>
-                        </li>
+                          </li>
+                        );
+                      })}
+                  </ul>
+                )}
+              </section>
+              <GroupTitle as="h3">Expenses</GroupTitle>
+              {expenses.length === 0 ? (
+                <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
+                  No expenses for this member.
+                </p>
+              ) : visibleExpenses.length === 0 ? (
+                <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
+                  No {activeExpenseView === "upcoming" ? "upcoming" : "paid"} expenses for this
+                  member.
+                </p>
+              ) : (
+                <div className="overflow-hidden border-y border-edge bg-field bleed">
+                  <ul
+                    aria-label={`${group.currency} expenses for ${selectedMember.name}`}
+                    className={`${list} text-sm`}
+                  >
+                    {visibleExpenses.map((expense) => {
+                      const payer = group.members.find((candidate) =>
+                        candidate.expenses.some(
+                          (entry) => entry.key === expense.key && entry.paidAmount > 0,
+                        ),
+                      );
+                      const covering = expense.paidAmount > 0;
+                      return (
+                        <TabExpenseRow
+                          key={expense.key}
+                          name={expense.name || "Untitled expense"}
+                          date={expense.date}
+                          total={expense.total}
+                          code={group.currency}
+                          payer={payer ? { id: payer.key, name: payer.name } : undefined}
+                          upcoming={isUpcoming(expense.date)}
+                          shareAmount={expense.shareAmount}
+                          memberContext={{
+                            balance:
+                              (Math.round(expense.paidAmount * 100) -
+                                Math.round(expense.shareAmount * 100)) /
+                              100,
+                            memberName: selectedMember.name,
+                            neutralPerspective: true,
+                            coversExpense: covering,
+                          }}
+                          settlementStatus={
+                            data.expenseStatuses?.find(
+                              (entry) =>
+                                entry.expenseSlug === expense.key &&
+                                entry.memberId === selectedMember.key,
+                            )?.status
+                          }
+                        />
                       );
                     })}
-                </ul>
+                  </ul>
+                </div>
               )}
-            </section>
-            <GroupTitle as="h3">Expenses</GroupTitle>
-            {expenses.length === 0 ? (
-              <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
-                No expenses for this member.
-              </p>
-            ) : visibleExpenses.length === 0 ? (
-              <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
-                No {activeExpenseView === "upcoming" ? "upcoming" : "paid"} expenses for this
-                member.
-              </p>
-            ) : (
-              <div className="overflow-hidden border-y border-edge bg-field bleed">
-                <ul
-                  aria-label={`${group.currency} expenses for ${selectedMember.name}`}
-                  className={`${list} text-sm`}
-                >
-                  {visibleExpenses.map((expense) => {
-                    const payer = group.members.find((candidate) =>
-                      candidate.expenses.some(
-                        (entry) => entry.key === expense.key && entry.paidAmount > 0,
-                      ),
-                    );
-                    const covering = expense.paidAmount > 0;
-                    return (
-                      <TabExpenseRow
-                        key={expense.key}
-                        name={expense.name || "Untitled expense"}
-                        date={expense.date}
-                        total={expense.total}
-                        code={group.currency}
-                        payer={payer ? { id: payer.key, name: payer.name } : undefined}
-                        upcoming={isUpcoming(expense.date)}
-                        shareAmount={expense.shareAmount}
-                        memberContext={{
-                          balance:
-                            (Math.round(expense.paidAmount * 100) -
-                              Math.round(expense.shareAmount * 100)) /
-                            100,
-                          memberName: selectedMember.name,
-                          neutralPerspective: true,
-                          coversExpense: covering,
-                        }}
-                        settlementStatus={
-                          data.expenseStatuses?.find(
-                            (entry) =>
-                              entry.expenseSlug === expense.key &&
-                              entry.memberId === selectedMember.key,
-                          )?.status
-                        }
-                      />
-                    );
-                  })}
-                </ul>
+              <div
+                className={`flex flex-wrap justify-end gap-x-6 gap-y-3 text-right ${index < visibleCurrencySummaries.length - 1 ? "border-b border-rule pb-5" : ""}`}
+              >
+                <SummaryAmount label="Total share" amount={totalShare} code={group.currency} />
+                <SummaryAmount label="Total covered" amount={totalCovered} code={group.currency} />
               </div>
-            )}
-            <div
-              className={`flex flex-wrap justify-end gap-x-6 gap-y-3 text-right ${index < data.currencies.length - 1 ? "border-b border-rule pb-5" : ""}`}
-            >
-              <SummaryAmount label="Total share" amount={totalShare} code={group.currency} />
-              <SummaryAmount label="Total covered" amount={totalCovered} code={group.currency} />
-            </div>
-          </section>
-        );
-      })
+            </section>
+          );
+        },
+      )
     : null;
 
   const breakdownCard = (
@@ -384,6 +424,11 @@ export function SharedTabPage({
         />
       </div>
       {currencySections}
+      {selectedMember && visibleCurrencySummaries.length === 0 && (
+        <p className="text-sm text-ink-soft">
+          No expenses or outstanding balances for this member.
+        </p>
+      )}
     </Panel>
   );
 

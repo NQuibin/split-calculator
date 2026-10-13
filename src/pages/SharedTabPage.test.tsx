@@ -423,7 +423,8 @@ test("breakdown filters by member and shows per-currency summaries and settlemen
   const samBalances = [...(samCadSection?.querySelectorAll("ul") ?? [])].find((list) =>
     list.textContent?.includes("Sam owes Alex"),
   );
-  expect(samBalances?.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
+  expect(samBalances?.querySelector('[role="img"][aria-label="Sam"]')).not.toBeNull();
+  expect(samBalances?.querySelector('[role="img"][aria-label="Alex"]')).toBeNull();
   expect(samBalances?.querySelector("li .font-numeric")?.className).toContain(
     "text-margin-red-ink",
   );
@@ -754,6 +755,11 @@ test("date tabs filter every currency, keep summaries, and preserve member and i
 });
 
 test("members with no unsettled balances see the empty balance state", () => {
+  const patByCurrency = mocks.data.currencies.map((group) => {
+    const member = group.members.find((entry) => entry.key === "member-2");
+    if (!member) throw new Error(`${group.currency} Pat fixture is missing`);
+    return { member, expenses: [...member.expenses], summaries: member.summaries };
+  });
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -772,15 +778,182 @@ test("members with no unsettled balances see the empty balance state", () => {
       .filter((paragraph) => paragraph.textContent === "No outstanding balances.")
       .map((paragraph) => paragraph.closest("section"))
       .filter((section): section is HTMLElement => section !== null);
-    expect(balanceSections).toHaveLength(2);
+    expect(balanceSections).toHaveLength(1);
     expect(
       balanceSections.every((section) => section.textContent?.includes("No outstanding balances.")),
     ).toBe(true);
     expect(balanceSections.every((section) => section.querySelector("ul, button") === null)).toBe(
       true,
     );
+    for (const { member } of patByCurrency) {
+      member.expenses.splice(0);
+      member.summaries = {
+        paid: {
+          totalShare: 0,
+          totalCovered: 0,
+          stillOwes: 0,
+          stillOwed: 0,
+          balances: [],
+        },
+        upcoming: {
+          totalShare: 0,
+          totalCovered: 0,
+          stillOwes: 0,
+          stillOwed: 0,
+          balances: [],
+        },
+        all: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+      };
+    }
+    flushSync(() =>
+      root.render(
+        createElement(SharedTabPage, {
+          slug: "trip",
+          share: "secret",
+          member: "member-2",
+          view: "breakdown",
+        }),
+      ),
+    );
+    expect(container.querySelector("#breakdown-member")).not.toBeNull();
+    expect(container.textContent).toContain("No expenses or outstanding balances for this member.");
+    expect(container.querySelector("h2 .rounded-full")).toBeNull();
   } finally {
     root.unmount();
+    for (const { member, expenses, summaries } of patByCurrency) {
+      member.expenses.splice(0, member.expenses.length, ...expenses);
+      member.summaries = summaries;
+    }
+  }
+});
+
+test("hides empty currencies but keeps balance-only and expense-only currencies", () => {
+  const originalCurrencies = [...mocks.data.currencies];
+  const usd = mocks.data.currencies.find((group) => group.currency === "USD");
+  const sam = usd?.members.find((member) => member.key === "member-1");
+  if (!usd || !sam) throw new Error("USD Sam fixture is missing");
+  const originalSamExpenses = [...sam.expenses];
+  const originalSamSummaries = sam.summaries;
+  const cadSam = mocks.data.currencies[0].members.find((member) => member.key === "member-1");
+  if (!cadSam) throw new Error("CAD Sam fixture is missing");
+  const originalCadSamSummaries = cadSam.summaries;
+  const emptyCurrency = structuredClone(usd);
+  emptyCurrency.currency = "EUR";
+  for (const member of emptyCurrency.members) {
+    member.expenses.splice(0);
+    member.summaries = {
+      paid: {
+        totalShare: 0,
+        totalCovered: 0,
+        stillOwes: 0,
+        stillOwed: 0,
+        balances: [],
+      },
+      upcoming: {
+        totalShare: 0,
+        totalCovered: 0,
+        stillOwes: 0,
+        stillOwed: 0,
+        balances: [],
+      },
+      all: { totalShare: 0, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+    };
+  }
+  sam.expenses.push({
+    key: "usd-upcoming",
+    name: "USD upcoming",
+    date: "2026-10-15",
+    createdAt: 0,
+    paidAmount: 0,
+    shareAmount: 8,
+    total: 16,
+    taxTotal: 0,
+    tipTotal: 0,
+    items: [],
+  });
+  sam.summaries = {
+    paid: {
+      totalShare: 0,
+      totalCovered: 0,
+      stillOwes: 0,
+      stillOwed: 0,
+      balances: [],
+    },
+    upcoming: {
+      totalShare: 8,
+      totalCovered: 0,
+      stillOwes: 0,
+      stillOwed: 0,
+      balances: [],
+    },
+    all: { totalShare: 8, totalCovered: 0, stillOwes: 0, stillOwed: 0, balances: [] },
+  };
+  cadSam.summaries = {
+    ...originalCadSamSummaries,
+    upcoming: {
+      totalShare: 0,
+      totalCovered: 0,
+      stillOwes: 2,
+      stillOwed: 0,
+      balances: [{ memberId: "member-0", balance: -2 }],
+    },
+  };
+  mocks.data.currencies.splice(1, 0, emptyCurrency);
+
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const renderSam = () =>
+    flushSync(() =>
+      root.render(
+        createElement(SharedTabPage, {
+          slug: "trip",
+          share: "secret",
+          member: "member-1",
+          view: "breakdown",
+        }),
+      ),
+    );
+  const currencySections = () =>
+    [...container.querySelectorAll("section")].filter((section) =>
+      section.querySelector("h2 .rounded-full"),
+    );
+  const clickTab = (label: string) => {
+    const tab = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+      (candidate) => candidate.textContent?.trim() === label,
+    );
+    if (!tab) throw new Error(`Missing ${label} date tab`);
+    flushSync(() => tab.click());
+  };
+
+  try {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 10, 12));
+    renderSam();
+    expect(currencySections().map((section) => section.querySelector("h2")?.textContent)).toEqual([
+      "CAD",
+    ]);
+    expect(currencySections()[0]?.textContent).toContain("Sam owes Alex");
+    expect(currencySections()[0]?.lastElementChild?.classList.contains("border-b")).toBe(false);
+
+    clickTab("Upcoming");
+    expect(currencySections().map((section) => section.querySelector("h2")?.textContent)).toEqual([
+      "CAD",
+      "USD",
+    ]);
+    expect(currencySections()[0]?.textContent).toContain("Sam owes Alex");
+    const usdUpcoming = currencySections()[1];
+    expect(usdUpcoming?.textContent).toContain("USD upcoming");
+    expect(usdUpcoming?.textContent).toContain("No outstanding balances.");
+    expect(usdUpcoming?.lastElementChild?.classList.contains("border-b")).toBe(false);
+    expect(currencySections()[0]?.lastElementChild?.classList.contains("border-b")).toBe(true);
+  } finally {
+    root.unmount();
+    mocks.data.currencies.splice(0, mocks.data.currencies.length, ...originalCurrencies);
+    sam.expenses.splice(0, sam.expenses.length, ...originalSamExpenses);
+    sam.summaries = originalSamSummaries;
+    cadSam.summaries = originalCadSamSummaries;
+    vi.useRealTimers();
   }
 });
 
