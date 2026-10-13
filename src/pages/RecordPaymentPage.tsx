@@ -6,6 +6,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
+import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { CheckboxRow } from "@/components/ui/CheckboxRow";
 import { FieldError, Input, Label } from "@/components/ui/Input";
 import { MemberSelectionRow } from "@/components/ui/MemberSelectionRow";
@@ -287,12 +288,8 @@ export function RecordPaymentPage() {
               <div className="space-y-4">
                 {choiceGroups.map((group) => (
                   <section key={group.code} aria-labelledby={`payment-currency-${group.code}`}>
-                    <GroupTitle
-                      as="h3"
-                      id={`payment-currency-${group.code}`}
-                      className="mb-2 inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink"
-                    >
-                      {group.code}
+                    <GroupTitle as="h3" id={`payment-currency-${group.code}`} className="mb-2">
+                      <CurrencyPill code={group.code} />
                     </GroupTitle>
                     <ul className="space-y-2">
                       {group.members.map((choice) => (
@@ -374,9 +371,7 @@ export function RecordPaymentPage() {
                       </p>
                     </div>
                   </div>
-                  <span className="rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                    {section.choice.currency}
-                  </span>
+                  <CurrencyPill code={section.choice.currency} />
                 </div>
                 <div>
                   <Label htmlFor={`payment-amount-${paymentId(section.key)}`}>Amount</Label>

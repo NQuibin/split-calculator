@@ -11,6 +11,7 @@ import { CreateTabMenu } from "@/components/CreateTabMenu";
 import { todayISODate } from "@/lib/format";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
+import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { EmptyState, Page } from "@/components/ui/Page";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { mobileRaisedSurfaceClass } from "@/components/ui/mobileRaisedSurface";
@@ -196,9 +197,7 @@ function TabDirectoryRow({ tab }: { tab: TabRow }) {
                 key={code}
                 className="py-5 first:border-t first:border-rule sm:py-0 sm:first:border-t-0 sm:grid sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-6"
               >
-                <span className="inline-flex h-fit w-fit justify-self-start rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                  {code}
-                </span>
+                <CurrencyPill code={code} className="h-fit w-fit justify-self-start" />
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-0 sm:gap-6">
                   {owed > 0 || owe > 0 ? (
                     <div className="min-w-0 space-y-3">

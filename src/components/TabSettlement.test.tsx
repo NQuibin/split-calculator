@@ -362,7 +362,9 @@ test("shows the selected member balance above the modal expense list", () => {
   expect(document.body.textContent).toContain("CA$1,674.33");
   const dialog = document.querySelector('[role="dialog"]');
   expect(dialog?.querySelector('[data-slot="dialog-description"]')?.textContent).toBe("0 expenses");
-  expect(dialog?.querySelector("span.bg-chip-neutral")?.textContent).toBe("CAD");
+  expect(dialog?.querySelector("span.bg-currency-chip.text-currency-chip-ink")?.textContent).toBe(
+    "CAD",
+  );
   expect(
     dialog?.querySelector('a[href="/t/trip/payment?view=paid&memberId=p2&currency=CAD"]'),
   ).not.toBeNull();
@@ -652,7 +654,9 @@ test("keeps payment history in its modal", () => {
   expect(dialog?.querySelectorAll('[role="img"][aria-label="P2"]')).toHaveLength(2);
   expect(dialog?.querySelectorAll('[role="img"][aria-label="Nikki Q"]')).toHaveLength(2);
   expect(dialog?.querySelectorAll(".min-w-0.text-left")).toHaveLength(8);
-  expect(dialog?.querySelectorAll(".font-numeric.text-sm.font-semibold")).toHaveLength(4);
+  expect(
+    dialog?.querySelectorAll("span.font-numeric.text-sm.font-semibold:not(.bg-currency-chip)"),
+  ).toHaveLength(4);
   expect(dialog?.querySelectorAll('button[aria-label^="Reverse "]')).toHaveLength(0);
   expect(dialog?.querySelector('[aria-label="Close payment history"]')).not.toBeNull();
   flushSync(() =>
@@ -674,7 +678,7 @@ test("keeps payment history in its modal", () => {
   expect(historyDialog?.querySelectorAll('time[datetime="2026-09-05"]')).toHaveLength(1);
   const sep5 = historyDialog?.querySelector('time[datetime="2026-09-05"]')?.closest("li");
   expect(sep5?.querySelectorAll(":scope > ul > li")).toHaveLength(2);
-  expect(sep5?.querySelectorAll("span.rounded-full.border-rule.bg-chip-neutral")).toHaveLength(2);
+  expect(sep5?.querySelectorAll("span.bg-currency-chip.text-currency-chip-ink")).toHaveLength(2);
   expect(sep5?.querySelector("ul.border-t.border-edge")).not.toBeNull();
   expect(sep5?.querySelector("ul.border-b.border-edge")).not.toBeNull();
   expect(sep5?.querySelector("ul.divide-y.divide-rule")).not.toBeNull();

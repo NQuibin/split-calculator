@@ -43,6 +43,8 @@ utilities via `@theme inline`. **Never write a hex literal in a `className`.**
 | `--margin-red-ink` | `#b23c26` | `text-margin-red-ink` | Destructive and error **text**                            |
 | `--brass`       | `#b8933a` | `text-brass`        | **Decoration only** — see the contrast warning below          |
 | `--rule`        | `#ccd5bd` | `border-rule`       | Borders, dividers, input outlines                             |
+| `--currency-chip` | `#d8c48f` | `bg-currency-chip` | Warm fill for static currency labels |
+| `--currency-chip-ink` | `#5b4817` | `text-currency-chip-ink` | Currency label text, paired with `--currency-chip` |
 | `--chip-neutral`| `#e3e5e2` | `bg-chip-neutral`   | Neutral metadata chips; never hover or active state           |
 | `--settled-chip` | `#e5f2e8` | `bg-settled-chip` | Light green fill for the Settled status pill                   |
 | `--partially-settled-chip` | `#fff0cb` | `bg-partially-settled-chip` | Pale yellow fill for the Partially settled status pill |
@@ -68,6 +70,8 @@ Measured against the two app grounds:
 | `--ledger-green`| 5.58        | 5.87           | ✅ AA                             |
 | `--margin-red` | **4.46**     | 4.68           | ⚠️ fails AA on `--paper`          |
 | `--brass`      | **2.52**     | **2.64**       | ❌ fails AA text *and* 3:1 non-text |
+
+The `--currency-chip-ink` / `--currency-chip` pair has 5.12:1 contrast.
 
 Consequences that are binding:
 
@@ -646,6 +650,10 @@ structure for a fraction of the ink.
   panel). Card backgrounds are always solid; never use opacity on `bg-surface`.
 - Divided list: `divide-y divide-rule` on the container, not per-row borders.
 - Person chip: `rounded-full border border-rule bg-paper px-4 py-2`.
+- Currency pill: `CurrencyPill` — `rounded-full bg-currency-chip px-3 py-1
+  font-numeric text-sm font-semibold text-currency-chip-ink`. The warm fill and
+  dark readable text make currency codes easy to scan. Keep it borderless, with
+  no shadow or pill-specific hover treatment.
 - Avatars: `MemberAvatar`. Avatar colours are a deliberate placeholder; custom
   avatars are planned, so colour churn on claim is expected and fine.
 - An overlapping avatar stack (the "Manage N members" trigger, the expense

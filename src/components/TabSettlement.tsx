@@ -6,6 +6,7 @@ import { ArrowLeft, Banknote, ChevronRight, History, Undo2, X } from "lucide-rea
 
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/Button";
+import { CurrencyPill } from "@/components/ui/CurrencyPill";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   Dialog,
@@ -185,9 +186,7 @@ export function SettlementSummary({
                   className="bleed"
                 >
                   <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 bleed-px py-2">
-                    <span className="rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                      {group.currency}
-                    </span>
+                    <CurrencyPill code={group.currency} />
                     <div className="flex gap-4 sm:gap-6">
                       {owedCents > 0 && (
                         <p className="flex flex-col text-right sm:block">
@@ -381,9 +380,7 @@ export function TabSettlement({
             ) : selectedBreakdown && selectedMember ? (
               <>
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 pb-4">
-                  <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                    {selectedMember.currency}
-                  </span>
+                  <CurrencyPill code={selectedMember.currency} />
                   {selectedBalance && memberDirectBalance(selectedBalance) !== 0 && (
                     <p className="text-right text-sm">
                       <span className="text-ink-soft">
@@ -759,9 +756,7 @@ export function SettlementActions({
                                 className={groupIndex > 0 ? "border-t border-rule" : ""}
                               >
                                 <div className="flex justify-start bg-surface py-2 bleed-px">
-                                  <span className="inline-flex rounded-full border border-rule bg-chip-neutral px-3 py-1 font-numeric text-xs font-semibold text-ink">
-                                    {currencyCode}
-                                  </span>
+                                  <CurrencyPill code={currencyCode} />
                                 </div>
                                 <ul
                                   className={`divide-y divide-rule ${groupIndex === 0 ? "border-t border-edge" : ""} ${groupIndex === currencyGroups.length - 1 ? "border-b border-edge" : ""}`}

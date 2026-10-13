@@ -50,6 +50,8 @@
   /* Neutral resting fill for metadata chips. Kept grey so it cannot read as
      the warm --wash hover/active state. */
   --chip-neutral: #e3e5e2;
+  --currency-chip: #d8c48f;
+  --currency-chip-ink: #5b4817;
   /* A clear mint fill for the Settled status pill. */
   --settled-chip: #e5f2e8;
   /* A pale yellow fill for the Partially settled status pill. */
@@ -123,6 +125,8 @@
   --color-brass: var(--brass);
   --color-rule: var(--rule);
   --color-chip-neutral: var(--chip-neutral);
+  --color-currency-chip: var(--currency-chip);
+  --color-currency-chip-ink: var(--currency-chip-ink);
   --color-settled-chip: var(--settled-chip);
   --color-partially-settled-chip: var(--partially-settled-chip);
   --color-wash: var(--wash);
