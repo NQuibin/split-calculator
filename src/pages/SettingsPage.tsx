@@ -133,13 +133,12 @@ function SettingsForm({
               />
             </Field>
             <Field label="Email" htmlFor="settings-email" icon={Mail}>
-              <Input
+              <output
                 id="settings-email"
-                type="email"
-                value={email ?? ""}
-                readOnly
-                className="bg-paper text-ink-soft"
-              />
+                className="block min-h-11 break-words py-2 text-sm text-ink-soft"
+              >
+                {email ?? ""}
+              </output>
             </Field>
           </div>
         </div>

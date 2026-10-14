@@ -453,6 +453,12 @@ they fill that column so the input and its mode controls form one balanced row.
 
 `Select` is the native single-choice field for short lists such as an expense's
 payer. It shares the input ground, border, focus ring, and mobile type size.
+Disabled fields and read-only text inputs/textareas use `bg-chip-neutral
+text-ink-soft` at full opacity to show that their values cannot be edited.
+Read-only text remains focusable and selectable; keep the read-only styling on
+`Input` and `Textarea` only, since `Select` has no read-only state.
+Immutable profile facts such as account email use a labelled `<output>` with
+plain text styling, so the value is selectable without looking editable.
 
 - Ground is `bg-field` with a `border-edge`, on any page or card — a field
   looks the same everywhere rather than depending on what's behind it.

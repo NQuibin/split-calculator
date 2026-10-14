@@ -10,14 +10,20 @@ import { cn } from "@/lib/utils";
  * there's a pointer (DESIGN.md § 6).
  */
 export const fieldClass =
-  "min-h-11 w-full min-w-0 rounded-md border border-edge bg-field px-3 py-2 text-base text-ink outline-none transition placeholder:text-ink-soft/70 focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-forest/20 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 sm:text-sm";
+  "min-h-11 w-full min-w-0 rounded-md border border-edge bg-field px-3 py-2 text-base text-ink outline-none transition placeholder:text-ink-soft/70 focus-visible:border-forest focus-visible:ring-2 focus-visible:ring-forest/20 disabled:cursor-not-allowed disabled:bg-chip-neutral disabled:text-ink-soft disabled:opacity-100 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 sm:text-sm";
 
 interface InputProps extends ComponentProps<"input"> {
   wrapperClassName?: string;
 }
 
 export function Input({ className, wrapperClassName, ...props }: InputProps) {
-  const input = <input data-slot="input" className={cn(fieldClass, className)} {...props} />;
+  const input = (
+    <input
+      data-slot="input"
+      className={cn(fieldClass, "read-only:bg-chip-neutral read-only:text-ink-soft", className)}
+      {...props}
+    />
+  );
   return wrapperClassName ? (
     <span className={cn("block min-w-0", wrapperClassName)}>{input}</span>
   ) : (
@@ -27,7 +33,15 @@ export function Input({ className, wrapperClassName, ...props }: InputProps) {
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return (
-    <textarea data-slot="textarea" className={cn(fieldClass, "resize-y", className)} {...props} />
+    <textarea
+      data-slot="textarea"
+      className={cn(
+        fieldClass,
+        "resize-y read-only:bg-chip-neutral read-only:text-ink-soft",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 

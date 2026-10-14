@@ -26,16 +26,14 @@ vi.mock("@/components/ui/CurrencyPicker", () => ({
 
 import { SettingsPage } from "./SettingsPage";
 
-test("saves name and currency together while email stays read-only", async () => {
+test("saves name and currency while displaying the account email", async () => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => root.render(createElement(SettingsPage)));
 
-  const email = container.querySelector<HTMLInputElement>("#settings-email")!;
-  expect(email.readOnly).toBe(true);
-  expect(email.value).toBe("nikki@example.com");
-  expect(email.classList.contains("bg-paper")).toBe(true);
+  const email = container.querySelector<HTMLOutputElement>("#settings-email")!;
+  expect(email.textContent).toBe("nikki@example.com");
 
   const name = container.querySelector<HTMLInputElement>("#settings-name")!;
   await act(async () => {
