@@ -315,16 +315,18 @@ export function SharedTabPage({
                             className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px"
                           >
                             <span className="flex min-w-0 items-center gap-3">
-                              <MemberAvatar id={entry.memberId} name={peerName} size="md" />
+                              <MemberAvatar
+                                id={positive ? entry.memberId : selectedMember.key}
+                                name={positive ? peerName : selectedMember.name}
+                                size="md"
+                              />
                               <span className="min-w-0 break-words text-sm font-medium text-ink">
-                                {peerName}
+                                {positive ? peerName : selectedMember.name}
                               </span>
                             </span>
                             <span className="ml-auto flex min-w-0 max-w-[60%] flex-col items-end text-right text-sm @min-[30rem]:flex-row @min-[30rem]:items-center @min-[30rem]:gap-1.5">
                               <span className="min-w-0 text-ink-soft">
-                                {positive
-                                  ? `Owes ${selectedMember.name}`
-                                  : `${selectedMember.name} owes`}
+                                Owes {positive ? selectedMember.name : peerName}
                               </span>
                               <span
                                 className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}

@@ -430,9 +430,10 @@ test("breakdown filters by member and shows per-currency summaries and settlemen
     row.getAttribute("aria-label")?.includes("Sam owes Alex"),
   );
   const samBalances = samBalanceRow?.closest("ul");
-  expect(samBalanceRow?.textContent).toContain("Sam owes");
-  expect(samBalances?.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
-  expect(samBalances?.querySelector('[role="img"][aria-label="Sam"]')).toBeNull();
+  expect(samBalanceRow?.textContent).toContain("Sam");
+  expect(samBalanceRow?.textContent).toContain("Owes Alex");
+  expect(samBalances?.querySelector('[role="img"][aria-label="Alex"]')).toBeNull();
+  expect(samBalances?.querySelector('[role="img"][aria-label="Sam"]')).not.toBeNull();
   expect(samBalances?.querySelector("li .font-numeric")?.className).toContain(
     "text-margin-red-ink",
   );
