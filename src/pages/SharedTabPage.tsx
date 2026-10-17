@@ -320,13 +320,16 @@ export function SharedTabPage({
                                 name={positive ? peerName : selectedMember.name}
                                 size="md"
                               />
-                              <span className="min-w-0 break-words text-sm font-medium text-ink">
+                              <span className="min-w-0 break-words text-sm font-semibold text-ink">
                                 {positive ? peerName : selectedMember.name}
                               </span>
                             </span>
                             <span className="ml-auto flex min-w-0 max-w-[60%] flex-col items-end text-right text-sm @min-[30rem]:flex-row @min-[30rem]:items-center @min-[30rem]:gap-1.5">
                               <span className="min-w-0 text-ink-soft">
-                                Owes {positive ? selectedMember.name : peerName}
+                                Owes{" "}
+                                <span className="font-semibold text-ink">
+                                  {positive ? selectedMember.name : peerName}
+                                </span>
                               </span>
                               <span
                                 className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}
@@ -484,18 +487,11 @@ export function SharedTabPage({
           <SharedPaymentHistory history={data.history} defaultOpen={view === "history"} />
         </div>
       </header>
-      <div className="space-y-6 [&_[role=tablist]]:mb-2">
+      <div className="space-y-6">
         {members.length === 0 && <EmptyState>No members or expenses yet.</EmptyState>}
         {selectedMember &&
           (hasUpcomingExpenses ? (
             <ExpenseViewTabs value={expenseView} onChange={setExpenseView} label="Expense date">
-              <p className="mb-4 text-sm text-ink-soft">
-                {expenseView === "paid"
-                  ? "Showing expenses dated today or earlier."
-                  : expenseView === "upcoming"
-                    ? "Showing expenses dated after today."
-                    : "Showing all expenses, including upcoming expenses."}
-              </p>
               {breakdownCard}
             </ExpenseViewTabs>
           ) : (

@@ -682,7 +682,7 @@ test("date tabs filter every currency, keep summaries, and preserve member and i
         ?.closest(".card-inset"),
     ).toBeNull();
     expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe("Paid");
-    expect(container.textContent).toContain("Showing expenses dated today or earlier.");
+    expect(container.textContent).not.toContain("Showing expenses dated today or earlier.");
     expectSummary("CAD", { share: 29, covered: 0, owes: 18, owed: 4 });
     expectSummary("USD", { share: 19, covered: 0, owes: 12, owed: 0 });
     expect(balanceSection("CAD")?.querySelector('li[aria-label^="Sam owes Alex"]')).not.toBeNull();
@@ -690,7 +690,7 @@ test("date tabs filter every currency, keep summaries, and preserve member and i
     expect(balancesText("CAD")).toContain("18.00");
     expect(balancesText("CAD")).toContain("4.00");
     clickTab("Upcoming");
-    expect(container.textContent).toContain("Showing expenses dated after today.");
+    expect(container.textContent).not.toContain("Showing expenses dated after today.");
     expect(listText("CAD")).toContain("CAD tomorrow");
     expect(listText("USD")).toContain("USD tomorrow");
     expectSummary("CAD", { share: 6, covered: 0, owes: 7, owed: 3 });
@@ -711,7 +711,9 @@ test("date tabs filter every currency, keep summaries, and preserve member and i
     expectSummary("USD", { share: 8, covered: 0, owes: 8, owed: 0 });
 
     clickTab("All");
-    expect(container.textContent).toContain("Showing all expenses, including upcoming expenses.");
+    expect(container.textContent).not.toContain(
+      "Showing all expenses, including upcoming expenses.",
+    );
     expect(listText("CAD").indexOf("CAD tomorrow")).toBeLessThan(
       listText("CAD").indexOf("CAD today"),
     );
