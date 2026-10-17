@@ -24,18 +24,20 @@ function SummaryAmount({
   amount,
   code,
   tone,
+  prominent = false,
 }: {
   label: string;
   amount: number | undefined;
   code: string;
   tone?: "owed" | "owes";
+  prominent?: boolean;
 }) {
   const { currency } = useLocaleFormatters();
   return (
     <div>
       <p className="text-sm text-ink-soft">{label}</p>
       <p
-        className={`font-numeric text-sm font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
+        className={`font-numeric ${prominent ? "min-w-0 break-all text-lg" : "text-sm"} font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
       >
         {amount === undefined ? "—" : currency(amount, code)}
       </p>
@@ -246,42 +248,49 @@ export function SharedTabPage({
         ) => {
           const { list } = expenseListGridClass(true, false);
           return (
-            <section key={group.currency} className="space-y-3 pt-5 first-of-type:pt-0 @container">
-              <div className="flex items-center gap-2">
-                <GroupTitle as="h2">
-                  <CurrencyPill code={group.currency} />
-                </GroupTitle>
-                <span className="text-xs text-ink-soft">
-                  {visibleExpenses.length} {visibleExpenses.length === 1 ? "expense" : "expenses"}
-                </span>
+            <section
+              key={group.currency}
+              aria-label={`${group.currency} breakdown`}
+              className="space-y-3 pt-5 first-of-type:pt-0 @container"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <GroupTitle as="h2">Balances</GroupTitle>
+                <CurrencyPill code={group.currency} />
               </div>
               <section
                 aria-label={`${group.currency} balances for ${selectedMember.name}`}
-                className="space-y-3"
+                className="space-y-0"
               >
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                  <GroupTitle as="h3">Balances</GroupTitle>
-                  {((stillOwes ?? 0) > 0 || (stillOwed ?? 0) > 0) && (
-                    <div className="flex gap-5 text-right">
-                      {(stillOwes ?? 0) > 0 && (
-                        <SummaryAmount
-                          label="Still owes"
-                          amount={stillOwes}
-                          code={group.currency}
-                          tone="owes"
-                        />
-                      )}
-                      {(stillOwed ?? 0) > 0 && (
+                {((stillOwes ?? 0) > 0 || (stillOwed ?? 0) > 0) && (
+                  <div
+                    className={`grid border-t border-rule bg-field bleed ${
+                      (stillOwes ?? 0) > 0 && (stillOwed ?? 0) > 0 ? "grid-cols-2" : "grid-cols-1"
+                    }`}
+                  >
+                    {(stillOwed ?? 0) > 0 && (
+                      <div className="min-w-0 border-r-4 border-forest py-2 pl-5 pr-4 text-right">
                         <SummaryAmount
                           label="Still owed"
                           amount={stillOwed}
                           code={group.currency}
                           tone="owed"
+                          prominent
                         />
-                      )}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                    {(stillOwes ?? 0) > 0 && (
+                      <div className="min-w-0 border-r-4 border-margin-red py-2 pl-5 pr-4 text-right">
+                        <SummaryAmount
+                          label="Still owes"
+                          amount={stillOwes}
+                          code={group.currency}
+                          tone="owes"
+                          prominent
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
                 {balances === undefined ? (
                   <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
                     Member balances are unavailable for this view.
@@ -302,31 +311,25 @@ export function SharedTabPage({
                         return (
                           <li
                             key={entry.memberId}
+                            aria-label={`${positive ? `${peerName} owes ${selectedMember.name}` : `${selectedMember.name} owes ${peerName}`} ${currency(Math.abs(entry.balance), group.currency)}`}
                             className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px"
                           >
                             <span className="flex min-w-0 items-center gap-3">
-                              <MemberAvatar
-                                id={positive ? entry.memberId : selectedMember.key}
-                                name={positive ? peerName : selectedMember.name}
-                                size="md"
-                              />
-                              <span className="min-w-0 break-words text-sm text-ink">
-                                {positive ? (
-                                  <>
-                                    <span className="font-medium">{peerName}</span> owes{" "}
-                                    <span className="font-medium">{selectedMember.name}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="font-medium">{selectedMember.name}</span> owes{" "}
-                                    <span className="font-medium">{peerName}</span>
-                                  </>
-                                )}{" "}
-                                <span
-                                  className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}
-                                >
-                                  {currency(Math.abs(entry.balance), group.currency)}
-                                </span>
+                              <MemberAvatar id={entry.memberId} name={peerName} size="md" />
+                              <span className="min-w-0 break-words text-sm font-medium text-ink">
+                                {peerName}
+                              </span>
+                            </span>
+                            <span className="ml-auto flex min-w-0 max-w-[60%] flex-col items-end text-right text-sm @min-[30rem]:flex-row @min-[30rem]:items-center @min-[30rem]:gap-1.5">
+                              <span className="min-w-0 text-ink-soft">
+                                {positive
+                                  ? `Owes ${selectedMember.name}`
+                                  : `${selectedMember.name} owes`}
+                              </span>
+                              <span
+                                className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}
+                              >
+                                {currency(Math.abs(entry.balance), group.currency)}
                               </span>
                             </span>
                           </li>
@@ -335,7 +338,12 @@ export function SharedTabPage({
                   </ul>
                 )}
               </section>
-              <GroupTitle as="h3">Expenses</GroupTitle>
+              <div className="flex items-center justify-between gap-3">
+                <GroupTitle as="h3">Expenses</GroupTitle>
+                <span className="text-xs text-ink-soft">
+                  {visibleExpenses.length} {visibleExpenses.length === 1 ? "expense" : "expenses"}
+                </span>
+              </div>
               {expenses.length === 0 ? (
                 <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
                   No expenses for this member.
@@ -391,7 +399,7 @@ export function SharedTabPage({
                 </div>
               )}
               <div
-                className={`flex flex-wrap justify-end gap-x-6 gap-y-3 text-right ${index < visibleCurrencySummaries.length - 1 ? "border-b border-rule pb-5" : ""}`}
+                className={`flex flex-wrap justify-end gap-x-6 gap-y-3 text-right ${index < visibleCurrencySummaries.length - 1 ? "border-b border-rule bleed bleed-px pb-5" : ""}`}
               >
                 <SummaryAmount label="Total share" amount={totalShare} code={group.currency} />
                 <SummaryAmount label="Total covered" amount={totalCovered} code={group.currency} />

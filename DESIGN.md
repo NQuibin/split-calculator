@@ -672,6 +672,18 @@ structure for a fraction of the ink.
 
 ### Money
 
+- Tab and breakdown balance currency summaries use 18px amounts (`text-lg`) below 14px labels
+  (`text-sm`), with visible totals in equal-width, right-aligned cells. Currency
+  chips sit at the right of each viewer identity row on the tab page; breakdown
+  headers show “Balances” with the currency chip aligned right, and the expense
+  count sits at the right of the “Expenses” heading. Both summary rows use
+  the light `bg-field` ground. An owed total carries a 4px `border-forest` right gutter;
+  an owing total carries a 4px `border-margin-red` right gutter. Render each
+  summary only when its rounded amount is positive. These gutters identify
+  direction and replace a divider between totals, flush against each cell’s right
+  edge. Person-row labels and amounts stay 14px, inline on desktop and stacked
+  on mobile.
+
 - Always `.font-numeric`.
 - Always formatted through `src/lib/format.ts` with an explicit currency —
   never a bare `toFixed(2)` in a component.

@@ -146,19 +146,21 @@ export function SettlementSummary({
         <p className="text-ink-soft">View balances</p>
       ) : (
         <>
-          <div className="flex min-w-0 items-center border-b border-rule bleed bleed-px pb-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <MemberAvatar
-                id={data.viewerMemberId}
-                name={viewer?.name ?? viewerName ?? "You"}
-                size="md"
-              />
-              <div className="min-w-0 break-words">
-                <p className="font-medium text-ink">{viewer?.name ?? viewerName ?? "You"}</p>
-                <p className="text-xs text-ink-soft">You</p>
+          {data.currencies.length === 0 && (
+            <div className="flex min-w-0 items-center border-b border-rule bleed bleed-px pb-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <MemberAvatar
+                  id={data.viewerMemberId}
+                  name={viewer?.name ?? viewerName ?? "You"}
+                  size="md"
+                />
+                <div className="min-w-0 break-words">
+                  <p className="font-medium text-ink">{viewer?.name ?? viewerName ?? "You"}</p>
+                  <p className="text-xs text-ink-soft">You</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
           {data.currencies.length === 0 ? (
             <p className="pt-4 text-ink-soft">
               {data.missingPayers.length
@@ -166,7 +168,7 @@ export function SettlementSummary({
                 : "No outstanding balances."}
             </p>
           ) : (
-            data.currencies.map((group) => {
+            data.currencies.map((group, index) => {
               const members = group.members.filter(
                 (member) =>
                   member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
@@ -185,27 +187,46 @@ export function SettlementSummary({
                   aria-label={`${group.currency} balances`}
                   className="bleed"
                 >
-                  <div className="flex min-h-11 flex-wrap items-center justify-between gap-3 bleed-px py-2">
+                  <div
+                    className={`flex min-w-0 items-center justify-between gap-3 bleed-px pb-3 ${index === 0 ? "" : "pt-3"}`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <MemberAvatar
+                        id={data.viewerMemberId!}
+                        name={viewer?.name ?? viewerName ?? "You"}
+                        size="md"
+                      />
+                      <div className="min-w-0 break-words">
+                        <p className="font-medium text-ink">
+                          {viewer?.name ?? viewerName ?? "You"}
+                        </p>
+                        <p className="text-xs text-ink-soft">You</p>
+                      </div>
+                    </div>
                     <CurrencyPill code={group.currency} />
-                    <div className="flex gap-4 sm:gap-6">
+                  </div>
+                  {(owedCents > 0 || oweCents > 0) && (
+                    <div
+                      className={`grid border-t border-rule bg-field ${owedCents > 0 && oweCents > 0 ? "grid-cols-2" : "grid-cols-1"}`}
+                    >
                       {owedCents > 0 && (
-                        <p className="flex flex-col text-right sm:block">
-                          <span className="text-sm text-ink-soft">You are owed</span>{" "}
-                          <span className="font-numeric font-semibold text-ledger-green">
+                        <p className="min-w-0 border-r-4 border-forest bleed-px py-2 text-right">
+                          <span className="block text-sm text-ink-soft">You are owed</span>
+                          <span className="block max-w-full break-all font-numeric text-lg font-semibold text-ledger-green">
                             {currency(owedCents / 100, group.currency)}
                           </span>
                         </p>
                       )}
                       {oweCents > 0 && (
-                        <p className="flex flex-col text-right sm:block">
-                          <span className="text-sm text-ink-soft">You owe</span>{" "}
-                          <span className="font-numeric font-semibold text-margin-red-ink">
+                        <p className="min-w-0 border-r-4 border-margin-red bleed-px py-2 text-right">
+                          <span className="block text-sm text-ink-soft">You owe</span>
+                          <span className="block max-w-full break-all font-numeric text-lg font-semibold text-margin-red-ink">
                             {currency(oweCents / 100, group.currency)}
                           </span>
                         </p>
                       )}
                     </div>
-                  </div>
+                  )}
                   <ul className="divide-y divide-rule border-y border-edge bg-field">
                     {members.length === 0 && (
                       <li className="bleed-px py-3 text-sm text-ink-soft">
@@ -235,32 +256,29 @@ export function SettlementSummary({
                               <MemberAvatar id={member.memberId} name={member.name} size="md" />
                               <span className="min-w-0 break-words">
                                 <span className="block text-ink">
-                                  {balance > 0 ? (
-                                    <>
-                                      <span className="font-medium">{member.name}</span> owes you{" "}
-                                    </>
-                                  ) : balance < 0 ? (
-                                    <>
-                                      You owe <span className="font-medium">
-                                        {member.name}
-                                      </span>{" "}
-                                    </>
-                                  ) : null}
-                                  <span
-                                    className={`font-numeric font-semibold ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
-                                  >
-                                    {currency(Math.abs(balance), group.currency)}
-                                  </span>
+                                  <span className="font-medium">{member.name}</span>
                                 </span>
                                 <span className="mt-1 block text-xs text-ink-soft">
                                   {expenseCount} {expenseCount === 1 ? "expense" : "expenses"}
                                 </span>
                               </span>
                             </span>
-                            <ChevronRight
-                              aria-hidden="true"
-                              className="-mr-1 h-5 w-5 shrink-0 self-center text-ink-soft chevron-x"
-                            />
+                            <span className="ml-auto flex max-w-[60%] shrink-0 items-center gap-2">
+                              <span className="flex min-w-0 flex-col items-end text-right @min-[30rem]:flex-row @min-[30rem]:gap-1">
+                                <span className="text-sm text-ink-soft">
+                                  {balance > 0 ? "Owes you" : "You owe"}
+                                </span>
+                                <span
+                                  className={`break-all font-numeric text-sm font-semibold ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
+                                >
+                                  {currency(Math.abs(balance), group.currency)}
+                                </span>
+                              </span>
+                              <ChevronRight
+                                aria-hidden="true"
+                                className="-mr-1 h-5 w-5 shrink-0 self-center text-ink-soft chevron-x"
+                              />
+                            </span>
                           </button>
                         </li>
                       );

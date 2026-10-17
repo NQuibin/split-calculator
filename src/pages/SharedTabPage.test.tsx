@@ -358,26 +358,32 @@ test("breakdown filters by member and shows per-currency summaries and settlemen
   expect(container.textContent).toContain("Partially repaid");
   expect(container.textContent).toContain("Are owed");
   expect(container.textContent).toContain("32.50");
-  const alexCad = [...container.querySelectorAll("section")].find((section) =>
-    section.querySelector("h2")?.textContent?.includes("CAD"),
+  const alexCad = [...container.querySelectorAll("section")].find(
+    (section) => section.getAttribute("aria-label") === "CAD breakdown",
   );
-  const alexBalances = [...(alexCad?.querySelectorAll("ul") ?? [])].find((list) =>
-    list.textContent?.includes("Sam owes Alex"),
+  const alexMainBalances = alexCad?.querySelector(
+    'section[aria-label="CAD balances for Alex"] > div.grid',
   );
-  expect(alexBalances?.textContent).toContain("Sam owes Alex");
-  expect(alexBalances?.querySelector("li .font-numeric")?.parentElement?.textContent).toContain(
-    "Sam owes Alex",
+  expect(alexMainBalances?.className).toContain("border-t");
+  expect(alexMainBalances?.className).toContain("grid-cols-1");
+  expect(alexMainBalances?.children[0]?.className).toContain("border-forest");
+  expect(alexMainBalances?.children).toHaveLength(1);
+  const alexBalanceRow = [...(alexCad?.querySelectorAll("li[aria-label]") ?? [])].find((row) =>
+    row.getAttribute("aria-label")?.includes("Sam owes Alex"),
   );
+  const alexBalances = alexBalanceRow?.closest("ul");
+  expect(alexBalanceRow?.getAttribute("aria-label")).toContain("Sam owes Alex");
+  expect(alexBalanceRow?.textContent).toContain("Owes Alex");
   expect(alexBalances?.querySelector('[role="img"][aria-label="Sam"]')).not.toBeNull();
   expect(alexBalances?.querySelector("li .font-numeric")?.className).toContain("text-ledger-green");
   expect(alexBalances?.querySelector("button")).toBeNull();
-  expect(container.querySelectorAll("[aria-label$='breakdown']")).toHaveLength(0);
+  expect(container.querySelectorAll("section[aria-label$='breakdown']")).toHaveLength(2);
   expect(container.querySelector("ul [aria-haspopup='dialog']")).toBeNull();
   const picker = container.querySelector<HTMLButtonElement>("#breakdown-member");
   expect(picker?.textContent).toContain("Alex");
   expect(picker?.parentElement?.className).toContain("w-full");
   expect(picker?.parentElement?.className).not.toContain("bleed");
-  expect(container.querySelector("h2 .rounded-full")?.textContent).toBe("CAD");
+  expect(alexCad?.querySelector(".bg-currency-chip")?.textContent).toBe("CAD");
   flushSync(() => picker?.click());
   const sam = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
     button.textContent?.includes("Sam"),
@@ -420,11 +426,13 @@ test("breakdown filters by member and shows per-currency summaries and settlemen
   );
   expect(samExpenseList).not.toBeNull();
   expect(samExpenseList?.querySelector("button")).toBeNull();
-  const samBalances = [...(samCadSection?.querySelectorAll("ul") ?? [])].find((list) =>
-    list.textContent?.includes("Sam owes Alex"),
+  const samBalanceRow = [...(samCadSection?.querySelectorAll("li[aria-label]") ?? [])].find((row) =>
+    row.getAttribute("aria-label")?.includes("Sam owes Alex"),
   );
-  expect(samBalances?.querySelector('[role="img"][aria-label="Sam"]')).not.toBeNull();
-  expect(samBalances?.querySelector('[role="img"][aria-label="Alex"]')).toBeNull();
+  const samBalances = samBalanceRow?.closest("ul");
+  expect(samBalanceRow?.textContent).toContain("Sam owes");
+  expect(samBalances?.querySelector('[role="img"][aria-label="Alex"]')).not.toBeNull();
+  expect(samBalances?.querySelector('[role="img"][aria-label="Sam"]')).toBeNull();
   expect(samBalances?.querySelector("li .font-numeric")?.className).toContain(
     "text-margin-red-ink",
   );
@@ -620,13 +628,9 @@ test("date tabs filter every currency, keep summaries, and preserve member and i
       ),
     );
   const currencySection = (code: string) =>
-    [...container.querySelectorAll("section")].find((section) =>
-      section.querySelector("h2")?.textContent?.includes(code),
-    );
+    container.querySelector(`section[aria-label="${code} breakdown"]`);
   const balanceSection = (code: string) =>
-    [...(currencySection(code)?.querySelectorAll("section") ?? [])].find((section) =>
-      section.querySelector("h3")?.textContent?.includes("Balances"),
-    );
+    currencySection(code)?.querySelector(`section[aria-label="${code} balances for Sam"]`);
   const expenseList = (code: string) =>
     currencySection(code)?.querySelector(`ul[aria-label="${code} expenses for Sam"]`);
   const listText = (code: string) => expenseList(code)?.textContent ?? "";
@@ -680,8 +684,8 @@ test("date tabs filter every currency, keep summaries, and preserve member and i
     expect(container.textContent).toContain("Showing expenses dated today or earlier.");
     expectSummary("CAD", { share: 29, covered: 0, owes: 18, owed: 4 });
     expectSummary("USD", { share: 19, covered: 0, owes: 12, owed: 0 });
-    expect(balancesText("CAD")).toContain("Sam owes Alex");
-    expect(balancesText("CAD")).toContain("Pat owes Sam");
+    expect(balanceSection("CAD")?.querySelector('li[aria-label^="Sam owes Alex"]')).not.toBeNull();
+    expect(balanceSection("CAD")?.querySelector('li[aria-label^="Pat owes Sam"]')).not.toBeNull();
     expect(balancesText("CAD")).toContain("18.00");
     expect(balancesText("CAD")).toContain("4.00");
     clickTab("Upcoming");
@@ -914,10 +918,9 @@ test("hides empty currencies but keeps balance-only and expense-only currencies"
         }),
       ),
     );
-  const currencySections = () =>
-    [...container.querySelectorAll("section")].filter((section) =>
-      section.querySelector("h2 .rounded-full"),
-    );
+  const currencySections = () => [
+    ...container.querySelectorAll('section[aria-label$="breakdown"]'),
+  ];
   const clickTab = (label: string) => {
     const tab = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
       (candidate) => candidate.textContent?.trim() === label,
@@ -930,21 +933,23 @@ test("hides empty currencies but keeps balance-only and expense-only currencies"
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 10, 12));
     renderSam();
-    expect(currencySections().map((section) => section.querySelector("h2")?.textContent)).toEqual([
-      "CAD",
-    ]);
-    expect(currencySections()[0]?.textContent).toContain("Sam owes Alex");
+    expect(
+      currencySections().map((section) => section.getAttribute("aria-label")?.slice(0, 3)),
+    ).toEqual(["CAD"]);
+    expect(currencySections()[0]?.querySelector('li[aria-label^="Sam owes Alex"]')).not.toBeNull();
     expect(currencySections()[0]?.lastElementChild?.classList.contains("border-b")).toBe(false);
 
     clickTab("Upcoming");
-    expect(currencySections().map((section) => section.querySelector("h2")?.textContent)).toEqual([
-      "CAD",
-      "USD",
-    ]);
-    expect(currencySections()[0]?.textContent).toContain("Sam owes Alex");
+    expect(
+      currencySections().map((section) => section.getAttribute("aria-label")?.slice(0, 3)),
+    ).toEqual(["CAD", "USD"]);
+    expect(currencySections()[0]?.querySelector('li[aria-label^="Sam owes Alex"]')).not.toBeNull();
     const usdUpcoming = currencySections()[1];
     expect(usdUpcoming?.textContent).toContain("USD upcoming");
     expect(usdUpcoming?.textContent).toContain("No outstanding balances.");
+    expect(
+      usdUpcoming?.querySelector('section[aria-label="USD balances for Sam"] > div.grid'),
+    ).toBeNull();
     expect(usdUpcoming?.lastElementChild?.classList.contains("border-b")).toBe(false);
     expect(currencySections()[0]?.lastElementChild?.classList.contains("border-b")).toBe(true);
   } finally {
@@ -974,8 +979,8 @@ test("older breakdown responses fall back to member expenses and settlements", (
       ),
     );
     expect(document.body.textContent).toContain("Dinner");
-    const cad = [...container.querySelectorAll("section")].find((section) =>
-      section.querySelector("h2")?.textContent?.includes("CAD"),
+    const cad = [...container.querySelectorAll("section")].find(
+      (section) => section.getAttribute("aria-label") === "CAD breakdown",
     );
     const amount = (label: string) =>
       [...(cad?.querySelectorAll("p") ?? [])].find((paragraph) => paragraph.textContent === label)
@@ -1016,8 +1021,8 @@ test("missing view summaries use visible expenses and leave unscoped balances un
   document.body.appendChild(container);
   const root = createRoot(container);
   const summary = (label: string) => {
-    const cad = [...container.querySelectorAll("section")].find((section) =>
-      section.querySelector("h2")?.textContent?.includes("CAD"),
+    const cad = [...container.querySelectorAll("section")].find(
+      (section) => section.getAttribute("aria-label") === "CAD breakdown",
     );
     return [...(cad?.querySelectorAll("p") ?? [])].find(
       (paragraph) => paragraph.textContent === label,
@@ -1103,7 +1108,13 @@ test("keeps amounts to pay and receive separate within each currency", () => {
         }),
       ),
     );
-    const cad = container.querySelector("section");
+    const cad = container.querySelector('section[aria-label="CAD breakdown"]');
+    const mainBalances = cad?.querySelector(
+      'section[aria-label="CAD balances for Alex"] > div.grid',
+    );
+    expect(mainBalances?.className).toContain("grid-cols-2");
+    expect(mainBalances?.children[0]?.className).toContain("border-forest");
+    expect(mainBalances?.children[1]?.className).toContain("border-margin-red");
     const amount = (label: string) =>
       [...(cad?.querySelectorAll("p") ?? [])].find((element) => element.textContent === label)
         ?.nextElementSibling?.textContent;

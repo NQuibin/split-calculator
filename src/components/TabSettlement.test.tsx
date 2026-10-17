@@ -184,13 +184,16 @@ test("shows per-currency direct owed and owing totals with viewer-centric rows",
   expect(markup).toContain("Nikki Q");
   expect(markup).toContain("You are owed");
   expect(markup).toContain("You owe");
-  expect(markup).toContain('class="font-medium">P2</span> owes you');
-  expect(markup).toContain('You owe <span class="font-medium">Alex</span>');
+  expect(markup).toContain('class="font-medium">P2</span>');
+  expect(markup).toContain(">Owes you</span>");
+  expect(markup).toContain(">You owe</span>");
   expect(markup).not.toContain("P3");
   expect(markup).not.toContain("1 expense");
   expect(markup).toContain("chevron-x");
   expect(markup).toContain("-mr-1");
-  expect(markup).toContain('class="font-medium">Payment only</span> owes you');
+  expect(markup).toContain('class="font-medium">Payment only</span>');
+  expect((markup.match(/border-r-4 border-forest/g) ?? []).length).toBe(2);
+  expect((markup.match(/border-r-4 border-margin-red/g) ?? []).length).toBe(2);
   expect(markup).toContain('aria-label="CAD balances"');
   expect(markup).toContain('aria-label="USD balances"');
 });
@@ -222,6 +225,8 @@ test("omits a zero-balance member row", () => {
   const markup = renderMarkup(createElement(SettlementSummary, { data: settledData }));
 
   expect(markup).toContain("No outstanding balances.");
+  expect(markup).not.toContain("border-r-4 border-forest");
+  expect(markup).not.toContain("border-r-4 border-margin-red");
   expect(markup).not.toContain("P3");
   expect(markup).not.toContain('aria-label="View');
   expect(markup).not.toContain("chevron-x");
@@ -275,8 +280,12 @@ test("hides zero-value owed and owe summaries", () => {
 
   expect(owed).toContain("You are owed");
   expect(owed).not.toContain("You owe</span>");
+  expect(owed).toContain("border-r-4 border-forest");
+  expect(owed).not.toContain("border-r-4 border-margin-red");
   expect(owing).toContain("You owe</span>");
   expect(owing).not.toContain("You are owed");
+  expect(owing).not.toContain("border-r-4 border-forest");
+  expect(owing).toContain("border-r-4 border-margin-red");
 });
 
 test("lets tab members open expenses that need a payer", () => {
