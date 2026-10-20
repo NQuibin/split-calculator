@@ -145,6 +145,16 @@ test("sums and groups converted totals by currency for the active view", () => {
   mocks.queryResults = [
     [
       {
+        date: "2020-01-02",
+        createdBy: person,
+        slug: "paid-eur",
+        name: "Paid train",
+        people: [person],
+        items: [item("paid-eur-item", 5)],
+        settlementCurrency: "EUR",
+        currency: "EUR",
+      },
+      {
         date: "2020-01-01",
         createdBy: person,
         slug: "paid",
@@ -154,16 +164,6 @@ test("sums and groups converted totals by currency for the active view", () => {
         settlementCurrency: "CAD",
         currency: "USD",
         exchangeRate: { rate: 1.5 },
-      },
-      {
-        date: "2020-01-02",
-        createdBy: person,
-        slug: "paid-eur",
-        name: "Paid train",
-        people: [person],
-        items: [item("paid-eur-item", 5)],
-        settlementCurrency: "EUR",
-        currency: "EUR",
       },
       {
         date: "2020-01-03",
@@ -199,6 +199,9 @@ test("sums and groups converted totals by currency for the active view", () => {
   );
   expect(total?.textContent).toContain("CA$17.00");
   expect(total?.textContent).toContain("€5.00");
+  expect([...total!.querySelectorAll(".font-numeric")].map((amount) => amount.textContent)).toEqual(
+    ["CA$17.00", "€5.00"],
+  );
   expect(container.textContent).toContain("Paid meal");
   expect(container.textContent).not.toContain("Future meal");
 

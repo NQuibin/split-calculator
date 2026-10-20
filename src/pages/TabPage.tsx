@@ -1305,16 +1305,21 @@ function ExpenseList({
           Expenses{" "}
           <span className="text-sm font-normal text-ink-soft">{visibleExpenses.length}</span>
         </SectionTitle>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex flex-col items-end text-sm">
           <span className="text-ink-soft">Total</span>
           {Object.entries(totals).length ? (
-            Object.entries(totals).map(([code, amount]) => (
-              <span className="font-numeric" key={code}>
-                {currency(amount, code)}
-              </span>
-            ))
+            Object.entries(totals)
+              .sort(
+                ([left], [right]) =>
+                  Number(right === defaultCurrency) - Number(left === defaultCurrency),
+              )
+              .map(([code, amount]) => (
+                <span className="font-numeric font-semibold" key={code}>
+                  {currency(amount, code)}
+                </span>
+              ))
           ) : (
-            <span className="font-numeric">{currency(0, defaultCurrency)}</span>
+            <span className="font-numeric font-semibold">{currency(0, defaultCurrency)}</span>
           )}
         </div>
       </div>
