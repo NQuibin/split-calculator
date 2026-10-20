@@ -118,6 +118,99 @@ test("skeletonizes the whole breadcrumb and withholds both data sections until a
   flushSync(() => root.render(createElement(TabPage)));
   expect(container.textContent).toContain("Loaded settlement content");
   expect(container.textContent).toContain("No expenses yet");
+  expect(container.textContent).toContain("TotalCA$0.00");
+  expect(container.querySelector('[aria-label="Search tab expenses"]')).toBeNull();
+  root.unmount();
+});
+
+test("sums and groups converted totals by currency for the active view", () => {
+  const person = { id: "member", name: "Nikki" };
+  const item = (id: string, cost: number) => ({
+    id,
+    name: id,
+    cost,
+    discount: { mode: "amount", value: 0 },
+    tax: { mode: "amount", value: 0 },
+    tip: { mode: "amount", value: 0 },
+    splitWith: [person.id],
+  });
+  mocks.tab = {
+    name: "Trip",
+    slug: "trip",
+    members: [{ ...person, claimed: true, resolvedId: "viewer" }],
+    defaultCurrency: "CAD",
+    isOwner: false,
+    ownerName: "Nikki",
+  };
+  mocks.queryResults = [
+    [
+      {
+        date: "2020-01-01",
+        createdBy: person,
+        slug: "paid",
+        name: "Paid meal",
+        people: [person],
+        items: [item("paid-item", 10)],
+        settlementCurrency: "CAD",
+        currency: "USD",
+        exchangeRate: { rate: 1.5 },
+      },
+      {
+        date: "2020-01-02",
+        createdBy: person,
+        slug: "paid-eur",
+        name: "Paid train",
+        people: [person],
+        items: [item("paid-eur-item", 5)],
+        settlementCurrency: "EUR",
+        currency: "EUR",
+      },
+      {
+        date: "2020-01-03",
+        createdBy: person,
+        slug: "paid-more",
+        name: "Paid taxi",
+        people: [person],
+        items: [item("paid-more-item", 2)],
+        settlementCurrency: "CAD",
+        currency: "CAD",
+      },
+      {
+        date: "9999-01-01",
+        createdBy: person,
+        slug: "upcoming",
+        name: "Future meal",
+        people: [person],
+        items: [item("upcoming-item", 20)],
+        settlementCurrency: "EUR",
+        currency: "EUR",
+      },
+    ],
+    { _id: "viewer" },
+    { paid: {}, upcoming: {}, all: {} },
+  ];
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  flushSync(() => root.render(createElement(TabPage)));
+
+  const total = [...container.querySelectorAll("div")].find((element) =>
+    element.textContent?.startsWith("Total"),
+  );
+  expect(total?.textContent).toContain("CA$17.00");
+  expect(total?.textContent).toContain("€5.00");
+  expect(container.textContent).toContain("Paid meal");
+  expect(container.textContent).not.toContain("Future meal");
+
+  const upcoming = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    (button) => button.textContent === "Upcoming",
+  );
+  flushSync(() => upcoming?.click());
+  const upcomingTotal = [...container.querySelectorAll("div")].find((element) =>
+    element.textContent?.startsWith("Total"),
+  );
+  expect(upcomingTotal?.textContent).toContain("€20.00");
+  expect(upcomingTotal?.textContent).not.toContain("CA$");
   root.unmount();
 });
 

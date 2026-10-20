@@ -34,10 +34,14 @@ function SummaryAmount({
 }) {
   const { currency } = useLocaleFormatters();
   return (
-    <div>
-      <p className="text-sm text-ink-soft">{label}</p>
+    <div className={prominent ? "contents @min-[40rem]:block" : undefined}>
       <p
-        className={`font-numeric ${prominent ? "min-w-0 break-all text-lg" : "text-sm"} font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
+        className={`text-sm ${prominent ? "col-start-1 row-start-1 font-semibold text-ink" : "text-ink-soft"}`}
+      >
+        {label}
+      </p>
+      <p
+        className={`font-numeric ${prominent ? "col-start-2 row-span-2 row-start-1 min-w-0 break-all self-center text-right text-lg @min-[40rem]:block @min-[40rem]:text-left" : "text-sm"} font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
       >
         {amount === undefined ? "—" : currency(amount, code)}
       </p>
@@ -247,107 +251,171 @@ export function SharedTabPage({
           index,
         ) => {
           const { list } = expenseListGridClass(true, false);
+          const outstandingMembers = (balances ?? []).filter(
+            (entry) => Math.round(entry.balance * 100) !== 0,
+          );
+          const owingMembers = outstandingMembers
+            .filter((entry) => entry.balance > 0)
+            .toSorted((a, b) => b.balance - a.balance);
+          const owedMembers = outstandingMembers
+            .filter((entry) => entry.balance < 0)
+            .toSorted((a, b) => a.balance - b.balance);
+          const hasOutstanding = (stillOwed ?? 0) > 0 || (stillOwes ?? 0) > 0;
+          const isSettled =
+            balances !== undefined && outstandingMembers.length === 0 && !hasOutstanding;
+          const showSummary = hasOutstanding || outstandingMembers.length > 0;
+          const summaryRail = showSummary && (
+            <div className="grid min-w-0 grid-cols-1 gap-3 border-b border-rule px-4 py-3 @min-[40rem]:border-b-0 @min-[40rem]:flex @min-[40rem]:flex-col @min-[40rem]:gap-6 @min-[40rem]:p-6">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-3 @min-[40rem]:block">
+                <SummaryAmount
+                  label="Still owed"
+                  amount={stillOwed ?? 0}
+                  code={group.currency}
+                  tone="owed"
+                  prominent
+                />
+                {balances !== undefined && (
+                  <p className="col-start-1 row-start-2 mt-0 text-xs text-ink-soft @min-[40rem]:mt-1">
+                    From {owingMembers.length} {owingMembers.length === 1 ? "person" : "people"}
+                  </p>
+                )}
+              </div>
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-3 @min-[40rem]:block">
+                <SummaryAmount
+                  label="Still owes"
+                  amount={stillOwes ?? 0}
+                  code={group.currency}
+                  tone="owes"
+                  prominent
+                />
+                {balances !== undefined && (
+                  <p className="col-start-1 row-start-2 mt-0 text-xs text-ink-soft @min-[40rem]:mt-1">
+                    To {owedMembers.length} {owedMembers.length === 1 ? "person" : "people"}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
           return (
             <section
               key={group.currency}
               aria-label={`${group.currency} breakdown`}
               className="space-y-3 pt-5 first-of-type:pt-0 @container"
             >
-              <div className="flex items-center justify-between gap-3">
-                <GroupTitle as="h2">Balances</GroupTitle>
-                <CurrencyPill code={group.currency} />
-              </div>
               <section
                 aria-label={`${group.currency} balances for ${selectedMember.name}`}
-                className="space-y-0"
+                className="space-y-0 bleed"
               >
-                {((stillOwes ?? 0) > 0 || (stillOwed ?? 0) > 0) && (
-                  <div
-                    className={`grid border-t border-rule bg-field bleed ${
-                      (stillOwes ?? 0) > 0 && (stillOwed ?? 0) > 0 ? "grid-cols-2" : "grid-cols-1"
-                    }`}
-                  >
-                    {(stillOwed ?? 0) > 0 && (
-                      <div className="min-w-0 border-r-4 border-forest py-2 pl-5 pr-4 text-right">
-                        <SummaryAmount
-                          label="Still owed"
-                          amount={stillOwed}
-                          code={group.currency}
-                          tone="owed"
-                          prominent
-                        />
-                      </div>
-                    )}
-                    {(stillOwes ?? 0) > 0 && (
-                      <div className="min-w-0 border-r-4 border-margin-red py-2 pl-5 pr-4 text-right">
-                        <SummaryAmount
-                          label="Still owes"
-                          amount={stillOwes}
-                          code={group.currency}
-                          tone="owes"
-                          prominent
-                        />
-                      </div>
-                    )}
+                {isSettled ? (
+                  <div className="flex items-center justify-between gap-3 py-2 text-sm text-ink-soft bleed-px">
+                    <GroupTitle as="h2" className="sr-only">
+                      Balances for {selectedMember.name}
+                    </GroupTitle>
+                    <p>No outstanding balances</p>
+                    <CurrencyPill code={group.currency} />
                   </div>
+                ) : (
+                  <header className="flex min-w-0 items-center justify-end gap-3 bleed-px pb-3">
+                    <GroupTitle as="h2" className="sr-only">
+                      Balances for {selectedMember.name}
+                    </GroupTitle>
+                    <CurrencyPill code={group.currency} />
+                  </header>
                 )}
                 {balances === undefined ? (
-                  <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
-                    Member balances are unavailable for this view.
-                  </p>
-                ) : balances.filter((entry) => entry.balance !== 0).length === 0 ? (
-                  <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">
-                    No outstanding balances.
-                  </p>
+                  <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
+                    {summaryRail}
+                    <p
+                      className={`py-4 text-sm text-ink-soft bleed-px ${showSummary ? "@min-[40rem]:border-l @min-[40rem]:border-rule" : "@min-[40rem]:col-span-full"}`}
+                    >
+                      Member balances are unavailable for this view.
+                    </p>
+                  </div>
+                ) : outstandingMembers.length === 0 ? (
+                  hasOutstanding ? (
+                    <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
+                      {summaryRail}
+                    </div>
+                  ) : null
                 ) : (
-                  <ul className="divide-y divide-rule border-y border-edge bg-field bleed">
-                    {balances
-                      .filter((entry) => entry.balance !== 0)
-                      .map((entry) => {
+                  <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
+                    {summaryRail}
+                    <ul className="divide-y divide-rule @min-[40rem]:border-l @min-[40rem]:border-rule">
+                      {owingMembers.map((entry, index) => {
                         const peerName =
                           members.find((candidate) => candidate.key === entry.memberId)?.name ??
                           "Member";
-                        const positive = entry.balance > 0;
                         return (
                           <li
                             key={entry.memberId}
-                            aria-label={`${positive ? `${peerName} owes ${selectedMember.name}` : `${selectedMember.name} owes ${peerName}`} ${currency(Math.abs(entry.balance), group.currency)}`}
-                            className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px"
+                            aria-label={`${peerName} owes ${selectedMember.name} ${currency(Math.abs(entry.balance), group.currency)}`}
                           >
-                            <span className="flex min-w-0 items-center gap-3">
-                              <MemberAvatar
-                                id={positive ? entry.memberId : selectedMember.key}
-                                name={positive ? peerName : selectedMember.name}
-                                size="md"
-                              />
-                              <span className="min-w-0 break-words text-sm font-semibold text-ink">
-                                {positive ? peerName : selectedMember.name}
+                            {index === 0 && (
+                              <GroupTitle as="h3" className="px-5 pt-3 text-ink">
+                                Owe {selectedMember.name}
+                              </GroupTitle>
+                            )}
+                            <div className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px">
+                              <MemberAvatar id={entry.memberId} name={peerName} size="md" />
+                              <span className="min-w-0 break-words text-sm font-medium text-ink">
+                                {peerName}
                               </span>
-                            </span>
-                            <span className="ml-auto flex min-w-0 max-w-[60%] flex-col items-end text-right text-sm @min-[30rem]:flex-row @min-[30rem]:items-center @min-[30rem]:gap-1.5">
-                              <span className="min-w-0 text-ink-soft">
-                                Owes{" "}
-                                <span className="font-semibold text-ink">
-                                  {positive ? selectedMember.name : peerName}
-                                </span>
-                              </span>
-                              <span
-                                className={`whitespace-nowrap font-numeric text-sm font-semibold ${positive ? "text-ledger-green" : "text-margin-red-ink"}`}
-                              >
+                              <span className="ml-auto font-numeric text-sm font-semibold text-ledger-green">
                                 {currency(Math.abs(entry.balance), group.currency)}
                               </span>
-                            </span>
+                            </div>
                           </li>
                         );
                       })}
-                  </ul>
+                      {owedMembers.map((entry, index) => {
+                        const peerName =
+                          members.find((candidate) => candidate.key === entry.memberId)?.name ??
+                          "Member";
+                        return (
+                          <li
+                            key={entry.memberId}
+                            aria-label={`${selectedMember.name} owes ${peerName} ${currency(Math.abs(entry.balance), group.currency)}`}
+                          >
+                            {index === 0 && (
+                              <GroupTitle as="h3" className="px-5 pt-3 text-ink">
+                                {selectedMember.name} owes
+                              </GroupTitle>
+                            )}
+                            <div className="flex min-h-16 min-w-0 items-center gap-3 py-3 bleed-px">
+                              <MemberAvatar id={entry.memberId} name={peerName} size="md" />
+                              <span className="min-w-0 break-words text-sm font-medium text-ink">
+                                {peerName}
+                              </span>
+                              <span className="ml-auto font-numeric text-sm font-semibold text-margin-red-ink">
+                                {currency(Math.abs(entry.balance), group.currency)}
+                              </span>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
               </section>
-              <div className="flex items-center justify-between gap-3">
-                <GroupTitle as="h3">Expenses</GroupTitle>
-                <span className="text-xs text-ink-soft">
-                  {visibleExpenses.length} {visibleExpenses.length === 1 ? "expense" : "expenses"}
-                </span>
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <GroupTitle as="h3" className="mr-auto flex items-center gap-2 text-lg">
+                  Expenses{" "}
+                  <span className="text-sm font-normal text-ink-soft">
+                    {visibleExpenses.length}
+                  </span>
+                </GroupTitle>
+                <div className="text-right">
+                  <SummaryAmount
+                    label="Total"
+                    amount={
+                      visibleExpenses.reduce(
+                        (sum, expense) => sum + Math.round(expense.total * 100),
+                        0,
+                      ) / 100
+                    }
+                    code={group.currency}
+                  />
+                </div>
               </div>
               {expenses.length === 0 ? (
                 <p className="border-y border-edge bg-field py-4 text-sm text-ink-soft bleed bleed-px">

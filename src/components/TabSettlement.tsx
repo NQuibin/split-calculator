@@ -19,6 +19,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { TabMemberBreakdown } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
+import { GroupTitle } from "@/components/ui/Typography";
 import { todayISODate } from "@/lib/format";
 import { computeSplit } from "@/lib/calculations";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
@@ -162,17 +163,25 @@ export function SettlementSummary({
             </div>
           )}
           {data.currencies.length === 0 ? (
-            <p className="pt-4 text-ink-soft">
+            <p className="pt-4 text-sm text-ink-soft">
               {data.missingPayers.length
                 ? "Assign payers to calculate what everyone owes."
-                : "No outstanding balances."}
+                : "No outstanding balances"}
             </p>
           ) : (
             data.currencies.map((group, index) => {
               const members = group.members.filter(
                 (member) =>
-                  member.memberId !== data.viewerMemberId && memberDirectBalance(member) !== 0,
+                  member.memberId !== data.viewerMemberId &&
+                  Math.round(memberDirectBalance(member) * 100) !== 0,
               );
+              const owingYou = members
+                .filter((member) => memberDirectBalance(member) > 0)
+                .sort((a, b) => memberDirectBalance(b) - memberDirectBalance(a));
+              const youOwe = members
+                .filter((member) => memberDirectBalance(member) < 0)
+                .sort((a, b) => memberDirectBalance(a) - memberDirectBalance(b));
+              const sortedMembers = [...owingYou, ...youOwe];
               const owedCents = members.reduce(
                 (sum, member) => sum + Math.max(0, Math.round(memberDirectBalance(member) * 100)),
                 0,
@@ -181,6 +190,7 @@ export function SettlementSummary({
                 (sum, member) => sum + Math.max(0, -Math.round(memberDirectBalance(member) * 100)),
                 0,
               );
+              const isSettled = owedCents === 0 && oweCents === 0;
               return (
                 <section
                   key={group.currency}
@@ -188,102 +198,108 @@ export function SettlementSummary({
                   className="bleed"
                 >
                   <div
-                    className={`flex min-w-0 items-center justify-between gap-3 bleed-px pb-3 ${index === 0 ? "" : "pt-3"}`}
+                    className={`flex min-w-0 items-center gap-3 bleed-px ${isSettled ? "justify-between py-2" : `justify-between pb-3 ${index === 0 ? "" : "pt-3"}`}`}
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <MemberAvatar
-                        id={data.viewerMemberId!}
-                        name={viewer?.name ?? viewerName ?? "You"}
-                        size="md"
-                      />
-                      <div className="min-w-0 break-words">
-                        <p className="font-medium text-ink">
-                          {viewer?.name ?? viewerName ?? "You"}
-                        </p>
-                        <p className="text-xs text-ink-soft">You</p>
-                      </div>
-                    </div>
-                    <CurrencyPill code={group.currency} />
+                    {isSettled ? (
+                      <p className="text-sm text-ink-soft">No outstanding balances</p>
+                    ) : (
+                      index === 0 && (
+                        <div className="flex min-w-0 items-center gap-3">
+                          <MemberAvatar
+                            id={data.viewerMemberId!}
+                            name={viewer?.name ?? viewerName ?? "You"}
+                            size="md"
+                          />
+                          <div className="min-w-0 break-words">
+                            <p className="font-medium text-ink">
+                              {viewer?.name ?? viewerName ?? "You"}
+                            </p>
+                            <p className="text-xs text-ink-soft">You</p>
+                          </div>
+                        </div>
+                      )
+                    )}
+                    <span className={!isSettled && index > 0 ? "ml-auto" : undefined}>
+                      <CurrencyPill code={group.currency} />
+                    </span>
                   </div>
-                  {(owedCents > 0 || oweCents > 0) && (
-                    <div
-                      className={`grid border-t border-rule bg-field ${owedCents > 0 && oweCents > 0 ? "grid-cols-2" : "grid-cols-1"}`}
-                    >
-                      {owedCents > 0 && (
-                        <p className="min-w-0 border-r-4 border-forest bleed-px py-2 text-right">
-                          <span className="block text-sm text-ink-soft">You are owed</span>
-                          <span className="block max-w-full break-all font-numeric text-lg font-semibold text-ledger-green">
+                  {!isSettled && (
+                    <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
+                      <div className="flex min-w-0 flex-col gap-3 border-b border-rule px-4 py-3 @min-[40rem]:col-start-1 @min-[40rem]:gap-6 @min-[40rem]:border-b-0 @min-[40rem]:p-6">
+                        <p className="grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-3 @min-[40rem]:block">
+                          <span className="block font-semibold">You’re owed</span>
+                          <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-lg font-semibold text-ledger-green">
                             {currency(owedCents / 100, group.currency)}
                           </span>
-                        </p>
-                      )}
-                      {oweCents > 0 && (
-                        <p className="min-w-0 border-r-4 border-margin-red bleed-px py-2 text-right">
-                          <span className="block text-sm text-ink-soft">You owe</span>
-                          <span className="block max-w-full break-all font-numeric text-lg font-semibold text-margin-red-ink">
-                            {currency(oweCents / 100, group.currency)}
+                          <span className="col-start-1 row-start-2 block text-xs text-ink-soft @min-[40rem]:mt-1">
+                            From {owingYou.length} {owingYou.length === 1 ? "person" : "people"}
                           </span>
                         </p>
-                      )}
-                    </div>
-                  )}
-                  <ul className="divide-y divide-rule border-y border-edge bg-field">
-                    {members.length === 0 && (
-                      <li className="bleed-px py-3 text-sm text-ink-soft">
-                        No outstanding balances.
-                      </li>
-                    )}
-                    {members.map((member) => {
-                      const balance = memberDirectBalance(member);
-                      const expenseCount = relatedExpenseCount(
-                        expenses,
-                        expenseView,
-                        asOfDate,
-                        group.currency,
-                        data.viewerMemberId!,
-                        member.memberId,
-                      );
-                      return (
-                        <li key={member.memberId}>
-                          <button
-                            type="button"
-                            aria-haspopup="dialog"
-                            aria-label={`View ${member.name}'s ${group.currency} expenses`}
-                            onClick={() => onMemberClick?.(member.memberId, group.currency)}
-                            className="group flex min-h-16 w-full min-w-0 items-center justify-between gap-3 bleed-px py-3 text-left transition-colors hover:bg-wash active:bg-wash focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
-                          >
-                            <span className="flex min-w-0 items-center gap-3">
-                              <MemberAvatar id={member.memberId} name={member.name} size="md" />
-                              <span className="min-w-0 break-words">
-                                <span className="block text-ink">
-                                  <span className="font-medium">{member.name}</span>
-                                </span>
-                                <span className="mt-1 block text-xs text-ink-soft">
-                                  {expenseCount} {expenseCount === 1 ? "expense" : "expenses"}
-                                </span>
-                              </span>
-                            </span>
-                            <span className="ml-auto flex max-w-[60%] shrink-0 items-center gap-2">
-                              <span className="flex min-w-0 flex-col items-end text-right @min-[30rem]:flex-row @min-[30rem]:gap-1">
-                                <span className="text-sm text-ink-soft">
-                                  {balance > 0 ? "Owes you" : "You owe"}
+                        <p className="grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-3 @min-[40rem]:block">
+                          <span className="block font-semibold">You owe</span>
+                          <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-lg font-semibold text-margin-red-ink">
+                            {currency(oweCents / 100, group.currency)}
+                          </span>
+                          <span className="col-start-1 row-start-2 block text-xs text-ink-soft @min-[40rem]:mt-1">
+                            To {youOwe.length} {youOwe.length === 1 ? "person" : "people"}
+                          </span>
+                        </p>
+                      </div>
+                      <ul className="divide-y divide-rule @min-[40rem]:col-start-2 @min-[40rem]:row-start-1 @min-[40rem]:border-l @min-[40rem]:border-rule">
+                        {sortedMembers.map((member, memberIndex) => {
+                          const balance = memberDirectBalance(member);
+                          const heading =
+                            memberIndex === 0 || (balance < 0 && memberIndex === owingYou.length)
+                              ? balance > 0
+                                ? "Owe you"
+                                : "You owe"
+                              : null;
+                          const expenseCount = relatedExpenseCount(
+                            expenses,
+                            expenseView,
+                            asOfDate,
+                            group.currency,
+                            data.viewerMemberId!,
+                            member.memberId,
+                          );
+                          return (
+                            <li key={member.memberId}>
+                              {heading && (
+                                <GroupTitle as="h3" className="px-5 pt-3 text-ink">
+                                  {heading}
+                                </GroupTitle>
+                              )}
+                              <Button
+                                type="button"
+                                variant="row"
+                                size="row"
+                                aria-haspopup="dialog"
+                                aria-label={`View ${member.name}'s ${group.currency} expenses`}
+                                onClick={() => onMemberClick?.(member.memberId, group.currency)}
+                                className="group grid-cols-[2rem_minmax(0,1fr)_max-content_1.5rem] bleed-px text-ink-soft focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-forest"
+                              >
+                                <MemberAvatar id={member.memberId} name={member.name} size="md" />
+                                <span className="min-w-0 break-words">
+                                  <span className="block text-ink">
+                                    <span className="font-medium">{member.name}</span>
+                                  </span>
+                                  <span className="mt-1 block text-xs font-normal text-ink-soft">
+                                    {expenseCount} {expenseCount === 1 ? "expense" : "expenses"}
+                                  </span>
                                 </span>
                                 <span
-                                  className={`break-all font-numeric text-sm font-semibold ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
+                                  className={`font-numeric text-sm font-semibold ${balance > 0 ? "text-ledger-green" : "text-margin-red-ink"}`}
                                 >
                                   {currency(Math.abs(balance), group.currency)}
                                 </span>
-                              </span>
-                              <ChevronRight
-                                aria-hidden="true"
-                                className="-mr-1 h-5 w-5 shrink-0 self-center text-ink-soft chevron-x"
-                              />
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                                <ChevronRight aria-hidden="true" className="h-5 w-5 chevron-x" />
+                              </Button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
                 </section>
               );
             })

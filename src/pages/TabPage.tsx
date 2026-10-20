@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/Button";
 import { AnonymousBadge } from "@/components/ui/AnonymousBadge";
 import { Field, FieldError, Input, Label } from "@/components/ui/Input";
-import { SearchField } from "@/components/ui/SearchField";
 import { CurrencyPicker } from "@/components/ui/CurrencyPicker";
 import {
   Dialog,
@@ -48,6 +47,7 @@ import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
 import { computeExpenseBalances } from "@/lib/settlements";
+import { useLocaleFormatters } from "@/lib/localeFormatters";
 
 const route = getRouteApi("/t/$slug/");
 
@@ -1166,7 +1166,7 @@ function ExpenseList({
   }[];
 }) {
   const { remove } = useExpenseActions();
-  const [search, setSearch] = useState("");
+  const { currency } = useLocaleFormatters();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
   const hasUpcoming = expenses.some((expense) => isUpcoming(expense.date));
@@ -1176,9 +1176,12 @@ function ExpenseList({
       activeView === "all" ||
       (activeView === "upcoming" ? isUpcoming(expense.date) : !isUpcoming(expense.date)),
   );
-  const filtered = visibleExpenses.filter((e) =>
-    (e.name ?? "Untitled expense").toLowerCase().includes(search.trim().toLowerCase()),
-  );
+  const totals = visibleExpenses.reduce<Record<string, number>>((sum, expense) => {
+    const split = computeSplit(expense.people, expense.items, expense.globalAdjustments);
+    const code = expense.settlementCurrency;
+    sum[code] = (sum[code] ?? 0) + split.grandTotal * (expense.exchangeRate?.rate ?? 1);
+    return sum;
+  }, {});
   const selected = expenses.find((e) => e.slug === selectedSlug);
   const payerFor = (payerId: string | undefined) =>
     members.find((member) => member.id === payerId || member.resolvedId === payerId);
@@ -1197,17 +1200,17 @@ function ExpenseList({
           "Data tables"): the field ground between two `--edge` rules, open at
           the sides. */}
       <div className="bleed overflow-hidden border-y border-edge bg-field">
-        {!filtered.length ? (
+        {!visibleExpenses.length ? (
           <p role="status" className="p-8 text-center text-sm text-ink-soft">
             {!expenses.length
               ? "No expenses yet. Add one to get started."
               : !visibleExpenses.length && activeView === "paid"
                 ? "No paid expenses yet. Check Upcoming for planned expenses."
-                : "No expenses match your filters."}
+                : "No expenses in this view."}
           </p>
         ) : (
           <ul className={listGrid}>
-            {filtered.map((expense) => {
+            {visibleExpenses.map((expense) => {
               const rowSplit = computeSplit(
                 expense.people,
                 expense.items,
@@ -1263,7 +1266,7 @@ function ExpenseList({
           </ul>
         )}
       </div>
-      {filtered.some((expense) => isUpcoming(expense.date)) && <UpcomingExpenseLegend />}
+      {visibleExpenses.some((expense) => isUpcoming(expense.date)) && <UpcomingExpenseLegend />}
       <ConfirmDialog
         open={deletingSlug !== null}
         onOpenChange={(next) => {
@@ -1299,16 +1302,21 @@ function ExpenseList({
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SectionTitle className="mr-auto flex items-center gap-2">
           <Receipt aria-hidden="true" className="h-5 w-5 shrink-0 text-brass" strokeWidth={2.25} />
-          Expenses <span className="text-sm font-normal text-ink-soft">{filtered.length}</span>
+          Expenses{" "}
+          <span className="text-sm font-normal text-ink-soft">{visibleExpenses.length}</span>
         </SectionTitle>
-        <SearchField
-          aria-label="Search tab expenses"
-          placeholder="Search expenses…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-auto sm:max-w-sm sm:flex-1"
-          showLabel={false}
-        />
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-ink-soft">Total</span>
+          {Object.entries(totals).length ? (
+            Object.entries(totals).map(([code, amount]) => (
+              <span className="font-numeric" key={code}>
+                {currency(amount, code)}
+              </span>
+            ))
+          ) : (
+            <span className="font-numeric">{currency(0, defaultCurrency)}</span>
+          )}
+        </div>
       </div>
       {expenseRows}
       <ExpenseDetailsDialog

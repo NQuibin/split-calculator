@@ -182,20 +182,35 @@ test("shows per-currency direct owed and owing totals with viewer-centric rows",
     }),
   );
   expect(markup).toContain("Nikki Q");
-  expect(markup).toContain("You are owed");
+  expect(markup).toContain("You’re owed");
   expect(markup).toContain("You owe");
   expect(markup).toContain('class="font-medium">P2</span>');
-  expect(markup).toContain(">Owes you</span>");
-  expect(markup).toContain(">You owe</span>");
+  expect(markup).toContain(">Owe you</h3>");
+  expect(markup).toContain(">You owe</h3>");
   expect(markup).not.toContain("P3");
   expect(markup).not.toContain("1 expense");
   expect(markup).toContain("chevron-x");
-  expect(markup).toContain("-mr-1");
+  expect(markup).toContain("grid-cols-[2rem_minmax(0,1fr)_max-content_1.5rem]");
   expect(markup).toContain('class="font-medium">Payment only</span>');
-  expect((markup.match(/border-r-4 border-forest/g) ?? []).length).toBe(2);
-  expect((markup.match(/border-r-4 border-margin-red/g) ?? []).length).toBe(2);
+  expect(markup.match(/text-lg font-semibold text-ledger-green/g)).toHaveLength(2);
+  expect(markup.match(/text-lg font-semibold text-margin-red-ink/g)).toHaveLength(2);
   expect(markup).toContain('aria-label="CAD balances"');
   expect(markup).toContain('aria-label="USD balances"');
+  expect(markup).toContain("Owe you");
+});
+
+test("shows viewer identity only in the first currency header", () => {
+  const markup = renderMarkup(createElement(SettlementSummary, { data }));
+  const sections = [
+    ...markup.matchAll(/<section[^>]*aria-label="(\w+) balances"[^>]*>([\s\S]*?)<\/section>/g),
+  ];
+
+  expect(sections).toHaveLength(2);
+  expect(sections[0]?.[2]).toContain(">Nikki Q</p>");
+  expect(sections[0]?.[2]).toContain(">You</p>");
+  expect(sections[1]?.[2]).not.toContain(">Nikki Q</p>");
+  expect(sections[1]?.[2]).not.toContain(">You</p>");
+  expect(markup.match(/bg-currency-chip/g)).toHaveLength(2);
 });
 
 test("opens a member's detail from the whole balance row", () => {
@@ -224,15 +239,55 @@ test("omits a zero-balance member row", () => {
   };
   const markup = renderMarkup(createElement(SettlementSummary, { data: settledData }));
 
-  expect(markup).toContain("No outstanding balances.");
-  expect(markup).not.toContain("border-r-4 border-forest");
-  expect(markup).not.toContain("border-r-4 border-margin-red");
+  expect(markup).toContain("No outstanding balances");
+  expect(markup).not.toContain("text-lg font-semibold text-ledger-green");
+  expect(markup).not.toContain("text-lg font-semibold text-margin-red-ink");
   expect(markup).not.toContain("P3");
   expect(markup).not.toContain('aria-label="View');
   expect(markup).not.toContain("chevron-x");
+  const container = document.createElement("div");
+  container.innerHTML = markup;
+  const section = container.querySelector('section[aria-label="CAD balances"]');
+  expect(section?.textContent).toBe("No outstanding balancesCAD");
 });
 
-test("hides zero-value owed and owe summaries", () => {
+test("groups direct balances by direction and sorts each group by amount", () => {
+  const grouped: SettlementSummaryData = {
+    viewerMemberId: "viewer",
+    missingPayers: [],
+    history: [],
+    currencies: [
+      {
+        currency: "CAD",
+        members: [
+          { memberId: "viewer", name: "Nikki Q", balance: 0, expenses: [] },
+          { memberId: "low", name: "Small", balance: 0, balanceWithViewer: 2, expenses: [] },
+          { memberId: "high", name: "Large", balance: 0, balanceWithViewer: 8, expenses: [] },
+          { memberId: "owing", name: "Owing", balance: 0, balanceWithViewer: -5, expenses: [] },
+        ],
+      },
+    ],
+  };
+  const markup = renderMarkup(createElement(SettlementSummary, { data: grouped }));
+  const container = document.createElement("div");
+  container.innerHTML = markup;
+  expect(
+    [...container.querySelectorAll("button")].map((row) => row.getAttribute("aria-label")),
+  ).toEqual([
+    "View Large's CAD expenses",
+    "View Small's CAD expenses",
+    "View Owing's CAD expenses",
+  ]);
+  expect(
+    [...container.querySelectorAll("li")].map((row) => row.querySelector("h3")?.textContent),
+  ).toEqual(["Owe you", undefined, "You owe"]);
+  expect([...container.querySelectorAll(".text-lg")].map((total) => total.textContent)).toEqual([
+    "CA$10.00",
+    "CA$5.00",
+  ]);
+});
+
+test("shows zero total for the opposite direction", () => {
   const oneDirection: SettlementSummaryData = {
     viewerMemberId: "viewer",
     missingPayers: [],
@@ -278,14 +333,13 @@ test("hides zero-value owed and owe summaries", () => {
     }),
   );
 
-  expect(owed).toContain("You are owed");
-  expect(owed).not.toContain("You owe</span>");
-  expect(owed).toContain("border-r-4 border-forest");
-  expect(owed).not.toContain("border-r-4 border-margin-red");
-  expect(owing).toContain("You owe</span>");
-  expect(owing).not.toContain("You are owed");
-  expect(owing).not.toContain("border-r-4 border-forest");
-  expect(owing).toContain("border-r-4 border-margin-red");
+  expect(owed).toContain("You’re owed");
+  expect(owed).toContain("You owe");
+  expect(owed).toContain("text-ledger-green");
+  expect(owing).toContain("You’re owed");
+  expect(owing).toContain("text-margin-red-ink");
+  expect(owed).toContain("CA$0.00");
+  expect(owing).toContain("CA$0.00");
 });
 
 test("lets tab members open expenses that need a payer", () => {
