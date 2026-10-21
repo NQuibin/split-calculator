@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { SettledBalanceRow } from "@/components/SettledBalanceRow";
 import { TabMemberBreakdown } from "@/components/TabMemberBreakdown";
 import { ExpenseDetailsDialog } from "@/components/ExpenseDetailsDialog";
 import { Panel } from "@/components/ui/Page";
@@ -95,6 +96,7 @@ function relatedExpenseCount(
 export function SettlementSummary({
   data,
   viewerName,
+  defaultCurrency = "USD",
   expenses = [],
   expenseView = "all",
   asOfDate = todayISODate(),
@@ -103,6 +105,7 @@ export function SettlementSummary({
 }: {
   data: SettlementSummaryData;
   viewerName?: string;
+  defaultCurrency?: string;
   expenses?: TabExpenseSummary[];
   expenseView?: ExpenseView;
   asOfDate?: string;
@@ -148,7 +151,7 @@ export function SettlementSummary({
       ) : (
         <>
           {data.currencies.length === 0 && (
-            <div className="flex min-w-0 items-center border-b border-rule bleed bleed-px pb-4">
+            <div className="flex min-w-0 items-center bleed bleed-px pb-3">
               <div className="flex min-w-0 items-center gap-3">
                 <MemberAvatar
                   id={data.viewerMemberId}
@@ -163,11 +166,15 @@ export function SettlementSummary({
             </div>
           )}
           {data.currencies.length === 0 ? (
-            <p className="pt-4 text-sm text-ink-soft">
-              {data.missingPayers.length
-                ? "Assign payers to calculate what everyone owes."
-                : "No outstanding balances"}
-            </p>
+            data.missingPayers.length ? (
+              <p className="pt-4 text-sm text-ink-soft">
+                Assign payers to calculate what everyone owes.
+              </p>
+            ) : (
+              <div className="bleed">
+                <SettledBalanceRow currencyCode={defaultCurrency} />
+              </div>
+            )
           ) : (
             data.currencies.map((group, index) => {
               const members = group.members.filter(
@@ -197,13 +204,11 @@ export function SettlementSummary({
                   aria-label={`${group.currency} balances`}
                   className="bleed"
                 >
-                  <div
-                    className={`flex min-w-0 items-center gap-3 bleed-px ${isSettled ? "justify-between py-2" : `justify-between pb-3 ${index === 0 ? "" : "pt-3"}`}`}
-                  >
-                    {isSettled ? (
-                      <p className="text-sm text-ink-soft">No outstanding balances</p>
-                    ) : (
-                      index === 0 && (
+                  {(index === 0 || !isSettled) && (
+                    <div
+                      className={`flex min-w-0 items-center justify-between gap-3 bleed-px pb-3 ${index === 0 ? "" : "pt-3"}`}
+                    >
+                      {index === 0 && (
                         <div className="flex min-w-0 items-center gap-3">
                           <MemberAvatar
                             id={data.viewerMemberId!}
@@ -217,15 +222,18 @@ export function SettlementSummary({
                             <p className="text-xs text-ink-soft">You</p>
                           </div>
                         </div>
-                      )
-                    )}
-                    <span className={!isSettled && index > 0 ? "ml-auto" : undefined}>
-                      <CurrencyPill code={group.currency} />
-                    </span>
-                  </div>
+                      )}
+                      {!isSettled && (
+                        <span className={index > 0 ? "ml-auto" : undefined}>
+                          <CurrencyPill code={group.currency} />
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {isSettled && <SettledBalanceRow currencyCode={group.currency} />}
                   {!isSettled && (
                     <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
-                      <div className="flex min-w-0 flex-col gap-3 border-b border-rule px-4 py-3 @min-[40rem]:col-start-1 @min-[40rem]:gap-6 @min-[40rem]:border-b-0 @min-[40rem]:p-6">
+                      <div className="flex min-w-0 flex-col gap-3 border-b-2 border-rule px-4 py-3 @min-[40rem]:col-start-1 @min-[40rem]:gap-6 @min-[40rem]:border-b-0 @min-[40rem]:p-6">
                         <p className="grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-3 @min-[40rem]:block">
                           <span className="block font-semibold">You’re owed</span>
                           <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-lg font-semibold text-ledger-green">
@@ -245,7 +253,7 @@ export function SettlementSummary({
                           </span>
                         </p>
                       </div>
-                      <ul className="divide-y divide-rule @min-[40rem]:col-start-2 @min-[40rem]:row-start-1 @min-[40rem]:border-l @min-[40rem]:border-rule">
+                      <ul className="divide-y divide-rule @min-[40rem]:col-start-2 @min-[40rem]:row-start-1 @min-[40rem]:border-l-2 @min-[40rem]:border-rule">
                         {sortedMembers.map((member, memberIndex) => {
                           const balance = memberDirectBalance(member);
                           const heading =
@@ -371,6 +379,7 @@ export function TabSettlement({
       <SettlementSummary
         data={data}
         viewerName={members.find((member) => member.id === data.viewerMemberId)?.name}
+        defaultCurrency={defaultCurrency}
         expenses={expenses}
         expenseView={expenseView}
         asOfDate={asOfDate}

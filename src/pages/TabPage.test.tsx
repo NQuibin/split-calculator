@@ -39,7 +39,7 @@ vi.mock("@/lib/tabSync", () => ({
 vi.mock("@/lib/expenseSync", () => ({ useExpenseActions: () => ({ remove: vi.fn() }) }));
 vi.mock("@/components/TabSettlement", () => ({
   TabSettlement: () => createElement("div", null, "Loaded settlement content"),
-  SettlementActions: () => null,
+  SettlementActions: () => createElement("button", { type: "button" }, "Manage payments"),
 }));
 
 import { TabPage } from "./TabPage";
@@ -61,7 +61,32 @@ test("View breakdown is an immediate link in the scrollable action row", () => {
     isOwner: true,
     ownerName: "Nikki",
   };
-  mocks.queryResults = [[], { _id: "viewer" }, { paid: {}, upcoming: {}, all: {} }];
+  mocks.queryResults = [
+    [
+      {
+        date: "2020-01-02",
+        createdBy: { id: "viewer-seat", name: "Nikki" },
+        slug: "meal",
+        name: "Meal",
+        people: [{ id: "viewer-seat", name: "Nikki" }],
+        items: [
+          {
+            id: "meal-item",
+            name: "Meal",
+            cost: 10,
+            discount: { mode: "amount", value: 0 },
+            tax: { mode: "amount", value: 0 },
+            tip: { mode: "amount", value: 0 },
+            splitWith: ["viewer-seat"],
+          },
+        ],
+        settlementCurrency: "CAD",
+        currency: "CAD",
+      },
+    ],
+    { _id: "viewer" },
+    { paid: {}, upcoming: {}, all: {} },
+  ];
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -72,6 +97,7 @@ test("View breakdown is an immediate link in the scrollable action row", () => {
   );
   expect(link?.getAttribute("href")).toBe("/t/$slug/breakdown");
   expect(link?.closest(".overflow-x-auto")).not.toBeNull();
+  expect(container.textContent).toContain("Manage payments");
   expect(container.textContent).not.toContain("Opening…");
   root.unmount();
 });
@@ -119,6 +145,23 @@ test("skeletonizes the whole breadcrumb and withholds both data sections until a
   expect(container.textContent).toContain("Loaded settlement content");
   expect(container.textContent).toContain("No expenses yet");
   expect(container.textContent).toContain("TotalCA$0.00");
+  expect(
+    [...(container.querySelector("header")?.querySelectorAll("button") ?? [])].filter(
+      (button) => button.textContent === "Add expense",
+    ),
+  ).toHaveLength(0);
+  expect(container.querySelectorAll('a[href="/t/$slug/breakdown"]')).toHaveLength(0);
+  expect(container.textContent).not.toContain("Manage payments");
+  const emptyMessage = [...container.querySelectorAll("p")].find((paragraph) =>
+    paragraph.textContent?.startsWith("No expenses yet"),
+  );
+  expect(emptyMessage).not.toBeUndefined();
+  const emptyCard = emptyMessage?.parentElement;
+  expect(
+    [...((emptyCard as HTMLElement | undefined)?.querySelectorAll("button") ?? [])].filter(
+      (button) => button.textContent === "Add expense",
+    ),
+  ).toHaveLength(1);
   expect(container.querySelector('[aria-label="Search tab expenses"]')).toBeNull();
   root.unmount();
 });

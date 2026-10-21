@@ -248,7 +248,35 @@ test("omits a zero-balance member row", () => {
   const container = document.createElement("div");
   container.innerHTML = markup;
   const section = container.querySelector('section[aria-label="CAD balances"]');
-  expect(section?.textContent).toBe("No outstanding balancesCAD");
+  expect(section?.querySelector('[role="img"][aria-label="Nikki Q"]')).not.toBeNull();
+  expect([...section!.querySelectorAll("p")].map((element) => element.textContent)).toEqual([
+    "Nikki Q",
+    "You",
+    "No outstanding balances",
+  ]);
+  expect(section?.querySelector("svg.lucide-circle-check[aria-hidden='true']")).not.toBeNull();
+  expect(section?.querySelector("a, button")).toBeNull();
+  expect(section?.querySelector(".bg-currency-chip")?.textContent).toBe("CAD");
+});
+
+test("shows the settled row in the tab currency when there are no expenses", () => {
+  const markup = renderMarkup(
+    createElement(SettlementSummary, {
+      data: { viewerMemberId: "viewer", missingPayers: [], history: [], currencies: [] },
+      viewerName: "Nikki Q",
+      defaultCurrency: "CAD",
+    }),
+  );
+  const container = document.createElement("div");
+  container.innerHTML = markup;
+  expect(container.querySelector('[role="img"][aria-label="Nikki Q"]')).not.toBeNull();
+  expect(container.querySelector("svg.lucide-circle-check[aria-hidden='true']")).not.toBeNull();
+  expect(container.querySelector(".bg-currency-chip")?.textContent).toBe("CAD");
+  expect([...container.querySelectorAll("p")].map((element) => element.textContent)).toEqual([
+    "Nikki Q",
+    "You",
+    "No outstanding balances",
+  ]);
 });
 
 test("groups direct balances by direction and sorts each group by amount", () => {

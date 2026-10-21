@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { ExpenseViewTabs, type ExpenseView } from "@/components/ExpenseViewTabs";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { SettledBalanceRow } from "@/components/SettledBalanceRow";
 import { SharedPaymentHistory } from "@/components/SharedPaymentHistory";
 import { TabExpenseRow } from "@/components/TabExpenseGrid";
 import { expenseListGridClass } from "@/components/tabExpenseGridClass";
@@ -265,7 +266,7 @@ export function SharedTabPage({
             balances !== undefined && outstandingMembers.length === 0 && !hasOutstanding;
           const showSummary = hasOutstanding || outstandingMembers.length > 0;
           const summaryRail = showSummary && (
-            <div className="grid min-w-0 grid-cols-1 gap-3 border-b border-rule px-4 py-3 @min-[40rem]:border-b-0 @min-[40rem]:flex @min-[40rem]:flex-col @min-[40rem]:gap-6 @min-[40rem]:p-6">
+            <div className="grid min-w-0 grid-cols-1 gap-3 border-b-2 border-rule px-4 py-3 @min-[40rem]:border-b-0 @min-[40rem]:flex @min-[40rem]:flex-col @min-[40rem]:gap-6 @min-[40rem]:p-6">
               <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] grid-rows-2 items-center gap-x-3 @min-[40rem]:block">
                 <SummaryAmount
                   label="Still owed"
@@ -307,13 +308,12 @@ export function SharedTabPage({
                 className="space-y-0 bleed"
               >
                 {isSettled ? (
-                  <div className="flex items-center justify-between gap-3 py-2 text-sm text-ink-soft bleed-px">
+                  <>
                     <GroupTitle as="h2" className="sr-only">
                       Balances for {selectedMember.name}
                     </GroupTitle>
-                    <p>No outstanding balances</p>
-                    <CurrencyPill code={group.currency} />
-                  </div>
+                    <SettledBalanceRow currencyCode={group.currency} />
+                  </>
                 ) : (
                   <header className="flex min-w-0 items-center justify-end gap-3 bleed-px pb-3">
                     <GroupTitle as="h2" className="sr-only">
@@ -326,7 +326,7 @@ export function SharedTabPage({
                   <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
                     {summaryRail}
                     <p
-                      className={`py-4 text-sm text-ink-soft bleed-px ${showSummary ? "@min-[40rem]:border-l @min-[40rem]:border-rule" : "@min-[40rem]:col-span-full"}`}
+                      className={`py-4 text-sm text-ink-soft bleed-px ${showSummary ? "@min-[40rem]:border-l-2 @min-[40rem]:border-rule" : "@min-[40rem]:col-span-full"}`}
                     >
                       Member balances are unavailable for this view.
                     </p>
@@ -340,7 +340,7 @@ export function SharedTabPage({
                 ) : (
                   <div className="grid grid-cols-1 border-y border-edge bg-field @min-[40rem]:grid-cols-[13.5rem_minmax(0,1fr)]">
                     {summaryRail}
-                    <ul className="divide-y divide-rule @min-[40rem]:border-l @min-[40rem]:border-rule">
+                    <ul className="divide-y divide-rule @min-[40rem]:border-l-2 @min-[40rem]:border-rule">
                       {owingMembers.map((entry, index) => {
                         const peerName =
                           members.find((candidate) => candidate.key === entry.memberId)?.name ??

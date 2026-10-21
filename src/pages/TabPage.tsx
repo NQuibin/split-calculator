@@ -319,21 +319,27 @@ function TabView({ slug, claimError }: { slug: string; claimError?: string }) {
         ) : (
           <div className="min-w-0 flex-1 overflow-x-auto py-1">
             <div className="flex w-full min-w-max gap-2 md:w-max md:min-w-full md:justify-end">
-              <ExpenseActions slug={slug} members={tab.members} className="flex-1 md:flex-none" />
-              <SettlementActions
-                slug={slug}
-                members={tab.members}
-                expenseView={hasUpcoming ? expenseView : "paid"}
-                response={settlement}
-              />
-              <Button
-                nativeButton={false}
-                size="touch"
-                className="flex-1 md:flex-none"
-                render={<Link to="/t/$slug/breakdown" params={{ slug }} search={{}} />}
-              >
-                View breakdown
-              </Button>
+              {expenses.length > 0 && (
+                <ExpenseActions slug={slug} members={tab.members} className="flex-1 md:flex-none" />
+              )}
+              {expenses.length > 0 && (
+                <SettlementActions
+                  slug={slug}
+                  members={tab.members}
+                  expenseView={hasUpcoming ? expenseView : "paid"}
+                  response={settlement}
+                />
+              )}
+              {expenses.length > 0 && (
+                <Button
+                  nativeButton={false}
+                  size="touch"
+                  className="flex-1 md:flex-none"
+                  render={<Link to="/t/$slug/breakdown" params={{ slug }} search={{}} />}
+                >
+                  View breakdown
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -1201,13 +1207,20 @@ function ExpenseList({
           the sides. */}
       <div className="bleed overflow-hidden border-y border-edge bg-field">
         {!visibleExpenses.length ? (
-          <p role="status" className="p-8 text-center text-sm text-ink-soft">
-            {!expenses.length
-              ? "No expenses yet. Add one to get started."
-              : !visibleExpenses.length && activeView === "paid"
+          !expenses.length ? (
+            <div className="p-8 text-center">
+              <p role="status" className="text-sm text-ink">
+                No expenses yet.
+              </p>
+              {canManage && <ExpenseActions slug={slug} members={members} className="mt-4" />}
+            </div>
+          ) : (
+            <p role="status" className="p-8 text-center text-sm text-ink-soft">
+              {activeView === "paid"
                 ? "No paid expenses yet. Check Upcoming for planned expenses."
                 : "No expenses in this view."}
-          </p>
+            </p>
+          )
         ) : (
           <ul className={listGrid}>
             {visibleExpenses.map((expense) => {

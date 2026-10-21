@@ -794,6 +794,12 @@ test("members with no unsettled balances see the empty balance state", () => {
     expect(balanceSections.every((section) => section.querySelector("ul, button") === null)).toBe(
       true,
     );
+    expect(
+      balanceSections.every(
+        (section) => section.querySelector("svg.lucide-circle-check[aria-hidden='true']") !== null,
+      ),
+    ).toBe(true);
+    expect(balanceSections.every((section) => section.querySelector("a") === null)).toBe(true);
     for (const { member } of patByCurrency) {
       member.expenses.splice(0);
       member.summaries = {
