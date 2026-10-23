@@ -808,6 +808,30 @@ export function StageExpense({
                     {currency(totals.grandTotal, currencyCode)}
                   </p>
                 </div>
+                <div className="mt-4 border-t border-rule pt-4">
+                  <GroupTitle as="h3" className="mb-3">
+                    Each person owes
+                  </GroupTitle>
+                  <ul className="space-y-2">
+                    {people.map((person) => {
+                      const share =
+                        totals.people.find((row) => row.personId === person.id)?.total ?? 0;
+                      return (
+                        <li key={person.id} className="flex items-center justify-between gap-3">
+                          <span className="flex min-w-0 items-center gap-3">
+                            <MemberAvatar id={person.id} name={person.name} />
+                            <span className="min-w-0 break-words text-sm text-ink">
+                              {person.name}
+                            </span>
+                          </span>
+                          <span className="shrink-0 font-numeric text-sm text-ink-soft">
+                            {currency(share, currencyCode)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               </section>
               {peopleManagement}
             </div>
