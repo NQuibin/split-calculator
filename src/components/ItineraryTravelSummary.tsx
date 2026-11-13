@@ -1,8 +1,11 @@
+import { BedDouble, Plane } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { Panel } from "@/components/ui/Page";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { crumbLinkClass } from "@/components/ui/Breadcrumb";
-import { GroupTitle, SectionTitle } from "@/components/ui/Typography";
+import { GroupTitle } from "@/components/ui/Typography";
 import type { EntryFields } from "@/lib/itinerary";
+import { cn } from "@/lib/utils";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 
 type TravelEntry = EntryFields & { id: string };
@@ -12,19 +15,25 @@ function Detail({
   date,
   time,
   value,
+  compact,
 }: {
   label: string;
   date?: string;
   time?: string;
   value?: string;
+  compact?: boolean;
 }) {
-  const { formatExpenseDate } = useLocaleFormatters();
+  const { formatExpenseDate, formatExpenseDateShort } = useLocaleFormatters();
   if (!date && !time && !value) return null;
   return (
     <div className="min-w-0">
-      <dt className="text-ink-soft">{label}</dt>
-      <dd className="flex flex-wrap gap-x-2 break-words text-ink">
-        {date && <time dateTime={date}>{formatExpenseDate(date)}</time>}
+      <dt className={cn("text-ink-soft", compact && "text-xs")}>{label}</dt>
+      <dd className={cn("flex flex-wrap gap-x-2 break-words text-ink", compact && "font-semibold")}>
+        {date && (
+          <time dateTime={date}>
+            {compact ? formatExpenseDateShort(date) : formatExpenseDate(date)}
+          </time>
+        )}
         {time && (
           <time dateTime={time} className="font-numeric">
             {time}
@@ -36,22 +45,43 @@ function Detail({
   );
 }
 
-export function TravelEntryDetails({ entry }: { entry: EntryFields }) {
+export function TravelEntryDetails({
+  entry,
+  compact = false,
+}: {
+  entry: EntryFields;
+  compact?: boolean;
+}) {
   const { flight, lodging } = entry;
   if (!flight && !lodging) return null;
   return (
-    <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+    <dl
+      className={cn(
+        "gap-y-2 text-sm",
+        compact ? "grid grid-cols-2 gap-x-3" : "flex flex-wrap gap-x-6",
+      )}
+    >
       {flight && (
         <>
-          <Detail label="Flight number" value={flight.number} />
-          <Detail label="Local departure time" time={flight.departureTime} />
-          <Detail label="Local arrival time" time={flight.arrivalTime} />
+          <Detail label="Local departure time" time={flight.departureTime} compact={compact} />
+          <Detail label="Local arrival time" time={flight.arrivalTime} compact={compact} />
+          <Detail label="Flight number" value={flight.number} compact={compact} />
         </>
       )}
       {lodging && (
         <>
-          <Detail label="Local check-in" date={lodging.checkInDate} time={lodging.checkIn} />
-          <Detail label="Local check-out" date={lodging.checkOutDate} time={lodging.checkOut} />
+          <Detail
+            label="Local check-in"
+            date={lodging.checkInDate}
+            time={lodging.checkIn}
+            compact={compact}
+          />
+          <Detail
+            label="Local check-out"
+            date={lodging.checkOutDate}
+            time={lodging.checkOut}
+            compact={compact}
+          />
         </>
       )}
     </dl>
@@ -59,7 +89,7 @@ export function TravelEntryDetails({ entry }: { entry: EntryFields }) {
 }
 
 export function ItineraryTravelSummary({ id, entries }: { id: string; entries: TravelEntry[] }) {
-  const { formatExpenseDate } = useLocaleFormatters();
+  const { formatExpenseDateShort } = useLocaleFormatters();
   const travel = entries
     .filter((entry) => entry.kind !== "event")
     .sort(
@@ -69,23 +99,22 @@ export function ItineraryTravelSummary({ id, entries }: { id: string; entries: T
   if (!travel.length) return null;
 
   return (
-    <Disclosure label="Flights and lodging">
-      <div className="grid gap-6 sm:grid-cols-2">
-        {(
-          [
-            ["flight", "Flights"],
-            ["lodging", "Lodging"],
-          ] as const
-        ).map(([kind, label]) => {
-          const items = travel.filter((entry) => entry.kind === kind);
-          return (
-            <section key={kind} className="min-w-0">
-              <SectionTitle>{label}</SectionTitle>
-              {items.length ? (
-                <ul className="mt-2 divide-y divide-rule">
-                  {items.map((entry) => (
-                    <li key={entry.id} className="flex flex-col gap-2 py-3">
-                      <GroupTitle>
+    <Panel className="divide-y divide-rule">
+      {(
+        [
+          { kind: "flight", label: "Flights", icon: Plane, empty: "No flights added." },
+          { kind: "lodging", label: "Lodging", icon: BedDouble, empty: "No lodging added." },
+        ] as const
+      ).map(({ kind, label, icon, empty }) => {
+        const items = travel.filter((entry) => entry.kind === kind);
+        return (
+          <Disclosure key={kind} label={label} icon={icon}>
+            {items.length ? (
+              <ul className="flex flex-col gap-4">
+                {items.map((entry) => (
+                  <li key={entry.id} className="flex min-w-0 flex-col gap-1.5">
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <GroupTitle className="min-w-0 break-words">
                         <Link
                           to="/itineraries/$id"
                           params={{ id }}
@@ -95,22 +124,23 @@ export function ItineraryTravelSummary({ id, entries }: { id: string; entries: T
                           {entry.title}
                         </Link>
                       </GroupTitle>
-                      <time dateTime={entry.date} className="text-sm text-ink-soft">
-                        {formatExpenseDate(entry.date)}
+                      <time
+                        dateTime={entry.date}
+                        className="ms-auto text-end text-xs text-ink-soft"
+                      >
+                        {formatExpenseDateShort(entry.date)}
                       </time>
-                      <TravelEntryDetails entry={entry} />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-ink-soft">
-                  {kind === "flight" ? "No flights added." : "No lodging added."}
-                </p>
-              )}
-            </section>
-          );
-        })}
-      </div>
-    </Disclosure>
+                    </div>
+                    <TravelEntryDetails entry={entry} compact />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-soft">{empty}</p>
+            )}
+          </Disclosure>
+        );
+      })}
+    </Panel>
   );
 }

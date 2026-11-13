@@ -1,17 +1,25 @@
 import type { ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
-import { Panel } from "@/components/ui/Page";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 
-export function Disclosure({ label, children }: { label: string; children: ReactNode }) {
+export function Disclosure({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  children: ReactNode;
+}) {
   return (
-    <Panel>
-      <details>
-        <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-5 py-3 font-display text-lg font-semibold text-ink transition hover:bg-wash active:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest [&::-webkit-details-marker]:hidden">
+    <details>
+      <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-4 py-2 font-display text-base font-semibold text-ink transition hover:bg-wash active:bg-wash focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center gap-3">
+          {Icon && <Icon aria-hidden="true" className="size-4 shrink-0 text-forest" />}
           {label}
-          <ChevronDown aria-hidden="true" className="size-5 shrink-0 chevron-flip" />
-        </summary>
-        <div className="border-t border-rule p-5 sm:p-6">{children}</div>
-      </details>
-    </Panel>
+        </span>
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-ink-soft chevron-flip" />
+      </summary>
+      <div className="px-4 pt-1 pb-4">{children}</div>
+    </details>
   );
 }

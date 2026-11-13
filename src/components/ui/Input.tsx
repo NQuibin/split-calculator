@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
+import { DropdownChevron } from "@/components/ui/DropdownChevron";
 import { cn } from "@/lib/utils";
 
 /**
@@ -46,7 +47,18 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
 }
 
 export function Select({ className, ...props }: ComponentProps<"select">) {
-  return <select data-slot="select" className={cn(fieldClass, className)} {...props} />;
+  return (
+    <div className="relative min-w-0">
+      <select
+        data-slot="select"
+        className={cn(fieldClass, "appearance-none pe-9", className)}
+        {...props}
+      />
+      <span className="pointer-events-none absolute inset-y-0 inset-e-3 flex items-center">
+        <DropdownChevron />
+      </span>
+    </div>
+  );
 }
 
 /** A field label. Pair with the control's id, or wrap the control. */
