@@ -132,8 +132,20 @@ export default defineSchema({
     kind: v.union(v.literal("flight"), v.literal("lodging"), v.literal("event")),
     details: v.string(),
     location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
+    lodging: v.optional(
+      v.object({
+        checkIn: v.optional(v.string()),
+        checkOut: v.optional(v.string()),
+        checkInDate: v.optional(v.string()),
+        checkOutDate: v.optional(v.string()),
+      }),
+    ),
     flight: v.optional(
-      v.object({ number: v.optional(v.string()), departureTime: v.optional(v.string()) }),
+      v.object({
+        number: v.optional(v.string()),
+        departureTime: v.optional(v.string()),
+        arrivalTime: v.optional(v.string()),
+      }),
     ),
   })
     .index("by_itinerary", ["itineraryId"])

@@ -14,8 +14,20 @@ const entryValidator = v.object({
   kind: v.union(v.literal("flight"), v.literal("lodging"), v.literal("event")),
   details: v.string(),
   location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
+  lodging: v.optional(
+    v.object({
+      checkIn: v.optional(v.string()),
+      checkOut: v.optional(v.string()),
+      checkInDate: v.optional(v.string()),
+      checkOutDate: v.optional(v.string()),
+    }),
+  ),
   flight: v.optional(
-    v.object({ number: v.optional(v.string()), departureTime: v.optional(v.string()) }),
+    v.object({
+      number: v.optional(v.string()),
+      departureTime: v.optional(v.string()),
+      arrivalTime: v.optional(v.string()),
+    }),
   ),
 });
 const MAX_ENTRIES = 500;
@@ -60,7 +72,7 @@ function normalizeLocation(entry: {
   if (!entry.location) return undefined;
   const name = entry.location.name.trim();
   const url = entry.location.url?.trim();
-  if (entry.kind !== "event") throw new ConvexError("Location is only allowed for events");
+  if (entry.kind === "flight") throw new ConvexError("Location is not allowed for flights");
   if (!name) {
     if (url) throw new ConvexError("A location URL requires a location name");
     return undefined;
@@ -81,21 +93,67 @@ function normalizeLocation(entry: {
   return { name, ...(url ? { url } : {}) };
 }
 
+function normalizeLodging(entry: {
+  kind: "flight" | "lodging" | "event";
+  lodging?: {
+    checkIn?: string;
+    checkOut?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
+  };
+}) {
+  if (!entry.lodging) return undefined;
+  if (entry.kind !== "lodging")
+    throw new ConvexError("Lodging details are only allowed for lodging");
+  const checkIn = entry.lodging.checkIn?.trim();
+  const checkOut = entry.lodging.checkOut?.trim();
+  const checkInDate = entry.lodging.checkInDate?.trim();
+  const checkOutDate = entry.lodging.checkOutDate?.trim();
+  for (const value of [checkIn, checkOut]) {
+    if (value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+      throw new ConvexError("Check-in and check-out times must be valid 24-hour HH:mm values");
+    }
+  }
+  for (const value of [checkInDate, checkOutDate]) {
+    if (value && !isValidISODate(value)) {
+      throw new ConvexError("Check-in and check-out dates must be valid YYYY-MM-DD values");
+    }
+  }
+  if (checkInDate && checkOutDate && checkOutDate < checkInDate) {
+    throw new ConvexError("Check-out date must be on or after check-in date");
+  }
+  if (!checkIn && !checkOut && !checkInDate && !checkOutDate) return undefined;
+  return {
+    ...(checkIn ? { checkIn } : {}),
+    ...(checkOut ? { checkOut } : {}),
+    ...(checkInDate ? { checkInDate } : {}),
+    ...(checkOutDate ? { checkOutDate } : {}),
+  };
+}
+
 function normalizeFlight(entry: {
   kind: "flight" | "lodging" | "event";
-  flight?: { number?: string; departureTime?: string };
+  flight?: { number?: string; departureTime?: string; arrivalTime?: string };
 }) {
   if (!entry.flight) return undefined;
   if (entry.kind !== "flight") throw new ConvexError("Flight details are only allowed for flights");
   const number = entry.flight.number?.trim();
   const departureTime = entry.flight.departureTime?.trim();
+  const arrivalTime = entry.flight.arrivalTime?.trim();
   if (number && number.length > 32)
     throw new ConvexError("Flight number must be at most 32 characters");
   if (departureTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(departureTime)) {
     throw new ConvexError("Departure time must be a valid 24-hour HH:mm value");
   }
-  if (!number && !departureTime) return undefined;
-  return { ...(number ? { number } : {}), ...(departureTime ? { departureTime } : {}) };
+  if (arrivalTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(arrivalTime)) {
+    throw new ConvexError("Arrival time must be a valid 24-hour HH:mm value");
+  }
+  if (!number && !departureTime && !arrivalTime) return undefined;
+  return {
+    ...(number ? { number } : {}),
+    ...(departureTime ? { departureTime } : {}),
+    ...(arrivalTime ? { arrivalTime } : {}),
+  };
 }
 
 async function ownedItinerary(ctx: QueryCtx | MutationCtx, id: Id<"itineraries">) {
@@ -142,16 +200,19 @@ export const get = query({
       title: doc.title,
       startDate: doc.startDate,
       endDate: doc.endDate,
-      entries: entries.map(({ entryId, date, time, title, kind, details, location, flight }) => ({
-        id: entryId,
-        date,
-        time,
-        title,
-        kind,
-        details,
-        location,
-        flight,
-      })),
+      entries: entries.map(
+        ({ entryId, date, time, title, kind, details, location, flight, lodging }) => ({
+          id: entryId,
+          date,
+          time,
+          title,
+          kind,
+          details,
+          location,
+          flight,
+          lodging,
+        }),
+      ),
     };
   },
 });
@@ -193,7 +254,8 @@ export const saveEntry = mutation({
     validateEntry(entry, itinerary.startDate, itinerary.endDate);
     const location = normalizeLocation(entry);
     const flight = normalizeFlight(entry);
-    const savedEntry = { ...entry, location, flight };
+    const lodging = normalizeLodging(entry);
+    const savedEntry = { ...entry, location, flight, lodging };
     const existing = entryId
       ? await ctx.db
           .query("itineraryEntries")

@@ -110,7 +110,7 @@ export function TripDialog({
 const entryHints = {
   event: "Cost or plans for the day",
   flight: "Airline, airports, or arrival details",
-  lodging: "Property, address, and check-in or checkout details",
+  lodging: "Booking or arrival instructions",
 };
 
 export function EntryDialog({
@@ -129,6 +129,7 @@ export function EntryDialog({
   onSave: (fields: EntryFields) => Promise<void>;
 }) {
   const [kind, setKind] = useState<keyof typeof entryKinds>(entry?.kind ?? "event");
+  const hasLocation = kind !== "flight";
   return (
     <EditorDialog
       title={entry ? "Edit timeline entry" : "Add timeline entry"}
@@ -136,11 +137,16 @@ export function EntryDialog({
       onSave={async (form) => {
         const name = String(form.get("locationName") ?? "").trim();
         const url = String(form.get("locationUrl") ?? "").trim();
-        if (kind === "event" && url && !name) {
+        if (hasLocation && url && !name) {
           throw new ConvexError("Enter a location name or address for the link.");
         }
         const number = String(form.get("flightNumber") ?? "").trim();
         const departureTime = String(form.get("departureTime") ?? "");
+        const arrivalTime = String(form.get("arrivalTime") ?? "");
+        const checkInDate = String(form.get("checkInDate") ?? "");
+        const checkOutDate = String(form.get("checkOutDate") ?? "");
+        const checkIn = String(form.get("checkIn") ?? "");
+        const checkOut = String(form.get("checkOut") ?? "");
         await onSave({
           title: String(form.get("title")).trim(),
           date: String(form.get("date")),
@@ -148,10 +154,23 @@ export function EntryDialog({
           kind,
           details: String(form.get("details")).trim(),
           flight:
-            kind === "flight" && (number || departureTime)
-              ? { number: number || undefined, departureTime: departureTime || undefined }
+            kind === "flight" && (number || departureTime || arrivalTime)
+              ? {
+                  number: number || undefined,
+                  departureTime: departureTime || undefined,
+                  arrivalTime: arrivalTime || undefined,
+                }
               : undefined,
-          location: kind === "event" && name ? { name, ...(url && { url }) } : undefined,
+          lodging:
+            kind === "lodging" && (checkIn || checkOut || checkInDate || checkOutDate)
+              ? {
+                  checkIn: checkIn || undefined,
+                  checkOut: checkOut || undefined,
+                  checkInDate: checkInDate || undefined,
+                  checkOutDate: checkOutDate || undefined,
+                }
+              : undefined,
+          location: hasLocation && name ? { name, ...(url && { url }) } : undefined,
         });
       }}
     >
@@ -197,7 +216,11 @@ export function EntryDialog({
       >
         <legend className="text-sm font-semibold text-ink">Flight details</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field htmlFor="entry-flight-number" label="Flight number (optional)">
+          <Field
+            htmlFor="entry-flight-number"
+            label="Flight number (optional)"
+            className="sm:col-span-2"
+          >
             <Input
               id="entry-flight-number"
               name="flightNumber"
@@ -213,15 +236,25 @@ export function EntryDialog({
               defaultValue={entry?.flight?.departureTime}
             />
           </Field>
+          <Field htmlFor="entry-arrival-time" label="Local arrival time (optional)">
+            <Input
+              id="entry-arrival-time"
+              name="arrivalTime"
+              type="time"
+              defaultValue={entry?.flight?.arrivalTime}
+            />
+          </Field>
         </div>
       </fieldset>
-      <div hidden={kind !== "event"} className="space-y-4">
+      <fieldset hidden={!hasLocation} disabled={!hasLocation} className="space-y-4">
+        <legend className={kind === "lodging" ? "mb-2 text-sm font-semibold text-ink" : "sr-only"}>
+          {kind === "lodging" ? "Lodging details" : "Event location"}
+        </legend>
         <Field htmlFor="entry-location" label="Location or address (optional)">
           <Input
             id="entry-location"
             name="locationName"
             defaultValue={entry?.location?.name}
-            disabled={kind !== "event"}
             maxLength={200}
           />
         </Field>
@@ -231,12 +264,51 @@ export function EntryDialog({
             name="locationUrl"
             type="url"
             defaultValue={entry?.location?.url}
-            disabled={kind !== "event"}
             maxLength={2000}
             placeholder="https://"
           />
         </Field>
-      </div>
+        <div hidden={kind !== "lodging"}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field htmlFor="entry-check-in-date" label="Check-in date (optional)">
+              <Input
+                id="entry-check-in-date"
+                name="checkInDate"
+                type="date"
+                defaultValue={entry?.lodging?.checkInDate}
+                disabled={kind !== "lodging"}
+              />
+            </Field>
+            <Field htmlFor="entry-check-in" label="Local check-in time (optional)">
+              <Input
+                id="entry-check-in"
+                name="checkIn"
+                type="time"
+                defaultValue={entry?.lodging?.checkIn}
+                disabled={kind !== "lodging"}
+              />
+            </Field>
+            <Field htmlFor="entry-check-out-date" label="Check-out date (optional)">
+              <Input
+                id="entry-check-out-date"
+                name="checkOutDate"
+                type="date"
+                defaultValue={entry?.lodging?.checkOutDate}
+                disabled={kind !== "lodging"}
+              />
+            </Field>
+            <Field htmlFor="entry-check-out" label="Local check-out time (optional)">
+              <Input
+                id="entry-check-out"
+                name="checkOut"
+                type="time"
+                defaultValue={entry?.lodging?.checkOut}
+                disabled={kind !== "lodging"}
+              />
+            </Field>
+          </div>
+        </div>
+      </fieldset>
       <Field htmlFor="entry-details" label="Details (optional)">
         <Textarea
           id="entry-details"

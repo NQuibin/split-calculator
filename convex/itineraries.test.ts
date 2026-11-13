@@ -115,7 +115,7 @@ test("date, time, and itinerary ranges are validated", async () => {
   ).rejects.toThrow("HH:mm");
 });
 
-test("event locations are trimmed, returned, cleared, and validated", async () => {
+test("event and lodging locations are trimmed; flight locations are rejected", async () => {
   const { alex } = await setup();
   const id = await alex.mutation(api.itineraries.create, {
     title: "Trip",
@@ -148,6 +148,21 @@ test("event locations are trimmed, returned, cleared, and validated", async () =
   });
   expect((await alex.query(api.itineraries.get, { id }))?.entries[0].location).toBeUndefined();
 
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: {
+      date: "2026-12-01",
+      time: "",
+      title: "Hotel",
+      kind: "lodging",
+      details: "",
+      location: { name: "  Hotel  " },
+    },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[1].location).toEqual({
+    name: "Hotel",
+  });
+
   await expect(
     alex.mutation(api.itineraries.saveEntry, {
       id,
@@ -174,6 +189,67 @@ test("event locations are trimmed, returned, cleared, and validated", async () =
       },
     }),
   ).rejects.toThrow("requires a location name");
+});
+
+test("lodging times are normalized, validated, returned, and cleared", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: {
+      date: "2026-12-01",
+      time: "",
+      title: "Hotel",
+      kind: "lodging",
+      details: "",
+      lodging: { checkIn: " 15:00 ", checkOut: "11:30" },
+    },
+  });
+  const saved = (await alex.query(api.itineraries.get, { id }))?.entries[0];
+  expect(saved?.lodging).toEqual({ checkIn: "15:00", checkOut: "11:30" });
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: {
+        date: "2026-12-01",
+        time: "",
+        title: "Hotel",
+        kind: "lodging",
+        details: "",
+        lodging: { checkIn: "24:00" },
+      },
+    }),
+  ).rejects.toThrow("HH:mm");
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: {
+        date: "2026-12-01",
+        time: "",
+        title: "Event",
+        kind: "event",
+        details: "",
+        lodging: { checkIn: "15:00" },
+      },
+    }),
+  ).rejects.toThrow("only allowed for lodging");
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: saved?.id,
+    entry: {
+      date: "2026-12-01",
+      time: "",
+      title: "Hotel",
+      kind: "lodging",
+      details: "",
+      lodging: { checkIn: " ", checkOut: "" },
+    },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].lodging).toBeUndefined();
 });
 
 test("flight details are normalized, independently optional, and cleared on save", async () => {
@@ -252,6 +328,64 @@ test("flight details enforce flight number length, departure time, and entry kin
       entry: { ...base, kind: "event", flight: { number: "AC 1" } },
     }),
   ).rejects.toThrow("only allowed for flights");
+});
+
+test("flight arrival time is validated and lodging dates allow bookings outside the itinerary", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = { date: "2026-12-01", time: "", title: "Entry", details: "" };
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: { ...base, kind: "flight", flight: { arrivalTime: " 23:59 " } },
+  });
+  const flight = (await alex.query(api.itineraries.get, { id }))?.entries[0];
+  expect(flight?.flight).toEqual({ arrivalTime: "23:59" });
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, kind: "flight", flight: { arrivalTime: "24:00" } },
+    }),
+  ).rejects.toThrow("HH:mm");
+
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: {
+      ...base,
+      kind: "lodging",
+      lodging: { checkInDate: "2026-11-30", checkOutDate: "2026-12-04" },
+    },
+  });
+  const lodging = (await alex.query(api.itineraries.get, { id }))?.entries[1];
+  expect(lodging?.lodging).toEqual({ checkInDate: "2026-11-30", checkOutDate: "2026-12-04" });
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, kind: "lodging", lodging: { checkInDate: "2026-02-30" } },
+    }),
+  ).rejects.toThrow("YYYY-MM-DD");
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: {
+        ...base,
+        kind: "lodging",
+        lodging: { checkInDate: "2026-12-03", checkOutDate: "2026-12-02" },
+      },
+    }),
+  ).rejects.toThrow("on or after");
+
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: lodging?.id,
+    entry: { ...base, kind: "lodging", lodging: { checkInDate: "2026-11-30" } },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[1].lodging).toEqual({
+    checkInDate: "2026-11-30",
+  });
 });
 
 test("older itinerary entries without locations remain readable", async () => {

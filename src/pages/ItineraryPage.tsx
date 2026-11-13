@@ -5,6 +5,7 @@ import { useConvexAuth, useMutation } from "convex/react";
 import { BedDouble, CalendarDays, MapPin, Pencil, Plane, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
+import { ItineraryTravelSummary, TravelEntryDetails } from "@/components/ItineraryTravelSummary";
 import { EntryDialog, TripDialog } from "@/components/ItineraryDialogs";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { Button, buttonVariants } from "@/components/ui/Button";
@@ -150,6 +151,8 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
               <Pencil aria-hidden="true" /> Edit itinerary
             </Button>
           </header>
+
+          <ItineraryTravelSummary id={id} entries={trip.entries} />
 
           <Panel className="flex flex-col gap-5 p-5 sm:p-6">
             <ItineraryDays
@@ -297,26 +300,14 @@ function TimelineEntry({
         {entry.kind === "flight" && entry.flight && (
           <div className="col-span-full mt-3 border-t border-rule pt-3">
             <GroupTitle as="h4">Flight details</GroupTitle>
-            <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              {entry.flight.number && (
-                <div className="min-w-0">
-                  <dt className="text-ink-soft">Flight number</dt>
-                  <dd className="font-numeric break-words text-ink">{entry.flight.number}</dd>
-                </div>
-              )}
-              {entry.flight.departureTime && (
-                <div>
-                  <dt className="text-ink-soft">Local departure time</dt>
-                  <dd className="font-numeric text-ink">
-                    <time dateTime={entry.flight.departureTime}>{entry.flight.departureTime}</time>
-                  </dd>
-                </div>
-              )}
-            </dl>
+            <div className="mt-2">
+              <TravelEntryDetails entry={entry} />
+            </div>
           </div>
         )}
-        {(entry.location || entry.details) && (
+        {(entry.location || entry.lodging) && (
           <div className="col-span-full mt-3 flex flex-col gap-2 border-t border-rule pt-3">
+            {entry.kind === "lodging" && <GroupTitle as="h4">Lodging details</GroupTitle>}
             {entry.location && (
               <div className="flex items-start gap-2 text-sm text-ink">
                 <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-forest" />
@@ -332,10 +323,16 @@ function TimelineEntry({
                 )}
               </div>
             )}
-            {entry.details && (
+            {entry.lodging && <TravelEntryDetails entry={entry} />}
+            {entry.kind !== "lodging" && entry.details && (
               <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.details}</p>
             )}
           </div>
+        )}
+        {entry.details && (entry.kind === "lodging" || !entry.location) && (
+          <p className="col-span-full mt-3 whitespace-pre-wrap break-words border-t border-rule pt-3 text-sm text-ink">
+            {entry.details}
+          </p>
         )}
       </div>
     </li>

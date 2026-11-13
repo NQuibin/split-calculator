@@ -36,11 +36,25 @@ vi.mock("@tanstack/react-query", () => ({
       entries: costaRica.entries.map((entry, index) => ({
         ...entry,
         id: String(index),
-        flight: entry.kind === "flight" ? { number: "AC 123", departureTime: "08:15" } : undefined,
+        flight:
+          entry.kind === "flight"
+            ? { number: "AC 123", departureTime: "08:15", arrivalTime: "12:35" }
+            : undefined,
+        lodging:
+          entry.title === "Airbnb check-in"
+            ? {
+                checkIn: "18:00",
+                checkOut: "10:00",
+                checkInDate: "2026-11-17",
+                checkOutDate: "2026-11-22",
+              }
+            : undefined,
         location:
           entry.title === "La Fortuna Waterfall"
             ? { name: "La Fortuna Waterfall entrance", url: "https://example.com/waterfall" }
-            : undefined,
+            : entry.title === "Airbnb check-in"
+              ? { name: "La Fortuna lodging", url: "https://example.com/lodging" }
+              : undefined,
       })),
     },
   }),
@@ -76,21 +90,38 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(days[1].classList.contains("border-forest")).toBe(true);
     expect(days[1].classList.contains("border-transparent")).toBe(false);
     expect(container.textContent).toContain("Arrive at Liberia Airport");
-    const flightDetails = container.querySelector("dl");
+    const summary = container.querySelector("details");
+    expect(summary?.open).toBe(false);
+    expect(summary?.querySelector("summary")?.textContent).toBe("Flights and lodging");
+    expect(summary?.textContent).toContain("Local arrival time12:35");
+    expect(summary?.querySelector('time[datetime="2026-11-22"]')).not.toBeNull();
+    expect(summary?.textContent).not.toContain("La Fortuna Waterfall");
+    const timeline = container.querySelector('section[aria-labelledby="timeline-heading"]');
+    const flightDetails = timeline?.querySelector("dl");
     expect(flightDetails?.textContent).toContain("Flight numberAC 123");
     expect(flightDetails?.querySelector("time")?.dateTime).toBe("08:15");
     expect(container.querySelector('time[datetime="2026-11-17T12:35"]')?.textContent).toBe("12:35");
     expect(container.textContent).toContain("Airbnb check-in");
-    const lodgingRow = Array.from(container.querySelectorAll("li")).find((row) =>
+    const lodgingRow = Array.from(timeline?.querySelectorAll("li") ?? []).find((row) =>
       row.textContent?.includes("Airbnb check-in"),
     );
     expect(lodgingRow?.textContent).toContain("Freshen up.");
-    expect(lodgingRow?.textContent).not.toContain("Details");
+    expect(lodgingRow?.textContent).toContain("Lodging details");
+    expect(lodgingRow?.querySelector('a[href="https://example.com/lodging"]')?.textContent).toBe(
+      "La Fortuna lodging",
+    );
+    expect(lodgingRow?.querySelector("dl")?.textContent).toContain(
+      "Local check-inNov 17, 202618:00",
+    );
+    expect(lodgingRow?.querySelector("dl")?.textContent).toContain(
+      "Local check-outNov 22, 202610:00",
+    );
     expect(container.textContent).not.toContain("La Fortuna Waterfall");
 
     expect(days[1].getAttribute("href")).toBe("/itineraries/trip?day=2026-11-18");
     await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
-    expect(container.textContent).not.toContain("Arrive at Liberia Airport");
+    expect(timeline?.textContent).not.toContain("Arrive at Liberia Airport");
+    expect(summary?.textContent).toContain("Arrive at Liberia Airport");
     expect(container.textContent).not.toContain("Flight details");
     expect(container.textContent).toContain("La Fortuna Waterfall");
     const location = container.querySelector('a[href="https://example.com/waterfall"]');

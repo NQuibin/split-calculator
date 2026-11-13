@@ -8,6 +8,7 @@ export const costaRica = {
       time: "12:35",
       title: "Arrive at Liberia Airport",
       kind: "flight",
+      flight: { arrivalTime: "12:35" },
       details: "",
     },
     {
@@ -36,6 +37,7 @@ export const costaRica = {
       time: "18:00",
       title: "Airbnb check-in",
       kind: "lodging",
+      lodging: { checkInDate: "2026-11-17", checkIn: "18:00" },
       details: "Freshen up.",
     },
     {
@@ -244,6 +246,12 @@ export const costaRica = {
       time: "16:00",
       title: "Check in at Occidental Papagayo",
       kind: "lodging",
+      lodging: {
+        checkInDate: "2026-11-22",
+        checkIn: "16:00",
+        checkOutDate: "2026-11-24",
+        checkOut: "11:00",
+      },
       details: "",
     },
     {
@@ -259,6 +267,12 @@ export const costaRica = {
       time: "11:00",
       title: "Check out of Occidental Papagayo",
       kind: "lodging",
+      lodging: {
+        checkInDate: "2026-11-22",
+        checkIn: "16:00",
+        checkOutDate: "2026-11-24",
+        checkOut: "11:00",
+      },
       details: "",
     },
   ],
@@ -272,5 +286,7 @@ export const costaRica = {
     title: string;
     kind: "flight" | "lodging" | "event";
     details: string;
+    flight?: { arrivalTime: string };
+    lodging?: { checkInDate?: string; checkIn?: string; checkOutDate?: string; checkOut?: string };
   }[];
 };
