@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Menu, Settings, Users, Wallet, X } from "lucide-react";
+import { CalendarDays, Menu, Settings, Users, Wallet, X } from "lucide-react";
 import wordmark from "@/assets/wordmark.svg";
 import { Button } from "@/components/ui/Button";
 import { SidebarAccount } from "@/components/SidebarAccount";
@@ -139,6 +139,12 @@ export function Sidebar() {
               href: "/tabs",
               icon: Wallet,
               active: pathname === "/" || isActive(pathname, "/tabs") || isActive(pathname, "/t"),
+            },
+            {
+              label: "Itineraries",
+              href: "/itineraries",
+              icon: CalendarDays,
+              active: isActive(pathname, "/itineraries"),
             },
             {
               label: "Friends",

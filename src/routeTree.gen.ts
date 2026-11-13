@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FriendsRouteImport } from './routes/friends'
+import { Route as ItinerariesRouteImport } from './routes/itineraries'
 import { Route as SRouteImport } from './routes/s'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TabsRouteImport } from './routes/tabs'
 import { Route as ESlugRouteImport } from './routes/e.$slug'
+import { Route as ItinerariesIdRouteImport } from './routes/itineraries_.$id'
 import { Route as TSlugIndexRouteImport } from './routes/t.$slug.index'
 import { Route as TSlugBreakdownRouteImport } from './routes/t.$slug.breakdown'
 import { Route as TSlugHistoryRouteImport } from './routes/t.$slug.history'
@@ -28,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
 const FriendsRoute = FriendsRouteImport.update({
   id: '/friends',
   path: '/friends',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItinerariesRoute = ItinerariesRouteImport.update({
+  id: '/itineraries',
+  path: '/itineraries',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SRoute = SRouteImport.update({
@@ -48,6 +55,11 @@ const TabsRoute = TabsRouteImport.update({
 const ESlugRoute = ESlugRouteImport.update({
   id: '/e/$slug',
   path: '/e/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItinerariesIdRoute = ItinerariesIdRouteImport.update({
+  id: '/itineraries_/$id',
+  path: '/itineraries/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TSlugIndexRoute = TSlugIndexRouteImport.update({
@@ -74,10 +86,12 @@ const TSlugPaymentRoute = TSlugPaymentRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/friends': typeof FriendsRoute
+  '/itineraries': typeof ItinerariesRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/itineraries/$id': typeof ItinerariesIdRoute
   '/t/$slug/breakdown': typeof TSlugBreakdownRoute
   '/t/$slug/history': typeof TSlugHistoryRoute
   '/t/$slug/payment': typeof TSlugPaymentRoute
@@ -86,10 +100,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/friends': typeof FriendsRoute
+  '/itineraries': typeof ItinerariesRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/itineraries/$id': typeof ItinerariesIdRoute
   '/t/$slug/breakdown': typeof TSlugBreakdownRoute
   '/t/$slug/history': typeof TSlugHistoryRoute
   '/t/$slug/payment': typeof TSlugPaymentRoute
@@ -99,10 +115,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/friends': typeof FriendsRoute
+  '/itineraries': typeof ItinerariesRoute
   '/s': typeof SRoute
   '/settings': typeof SettingsRoute
   '/tabs': typeof TabsRoute
   '/e/$slug': typeof ESlugRoute
+  '/itineraries_/$id': typeof ItinerariesIdRoute
   '/t/$slug/breakdown': typeof TSlugBreakdownRoute
   '/t/$slug/history': typeof TSlugHistoryRoute
   '/t/$slug/payment': typeof TSlugPaymentRoute
@@ -113,10 +131,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/friends'
+    | '/itineraries'
     | '/s'
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/itineraries/$id'
     | '/t/$slug/breakdown'
     | '/t/$slug/history'
     | '/t/$slug/payment'
@@ -125,10 +145,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/friends'
+    | '/itineraries'
     | '/s'
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/itineraries/$id'
     | '/t/$slug/breakdown'
     | '/t/$slug/history'
     | '/t/$slug/payment'
@@ -137,10 +159,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/friends'
+    | '/itineraries'
     | '/s'
     | '/settings'
     | '/tabs'
     | '/e/$slug'
+    | '/itineraries_/$id'
     | '/t/$slug/breakdown'
     | '/t/$slug/history'
     | '/t/$slug/payment'
@@ -150,10 +174,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FriendsRoute: typeof FriendsRoute
+  ItinerariesRoute: typeof ItinerariesRoute
   SRoute: typeof SRoute
   SettingsRoute: typeof SettingsRoute
   TabsRoute: typeof TabsRoute
   ESlugRoute: typeof ESlugRoute
+  ItinerariesIdRoute: typeof ItinerariesIdRoute
   TSlugBreakdownRoute: typeof TSlugBreakdownRoute
   TSlugHistoryRoute: typeof TSlugHistoryRoute
   TSlugPaymentRoute: typeof TSlugPaymentRoute
@@ -174,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/friends'
       fullPath: '/friends'
       preLoaderRoute: typeof FriendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/itineraries': {
+      id: '/itineraries'
+      path: '/itineraries'
+      fullPath: '/itineraries'
+      preLoaderRoute: typeof ItinerariesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s': {
@@ -202,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/e/$slug'
       fullPath: '/e/$slug'
       preLoaderRoute: typeof ESlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/itineraries_/$id': {
+      id: '/itineraries_/$id'
+      path: '/itineraries/$id'
+      fullPath: '/itineraries/$id'
+      preLoaderRoute: typeof ItinerariesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/t/$slug/': {
@@ -238,10 +278,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FriendsRoute: FriendsRoute,
+  ItinerariesRoute: ItinerariesRoute,
   SRoute: SRoute,
   SettingsRoute: SettingsRoute,
   TabsRoute: TabsRoute,
   ESlugRoute: ESlugRoute,
+  ItinerariesIdRoute: ItinerariesIdRoute,
   TSlugBreakdownRoute: TSlugBreakdownRoute,
   TSlugHistoryRoute: TSlugHistoryRoute,
   TSlugPaymentRoute: TSlugPaymentRoute,

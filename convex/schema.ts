@@ -114,6 +114,30 @@ export default defineSchema({
     shareToken: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
+  itineraries: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+    importedCostaRica: v.optional(v.boolean()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_importedCostaRica", ["userId", "importedCostaRica"]),
+  itineraryEntries: defineTable({
+    itineraryId: v.id("itineraries"),
+    entryId: v.string(),
+    date: v.string(),
+    time: v.string(),
+    title: v.string(),
+    kind: v.union(v.literal("flight"), v.literal("lodging"), v.literal("event")),
+    details: v.string(),
+    location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
+    flight: v.optional(
+      v.object({ number: v.optional(v.string()), departureTime: v.optional(v.string()) }),
+    ),
+  })
+    .index("by_itinerary", ["itineraryId"])
+    .index("by_itinerary_and_entryId", ["itineraryId", "entryId"]),
   /** Stable identity for splits and payments. Claiming only sets userId. */
   tabMembers: defineTable({
     tabId: v.id("tabs"),

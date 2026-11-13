@@ -14,6 +14,7 @@ import type * as expenseMembers from "../expenseMembers.js";
 import type * as expenses from "../expenses.js";
 import type * as http from "../http.js";
 import type * as imageFormats from "../imageFormats.js";
+import type * as itineraries from "../itineraries.js";
 import type * as otp_PasswordOTP from "../otp/PasswordOTP.js";
 import type * as otp_ResendOTP from "../otp/ResendOTP.js";
 import type * as payerMigration from "../payerMigration.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   expenses: typeof expenses;
   http: typeof http;
   imageFormats: typeof imageFormats;
+  itineraries: typeof itineraries;
   "otp/PasswordOTP": typeof otp_PasswordOTP;
   "otp/ResendOTP": typeof otp_ResendOTP;
   payerMigration: typeof payerMigration;
