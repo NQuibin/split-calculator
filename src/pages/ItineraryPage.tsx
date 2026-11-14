@@ -2,7 +2,37 @@ import { convexQuery } from "@convex-dev/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useConvexAuth, useMutation } from "convex/react";
-import { BedDouble, CalendarDays, MapPin, Pencil, Plane, Plus, Trash2 } from "lucide-react";
+import {
+  BedDouble,
+  CalendarDays,
+  Bus,
+  Car,
+  Footprints,
+  Hotel,
+  House,
+  Route as RouteIcon,
+  Ship,
+  TrainFront,
+  Cookie,
+  Egg,
+  IceCreamCone,
+  Map as MapIcon,
+  Mountain,
+  Sandwich,
+  Store,
+  Building2,
+  GalleryHorizontal,
+  type LucideIcon,
+  Compass,
+  Landmark,
+  ShoppingBag,
+  Utensils,
+  MapPin,
+  Pencil,
+  Plane,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { ItineraryTravelSummary, TravelEntryDetails } from "@/components/ItineraryTravelSummary";
@@ -14,12 +44,44 @@ import { OverflowAction, OverflowMenu } from "@/components/ui/OverflowMenu";
 import { EmptyState, Page, Panel } from "@/components/ui/Page";
 import { GroupTitle, PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { isValidISODate, todayISODate } from "@/lib/format";
-import { type EntryFields, entryKinds } from "@/lib/itinerary";
+import type { EntryFields } from "@/lib/itinerary";
+import { entryKinds, subtypeLabel } from "@/lib/itineraryCategories";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { cn } from "@/lib/utils";
 
 type Entry = EntryFields & { id: string };
-const entryIcons = { event: CalendarDays, flight: Plane, lodging: BedDouble };
+const entryIcons = {
+  event: CalendarDays,
+  travel: RouteIcon,
+  lodging: BedDouble,
+  food: Utensils,
+  activity: Compass,
+  attraction: Landmark,
+  shop: ShoppingBag,
+};
+
+const subtypeIcons: Partial<Record<string, LucideIcon>> = {
+  flight: Plane,
+  bus: Bus,
+  train: TrainFront,
+  ferry: Ship,
+  car: Car,
+  walk: Footprints,
+  hotel: Hotel,
+  bnb: House,
+  hostel: BedDouble,
+  breakfast: Egg,
+  lunch: Sandwich,
+  dinner: Utensils,
+  snack: Cookie,
+  dessert: IceCreamCone,
+  museum: GalleryHorizontal,
+  tour: MapIcon,
+  viewpoint: Mountain,
+  landmark: Landmark,
+  mall: Building2,
+  standalone: Store,
+};
 
 function ItineraryDays({
   startDate,
@@ -250,7 +312,8 @@ function TimelineEntry({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const Icon = entryIcons[entry.kind];
+  const Icon = (entry.subtype && subtypeIcons[entry.subtype]) || entryIcons[entry.kind];
+  const showCategory = entry.kind !== "lodging";
   return (
     <li className="relative pb-4 last:pb-0 after:absolute after:bottom-0 after:left-1/2 after:h-4 after:border-l after:border-rule last:after:hidden">
       <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 rounded-lg border border-rule bg-field p-3 sm:gap-x-3">
@@ -266,8 +329,12 @@ function TimelineEntry({
             ) : (
               <span>Any time</span>
             )}
-            <span aria-hidden="true">·</span>
-            <span>{entryKinds[entry.kind]}</span>
+            {!showCategory && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{entryKinds[entry.kind]}</span>
+              </>
+            )}
           </p>
           <GroupTitle className="break-words">{entry.title}</GroupTitle>
         </div>
@@ -297,7 +364,7 @@ function TimelineEntry({
             <Trash2 aria-hidden="true" />
           </Button>
         </div>
-        {entry.kind === "flight" && entry.flight && (
+        {entry.kind === "travel" && entry.subtype === "flight" && entry.flight && (
           <div className="col-span-full mt-3 border-t border-rule pt-3">
             <GroupTitle as="h4">Flight details</GroupTitle>
             <div className="mt-2">
@@ -305,9 +372,17 @@ function TimelineEntry({
             </div>
           </div>
         )}
-        {(entry.location || entry.lodging) && (
+        {(showCategory || entry.subtype || entry.location || entry.lodging) && (
           <div className="col-span-full mt-3 flex flex-col gap-2 border-t border-rule pt-3">
             {entry.kind === "lodging" && <GroupTitle as="h4">Lodging details</GroupTitle>}
+            {(showCategory || entry.subtype) && (
+              <p className="text-sm text-ink">
+                <span className="font-medium">{entryKinds[entry.kind]}</span>
+                {entry.subtype && (
+                  <span className="text-ink-soft"> · {subtypeLabel(entry.subtype)}</span>
+                )}
+              </p>
+            )}
             {entry.location && (
               <div className="flex items-start gap-2 text-sm text-ink">
                 <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-forest" />
@@ -329,7 +404,7 @@ function TimelineEntry({
             )}
           </div>
         )}
-        {entry.details && (entry.kind === "lodging" || !entry.location) && (
+        {entry.details && entry.kind === "lodging" && (
           <p className="col-span-full mt-3 whitespace-pre-wrap break-words border-t border-rule pt-3 text-sm text-ink">
             {entry.details}
           </p>

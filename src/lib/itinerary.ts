@@ -1,12 +1,13 @@
 import { ConvexError } from "convex/values";
 
-export const entryKinds = { event: "Event", flight: "Flight", lodging: "Lodging" } as const;
+import type { EntryKind } from "./itineraryCategories";
 
 export type EntryFields = {
   title: string;
   date: string;
   time: string;
-  kind: keyof typeof entryKinds;
+  kind: EntryKind;
+  subtype?: string;
   details: string;
   flight?: {
     number?: string;

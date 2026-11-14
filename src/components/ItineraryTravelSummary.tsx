@@ -1,9 +1,10 @@
-import { BedDouble, Plane } from "lucide-react";
+import { BedDouble, Route as RouteIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Panel } from "@/components/ui/Page";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { GroupTitle } from "@/components/ui/Typography";
+import { subtypeLabel } from "@/lib/itineraryCategories";
 import type { EntryFields } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
@@ -127,7 +128,7 @@ export function TravelEntryDetails({
 export function ItineraryTravelSummary({ id, entries }: { id: string; entries: TravelEntry[] }) {
   const { formatExpenseDateShort } = useLocaleFormatters();
   const travel = entries
-    .filter((entry) => entry.kind !== "event")
+    .filter((entry) => entry.kind === "travel" || entry.kind === "lodging")
     .sort(
       (a, b) =>
         a.date.localeCompare(b.date) || (a.time || "24:00").localeCompare(b.time || "24:00"),
@@ -138,7 +139,7 @@ export function ItineraryTravelSummary({ id, entries }: { id: string; entries: T
     <Panel className="divide-y divide-rule">
       {(
         [
-          { kind: "flight", label: "Flights", icon: Plane, empty: "No flights added." },
+          { kind: "travel", label: "Travel", icon: RouteIcon, empty: "No travel added." },
           { kind: "lodging", label: "Lodging", icon: BedDouble, empty: "No lodging added." },
         ] as const
       ).map(({ kind, label, icon, empty }) => {
@@ -167,6 +168,17 @@ export function ItineraryTravelSummary({ id, entries }: { id: string; entries: T
                         {formatExpenseDateShort(entry.date)}
                       </time>
                     </div>
+                    {(entry.subtype ||
+                      (entry.kind === "travel" && !entry.flight && entry.time)) && (
+                      <p className="flex flex-wrap gap-x-2 text-xs text-ink-soft">
+                        {entry.subtype && <span>{subtypeLabel(entry.subtype)}</span>}
+                        {entry.kind === "travel" && !entry.flight && entry.time && (
+                          <time dateTime={entry.time} className="font-numeric">
+                            {entry.time}
+                          </time>
+                        )}
+                      </p>
+                    )}
                     <TravelEntryDetails entry={entry} compact />
                   </li>
                 ))}

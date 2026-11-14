@@ -1,10 +1,12 @@
+import { OptionPicker } from "@/components/ui/OptionPicker";
 import { ConvexError } from "convex/values";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
-import { Field, FieldError, Input, Select, Textarea } from "@/components/ui/Input";
+import { Field, FieldError, Input, Textarea } from "@/components/ui/Input";
 
-import { type EntryFields, entryKinds, itineraryError } from "@/lib/itinerary";
+import { type EntryKind, entryKinds, entrySubtypes, subtypeLabel } from "@/lib/itineraryCategories";
+import { type EntryFields, itineraryError } from "@/lib/itinerary";
 
 type TripFields = { title: string; startDate: string; endDate: string };
 
@@ -108,7 +110,6 @@ export function TripDialog({
 }
 
 const entryHints = {
-  event: "Cost or plans for the day",
   flight: "Airline, airports, or arrival details",
   lodging: "Booking or arrival instructions",
 };
@@ -128,8 +129,11 @@ export function EntryDialog({
   onClose: () => void;
   onSave: (fields: EntryFields) => Promise<void>;
 }) {
-  const [kind, setKind] = useState<keyof typeof entryKinds>(entry?.kind ?? "event");
-  const hasLocation = kind !== "flight";
+  const [kind, setKind] = useState<EntryKind>(entry?.kind ?? "event");
+  const subtypes = entrySubtypes[kind];
+  const [subtype, setSubtype] = useState(entry?.subtype ?? "");
+  const isFlight = kind === "travel" && subtype === "flight";
+  const hasLocation = !isFlight;
   return (
     <EditorDialog
       title={entry ? "Edit timeline entry" : "Add timeline entry"}
@@ -156,19 +160,19 @@ export function EntryDialog({
           date: String(form.get("date")),
           time: String(form.get("time")),
           kind,
+          subtype: subtype || undefined,
           details: String(form.get("details")).trim(),
-          flight:
-            kind === "flight"
-              ? {
-                  number: number || undefined,
-                  departureTime: departureTime || undefined,
-                  arrivalTime: arrivalTime || undefined,
-                  departureCity: departureCity || undefined,
-                  departureAirportCode: departureAirportCode || undefined,
-                  destinationCity: destinationCity || undefined,
-                  destinationAirportCode: destinationAirportCode || undefined,
-                }
-              : undefined,
+          flight: isFlight
+            ? {
+                number: number || undefined,
+                departureTime: departureTime || undefined,
+                arrivalTime: arrivalTime || undefined,
+                departureCity: departureCity || undefined,
+                departureAirportCode: departureAirportCode || undefined,
+                destinationCity: destinationCity || undefined,
+                destinationAirportCode: destinationAirportCode || undefined,
+              }
+            : undefined,
           lodging:
             kind === "lodging" && (checkIn || checkOut || checkInDate || checkOutDate)
               ? {
@@ -183,18 +187,33 @@ export function EntryDialog({
       }}
     >
       <Field htmlFor="entry-kind" label="Type">
-        <Select
+        <OptionPicker
           id="entry-kind"
           value={kind}
-          onChange={(event) => setKind(event.target.value as keyof typeof entryKinds)}
-        >
-          {Object.entries(entryKinds).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </Select>
+          options={(Object.keys(entryKinds) as EntryKind[]).map((value) => ({
+            value,
+            label: entryKinds[value],
+          }))}
+          onChange={(value) => {
+            if (value === kind) return;
+            setKind(value);
+            setSubtype("");
+          }}
+        />
       </Field>
+      {subtypes.length > 0 && (
+        <Field htmlFor="entry-subtype" label="Subtype (optional)">
+          <OptionPicker
+            id="entry-subtype"
+            value={subtype}
+            options={[
+              { value: "", label: "None" },
+              ...subtypes.map((value) => ({ value, label: subtypeLabel(value) })),
+            ]}
+            onChange={setSubtype}
+          />
+        </Field>
+      )}
       <Field htmlFor="entry-title" label="Title">
         <Input id="entry-title" name="title" required defaultValue={entry?.title} />
       </Field>
@@ -212,14 +231,14 @@ export function EntryDialog({
         </Field>
         <Field
           htmlFor="entry-time"
-          label={kind === "flight" ? "Local timeline time (optional)" : "Local time (optional)"}
+          label={isFlight ? "Local timeline time (optional)" : "Local time (optional)"}
         >
           <Input id="entry-time" type="time" name="time" defaultValue={entry?.time} />
         </Field>
       </div>
       <fieldset
-        hidden={kind !== "flight"}
-        disabled={kind !== "flight"}
+        hidden={!isFlight}
+        disabled={!isFlight}
         className="space-y-2 border-t border-rule pt-3"
       >
         <legend className="text-sm font-semibold text-ink">Flight details</legend>
@@ -266,7 +285,7 @@ export function EntryDialog({
       </fieldset>
       <fieldset hidden={!hasLocation} disabled={!hasLocation} className="space-y-4">
         <legend className={kind === "lodging" ? "mb-2 text-sm font-semibold text-ink" : "sr-only"}>
-          {kind === "lodging" ? "Lodging details" : "Event location"}
+          {kind === "lodging" ? "Lodging details" : "Entry location"}
         </legend>
         <Field htmlFor="entry-location" label="Location or address (optional)">
           <Input
@@ -333,7 +352,13 @@ export function EntryDialog({
           name="details"
           rows={4}
           defaultValue={entry?.details}
-          placeholder={entryHints[kind]}
+          placeholder={
+            isFlight
+              ? entryHints.flight
+              : kind === "lodging"
+                ? entryHints.lodging
+                : "Cost or plans for the day"
+          }
         />
       </Field>
     </EditorDialog>

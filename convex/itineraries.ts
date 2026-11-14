@@ -4,6 +4,8 @@ import { mutation, query } from "./_generated/server";
 import { requireUserId } from "./authz";
 import { costaRica } from "../src/lib/costaRicaItinerary";
 import { isValidISODate } from "../src/lib/format";
+import { entrySubtypes } from "../src/lib/itineraryCategories";
+import type { EntryKind } from "../src/lib/itineraryCategories";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
@@ -11,7 +13,17 @@ const entryValidator = v.object({
   date: v.string(),
   time: v.string(),
   title: v.string(),
-  kind: v.union(v.literal("flight"), v.literal("lodging"), v.literal("event")),
+  kind: v.union(
+    v.literal("travel"),
+    v.literal("flight"),
+    v.literal("lodging"),
+    v.literal("event"),
+    v.literal("food"),
+    v.literal("activity"),
+    v.literal("attraction"),
+    v.literal("shop"),
+  ),
+  subtype: v.optional(v.string()),
   details: v.string(),
   location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
   lodging: v.optional(
@@ -48,6 +60,16 @@ function validateRange(startDate: string, endDate: string) {
   if (startDate > endDate) throw new ConvexError("End date must be on or after start date");
 }
 
+function normalizeSubtype(entry: { kind: EntryKind; subtype?: string }) {
+  if (entry.subtype === undefined) return undefined;
+  const subtype = entry.subtype.trim();
+  if (!subtype) return undefined;
+  if (!entrySubtypes[entry.kind].some((value) => value === subtype)) {
+    throw new ConvexError("Subtype is not valid for this entry kind");
+  }
+  return subtype;
+}
+
 function validateEntry(
   entry: {
     date: string;
@@ -70,13 +92,16 @@ function validateEntry(
 }
 
 function normalizeLocation(entry: {
-  kind: "flight" | "lodging" | "event";
+  kind: EntryKind;
+  subtype?: string;
   location?: { name: string; url?: string };
 }) {
   if (!entry.location) return undefined;
   const name = entry.location.name.trim();
   const url = entry.location.url?.trim();
-  if (entry.kind === "flight") throw new ConvexError("Location is not allowed for flights");
+  if (entry.kind === "travel" && entry.subtype === "flight") {
+    throw new ConvexError("Location is not allowed for flights");
+  }
   if (!name) {
     if (url) throw new ConvexError("A location URL requires a location name");
     return undefined;
@@ -98,7 +123,7 @@ function normalizeLocation(entry: {
 }
 
 function normalizeLodging(entry: {
-  kind: "flight" | "lodging" | "event";
+  kind: EntryKind;
   lodging?: {
     checkIn?: string;
     checkOut?: string;
@@ -136,7 +161,8 @@ function normalizeLodging(entry: {
 }
 
 function normalizeFlight(entry: {
-  kind: "flight" | "lodging" | "event";
+  kind: EntryKind;
+  subtype?: string;
   flight?: {
     number?: string;
     departureTime?: string;
@@ -148,7 +174,9 @@ function normalizeFlight(entry: {
   };
 }) {
   if (!entry.flight) return undefined;
-  if (entry.kind !== "flight") throw new ConvexError("Flight details are only allowed for flights");
+  if (entry.kind !== "travel" || entry.subtype !== "flight") {
+    throw new ConvexError("Flight details are only allowed for flights");
+  }
   const number = entry.flight.number?.trim();
   const departureTime = entry.flight.departureTime?.trim();
   const arrivalTime = entry.flight.arrivalTime?.trim();
@@ -246,12 +274,13 @@ export const get = query({
       startDate: doc.startDate,
       endDate: doc.endDate,
       entries: entries.map(
-        ({ entryId, date, time, title, kind, details, location, flight, lodging }) => ({
+        ({ entryId, date, time, title, kind, subtype, details, location, flight, lodging }) => ({
           id: entryId,
           date,
           time,
           title,
-          kind,
+          kind: kind === "flight" ? "travel" : kind,
+          subtype: kind === "flight" ? "flight" : subtype,
           details,
           location,
           flight,
@@ -297,10 +326,16 @@ export const saveEntry = mutation({
   handler: async (ctx, { id, entryId, entry }) => {
     const itinerary = await ownedItinerary(ctx, id);
     validateEntry(entry, itinerary.startDate, itinerary.endDate);
-    const location = normalizeLocation(entry);
-    const flight = normalizeFlight(entry);
-    const lodging = normalizeLodging(entry);
-    const savedEntry = { ...entry, location, flight, lodging };
+    const normalizedEntry = {
+      ...entry,
+      kind: entry.kind === "flight" ? ("travel" as const) : entry.kind,
+      subtype: entry.kind === "flight" ? "flight" : entry.subtype,
+    };
+    const subtype = normalizeSubtype(normalizedEntry);
+    const location = normalizeLocation({ ...normalizedEntry, subtype });
+    const flight = normalizeFlight({ ...normalizedEntry, subtype });
+    const lodging = normalizeLodging(normalizedEntry);
+    const savedEntry = { ...normalizedEntry, subtype, location, flight, lodging };
     const existing = entryId
       ? await ctx.db
           .query("itineraryEntries")

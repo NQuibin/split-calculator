@@ -129,7 +129,17 @@ export default defineSchema({
     date: v.string(),
     time: v.string(),
     title: v.string(),
-    kind: v.union(v.literal("flight"), v.literal("lodging"), v.literal("event")),
+    kind: v.union(
+      v.literal("travel"),
+      v.literal("flight"),
+      v.literal("lodging"),
+      v.literal("event"),
+      v.literal("food"),
+      v.literal("activity"),
+      v.literal("attraction"),
+      v.literal("shop"),
+    ),
+    subtype: v.optional(v.string()),
     details: v.string(),
     location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
     lodging: v.optional(

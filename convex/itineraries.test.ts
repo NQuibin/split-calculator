@@ -46,7 +46,8 @@ test("itineraries are private and entries are editable by stable entry id", asyn
       date: "2026-12-01",
       time: "",
       title: "Flight",
-      kind: "flight",
+      kind: "travel",
+      subtype: "flight",
       details: "Arrive",
     },
   ]);
@@ -80,7 +81,7 @@ test("Costa Rica import is idempotent for each owner", async () => {
   expect(imported).toMatchObject({ startDate: "2026-11-17", endDate: "2026-11-24" });
   expect(imported?.entries).toHaveLength(36);
   expect(new Set(imported?.entries.map((entry) => entry.date)).size).toBe(8);
-  expect(imported?.entries[0]).toMatchObject({ kind: "flight", time: "12:35" });
+  expect(imported?.entries[0]).toMatchObject({ kind: "travel", subtype: "flight", time: "12:35" });
   expect(
     (await alex.query(api.itineraries.list, {})).filter((row) => row.isCostaRica),
   ).toHaveLength(1);
@@ -477,4 +478,132 @@ test("older itinerary entries without locations remain readable", async () => {
     id: "legacy",
     title: "Old event",
   });
+});
+
+test("legacy flights read as travel flights and legacy saves persist in the new shape", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  await alex.run((ctx) =>
+    ctx.db.insert("itineraryEntries", {
+      itineraryId: id,
+      entryId: "legacy-flight",
+      date: "2026-12-01",
+      time: "",
+      title: "Old flight",
+      kind: "flight",
+      details: "Keep these details",
+      flight: { number: "AC 12", departureCity: "Toronto" },
+    }),
+  );
+  const legacy = (await alex.query(api.itineraries.get, { id }))?.entries[0];
+  expect(legacy).toMatchObject({
+    id: "legacy-flight",
+    kind: "travel",
+    subtype: "flight",
+    details: "Keep these details",
+    flight: { number: "AC 12", departureCity: "Toronto" },
+  });
+
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: {
+      date: "2026-12-02",
+      time: "",
+      title: "New legacy payload",
+      kind: "flight",
+      details: "Saved through compatibility path",
+      flight: { number: "ZX 9" },
+    },
+  });
+  const entries = (await alex.query(api.itineraries.get, { id }))?.entries;
+  expect(entries?.[1]).toMatchObject({
+    kind: "travel",
+    subtype: "flight",
+    details: "Saved through compatibility path",
+    flight: { number: "ZX 9" },
+  });
+  const stored = await alex.run((ctx) =>
+    ctx.db
+      .query("itineraryEntries")
+      .withIndex("by_itinerary_and_entryId", (q) =>
+        q.eq("itineraryId", id).eq("entryId", entries?.[1].id ?? ""),
+      )
+      .unique(),
+  );
+  expect(stored?.kind).toBe("travel");
+});
+
+test("travel flight metadata is restricted to flight subtype while other travel allows locations", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = { date: "2026-12-01", time: "", title: "Travel", details: "" };
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: { ...base, kind: "travel", subtype: "train", location: { name: "Union Station" } },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].location).toEqual({
+    name: "Union Station",
+  });
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, kind: "travel", subtype: "train", flight: { number: "AC 1" } },
+    }),
+  ).rejects.toThrow("only allowed for flights");
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, kind: "travel", subtype: "flight", location: { name: "Airport" } },
+    }),
+  ).rejects.toThrow("not allowed for flights");
+});
+
+test("new itinerary kinds persist and subtype values are kind-specific and cleared when omitted", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = { date: "2026-12-01", time: "", details: "" };
+  const cases = [
+    { kind: "food", subtype: "dinner" },
+    { kind: "activity", subtype: "museum" },
+    { kind: "attraction", subtype: "viewpoint" },
+    { kind: "shop", subtype: "mall" },
+    { kind: "event" },
+    { kind: "travel", subtype: "flight" },
+    { kind: "lodging" },
+  ] as const;
+  for (const [index, value] of cases.entries()) {
+    await alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, title: `Entry ${index}`, ...value },
+    });
+  }
+  const saved = (await alex.query(api.itineraries.get, { id }))?.entries;
+  expect(saved?.map(({ kind, subtype }) => ({ kind, subtype }))).toEqual(cases);
+
+  const food = saved?.[0];
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entryId: food?.id,
+      entry: { ...base, title: "Wrong subtype", kind: "food", subtype: "tour" },
+    }),
+  ).rejects.toThrow("Subtype is not valid");
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: food?.id,
+    entry: { ...base, title: "Dinner", kind: "food" },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].subtype).toBeUndefined();
 });
