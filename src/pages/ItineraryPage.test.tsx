@@ -28,11 +28,13 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 vi.mock("@convex-dev/react-query", () => ({ convexQuery: vi.fn() }));
+const { session } = vi.hoisted(() => ({ session: { access: "owner" } }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({
     data: {
       ...costaRica,
       _id: "trip",
+      access: session.access,
       entries: costaRica.entries.map((entry, index) => ({
         ...entry,
         id: String(index),
@@ -189,5 +191,32 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     await act(async () => root.unmount());
     container.remove();
     vi.useRealTimers();
+  }
+});
+
+test("public links display the timeline without editing controls", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  session.access = "viewer";
+  try {
+    await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
+    expect(container.textContent).toContain("La Fortuna Waterfall");
+    expect(container.textContent).not.toContain("Add entry");
+    expect(container.textContent).not.toContain("Edit itinerary");
+    expect(
+      container.querySelector('button[aria-label="Actions for La Fortuna Waterfall"]'),
+    ).toBeNull();
+
+    session.access = "editor";
+    await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
+    expect(container.textContent).toContain("Add entry");
+    expect(
+      container.querySelector('button[aria-label="Actions for La Fortuna Waterfall"]'),
+    ).not.toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    session.access = "owner";
   }
 });

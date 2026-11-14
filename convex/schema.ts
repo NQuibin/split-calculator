@@ -164,6 +164,12 @@ export default defineSchema({
   })
     .index("by_itinerary", ["itineraryId"])
     .index("by_itinerary_and_entryId", ["itineraryId", "entryId"]),
+  itineraryEditors: defineTable({
+    itineraryId: v.id("itineraries"),
+    userId: v.id("users"),
+  })
+    .index("by_itinerary_and_userId", ["itineraryId", "userId"])
+    .index("by_userId_and_itineraryId", ["userId", "itineraryId"]),
   /** Stable identity for splits and payments. Claiming only sets userId. */
   tabMembers: defineTable({
     tabId: v.id("tabs"),

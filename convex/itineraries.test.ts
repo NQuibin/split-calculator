@@ -8,15 +8,28 @@ const modules = import.meta.glob("./**/*.ts");
 
 async function setup() {
   const t = convexTest(schema, modules);
-  const alexId = await t.run((ctx) => ctx.db.insert("users", { name: "Alex" }));
-  const samId = await t.run((ctx) => ctx.db.insert("users", { name: "Sam" }));
+  const alexId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      name: "Alex",
+      email: "alex@example.com",
+      emailVerificationTime: 1,
+    }),
+  );
+  const samId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      name: "Sam",
+      email: "sam@example.com",
+      emailVerificationTime: 1,
+    }),
+  );
   return {
+    t,
     alex: t.withIdentity({ subject: `${alexId}|session` }),
     sam: t.withIdentity({ subject: `${samId}|session` }),
   };
 }
 
-test("itineraries are private and entries are editable by stable entry id", async () => {
+test("itineraries are publicly readable and entries are editable by stable entry id", async () => {
   const { alex, sam } = await setup();
   const id = await alex.mutation(api.itineraries.create, {
     title: "Trip",
@@ -25,7 +38,7 @@ test("itineraries are private and entries are editable by stable entry id", asyn
   });
   expect(await alex.query(api.itineraries.list, {})).toMatchObject([{ _id: id, title: "Trip" }]);
   expect(await sam.query(api.itineraries.list, {})).toEqual([]);
-  expect(await sam.query(api.itineraries.get, { id })).toBeNull();
+  expect(await sam.query(api.itineraries.get, { id })).toMatchObject({ access: "viewer" });
   await expect(
     sam.mutation(api.itineraries.update, {
       id,
@@ -68,6 +81,89 @@ test("itineraries are private and entries are editable by stable entry id", asyn
   ).rejects.toThrow("Not authorized");
   await alex.mutation(api.itineraries.removeEntry, { id, entryId: entries[0].id });
   expect((await alex.query(api.itineraries.get, { id }))?.entries).toEqual([]);
+});
+
+test("owners share verified accounts as editors, revoke access, and outsiders stay read-only", async () => {
+  const { alex, sam, t } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Shared",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const entry = {
+    date: "2026-12-01",
+    time: "",
+    title: "Flight",
+    kind: "event" as const,
+    details: "",
+  };
+  await alex.mutation(api.itineraries.saveEntry, { id, entry });
+  const entryId = (await alex.query(api.itineraries.get, { id }))?.entries[0].id;
+  expect(await sam.query(api.itineraries.get, { id })).toMatchObject({ access: "viewer" });
+  expect(await t.query(api.itineraries.get, { id })).toMatchObject({ access: "viewer" });
+  await expect(sam.mutation(api.itineraries.saveEntry, { id, entry })).rejects.toThrow(
+    "Not authorized",
+  );
+  await expect(
+    sam.mutation(api.itineraries.inviteEditor, { id, email: "alex@example.com" }),
+  ).rejects.toThrow("Not authorized");
+
+  await alex.mutation(api.itineraries.inviteEditor, { id, email: " SAM@example.com " });
+  await alex.mutation(api.itineraries.inviteEditor, { id, email: "sam@example.com" });
+  expect(await alex.query(api.itineraries.listEditors, { id })).toEqual([
+    { userId: expect.any(String), name: "Sam", email: "sam@example.com" },
+  ]);
+  expect(await sam.query(api.itineraries.get, { id })).toMatchObject({ access: "editor" });
+  await sam.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId,
+    entry: { ...entry, title: "Edited" },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].title).toBe("Edited");
+  await sam.mutation(api.itineraries.update, {
+    id,
+    title: "Shared update",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.title).toBe("Shared update");
+  await sam.mutation(api.itineraries.removeEntry, { id, entryId: entryId ?? "" });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries).toEqual([]);
+  await alex.mutation(api.itineraries.removeEditor, {
+    id,
+    userId: (await alex.query(api.itineraries.listEditors, { id }))[0].userId,
+  });
+  expect(await sam.query(api.itineraries.get, { id })).toMatchObject({ access: "viewer" });
+  await expect(
+    sam.mutation(api.itineraries.update, {
+      id,
+      title: "No longer editor",
+      startDate: "2026-12-01",
+      endDate: "2026-12-03",
+    }),
+  ).rejects.toThrow("Not authorized");
+});
+
+test("email invitations reject unknown and unverified accounts", async () => {
+  const { alex, t } = await setup();
+  const unverifiedId = await t.run((ctx) =>
+    ctx.db.insert("users", { name: "Unverified", email: "pending@example.com" }),
+  );
+  const unverified = t.withIdentity({ subject: `${unverifiedId}|session` });
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  await expect(
+    alex.mutation(api.itineraries.inviteEditor, { id, email: "missing@example.com" }),
+  ).rejects.toThrow("No verified account");
+  await expect(
+    alex.mutation(api.itineraries.inviteEditor, { id, email: "pending@example.com" }),
+  ).rejects.toThrow("No verified account");
+  await expect(unverified.query(api.itineraries.listEditors, { id })).rejects.toThrow(
+    "Not authorized",
+  );
 });
 
 test("Costa Rica import is idempotent for each owner", async () => {

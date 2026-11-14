@@ -1,7 +1,7 @@
 import { convexQuery } from "@convex-dev/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import {
   BedDouble,
   CalendarDays,
@@ -36,6 +36,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { ItineraryTravelSummary, TravelEntryDetails } from "@/components/ItineraryTravelSummary";
+import { ItineraryShareDialog } from "@/components/ItineraryShareDialog";
 import { ItineraryTimeRail } from "@/components/ItineraryTimeRail";
 import { EntryDialog, TripDialog } from "@/components/ItineraryDialogs";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
@@ -134,7 +135,10 @@ function ItineraryDays({
 
   return (
     <nav aria-label="Itinerary days" className="min-w-0">
-      <div ref={row} className="flex gap-2 overflow-x-auto p-2">
+      <div
+        ref={row}
+        className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {days.map(({ number, date, label }) => (
           <Link
             key={date}
@@ -164,17 +168,14 @@ function ItineraryDays({
 }
 
 export function ItineraryPage({ id, day }: { id: string; day?: string }) {
-  const auth = useConvexAuth();
-  const {
-    data: trip,
-    isError,
-    refetch,
-  } = useQuery(convexQuery(api.itineraries.get, auth.isAuthenticated ? { id } : "skip"));
+  const { data: trip, isError, refetch } = useQuery(convexQuery(api.itineraries.get, { id }));
   const update = useMutation(api.itineraries.update);
   const saveEntry = useMutation(api.itineraries.saveEntry);
   const removeEntry = useMutation(api.itineraries.removeEntry);
   const { locale, formatExpenseDate } = useLocaleFormatters();
   const navigate = useNavigate();
+  const [sharing, setSharing] = useState(false);
+  const canEdit = trip?.access === "owner" || trip?.access === "editor";
   const [editingTrip, setEditingTrip] = useState(false);
   const [editor, setEditor] = useState<{ entry?: Entry }>();
   const [deleting, setDeleting] = useState<Entry>();
@@ -196,11 +197,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
         </Link>
         <BreadcrumbCurrent>{trip?.title ?? "Itinerary"}</BreadcrumbCurrent>
       </Breadcrumb>
-      {auth.isLoading ? (
-        <EmptyState>Loading itinerary…</EmptyState>
-      ) : !auth.isAuthenticated ? (
-        <EmptyState>Sign in to view your itinerary.</EmptyState>
-      ) : isError ? (
+      {isError ? (
         <EmptyState status={false}>
           <p role="alert">Couldn’t load this itinerary.</p>
           <Button className="mt-4" variant="secondary" size="touch" onClick={() => void refetch()}>
@@ -220,9 +217,16 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
                 {formatExpenseDate(trip.startDate)} – {formatExpenseDate(trip.endDate)}
               </PageDescription>
             </div>
-            <Button variant="secondary" size="touch" onClick={() => setEditingTrip(true)}>
-              <Pencil aria-hidden="true" /> Edit itinerary
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" size="touch" onClick={() => setSharing(true)}>
+                Share
+              </Button>
+              {canEdit && (
+                <Button variant="secondary" size="touch" onClick={() => setEditingTrip(true)}>
+                  <Pencil aria-hidden="true" /> Edit itinerary
+                </Button>
+              )}
+            </div>
           </header>
 
           <ItineraryTravelSummary id={id} entries={trip.entries} />
@@ -245,9 +249,11 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
                     timeZone: "UTC",
                   }).format(new Date(`${date}T00:00:00Z`))}
                 </SectionTitle>
-                <Button size="touch" onClick={() => setEditor({})}>
-                  <Plus aria-hidden="true" /> Add entry
-                </Button>
+                {canEdit && (
+                  <Button size="touch" onClick={() => setEditor({})}>
+                    <Plus aria-hidden="true" /> Add entry
+                  </Button>
+                )}
               </div>
               {entries?.length ? (
                 <ItineraryTimeRail date={date}>
@@ -255,8 +261,8 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
                     <TimelineEntry
                       key={entry.id}
                       entry={entry}
-                      onEdit={() => setEditor({ entry })}
-                      onDelete={() => setDeleting(entry)}
+                      onEdit={canEdit ? () => setEditor({ entry }) : undefined}
+                      onDelete={canEdit ? () => setDeleting(entry) : undefined}
                     />
                   ))}
                 </ItineraryTimeRail>
@@ -266,7 +272,14 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
             </section>
           </Panel>
 
-          {editingTrip && (
+          {sharing && (
+            <ItineraryShareDialog
+              id={trip._id}
+              owner={trip.access === "owner"}
+              onClose={() => setSharing(false)}
+            />
+          )}
+          {canEdit && editingTrip && (
             <TripDialog
               trip={trip}
               onClose={() => setEditingTrip(false)}
@@ -275,7 +288,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
               }}
             />
           )}
-          {editor && (
+          {canEdit && editor && (
             <EntryDialog
               entry={editor.entry}
               date={date}
@@ -296,7 +309,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
             />
           )}
           <ConfirmDialog
-            open={Boolean(deleting)}
+            open={canEdit && Boolean(deleting)}
             onOpenChange={(open) => {
               if (!open) setDeleting(undefined);
             }}
@@ -320,8 +333,8 @@ function TimelineEntry({
   onDelete,
 }: {
   entry: Entry;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const Icon = (entry.subtype && subtypeIcons[entry.subtype]) || entryIcons[entry.kind];
   const showCategory = entry.kind !== "lodging";
@@ -358,32 +371,36 @@ function TimelineEntry({
           </p>
           <GroupTitle className="break-words">{entry.title}</GroupTitle>
         </div>
-        <OverflowMenu className="sm:hidden" label={`Actions for ${entry.title}`}>
-          <OverflowAction onClick={onEdit}>
-            <Pencil aria-hidden="true" /> Edit
-          </OverflowAction>
-          <OverflowAction destructive onClick={onDelete}>
-            <Trash2 aria-hidden="true" /> Remove
-          </OverflowAction>
-        </OverflowMenu>
-        <div className="hidden shrink-0 items-start sm:flex">
-          <Button
-            variant="quiet-icon"
-            size="icon-touch"
-            aria-label={`Edit ${entry.title}`}
-            onClick={onEdit}
-          >
-            <Pencil aria-hidden="true" />
-          </Button>
-          <Button
-            variant="destructive-icon"
-            size="icon-touch"
-            aria-label={`Remove ${entry.title}`}
-            onClick={onDelete}
-          >
-            <Trash2 aria-hidden="true" />
-          </Button>
-        </div>
+        {onEdit && onDelete && (
+          <>
+            <OverflowMenu className="sm:hidden" label={`Actions for ${entry.title}`}>
+              <OverflowAction onClick={onEdit}>
+                <Pencil aria-hidden="true" /> Edit
+              </OverflowAction>
+              <OverflowAction destructive onClick={onDelete}>
+                <Trash2 aria-hidden="true" /> Remove
+              </OverflowAction>
+            </OverflowMenu>
+            <div className="hidden shrink-0 items-start sm:flex">
+              <Button
+                variant="quiet-icon"
+                size="icon-touch"
+                aria-label={`Edit ${entry.title}`}
+                onClick={onEdit}
+              >
+                <Pencil aria-hidden="true" />
+              </Button>
+              <Button
+                variant="destructive-icon"
+                size="icon-touch"
+                aria-label={`Remove ${entry.title}`}
+                onClick={onDelete}
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </div>
+          </>
+        )}
         {entry.kind === "travel" && entry.subtype === "flight" && entry.flight && (
           <div className="col-span-full mt-3 border-t border-rule pt-3">
             <GroupTitle as="h4">Flight details</GroupTitle>

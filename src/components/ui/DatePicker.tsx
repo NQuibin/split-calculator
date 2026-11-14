@@ -12,17 +12,24 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   "aria-label"?: string;
   className?: string;
+  min?: string;
+  max?: string;
+  allowClear?: boolean;
 }
 
 export function DatePicker({ value, onChange, ...props }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const selected = parseISODate(value);
+  const min = parseISODate(props.min ?? "");
+  const max = parseISODate(props.max ?? "");
+  const disabled = [...(min ? [{ before: min }] : []), ...(max ? [{ after: max }] : [])];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
           <Button
+            type="button"
             variant="field"
             aria-label={props["aria-label"]}
             id={props.id}
@@ -44,13 +51,29 @@ export function DatePicker({ value, onChange, ...props }: DatePickerProps) {
         <Calendar
           mode="single"
           selected={selected}
-          defaultMonth={selected}
+          defaultMonth={selected ?? min}
+          disabled={disabled}
           onSelect={(date) => {
             if (!date) return;
             onChange(toISODate(date));
             setOpen(false);
           }}
         />
+        {props.allowClear && value && (
+          <div className="border-t border-rule px-3 pb-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="touch"
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              Clear date
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

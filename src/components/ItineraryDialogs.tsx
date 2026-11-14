@@ -2,11 +2,46 @@ import { OptionPicker } from "@/components/ui/OptionPicker";
 import { ConvexError } from "convex/values";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { Field, FieldError, Input, Textarea } from "@/components/ui/Input";
 
 import { type EntryKind, entryKinds, entrySubtypes, subtypeLabel } from "@/lib/itineraryCategories";
 import { type EntryFields, itineraryError } from "@/lib/itinerary";
+
+function ItineraryDateField({
+  id,
+  name,
+  label,
+  initial = "",
+  min,
+  max,
+  optional,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  initial?: string;
+  min?: string;
+  max?: string;
+  optional?: boolean;
+}) {
+  const [value, setValue] = useState(initial);
+  return (
+    <Field htmlFor={id} label={label}>
+      <DatePicker
+        id={id}
+        value={value}
+        onChange={setValue}
+        min={min}
+        max={max}
+        allowClear={optional}
+        className="w-full"
+      />
+      <input type="hidden" name={name} value={value} />
+    </Field>
+  );
+}
 
 type TripFields = { title: string; startDate: string; endDate: string };
 
@@ -80,30 +115,24 @@ export function TripDialog({
     <EditorDialog
       title={trip ? "Edit itinerary" : "New itinerary"}
       onClose={onClose}
-      onSave={(form) =>
-        onSave({
-          title: String(form.get("title")).trim(),
-          startDate: String(form.get("startDate")),
-          endDate: String(form.get("endDate")),
-        })
-      }
+      onSave={async (form) => {
+        const startDate = String(form.get("startDate") ?? "");
+        const endDate = String(form.get("endDate") ?? "");
+        if (!startDate || !endDate) throw new ConvexError("Choose a start and end date.");
+        await onSave({ title: String(form.get("title")).trim(), startDate, endDate });
+      }}
     >
       <Field htmlFor="trip-title" label="Itinerary name">
         <Input id="trip-title" name="title" required defaultValue={trip?.title} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field htmlFor="trip-start" label="Start date">
-          <Input
-            id="trip-start"
-            type="date"
-            name="startDate"
-            required
-            defaultValue={trip?.startDate}
-          />
-        </Field>
-        <Field htmlFor="trip-end" label="End date">
-          <Input id="trip-end" type="date" name="endDate" required defaultValue={trip?.endDate} />
-        </Field>
+        <ItineraryDateField
+          id="trip-start"
+          name="startDate"
+          label="Start date"
+          initial={trip?.startDate}
+        />
+        <ItineraryDateField id="trip-end" name="endDate" label="End date" initial={trip?.endDate} />
       </div>
     </EditorDialog>
   );
@@ -218,17 +247,14 @@ export function EntryDialog({
         <Input id="entry-title" name="title" required defaultValue={entry?.title} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field htmlFor="entry-date" label="Date">
-          <Input
-            id="entry-date"
-            type="date"
-            name="date"
-            required
-            min={startDate}
-            max={endDate}
-            defaultValue={entry?.date ?? date}
-          />
-        </Field>
+        <ItineraryDateField
+          id="entry-date"
+          name="date"
+          label="Date"
+          initial={entry?.date ?? date}
+          min={startDate}
+          max={endDate}
+        />
         <Field
           htmlFor="entry-time"
           label={isFlight ? "Local timeline time (optional)" : "Local time (optional)"}
@@ -305,46 +331,40 @@ export function EntryDialog({
             placeholder="https://"
           />
         </Field>
-        <div hidden={kind !== "lodging"}>
+        <fieldset hidden={kind !== "lodging"} disabled={kind !== "lodging"}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor="entry-check-in-date" label="Check-in date (optional)">
-              <Input
-                id="entry-check-in-date"
-                name="checkInDate"
-                type="date"
-                defaultValue={entry?.lodging?.checkInDate}
-                disabled={kind !== "lodging"}
-              />
-            </Field>
+            <ItineraryDateField
+              id="entry-check-in-date"
+              name="checkInDate"
+              label="Check-in date (optional)"
+              initial={entry?.lodging?.checkInDate}
+              optional
+            />
             <Field htmlFor="entry-check-in" label="Local check-in time (optional)">
               <Input
                 id="entry-check-in"
                 name="checkIn"
                 type="time"
                 defaultValue={entry?.lodging?.checkIn}
-                disabled={kind !== "lodging"}
               />
             </Field>
-            <Field htmlFor="entry-check-out-date" label="Check-out date (optional)">
-              <Input
-                id="entry-check-out-date"
-                name="checkOutDate"
-                type="date"
-                defaultValue={entry?.lodging?.checkOutDate}
-                disabled={kind !== "lodging"}
-              />
-            </Field>
+            <ItineraryDateField
+              id="entry-check-out-date"
+              name="checkOutDate"
+              label="Check-out date (optional)"
+              initial={entry?.lodging?.checkOutDate}
+              optional
+            />
             <Field htmlFor="entry-check-out" label="Local check-out time (optional)">
               <Input
                 id="entry-check-out"
                 name="checkOut"
                 type="time"
                 defaultValue={entry?.lodging?.checkOut}
-                disabled={kind !== "lodging"}
               />
             </Field>
           </div>
-        </div>
+        </fieldset>
       </fieldset>
       <Field htmlFor="entry-details" label="Details (optional)">
         <Textarea

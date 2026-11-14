@@ -229,7 +229,33 @@ function normalizeFlight(entry: {
   };
 }
 
-async function ownedItinerary(ctx: QueryCtx | MutationCtx, id: Id<"itineraries">) {
+async function itineraryAccess(ctx: QueryCtx | MutationCtx, id: Id<"itineraries">) {
+  const userId = await getAuthUserId(ctx);
+  const itinerary = await ctx.db.get(id);
+  if (!itinerary) return { itinerary: null, access: "viewer" as const };
+  if (!userId) return { itinerary, access: "viewer" as const };
+  if (itinerary.userId === userId) return { itinerary, access: "owner" as const };
+  const editor = await ctx.db
+    .query("itineraryEditors")
+    .withIndex("by_itinerary_and_userId", (q) => q.eq("itineraryId", id).eq("userId", userId))
+    .unique();
+  return { itinerary, access: editor ? ("editor" as const) : ("viewer" as const) };
+}
+
+async function editableItinerary(ctx: MutationCtx, id: Id<"itineraries">) {
+  const userId = await requireUserId(ctx);
+  const itinerary = await ctx.db.get(id);
+  if (!itinerary) throw new ConvexError("Not authorized");
+  if (itinerary.userId === userId) return itinerary;
+  const editor = await ctx.db
+    .query("itineraryEditors")
+    .withIndex("by_itinerary_and_userId", (q) => q.eq("itineraryId", id).eq("userId", userId))
+    .unique();
+  if (!editor) throw new ConvexError("Not authorized");
+  return itinerary;
+}
+
+async function ownedItineraryForSharing(ctx: QueryCtx | MutationCtx, id: Id<"itineraries">) {
   const userId = await requireUserId(ctx);
   const itinerary = await ctx.db.get(id);
   if (itinerary?.userId !== userId) throw new ConvexError("Not authorized");
@@ -245,13 +271,20 @@ export const list = query({
       .query("itineraries")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    return docs.map(({ _id, title, startDate, endDate, importedCostaRica }) => ({
-      _id,
-      title,
-      startDate,
-      endDate,
-      isCostaRica: importedCostaRica === true,
-    }));
+    const shared = await ctx.db
+      .query("itineraryEditors")
+      .withIndex("by_userId_and_itineraryId", (q) => q.eq("userId", userId))
+      .collect();
+    const sharedDocs = await Promise.all(shared.map(({ itineraryId }) => ctx.db.get(itineraryId)));
+    return [...docs, ...sharedDocs.filter((doc) => doc !== null)].map(
+      ({ _id, title, startDate, endDate, importedCostaRica, userId: ownerId }) => ({
+        _id,
+        title,
+        startDate,
+        endDate,
+        isCostaRica: ownerId === userId && importedCostaRica === true,
+      }),
+    );
   },
 });
 
@@ -260,10 +293,8 @@ export const get = query({
   handler: async (ctx, { id }) => {
     const itineraryId = ctx.db.normalizeId("itineraries", id);
     if (!itineraryId) return null;
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return null;
-    const doc = await ctx.db.get(itineraryId);
-    if (doc?.userId !== userId) return null;
+    const { itinerary: doc, access } = await itineraryAccess(ctx, itineraryId);
+    if (!doc) return null;
     const entries = await ctx.db
       .query("itineraryEntries")
       .withIndex("by_itinerary", (q) => q.eq("itineraryId", itineraryId))
@@ -273,6 +304,7 @@ export const get = query({
       title: doc.title,
       startDate: doc.startDate,
       endDate: doc.endDate,
+      access,
       entries: entries.map(
         ({ entryId, date, time, title, kind, subtype, details, location, flight, lodging }) => ({
           id: entryId,
@@ -305,7 +337,7 @@ export const create = mutation({
 export const update = mutation({
   args: { id: v.id("itineraries"), title: v.string(), startDate: v.string(), endDate: v.string() },
   handler: async (ctx, { id, ...changes }) => {
-    const doc = await ownedItinerary(ctx, id);
+    const doc = await editableItinerary(ctx, id);
     validateRange(changes.startDate, changes.endDate);
     if (!changes.title.trim() || changes.title.length > 200)
       throw new ConvexError("Title must contain 1–200 characters");
@@ -324,7 +356,7 @@ export const update = mutation({
 export const saveEntry = mutation({
   args: { id: v.id("itineraries"), entryId: v.optional(v.string()), entry: entryValidator },
   handler: async (ctx, { id, entryId, entry }) => {
-    const itinerary = await ownedItinerary(ctx, id);
+    const itinerary = await editableItinerary(ctx, id);
     validateEntry(entry, itinerary.startDate, itinerary.endDate);
     const normalizedEntry = {
       ...entry,
@@ -368,12 +400,69 @@ export const saveEntry = mutation({
 export const removeEntry = mutation({
   args: { id: v.id("itineraries"), entryId: v.string() },
   handler: async (ctx, { id, entryId }) => {
-    await ownedItinerary(ctx, id);
+    await editableItinerary(ctx, id);
     const entry = await ctx.db
       .query("itineraryEntries")
       .withIndex("by_itinerary_and_entryId", (q) => q.eq("itineraryId", id).eq("entryId", entryId))
       .unique();
     if (entry) await ctx.db.delete(entry._id);
+    return null;
+  },
+});
+
+export const inviteEditor = mutation({
+  args: { id: v.id("itineraries"), email: v.string() },
+  handler: async (ctx, { id, email }) => {
+    const itinerary = await ownedItineraryForSharing(ctx, id);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || normalizedEmail.length > 320) {
+      throw new ConvexError("Enter a valid email address");
+    }
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", normalizedEmail))
+      .unique();
+    if (!user || user.emailVerificationTime === undefined) {
+      throw new ConvexError("No verified account found for that email");
+    }
+    if (user._id === itinerary.userId) {
+      throw new ConvexError("The itinerary owner already has access");
+    }
+    const existing = await ctx.db
+      .query("itineraryEditors")
+      .withIndex("by_itinerary_and_userId", (q) => q.eq("itineraryId", id).eq("userId", user._id))
+      .unique();
+    if (!existing) await ctx.db.insert("itineraryEditors", { itineraryId: id, userId: user._id });
+    return null;
+  },
+});
+
+export const listEditors = query({
+  args: { id: v.id("itineraries") },
+  handler: async (ctx, { id }) => {
+    await ownedItineraryForSharing(ctx, id);
+    const editors = await ctx.db
+      .query("itineraryEditors")
+      .withIndex("by_itinerary_and_userId", (q) => q.eq("itineraryId", id))
+      .collect();
+    const users = await Promise.all(editors.map(({ userId }) => ctx.db.get(userId)));
+    return users.flatMap((user) =>
+      user
+        ? [{ userId: user._id, name: user.name ?? user.email ?? "Traveler", email: user.email }]
+        : [],
+    );
+  },
+});
+
+export const removeEditor = mutation({
+  args: { id: v.id("itineraries"), userId: v.id("users") },
+  handler: async (ctx, { id, userId }) => {
+    await ownedItineraryForSharing(ctx, id);
+    const editor = await ctx.db
+      .query("itineraryEditors")
+      .withIndex("by_itinerary_and_userId", (q) => q.eq("itineraryId", id).eq("userId", userId))
+      .unique();
+    if (editor) await ctx.db.delete(editor._id);
     return null;
   },
 });
