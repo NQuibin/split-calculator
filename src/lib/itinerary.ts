@@ -9,6 +9,7 @@ export type EntryFields = {
   kind: EntryKind;
   subtype?: string;
   details: string;
+  cost?: { amount: number; currency: string; basis: "per_person" | "total" };
   flight?: {
     number?: string;
     departureTime?: string;

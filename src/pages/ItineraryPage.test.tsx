@@ -38,6 +38,18 @@ vi.mock("@tanstack/react-query", () => ({
       entries: costaRica.entries.map((entry, index) => ({
         ...entry,
         id: String(index),
+        cost:
+          entry.title === "La Fortuna Waterfall"
+            ? { amount: 20, currency: "USD", basis: "per_person" }
+            : undefined,
+        parentEntryId:
+          entry.title === "El Salto Rope Swing"
+            ? String(
+                costaRica.entries.findIndex(
+                  (candidate) => candidate.title === "La Fortuna Waterfall",
+                ),
+              )
+            : undefined,
         kind:
           entry.kind === "flight" || entry.title === "Pick up rental car"
             ? "travel"
@@ -50,7 +62,7 @@ vi.mock("@tanstack/react-query", () => ({
             : entry.title === "Pick up rental car"
               ? "car"
               : entry.title === "Airbnb check-in"
-                ? "bnb"
+                ? "bed_and_breakfast"
                 : entry.title === "La Fortuna Waterfall"
                   ? "viewpoint"
                   : undefined,
@@ -125,7 +137,7 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(travel?.textContent).toContain("Toronto (YYZ)");
     expect(travel?.textContent).toContain("Pick up rental car");
     expect(travel?.textContent).toContain("Car13:30");
-    expect(lodging?.textContent).toContain("BnB");
+    expect(lodging?.textContent).toContain("Bed & Breakfast");
     expect(travel?.textContent).toContain("Liberia (LIR)");
     expect(lodging?.querySelector('time[datetime="2026-11-22"]')).not.toBeNull();
     expect(travel?.textContent).not.toContain("Airbnb check-in");
@@ -164,6 +176,7 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(container.textContent).toContain("La Fortuna Waterfall");
     const location = container.querySelector('a[href="https://example.com/waterfall"]');
     expect(location?.textContent).toBe("La Fortuna Waterfall entrance");
+    expect(location?.closest("li")?.textContent).toMatch(/Cost.*20\.00 USD.*per person/);
     expect(location?.parentElement?.parentElement?.textContent).toContain("Attraction · Viewpoint");
     expect(location?.closest("li")?.querySelector("svg.lucide-mountain")).not.toBeNull();
     expect(travel?.textContent).not.toContain("La Fortuna Waterfall");
@@ -173,6 +186,17 @@ test("switches the Costa Rica timeline between trip dates", async () => {
       'button[aria-label="Actions for La Fortuna Waterfall"]',
     );
     expect(actions?.classList.contains("sm:hidden")).toBe(true);
+    const alternatives = container.querySelector(
+      'ol[aria-label="Alternatives to La Fortuna Waterfall"]',
+    );
+    expect(alternatives?.textContent).toContain("El Salto Rope Swing");
+    expect(alternatives?.textContent).toContain("Alternative");
+    expect(
+      alternatives?.querySelector('button[aria-label="Add alternative to El Salto Rope Swing"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Add alternative to La Fortuna Waterfall"]'),
+    ).not.toBeNull();
     expect(days[0].getAttribute("aria-current")).toBeNull();
     expect(days[1].getAttribute("aria-current")).toBe("page");
 

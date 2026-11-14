@@ -5,6 +5,7 @@ import { requireUserId } from "./authz";
 import { costaRica } from "../src/lib/costaRicaItinerary";
 import { isValidISODate } from "../src/lib/format";
 import { entrySubtypes } from "../src/lib/itineraryCategories";
+import { CURRENCIES } from "../src/lib/currencies";
 import type { EntryKind } from "../src/lib/itineraryCategories";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
@@ -25,6 +26,13 @@ const entryValidator = v.object({
   ),
   subtype: v.optional(v.string()),
   details: v.string(),
+  cost: v.optional(
+    v.object({
+      amount: v.number(),
+      currency: v.string(),
+      basis: v.union(v.literal("per_person"), v.literal("total")),
+    }),
+  ),
   location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
   lodging: v.optional(
     v.object({
@@ -46,7 +54,19 @@ const entryValidator = v.object({
     }),
   ),
 });
+
+type StoredEntryKind = EntryKind | "shop" | "flight";
+
+function canonicalEntry(entry: { kind: StoredEntryKind; subtype?: string }): {
+  kind: EntryKind;
+  subtype?: string;
+} {
+  if (entry.kind === "shop") return { kind: "activity" as const, subtype: "shopping" };
+  if (entry.kind === "flight") return { kind: "travel" as const, subtype: "flight" };
+  return { ...entry, kind: entry.kind as EntryKind };
+}
 const MAX_ENTRIES = 500;
+const currencyCodes = new Set(CURRENCIES.map(({ code }) => code));
 
 function assertDate(date: string) {
   if (!isValidISODate(date)) {
@@ -306,14 +326,45 @@ export const get = query({
       endDate: doc.endDate,
       access,
       entries: entries.map(
-        ({ entryId, date, time, title, kind, subtype, details, location, flight, lodging }) => ({
-          id: entryId,
+        ({
+          entryId,
+          parentEntryId,
           date,
           time,
           title,
-          kind: kind === "flight" ? "travel" : kind,
-          subtype: kind === "flight" ? "flight" : subtype,
+          kind,
+          subtype,
           details,
+          cost,
+          location,
+          flight,
+          lodging,
+        }) => ({
+          id: entryId,
+          ...(parentEntryId ? { parentEntryId } : {}),
+          date,
+          time,
+          title,
+          kind:
+            kind === "flight"
+              ? "travel"
+              : kind === "activity" && subtype === "museum"
+                ? "attraction"
+                : kind === "shop"
+                  ? "activity"
+                  : kind,
+          subtype:
+            kind === "flight"
+              ? "flight"
+              : kind === "activity" && subtype === "museum"
+                ? "museum"
+                : kind === "shop"
+                  ? "shopping"
+                  : kind === "lodging" && subtype === "bnb"
+                    ? "bed_and_breakfast"
+                    : subtype,
+          details,
+          cost,
           location,
           flight,
           lodging,
@@ -354,20 +405,38 @@ export const update = mutation({
 });
 
 export const saveEntry = mutation({
-  args: { id: v.id("itineraries"), entryId: v.optional(v.string()), entry: entryValidator },
-  handler: async (ctx, { id, entryId, entry }) => {
+  args: {
+    id: v.id("itineraries"),
+    entryId: v.optional(v.string()),
+    parentEntryId: v.optional(v.string()),
+    entry: entryValidator,
+  },
+  handler: async (ctx, { id, entryId, parentEntryId, entry }) => {
     const itinerary = await editableItinerary(ctx, id);
     validateEntry(entry, itinerary.startDate, itinerary.endDate);
+    if (entry.cost && (!Number.isFinite(entry.cost.amount) || entry.cost.amount < 0)) {
+      throw new ConvexError("Cost amount must be a finite nonnegative number");
+    }
+    if (entry.cost && !currencyCodes.has(entry.cost.currency)) {
+      throw new ConvexError("Cost must use a supported currency");
+    }
+    const migratedEntry = { ...entry, ...canonicalEntry(entry) };
     const normalizedEntry = {
-      ...entry,
-      kind: entry.kind === "flight" ? ("travel" as const) : entry.kind,
-      subtype: entry.kind === "flight" ? "flight" : entry.subtype,
+      ...migratedEntry,
+      kind: migratedEntry.kind,
+      subtype: migratedEntry.subtype,
     };
+    if (normalizedEntry.kind === "lodging" && normalizedEntry.subtype === "bnb") {
+      normalizedEntry.subtype = "bed_and_breakfast";
+    }
+    if (normalizedEntry.kind === "activity" && normalizedEntry.subtype === "museum") {
+      normalizedEntry.kind = "attraction";
+    }
     const subtype = normalizeSubtype(normalizedEntry);
     const location = normalizeLocation({ ...normalizedEntry, subtype });
     const flight = normalizeFlight({ ...normalizedEntry, subtype });
     const lodging = normalizeLodging(normalizedEntry);
-    const savedEntry = { ...normalizedEntry, subtype, location, flight, lodging };
+    const savedEntry = { ...normalizedEntry, cost: entry.cost, subtype, location, flight, lodging };
     const existing = entryId
       ? await ctx.db
           .query("itineraryEntries")
@@ -379,8 +448,44 @@ export const saveEntry = mutation({
     if (entryId !== undefined) {
       if (!existing)
         throw new ConvexError("This entry was removed. Refresh the itinerary and try again.");
+      if (parentEntryId !== undefined && parentEntryId !== existing.parentEntryId) {
+        throw new ConvexError("An entry's alternative relationship cannot be changed");
+      }
+      if (existing.parentEntryId && entry.date !== existing.date) {
+        const parent = await ctx.db
+          .query("itineraryEntries")
+          .withIndex("by_itinerary_and_entryId", (q) =>
+            q.eq("itineraryId", id).eq("entryId", existing.parentEntryId!),
+          )
+          .unique();
+        if (!parent || entry.date !== parent.date)
+          throw new ConvexError("Alternative entries must use the same date as their parent");
+      }
       await ctx.db.patch(existing._id, savedEntry);
+      if (!existing.parentEntryId) {
+        const alternatives = await ctx.db
+          .query("itineraryEntries")
+          .withIndex("by_itinerary_and_parentEntryId", (q) =>
+            q.eq("itineraryId", id).eq("parentEntryId", existing.entryId),
+          )
+          .collect();
+        for (const alternative of alternatives)
+          await ctx.db.patch(alternative._id, { date: entry.date });
+      }
       return null;
+    }
+    if (parentEntryId !== undefined) {
+      const parent = await ctx.db
+        .query("itineraryEntries")
+        .withIndex("by_itinerary_and_entryId", (q) =>
+          q.eq("itineraryId", id).eq("entryId", parentEntryId),
+        )
+        .unique();
+      if (!parent) throw new ConvexError("Alternative parent entry was not found");
+      if (parent.parentEntryId !== undefined)
+        throw new ConvexError("Alternatives can only be attached to a primary entry");
+      if (entry.date !== parent.date)
+        throw new ConvexError("Alternative entries must use the same date as their parent");
     }
     const entries = await ctx.db
       .query("itineraryEntries")
@@ -392,6 +497,7 @@ export const saveEntry = mutation({
       ...savedEntry,
       entryId: crypto.randomUUID(),
       itineraryId: id,
+      ...(parentEntryId ? { parentEntryId } : {}),
     });
     return null;
   },
@@ -405,7 +511,18 @@ export const removeEntry = mutation({
       .query("itineraryEntries")
       .withIndex("by_itinerary_and_entryId", (q) => q.eq("itineraryId", id).eq("entryId", entryId))
       .unique();
-    if (entry) await ctx.db.delete(entry._id);
+    if (entry) {
+      if (!entry.parentEntryId) {
+        const alternatives = await ctx.db
+          .query("itineraryEntries")
+          .withIndex("by_itinerary_and_parentEntryId", (q) =>
+            q.eq("itineraryId", id).eq("parentEntryId", entry.entryId),
+          )
+          .collect();
+        for (const alternative of alternatives) await ctx.db.delete(alternative._id);
+      }
+      await ctx.db.delete(entry._id);
+    }
     return null;
   },
 });

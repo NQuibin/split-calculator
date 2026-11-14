@@ -4,6 +4,33 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
 import {
   BedDouble,
+  CableCar,
+  Coffee,
+  Helicopter,
+  Martini,
+  Soup,
+  Tent,
+  TramFront,
+  Bike,
+  Binoculars,
+  Camera,
+  Castle,
+  ChefHat,
+  Church,
+  Dumbbell,
+  Fish,
+  Gamepad2,
+  Leaf,
+  Music,
+  Palette,
+  Sailboat,
+  ShoppingBasket,
+  Snowflake,
+  TentTree,
+  Trees,
+  Volleyball,
+  Waves,
+  Wine,
   CalendarDays,
   Bus,
   Car,
@@ -16,10 +43,10 @@ import {
   Cookie,
   Egg,
   IceCreamCone,
+  GitFork,
   Map as MapIcon,
   Mountain,
   Sandwich,
-  Store,
   Building2,
   GalleryHorizontal,
   type LucideIcon,
@@ -33,7 +60,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { ItineraryTravelSummary, TravelEntryDetails } from "@/components/ItineraryTravelSummary";
 import { ItineraryShareDialog } from "@/components/ItineraryShareDialog";
@@ -47,11 +74,11 @@ import { EmptyState, Page, Panel } from "@/components/ui/Page";
 import { GroupTitle, PageDescription, PageTitle, SectionTitle } from "@/components/ui/Typography";
 import { isValidISODate, todayISODate } from "@/lib/format";
 import type { EntryFields } from "@/lib/itinerary";
-import { entryKinds, subtypeLabel } from "@/lib/itineraryCategories";
+import { entryKinds, type entrySubtypes, subtypeLabel } from "@/lib/itineraryCategories";
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { cn } from "@/lib/utils";
 
-type Entry = EntryFields & { id: string };
+type Entry = EntryFields & { id: string; parentEntryId?: string };
 const entryIcons = {
   event: CalendarDays,
   travel: RouteIcon,
@@ -59,41 +86,98 @@ const entryIcons = {
   food: Utensils,
   activity: Compass,
   attraction: Landmark,
-  shop: ShoppingBag,
 };
 
 const entryIconColors = {
-  event: "text-ink-soft",
-  travel: "text-sky-800",
+  event: "text-zinc-600",
+  travel: "text-sky-700",
   lodging: "text-violet-800",
-  food: "text-orange-800",
-  activity: "text-teal-800",
-  attraction: "text-forest",
-  shop: "text-fuchsia-800",
+  food: "text-yellow-700",
+  activity: "text-red-800",
+  attraction: "text-green-800",
 };
 
-const subtypeIcons: Partial<Record<string, LucideIcon>> = {
+type EntrySubtype = (typeof entrySubtypes)[keyof typeof entrySubtypes][number];
+
+const subtypeIcons = {
   flight: Plane,
   bus: Bus,
   train: TrainFront,
   ferry: Ship,
   car: Car,
   walk: Footprints,
+  taxi_and_rideshare: Car,
+  subway_and_metro: TrainFront,
+  tram_and_light_rail: TramFront,
+  bicycle: Bike,
+  motorcycle_and_scooter: Bike,
+  boat: Sailboat,
+  cable_car_and_gondola: CableCar,
+  shuttle: Bus,
+  helicopter: Helicopter,
   hotel: Hotel,
-  bnb: House,
+  bed_and_breakfast: House,
   hostel: BedDouble,
+  resort: Hotel,
+  vacation_rental: House,
+  apartment: Building2,
+  guesthouse: House,
+  homestay: House,
+  motel: BedDouble,
+  cabin_and_cottage: House,
+  camping: Tent,
   breakfast: Egg,
+  brunch: Egg,
   lunch: Sandwich,
   dinner: Utensils,
   snack: Cookie,
   dessert: IceCreamCone,
+  coffee_and_tea: Coffee,
+  drinks: Martini,
+  street_food: Soup,
+  food_tasting: Utensils,
   museum: GalleryHorizontal,
   tour: MapIcon,
   viewpoint: Mountain,
   landmark: Landmark,
-  mall: Building2,
-  standalone: Store,
-};
+  art_gallery: Palette,
+  monument: Landmark,
+  historic_site: Landmark,
+  religious_site: Church,
+  architecture: Building2,
+  park: Trees,
+  garden: Leaf,
+  natural_wonder: Mountain,
+  beach: Waves,
+  zoo_and_aquarium: Fish,
+  theme_park: TentTree,
+  castle_and_palace: Castle,
+  market: ShoppingBasket,
+  neighborhood: House,
+  street_and_square: MapIcon,
+  cultural_site: Landmark,
+  walking_tour: Footprints,
+  hiking: Mountain,
+  cycling: Bike,
+  water_sports: Waves,
+  boat_tour: Sailboat,
+  diving_and_snorkeling: Fish,
+  wildlife_experience: Binoculars,
+  adventure: Compass,
+  winter_sports: Snowflake,
+  workshop: Palette,
+  cooking_class: ChefHat,
+  tasting: Wine,
+  wellness: Leaf,
+  fitness: Dumbbell,
+  shopping: ShoppingBag,
+  photography: Camera,
+  entertainment: Music,
+  sports: Volleyball,
+  gaming: Gamepad2,
+  cultural_experience: Landmark,
+  excursion: MapIcon,
+} satisfies Record<EntrySubtype, LucideIcon>;
 
 function ItineraryDays({
   startDate,
@@ -177,7 +261,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
   const [sharing, setSharing] = useState(false);
   const canEdit = trip?.access === "owner" || trip?.access === "editor";
   const [editingTrip, setEditingTrip] = useState(false);
-  const [editor, setEditor] = useState<{ entry?: Entry }>();
+  const [editor, setEditor] = useState<{ entry?: Entry; parent?: Entry }>();
   const [deleting, setDeleting] = useState<Entry>();
 
   let date: string | undefined;
@@ -188,6 +272,29 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
   const entries = trip?.entries
     .filter((entry) => entry.date === date)
     .sort((a, b) => (a.time || "24:00").localeCompare(b.time || "24:00"));
+
+  function renderEntry(entry: Entry, alternatives?: Entry[]) {
+    return (
+      <TimelineEntry
+        key={entry.id}
+        entry={entry}
+        onEdit={canEdit ? () => setEditor({ entry }) : undefined}
+        onDelete={canEdit ? () => setDeleting(entry) : undefined}
+        onAddAlternative={
+          canEdit && !entry.parentEntryId ? () => setEditor({ parent: entry }) : undefined
+        }
+      >
+        {!!alternatives?.length && (
+          <ol
+            aria-label={`Alternatives to ${entry.title}`}
+            className="relative ms-5 mt-2 border-s-2 border-forest ps-3 before:absolute before:-start-0.5 before:-top-2 before:h-2 before:border-s-2 before:border-forest sm:ps-4"
+          >
+            {alternatives.map((alternative) => renderEntry(alternative))}
+          </ol>
+        )}
+      </TimelineEntry>
+    );
+  }
 
   return (
     <Page className="gap-6">
@@ -229,7 +336,10 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
             </div>
           </header>
 
-          <ItineraryTravelSummary id={id} entries={trip.entries} />
+          <ItineraryTravelSummary
+            id={id}
+            entries={trip.entries.filter((entry) => !entry.parentEntryId)}
+          />
 
           <Panel className="flex flex-col gap-5 p-5 sm:p-6">
             <ItineraryDays
@@ -257,14 +367,14 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
               </div>
               {entries?.length ? (
                 <ItineraryTimeRail date={date}>
-                  {entries.map((entry) => (
-                    <TimelineEntry
-                      key={entry.id}
-                      entry={entry}
-                      onEdit={canEdit ? () => setEditor({ entry }) : undefined}
-                      onDelete={canEdit ? () => setDeleting(entry) : undefined}
-                    />
-                  ))}
+                  {entries
+                    .filter((entry) => !entry.parentEntryId)
+                    .map((entry) =>
+                      renderEntry(
+                        entry,
+                        entries.filter((alternative) => alternative.parentEntryId === entry.id),
+                      ),
+                    )}
                 </ItineraryTimeRail>
               ) : (
                 <EmptyState>No entries for this date.</EmptyState>
@@ -291,12 +401,19 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
           {canEdit && editor && (
             <EntryDialog
               entry={editor.entry}
+              parent={editor.parent}
+              isAlternative={Boolean(editor.parent || editor.entry?.parentEntryId)}
               date={date}
               startDate={trip.startDate}
               endDate={trip.endDate}
               onClose={() => setEditor(undefined)}
               onSave={async (entry) => {
-                await saveEntry({ id: trip._id, entryId: editor.entry?.id, entry });
+                await saveEntry({
+                  id: trip._id,
+                  entryId: editor.entry?.id,
+                  parentEntryId: editor.parent?.id,
+                  entry,
+                });
                 if (entry.date !== date) {
                   await navigate({
                     to: "/itineraries/$id",
@@ -314,7 +431,12 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
               if (!open) setDeleting(undefined);
             }}
             title="Remove entry?"
-            description={deleting?.title}
+            description={
+              deleting &&
+              (entries?.some((entry) => entry.parentEntryId === deleting.id)
+                ? `Remove ${deleting.title} and its alternatives?`
+                : deleting.title)
+            }
             confirmLabel="Remove entry"
             pendingLabel="Removing…"
             onConfirm={async () => {
@@ -331,15 +453,30 @@ function TimelineEntry({
   entry,
   onEdit,
   onDelete,
+  onAddAlternative,
+  children,
 }: {
   entry: Entry;
   onEdit?: () => void;
   onDelete?: () => void;
+  onAddAlternative?: () => void;
+  children?: ReactNode;
 }) {
-  const Icon = (entry.subtype && subtypeIcons[entry.subtype]) || entryIcons[entry.kind];
+  const Icon =
+    (entry.subtype && Object.hasOwn(subtypeIcons, entry.subtype)
+      ? subtypeIcons[entry.subtype as EntrySubtype]
+      : undefined) ?? entryIcons[entry.kind];
   const showCategory = entry.kind !== "lodging";
+  const { currency } = useLocaleFormatters();
   return (
-    <li data-time={entry.time || undefined} className="pb-4 last:pb-0">
+    <li
+      data-time={entry.parentEntryId ? undefined : entry.time || undefined}
+      className={cn(
+        "pb-4 last:pb-0",
+        entry.parentEntryId &&
+          "relative before:absolute before:-start-3 before:top-6 before:w-3 before:border-t-2 before:border-forest sm:before:-start-4 sm:before:w-4",
+      )}
+    >
       <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 rounded-lg border border-rule bg-field p-3 sm:gap-x-3">
         <span
           className={cn(
@@ -362,6 +499,7 @@ function TimelineEntry({
             ) : (
               <span>Any time</span>
             )}
+            {entry.parentEntryId && <span className="font-medium text-forest">Alternative</span>}
             {!showCategory && (
               <>
                 <span aria-hidden="true">·</span>
@@ -377,11 +515,26 @@ function TimelineEntry({
               <OverflowAction onClick={onEdit}>
                 <Pencil aria-hidden="true" /> Edit
               </OverflowAction>
+              {onAddAlternative && (
+                <OverflowAction onClick={onAddAlternative}>
+                  <GitFork aria-hidden="true" /> Add alternative
+                </OverflowAction>
+              )}
               <OverflowAction destructive onClick={onDelete}>
                 <Trash2 aria-hidden="true" /> Remove
               </OverflowAction>
             </OverflowMenu>
             <div className="hidden shrink-0 items-start sm:flex">
+              {onAddAlternative && (
+                <Button
+                  variant="quiet-icon"
+                  size="icon-touch"
+                  aria-label={`Add alternative to ${entry.title}`}
+                  onClick={onAddAlternative}
+                >
+                  <GitFork aria-hidden="true" />
+                </Button>
+              )}
               <Button
                 variant="quiet-icon"
                 size="icon-touch"
@@ -409,7 +562,7 @@ function TimelineEntry({
             </div>
           </div>
         )}
-        {(showCategory || entry.subtype || entry.location || entry.lodging) && (
+        {(showCategory || entry.subtype || entry.location || entry.lodging || entry.cost) && (
           <div className="col-span-full mt-3 flex flex-col gap-2 border-t border-rule pt-3">
             {entry.kind === "lodging" && <GroupTitle as="h4">Lodging details</GroupTitle>}
             {(showCategory || entry.subtype) && (
@@ -435,6 +588,17 @@ function TimelineEntry({
                 )}
               </div>
             )}
+            {entry.cost && (
+              <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink">
+                <span className="font-medium">Cost</span>
+                <span className="font-numeric font-semibold">
+                  {currency(entry.cost.amount, entry.cost.currency)} {entry.cost.currency}
+                </span>
+                <span className="text-ink-soft">
+                  {entry.cost.basis === "per_person" ? "per person" : "total"}
+                </span>
+              </p>
+            )}
             {entry.lodging && <TravelEntryDetails entry={entry} />}
             {entry.kind !== "lodging" && entry.details && (
               <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.details}</p>
@@ -447,6 +611,7 @@ function TimelineEntry({
           </p>
         )}
       </div>
+      {children}
     </li>
   );
 }

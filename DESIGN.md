@@ -60,8 +60,8 @@ the app tokens (`bg-forest`) in app code and the semantic tokens
 
 ### Itinerary category icons
 
-Timeline icons use sky for Travel, violet for Lodging, orange for Food, teal
-for Activity, forest for Attraction, fuchsia for Shop, and muted ink for Other.
+Timeline icons use sky blue for Travel, violet for Lodging, gold for Food,
+red for Activity, green for Attraction, and grey for Other.
 The category sets the icon colour, and the subtype sets the glyph and adds a
 tint of that colour behind it. The card also names the type and subtype.
 

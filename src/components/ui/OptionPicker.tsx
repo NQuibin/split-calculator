@@ -29,7 +29,7 @@ export function OptionPicker<T extends string>({
         }
       >
         <span className="min-w-0 truncate">
-          {options.find((option) => option.value === value)?.label}
+          {value && options.find((option) => option.value === value)?.label}
         </span>
         <DropdownChevron />
       </PopoverTrigger>
@@ -44,7 +44,7 @@ export function OptionPicker<T extends string>({
                   setOpen(false);
                 }}
               >
-                {option.label}
+                {option.value === "" ? <em>{option.label}</em> : option.label}
               </MenuOption>
             </li>
           ))}

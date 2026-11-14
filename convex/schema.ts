@@ -126,6 +126,7 @@ export default defineSchema({
   itineraryEntries: defineTable({
     itineraryId: v.id("itineraries"),
     entryId: v.string(),
+    parentEntryId: v.optional(v.string()),
     date: v.string(),
     time: v.string(),
     title: v.string(),
@@ -141,6 +142,13 @@ export default defineSchema({
     ),
     subtype: v.optional(v.string()),
     details: v.string(),
+    cost: v.optional(
+      v.object({
+        amount: v.number(),
+        currency: v.string(),
+        basis: v.union(v.literal("per_person"), v.literal("total")),
+      }),
+    ),
     location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
     lodging: v.optional(
       v.object({
@@ -163,7 +171,8 @@ export default defineSchema({
     ),
   })
     .index("by_itinerary", ["itineraryId"])
-    .index("by_itinerary_and_entryId", ["itineraryId", "entryId"]),
+    .index("by_itinerary_and_entryId", ["itineraryId", "entryId"])
+    .index("by_itinerary_and_parentEntryId", ["itineraryId", "parentEntryId"]),
   itineraryEditors: defineTable({
     itineraryId: v.id("itineraries"),
     userId: v.id("users"),

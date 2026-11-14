@@ -83,6 +83,121 @@ test("itineraries are publicly readable and entries are editable by stable entry
   expect((await alex.query(api.itineraries.get, { id }))?.entries).toEqual([]);
 });
 
+test("entry reference cost round trips, clears when omitted, and validates amount and currency", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = {
+    date: "2026-12-01",
+    time: "",
+    title: "Museum",
+    kind: "event" as const,
+    details: "",
+  };
+  const cost = { amount: 12.5, currency: "CAD", basis: "per_person" as const };
+  await alex.mutation(api.itineraries.saveEntry, { id, entry: { ...base, cost } });
+  let entry = (await alex.query(api.itineraries.get, { id }))!.entries[0];
+  expect(entry.cost).toEqual(cost);
+  await alex.mutation(api.itineraries.saveEntry, { id, entryId: entry.id, entry: base });
+  entry = (await alex.query(api.itineraries.get, { id }))!.entries[0];
+  expect(entry.cost).toBeUndefined();
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, cost: { amount: -1, currency: "CAD", basis: "total" } },
+    }),
+  ).rejects.toThrow("finite nonnegative");
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, cost: { amount: 10, currency: "ZZZ", basis: "total" } },
+    }),
+  ).rejects.toThrow("supported currency");
+});
+
+test("alternatives stay attached to a primary entry, follow its date, and cascade on removal", async () => {
+  const { alex, sam } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const entry = {
+    date: "2026-12-01",
+    time: "",
+    title: "Primary",
+    kind: "event" as const,
+    details: "",
+  };
+  await alex.mutation(api.itineraries.saveEntry, { id, entry });
+  const primary = (await alex.query(api.itineraries.get, { id }))?.entries[0];
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    parentEntryId: primary!.id,
+    entry: { ...entry, title: "Alternative" },
+  });
+  let entries = (await alex.query(api.itineraries.get, { id }))?.entries ?? [];
+  const alternative = entries.find((item) => item.title === "Alternative")!;
+  expect(alternative.parentEntryId).toBe(primary!.id);
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      parentEntryId: alternative.id,
+      entry: { ...entry, title: "Nested" },
+    }),
+  ).rejects.toThrow("only be attached to a primary");
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...entry, date: "2026-12-02", title: "Wrong date" },
+      parentEntryId: primary!.id,
+    }),
+  ).rejects.toThrow("same date");
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: primary!.id,
+    entry: { ...entry, date: "2026-12-02" },
+  });
+  entries = (await alex.query(api.itineraries.get, { id }))?.entries ?? [];
+  expect(entries.find((item) => item.id === alternative.id)?.date).toBe("2026-12-02");
+  await expect(
+    sam.mutation(api.itineraries.removeEntry, { id, entryId: primary!.id }),
+  ).rejects.toThrow("Not authorized");
+  await alex.mutation(api.itineraries.removeEntry, { id, entryId: primary!.id });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries).toEqual([]);
+});
+
+test("removing an alternative leaves its primary entry intact", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const entry = {
+    date: "2026-12-01",
+    time: "",
+    title: "Primary",
+    kind: "event" as const,
+    details: "",
+  };
+  await alex.mutation(api.itineraries.saveEntry, { id, entry });
+  const primaryId = (await alex.query(api.itineraries.get, { id }))!.entries[0].id;
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    parentEntryId: primaryId,
+    entry: { ...entry, title: "Alternative" },
+  });
+  const alternativeId = (await alex.query(api.itineraries.get, { id }))!.entries[1].id;
+  await alex.mutation(api.itineraries.removeEntry, { id, entryId: alternativeId });
+  expect(
+    (await alex.query(api.itineraries.get, { id }))?.entries.map(({ id: entryId }) => entryId),
+  ).toEqual([primaryId]);
+});
+
 test("owners share verified accounts as editors, revoke access, and outsiders stay read-only", async () => {
   const { alex, sam, t } = await setup();
   const id = await alex.mutation(api.itineraries.create, {
@@ -672,9 +787,9 @@ test("new itinerary kinds persist and subtype values are kind-specific and clear
   const base = { date: "2026-12-01", time: "", details: "" };
   const cases = [
     { kind: "food", subtype: "dinner" },
-    { kind: "activity", subtype: "museum" },
+    { kind: "attraction", subtype: "museum" },
     { kind: "attraction", subtype: "viewpoint" },
-    { kind: "shop", subtype: "mall" },
+    { kind: "activity", subtype: "shopping" },
     { kind: "event" },
     { kind: "travel", subtype: "flight" },
     { kind: "lodging" },
@@ -702,4 +817,154 @@ test("new itinerary kinds persist and subtype values are kind-specific and clear
     entry: { ...base, title: "Dinner", kind: "food" },
   });
   expect((await alex.query(api.itineraries.get, { id }))?.entries[0].subtype).toBeUndefined();
+});
+
+test("legacy shop entries read and save as shopping activities", async () => {
+  const { t, alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  await t.run(async (ctx) => {
+    await ctx.db.insert("itineraryEntries", {
+      itineraryId: id,
+      entryId: "legacy-shop",
+      date: "2026-12-01",
+      time: "",
+      title: "Old mall",
+      kind: "shop",
+      subtype: "mall",
+      details: "",
+    });
+  });
+
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0]).toMatchObject({
+    kind: "activity",
+    subtype: "shopping",
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: "legacy-shop",
+    entry: {
+      date: "2026-12-01",
+      time: "",
+      title: "Updated shopping",
+      kind: "shop",
+      subtype: "mall",
+      details: "",
+    },
+  });
+  const stored = await t.run((ctx) =>
+    ctx.db
+      .query("itineraryEntries")
+      .withIndex("by_itinerary_and_entryId", (q) =>
+        q.eq("itineraryId", id).eq("entryId", "legacy-shop"),
+      )
+      .unique(),
+  );
+  expect(stored).toMatchObject({ kind: "activity", subtype: "shopping" });
+});
+
+test("legacy activity museum entries read and save as canonical attractions", async () => {
+  const { t, alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  await t.run(async (ctx) => {
+    await ctx.db.insert("itineraryEntries", {
+      itineraryId: id,
+      entryId: "legacy-museum",
+      date: "2026-12-01",
+      time: "",
+      title: "Old museum",
+      kind: "activity",
+      subtype: "museum",
+      details: "",
+    });
+  });
+
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0]).toMatchObject({
+    kind: "attraction",
+    subtype: "museum",
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: "legacy-museum",
+    entry: {
+      date: "2026-12-01",
+      time: "",
+      title: "Updated museum",
+      kind: "activity",
+      subtype: "museum",
+      details: "",
+    },
+  });
+  const stored = await t.run((ctx) =>
+    ctx.db
+      .query("itineraryEntries")
+      .withIndex("by_itinerary_and_entryId", (q) =>
+        q.eq("itineraryId", id).eq("entryId", "legacy-museum"),
+      )
+      .unique(),
+  );
+  expect(stored).toMatchObject({ kind: "attraction", subtype: "museum" });
+});
+
+test("legacy BnB and new travel and food subtypes use canonical values", async () => {
+  const { t, alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  await t.run(async (ctx) => {
+    await ctx.db.insert("itineraryEntries", {
+      itineraryId: id,
+      entryId: "legacy-bnb",
+      date: "2026-12-01",
+      time: "",
+      title: "Old BnB",
+      kind: "lodging",
+      subtype: "bnb",
+      details: "",
+    });
+  });
+
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0]).toMatchObject({
+    kind: "lodging",
+    subtype: "bed_and_breakfast",
+  });
+  const base = { date: "2026-12-01", time: "", details: "" };
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: "legacy-bnb",
+    entry: { ...base, title: "Updated BnB", kind: "lodging", subtype: "bnb" },
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: { ...base, title: "Taxi", kind: "travel", subtype: "taxi_and_rideshare" },
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: { ...base, title: "Coffee", kind: "food", subtype: "coffee_and_tea" },
+  });
+
+  const entries = (await alex.query(api.itineraries.get, { id }))?.entries;
+  expect(entries?.map(({ kind, subtype }) => ({ kind, subtype }))).toEqual([
+    { kind: "lodging", subtype: "bed_and_breakfast" },
+    { kind: "travel", subtype: "taxi_and_rideshare" },
+    { kind: "food", subtype: "coffee_and_tea" },
+  ]);
+  const stored = await t.run((ctx) =>
+    ctx.db
+      .query("itineraryEntries")
+      .withIndex("by_itinerary_and_entryId", (q) =>
+        q.eq("itineraryId", id).eq("entryId", "legacy-bnb"),
+      )
+      .unique(),
+  );
+  expect(stored).toMatchObject({ kind: "lodging", subtype: "bed_and_breakfast" });
 });
