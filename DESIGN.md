@@ -58,6 +58,13 @@ onto this palette, so shadcn-derived components inherit it automatically. Prefer
 the app tokens (`bg-forest`) in app code and the semantic tokens
 (`bg-primary`) inside `src/components/ui/`.
 
+### Itinerary category icons
+
+Timeline icons use sky for Travel, violet for Lodging, orange for Food, teal
+for Activity, forest for Attraction, fuchsia for Shop, and muted ink for Other.
+The category sets the icon colour, and the subtype sets the glyph and adds a
+tint of that colour behind it. The card also names the type and subtype.
+
 ### Contrast (WCAG 2.1 AA)
 
 Measured against the two app grounds:

@@ -36,6 +36,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { ItineraryTravelSummary, TravelEntryDetails } from "@/components/ItineraryTravelSummary";
+import { ItineraryTimeRail } from "@/components/ItineraryTimeRail";
 import { EntryDialog, TripDialog } from "@/components/ItineraryDialogs";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { Button, buttonVariants } from "@/components/ui/Button";
@@ -58,6 +59,16 @@ const entryIcons = {
   activity: Compass,
   attraction: Landmark,
   shop: ShoppingBag,
+};
+
+const entryIconColors = {
+  event: "text-ink-soft",
+  travel: "text-sky-800",
+  lodging: "text-violet-800",
+  food: "text-orange-800",
+  activity: "text-teal-800",
+  attraction: "text-forest",
+  shop: "text-fuchsia-800",
 };
 
 const subtypeIcons: Partial<Record<string, LucideIcon>> = {
@@ -239,7 +250,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
                 </Button>
               </div>
               {entries?.length ? (
-                <ol>
+                <ItineraryTimeRail date={date}>
                   {entries.map((entry) => (
                     <TimelineEntry
                       key={entry.id}
@@ -248,7 +259,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
                       onDelete={() => setDeleting(entry)}
                     />
                   ))}
-                </ol>
+                </ItineraryTimeRail>
               ) : (
                 <EmptyState>No entries for this date.</EmptyState>
               )}
@@ -315,15 +326,24 @@ function TimelineEntry({
   const Icon = (entry.subtype && subtypeIcons[entry.subtype]) || entryIcons[entry.kind];
   const showCategory = entry.kind !== "lodging";
   return (
-    <li className="relative pb-4 last:pb-0 after:absolute after:bottom-0 after:left-1/2 after:h-4 after:border-l after:border-rule last:after:hidden">
+    <li data-time={entry.time || undefined} className="pb-4 last:pb-0">
       <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2 rounded-lg border border-rule bg-field p-3 sm:gap-x-3">
-        <span className="flex size-11 items-center justify-center rounded-full border border-rule bg-paper text-forest">
+        <span
+          className={cn(
+            "flex size-11 items-center justify-center rounded-full border border-rule",
+            entry.subtype ? "bg-current/10" : "bg-paper",
+            entryIconColors[entry.kind],
+          )}
+        >
           <Icon aria-hidden="true" className="size-5" />
         </span>
         <div className="min-w-0 self-center">
           <p className="mb-1 flex flex-wrap items-center gap-2 text-xs text-ink-soft">
             {entry.time ? (
-              <time dateTime={`${entry.date}T${entry.time}`} className="font-numeric">
+              <time
+                dateTime={`${entry.date}T${entry.time}`}
+                className="font-numeric text-sm font-semibold text-forest"
+              >
                 {entry.time}
               </time>
             ) : (
