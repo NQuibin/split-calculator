@@ -38,7 +38,15 @@ vi.mock("@tanstack/react-query", () => ({
         id: String(index),
         flight:
           entry.kind === "flight"
-            ? { number: "AC 123", departureTime: "08:15", arrivalTime: "12:35" }
+            ? {
+                number: "AC 123",
+                departureTime: "08:15",
+                arrivalTime: "12:35",
+                departureCity: "Toronto",
+                departureAirportCode: "YYZ",
+                destinationCity: "Liberia",
+                destinationAirportCode: "LIR",
+              }
             : undefined,
         lodging:
           entry.title === "Airbnb check-in"
@@ -96,6 +104,8 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(flights?.open).toBe(false);
     expect(lodging?.open).toBe(false);
     expect(flights?.textContent).toContain("Local arrival time12:35");
+    expect(flights?.textContent).toContain("Toronto (YYZ)");
+    expect(flights?.textContent).toContain("Liberia (LIR)");
     expect(lodging?.querySelector('time[datetime="2026-11-22"]')).not.toBeNull();
     expect(flights?.textContent).not.toContain("Airbnb check-in");
     expect(lodging?.textContent).not.toContain("Arrive at Liberia Airport");
@@ -103,6 +113,8 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(lodging.open).toBe(false);
     const timeline = container.querySelector('section[aria-labelledby="timeline-heading"]');
     const flightDetails = timeline?.querySelector("dl");
+    expect(flightDetails?.textContent).toContain("Toronto (YYZ)");
+    expect(flightDetails?.textContent).toContain("Liberia (LIR)");
     expect(flightDetails?.textContent).toContain("Flight numberAC 123");
     expect(flightDetails?.querySelector("time")?.dateTime).toBe("08:15");
     expect(container.querySelector('time[datetime="2026-11-17T12:35"]')?.textContent).toBe("12:35");

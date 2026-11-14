@@ -8,7 +8,15 @@ export type EntryFields = {
   time: string;
   kind: keyof typeof entryKinds;
   details: string;
-  flight?: { number?: string; departureTime?: string; arrivalTime?: string };
+  flight?: {
+    number?: string;
+    departureTime?: string;
+    arrivalTime?: string;
+    departureCity?: string;
+    departureAirportCode?: string;
+    destinationCity?: string;
+    destinationAirportCode?: string;
+  };
   lodging?: { checkIn?: string; checkOut?: string; checkInDate?: string; checkOutDate?: string };
   location?: { name: string; url?: string };
 };

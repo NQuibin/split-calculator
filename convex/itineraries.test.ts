@@ -388,6 +388,73 @@ test("flight arrival time is validated and lodging dates allow bookings outside 
   });
 });
 
+test("flight route fields are independently optional, normalized, validated, and cleared on save", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = { date: "2026-12-01", time: "", title: "Flight", kind: "flight", details: "" };
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: {
+      ...base,
+      kind: "flight",
+      flight: {
+        departureCity: "  Toronto ",
+        departureAirportCode: " yyz ",
+        destinationCity: "",
+        destinationAirportCode: "sfo",
+      },
+    },
+  });
+  const saved = (await alex.query(api.itineraries.get, { id }))?.entries[0];
+  expect(saved?.flight).toEqual({
+    departureCity: "Toronto",
+    departureAirportCode: "YYZ",
+    destinationAirportCode: "SFO",
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: saved?.id,
+    entry: { ...base, kind: "flight", flight: { destinationCity: " Vancouver " } },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].flight).toEqual({
+    destinationCity: "Vancouver",
+  });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: saved?.id,
+    entry: { ...base, kind: "flight", flight: { departureCity: "  ", destinationAirportCode: "" } },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].flight).toBeUndefined();
+});
+
+test("flight route fields enforce city length and airport code format", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = { date: "2026-12-01", time: "", title: "Flight", kind: "flight", details: "" };
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, kind: "flight", flight: { departureCity: "C".repeat(101) } },
+    }),
+  ).rejects.toThrow("at most 100");
+  for (const code of ["AB", "ABCDE", "ÅBC", "ßBC", "A-C"]) {
+    await expect(
+      alex.mutation(api.itineraries.saveEntry, {
+        id,
+        entry: { ...base, kind: "flight", flight: { destinationAirportCode: code } },
+      }),
+    ).rejects.toThrow("Airport codes");
+  }
+});
+
 test("older itinerary entries without locations remain readable", async () => {
   const { alex } = await setup();
   const id = await alex.mutation(api.itineraries.create, {

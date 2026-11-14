@@ -27,6 +27,10 @@ const entryValidator = v.object({
       number: v.optional(v.string()),
       departureTime: v.optional(v.string()),
       arrivalTime: v.optional(v.string()),
+      departureCity: v.optional(v.string()),
+      departureAirportCode: v.optional(v.string()),
+      destinationCity: v.optional(v.string()),
+      destinationAirportCode: v.optional(v.string()),
     }),
   ),
 });
@@ -133,13 +137,27 @@ function normalizeLodging(entry: {
 
 function normalizeFlight(entry: {
   kind: "flight" | "lodging" | "event";
-  flight?: { number?: string; departureTime?: string; arrivalTime?: string };
+  flight?: {
+    number?: string;
+    departureTime?: string;
+    arrivalTime?: string;
+    departureCity?: string;
+    departureAirportCode?: string;
+    destinationCity?: string;
+    destinationAirportCode?: string;
+  };
 }) {
   if (!entry.flight) return undefined;
   if (entry.kind !== "flight") throw new ConvexError("Flight details are only allowed for flights");
   const number = entry.flight.number?.trim();
   const departureTime = entry.flight.departureTime?.trim();
   const arrivalTime = entry.flight.arrivalTime?.trim();
+  const departureCity = entry.flight.departureCity?.trim();
+  const departureAirportCodeInput = entry.flight.departureAirportCode?.trim();
+  const departureAirportCode = departureAirportCodeInput?.toUpperCase();
+  const destinationCity = entry.flight.destinationCity?.trim();
+  const destinationAirportCodeInput = entry.flight.destinationAirportCode?.trim();
+  const destinationAirportCode = destinationAirportCodeInput?.toUpperCase();
   if (number && number.length > 32)
     throw new ConvexError("Flight number must be at most 32 characters");
   if (departureTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(departureTime)) {
@@ -148,11 +166,38 @@ function normalizeFlight(entry: {
   if (arrivalTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(arrivalTime)) {
     throw new ConvexError("Arrival time must be a valid 24-hour HH:mm value");
   }
-  if (!number && !departureTime && !arrivalTime) return undefined;
+  if (departureCity && departureCity.length > 100) {
+    throw new ConvexError("Departure city must be at most 100 characters");
+  }
+  if (destinationCity && destinationCity.length > 100) {
+    throw new ConvexError("Destination city must be at most 100 characters");
+  }
+  for (const [input, code] of [
+    [departureAirportCodeInput, departureAirportCode],
+    [destinationAirportCodeInput, destinationAirportCode],
+  ]) {
+    if (code && (!/^[A-Za-z0-9]{3,4}$/.test(input ?? "") || !/^[A-Z0-9]{3,4}$/.test(code))) {
+      throw new ConvexError("Airport codes must be 3–4 ASCII letters or numbers");
+    }
+  }
+  if (
+    !number &&
+    !departureTime &&
+    !arrivalTime &&
+    !departureCity &&
+    !departureAirportCode &&
+    !destinationCity &&
+    !destinationAirportCode
+  )
+    return undefined;
   return {
     ...(number ? { number } : {}),
     ...(departureTime ? { departureTime } : {}),
     ...(arrivalTime ? { arrivalTime } : {}),
+    ...(departureCity ? { departureCity } : {}),
+    ...(departureAirportCode ? { departureAirportCode } : {}),
+    ...(destinationCity ? { destinationCity } : {}),
+    ...(destinationAirportCode ? { destinationAirportCode } : {}),
   };
 }
 

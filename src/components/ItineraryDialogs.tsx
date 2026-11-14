@@ -143,6 +143,10 @@ export function EntryDialog({
         const number = String(form.get("flightNumber") ?? "").trim();
         const departureTime = String(form.get("departureTime") ?? "");
         const arrivalTime = String(form.get("arrivalTime") ?? "");
+        const departureCity = String(form.get("departureCity") ?? "").trim();
+        const departureAirportCode = String(form.get("departureAirportCode") ?? "").trim();
+        const destinationCity = String(form.get("destinationCity") ?? "").trim();
+        const destinationAirportCode = String(form.get("destinationAirportCode") ?? "").trim();
         const checkInDate = String(form.get("checkInDate") ?? "");
         const checkOutDate = String(form.get("checkOutDate") ?? "");
         const checkIn = String(form.get("checkIn") ?? "");
@@ -154,11 +158,15 @@ export function EntryDialog({
           kind,
           details: String(form.get("details")).trim(),
           flight:
-            kind === "flight" && (number || departureTime || arrivalTime)
+            kind === "flight"
               ? {
                   number: number || undefined,
                   departureTime: departureTime || undefined,
                   arrivalTime: arrivalTime || undefined,
+                  departureCity: departureCity || undefined,
+                  departureAirportCode: departureAirportCode || undefined,
+                  destinationCity: destinationCity || undefined,
+                  destinationAirportCode: destinationAirportCode || undefined,
                 }
               : undefined,
           lodging:
@@ -228,6 +236,16 @@ export function EntryDialog({
               defaultValue={entry?.flight?.number}
             />
           </Field>
+          <FlightAirportFields
+            endpoint="departure"
+            city={entry?.flight?.departureCity}
+            code={entry?.flight?.departureAirportCode}
+          />
+          <FlightAirportFields
+            endpoint="destination"
+            city={entry?.flight?.destinationCity}
+            code={entry?.flight?.destinationAirportCode}
+          />
           <Field htmlFor="entry-departure-time" label="Local departure time (optional)">
             <Input
               id="entry-departure-time"
@@ -319,5 +337,39 @@ export function EntryDialog({
         />
       </Field>
     </EditorDialog>
+  );
+}
+
+function FlightAirportFields({
+  endpoint,
+  city,
+  code,
+}: {
+  endpoint: "departure" | "destination";
+  city?: string;
+  code?: string;
+}) {
+  const label = endpoint === "departure" ? "Departure" : "Destination";
+  return (
+    <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+      <Field htmlFor={`entry-${endpoint}-city`} label={`${label} city (optional)`}>
+        <Input
+          id={`entry-${endpoint}-city`}
+          name={`${endpoint}City`}
+          maxLength={100}
+          defaultValue={city}
+        />
+      </Field>
+      <Field htmlFor={`entry-${endpoint}-code`} label={`${label} airport code (optional)`}>
+        <Input
+          id={`entry-${endpoint}-code`}
+          name={`${endpoint}AirportCode`}
+          maxLength={4}
+          pattern="[A-Za-z0-9]{3,4}"
+          autoCapitalize="characters"
+          defaultValue={code}
+        />
+      </Field>
+    </div>
   );
 }

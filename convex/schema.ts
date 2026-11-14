@@ -145,6 +145,10 @@ export default defineSchema({
         number: v.optional(v.string()),
         departureTime: v.optional(v.string()),
         arrivalTime: v.optional(v.string()),
+        departureCity: v.optional(v.string()),
+        departureAirportCode: v.optional(v.string()),
+        destinationCity: v.optional(v.string()),
+        destinationAirportCode: v.optional(v.string()),
       }),
     ),
   })

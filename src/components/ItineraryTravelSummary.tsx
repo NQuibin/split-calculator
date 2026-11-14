@@ -45,6 +45,30 @@ function Detail({
   );
 }
 
+function AirportDetail({
+  label,
+  city,
+  code,
+  compact,
+}: {
+  label: string;
+  city?: string;
+  code?: string;
+  compact: boolean;
+}) {
+  if (!city && !code) return null;
+  return (
+    <div className="min-w-0">
+      <dt className={cn("text-ink-soft", compact && "text-xs")}>{label}</dt>
+      <dd className={cn("break-words text-ink", compact && "font-semibold")}>
+        {city}
+        {city && code && " "}
+        {code && <span className="font-numeric">{city ? `(${code})` : code}</span>}
+      </dd>
+    </div>
+  );
+}
+
 export function TravelEntryDetails({
   entry,
   compact = false,
@@ -63,6 +87,18 @@ export function TravelEntryDetails({
     >
       {flight && (
         <>
+          <AirportDetail
+            label="Departure"
+            city={flight.departureCity}
+            code={flight.departureAirportCode}
+            compact={compact}
+          />
+          <AirportDetail
+            label="Destination"
+            city={flight.destinationCity}
+            code={flight.destinationAirportCode}
+            compact={compact}
+          />
           <Detail label="Local departure time" time={flight.departureTime} compact={compact} />
           <Detail label="Local arrival time" time={flight.arrivalTime} compact={compact} />
           <Detail label="Flight number" value={flight.number} compact={compact} />
