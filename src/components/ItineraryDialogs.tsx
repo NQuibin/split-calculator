@@ -53,30 +53,38 @@ function EditorDialog({
   title,
   onClose,
   onSave,
+  clearAction,
   children,
 }: {
   title: string;
   onClose: () => void;
-  onSave: (form: FormData) => Promise<void>;
+  onSave?: (form: FormData) => Promise<void>;
+  clearAction?: { label: string; run: () => Promise<void> };
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function save(change: () => Promise<void>) {
     if (pending) return;
     setError("");
     setPending(true);
     try {
-      await onSave(new FormData(event.currentTarget));
+      await change();
       setOpen(false);
     } catch (err) {
       setError(itineraryError(err, "Couldn’t save your changes. Try again."));
     } finally {
       setPending(false);
     }
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!onSave) return;
+    const form = new FormData(event.currentTarget);
+    void save(() => onSave(form));
   }
 
   return (
@@ -109,17 +117,73 @@ function EditorDialog({
           <footer className="shrink-0 border-t border-rule bg-surface px-5 py-4 sm:px-6">
             {error && <FieldError className="mb-3">{error}</FieldError>}
             <div className="flex flex-wrap justify-end gap-2">
+              {clearAction && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="touch"
+                  disabled={pending}
+                  onClick={() => void save(clearAction.run)}
+                  className="me-auto"
+                >
+                  {clearAction.label}
+                </Button>
+              )}
               <DialogClose disabled={pending} render={<Button variant="secondary" size="touch" />}>
-                Cancel
+                {onSave ? "Cancel" : "Close"}
               </DialogClose>
-              <Button type="submit" size="touch" disabled={pending} aria-busy={pending}>
-                {pending ? "Saving…" : "Save"}
-              </Button>
+              {onSave && (
+                <Button type="submit" size="touch" disabled={pending} aria-busy={pending}>
+                  {pending ? "Saving…" : "Save"}
+                </Button>
+              )}
             </div>
           </footer>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function EntryReviewDialog({
+  entry,
+  onClose,
+  onSave,
+}: {
+  entry: { title: string; reviewComment?: string };
+  onClose: () => void;
+  onSave?: (comment: string | null) => Promise<void>;
+}) {
+  return (
+    <EditorDialog
+      title={entry.reviewComment ? "Review flag" : "Flag for review"}
+      onClose={onClose}
+      onSave={
+        onSave &&
+        (async (form) => {
+          const comment = String(form.get("comment") ?? "").trim();
+          if (!comment) throw new ConvexError("Enter a reason for review.");
+          await onSave(comment);
+        })
+      }
+      clearAction={
+        entry.reviewComment && onSave ? { label: "Clear flag", run: () => onSave(null) } : undefined
+      }
+    >
+      <p className="break-words text-sm font-medium text-ink">{entry.title}</p>
+      <Field htmlFor="entry-review-comment" label="Review comment">
+        <Textarea
+          id="entry-review-comment"
+          name="comment"
+          defaultValue={entry.reviewComment}
+          placeholder={onSave ? "Why does this entry need review?" : undefined}
+          readOnly={!onSave}
+          required={!!onSave}
+          maxLength={4000}
+          rows={4}
+        />
+      </Field>
+    </EditorDialog>
   );
 }
 

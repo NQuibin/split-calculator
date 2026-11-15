@@ -340,6 +340,7 @@ export const get = query({
           subtype,
           details,
           isOptional,
+          reviewComment,
           cost,
           location,
           foodHours,
@@ -371,6 +372,7 @@ export const get = query({
                     : subtype,
           details,
           isOptional: isOptional ?? false,
+          reviewComment,
           cost,
           location,
           foodHours,
@@ -527,6 +529,34 @@ export const saveEntry = mutation({
       itineraryId: id,
       ...(parentEntryId ? { parentEntryId } : {}),
     });
+    return null;
+  },
+});
+
+export const setEntryReview = mutation({
+  args: {
+    id: v.id("itineraries"),
+    entryId: v.string(),
+    comment: v.union(v.string(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, { id, entryId, comment }) => {
+    await editableItinerary(ctx, id);
+    const entry = await ctx.db
+      .query("itineraryEntries")
+      .withIndex("by_itinerary_and_entryId", (q) => q.eq("itineraryId", id).eq("entryId", entryId))
+      .unique();
+    if (!entry)
+      throw new ConvexError("This entry was removed. Refresh the itinerary and try again.");
+    if (comment === null) {
+      await ctx.db.patch(entry._id, { reviewComment: undefined });
+      return null;
+    }
+    const reviewComment = comment.trim();
+    if (!reviewComment) throw new ConvexError("Review comment must be non-empty");
+    if (reviewComment.length > 4000)
+      throw new ConvexError("Review comment must be at most 4000 characters");
+    await ctx.db.patch(entry._id, { reviewComment });
     return null;
   },
 });

@@ -167,9 +167,61 @@ test("optional entries round trip, explicit false clears, and edits from older c
     });
     return legacyItinerary;
   });
-  expect((await alex.query(api.itineraries.get, { id: legacyId }))!.entries[0].isOptional).toBe(
-    false,
+  const legacyEntry = (await alex.query(api.itineraries.get, { id: legacyId }))!.entries[0];
+  expect(legacyEntry.isOptional).toBe(false);
+  expect(legacyEntry.reviewComment).toBeUndefined();
+});
+
+test("entry review comments are visible, editable by owners and editors, and clearable", async () => {
+  const { alex, sam } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const entry = {
+    date: "2026-12-01",
+    time: "",
+    title: "Museum",
+    kind: "event" as const,
+    details: "Original details",
+  };
+  await alex.mutation(api.itineraries.saveEntry, { id, entry });
+  const entryId = (await alex.query(api.itineraries.get, { id }))!.entries[0].id;
+  await expect(
+    sam.mutation(api.itineraries.setEntryReview, { id, entryId, comment: "Check hours" }),
+  ).rejects.toThrow("Not authorized");
+
+  await alex.mutation(api.itineraries.setEntryReview, { id, entryId, comment: "  Check hours  " });
+  expect((await sam.query(api.itineraries.get, { id }))!.entries[0].reviewComment).toBe(
+    "Check hours",
   );
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId,
+    entry: { ...entry, title: "Museum updated" },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))!.entries[0].reviewComment).toBe(
+    "Check hours",
+  );
+
+  await alex.mutation(api.itineraries.inviteEditor, { id, email: "sam@example.com" });
+  await sam.mutation(api.itineraries.setEntryReview, {
+    id,
+    entryId,
+    comment: "Updated by editor",
+  });
+  expect((await alex.query(api.itineraries.get, { id }))!.entries[0].reviewComment).toBe(
+    "Updated by editor",
+  );
+  await sam.mutation(api.itineraries.setEntryReview, { id, entryId, comment: null });
+  expect((await alex.query(api.itineraries.get, { id }))!.entries[0].reviewComment).toBeUndefined();
+  await expect(
+    alex.mutation(api.itineraries.setEntryReview, { id, entryId, comment: "   " }),
+  ).rejects.toThrow("non-empty");
+  await expect(
+    alex.mutation(api.itineraries.setEntryReview, { id, entryId, comment: "x".repeat(4001) }),
+  ).rejects.toThrow("4000");
 });
 
 test("alternatives stay attached to a primary entry, follow its date, and cascade on removal", async () => {

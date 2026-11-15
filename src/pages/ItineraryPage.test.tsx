@@ -32,6 +32,10 @@ const { session, mutate } = vi.hoisted(() => ({
   session: { access: "owner" },
   mutate: vi.fn(),
 }));
+const reviewComments: Record<string, string | undefined> = {};
+const waterfallEntryId = String(
+  costaRica.entries.findIndex((entry) => entry.title === "La Fortuna Waterfall"),
+);
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({
     data: {
@@ -41,6 +45,7 @@ vi.mock("@tanstack/react-query", () => ({
       entries: costaRica.entries.map((entry, index) => ({
         ...entry,
         id: String(index),
+        reviewComment: reviewComments[String(index)],
         isOptional: entry.title === "La Fortuna Waterfall" || undefined,
         foodHours:
           entry.title === "Dinner at Restaurante La Parada"
@@ -273,5 +278,69 @@ test("public links display the timeline without editing controls", async () => {
     await act(async () => root.unmount());
     container.remove();
     session.access = "owner";
+  }
+});
+
+test("editors can flag an entry with a comment and clear an existing flag", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  session.access = "editor";
+  mutate.mockClear();
+  try {
+    await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="Flag La Fortuna Waterfall for review"]',
+        )
+        ?.click();
+    });
+
+    expect(document.body.textContent).toContain("Flag for review");
+    const comment = document.querySelector<HTMLTextAreaElement>("#entry-review-comment");
+    expect(comment).not.toBeNull();
+    await act(async () => {
+      if (comment) {
+        comment.value = "Confirm opening hours";
+      }
+    });
+    const save = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Save",
+    );
+    await act(async () => save?.click());
+    expect(mutate).toHaveBeenCalledWith({
+      id: "trip",
+      entryId: waterfallEntryId,
+      comment: "Confirm opening hours",
+    });
+
+    reviewComments[waterfallEntryId] = "Confirm opening hours";
+    await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
+    expect(
+      container.querySelector('button[aria-label="Needs review: La Fortuna Waterfall"]')
+        ?.textContent,
+    ).toContain("Needs review");
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Needs review: La Fortuna Waterfall"]')
+        ?.click();
+    });
+    expect(document.body.textContent).toContain("Review flag");
+    expect(document.body.textContent).toContain("Confirm opening hours");
+    const clear = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Clear flag",
+    );
+    await act(async () => clear?.click());
+    expect(mutate).toHaveBeenLastCalledWith({
+      id: "trip",
+      entryId: waterfallEntryId,
+      comment: null,
+    });
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    session.access = "owner";
+    delete reviewComments[waterfallEntryId];
   }
 });

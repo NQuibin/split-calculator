@@ -43,6 +43,7 @@ import {
   Cookie,
   Egg,
   IceCreamCone,
+  Flag,
   GitFork,
   Map as MapIcon,
   Mountain,
@@ -65,7 +66,7 @@ import { api } from "../../convex/_generated/api";
 import { ItineraryTravelSummary, TravelEntryDetails } from "@/components/ItineraryTravelSummary";
 import { ItineraryShareDialog } from "@/components/ItineraryShareDialog";
 import { ItineraryTimeRail } from "@/components/ItineraryTimeRail";
-import { EntryDialog, TripDialog } from "@/components/ItineraryDialogs";
+import { EntryDialog, EntryReviewDialog, TripDialog } from "@/components/ItineraryDialogs";
 import { Breadcrumb, BreadcrumbCurrent, crumbLinkClass } from "@/components/ui/Breadcrumb";
 import { Button, buttonVariants } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -78,7 +79,7 @@ import { entryKinds, type entrySubtypes, subtypeLabel } from "@/lib/itineraryCat
 import { useLocaleFormatters } from "@/lib/localeFormatters";
 import { cn } from "@/lib/utils";
 
-type Entry = EntryFields & { id: string; parentEntryId?: string };
+type Entry = EntryFields & { id: string; parentEntryId?: string; reviewComment?: string };
 const entryIcons = {
   event: CalendarDays,
   travel: RouteIcon,
@@ -255,6 +256,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
   const { data: trip, isError, refetch } = useQuery(convexQuery(api.itineraries.get, { id }));
   const update = useMutation(api.itineraries.update);
   const saveEntry = useMutation(api.itineraries.saveEntry);
+  const setEntryReview = useMutation(api.itineraries.setEntryReview);
   const removeEntry = useMutation(api.itineraries.removeEntry);
   const { locale, formatExpenseDate } = useLocaleFormatters();
   const navigate = useNavigate();
@@ -263,6 +265,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
   const [editingTrip, setEditingTrip] = useState(false);
   const [editor, setEditor] = useState<{ entry?: Entry; parent?: Entry }>();
   const [deleting, setDeleting] = useState<Entry>();
+  const [reviewing, setReviewing] = useState<Entry>();
 
   let date: string | undefined;
   if (trip) {
@@ -280,6 +283,7 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
         entry={entry}
         onEdit={canEdit ? () => setEditor({ entry }) : undefined}
         onDelete={canEdit ? () => setDeleting(entry) : undefined}
+        onReview={canEdit || entry.reviewComment ? () => setReviewing(entry) : undefined}
         onAddAlternative={
           canEdit && !entry.parentEntryId ? () => setEditor({ parent: entry }) : undefined
         }
@@ -425,6 +429,19 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
               }}
             />
           )}
+          {reviewing && (canEdit || reviewing.reviewComment) && (
+            <EntryReviewDialog
+              entry={reviewing}
+              onClose={() => setReviewing(undefined)}
+              onSave={
+                canEdit
+                  ? async (comment) => {
+                      await setEntryReview({ id: trip._id, entryId: reviewing.id, comment });
+                    }
+                  : undefined
+              }
+            />
+          )}
           <ConfirmDialog
             open={canEdit && Boolean(deleting)}
             onOpenChange={(open) => {
@@ -453,12 +470,14 @@ function TimelineEntry({
   entry,
   onEdit,
   onDelete,
+  onReview,
   onAddAlternative,
   children,
 }: {
   entry: Entry;
   onEdit?: () => void;
   onDelete?: () => void;
+  onReview?: () => void;
   onAddAlternative?: () => void;
   children?: ReactNode;
 }) {
@@ -501,6 +520,19 @@ function TimelineEntry({
             )}
             {entry.parentEntryId && <span className="font-medium text-forest">Alternative</span>}
             {entry.isOptional && <span className="font-medium">Optional</span>}
+            {entry.reviewComment && (
+              <Button
+                type="button"
+                variant="link"
+                size="touch"
+                className="px-0 text-xs"
+                aria-label={`Needs review: ${entry.title}`}
+                onClick={onReview}
+              >
+                <Flag aria-hidden="true" className="fill-current text-margin-red" />
+                Needs review
+              </Button>
+            )}
             {!showCategory && (
               <>
                 <span aria-hidden="true">·</span>
@@ -515,6 +547,10 @@ function TimelineEntry({
             <OverflowMenu className="sm:hidden" label={`Actions for ${entry.title}`}>
               <OverflowAction onClick={onEdit}>
                 <Pencil aria-hidden="true" /> Edit
+              </OverflowAction>
+              <OverflowAction onClick={onReview}>
+                <Flag aria-hidden="true" />{" "}
+                {entry.reviewComment ? "Review flag" : "Flag for review"}
               </OverflowAction>
               {onAddAlternative && (
                 <OverflowAction onClick={onAddAlternative}>
@@ -544,6 +580,17 @@ function TimelineEntry({
               >
                 <Pencil aria-hidden="true" />
               </Button>
+              {!entry.reviewComment && (
+                <Button
+                  variant="quiet-icon"
+                  size="icon-touch"
+                  aria-label={`Flag ${entry.title} for review`}
+                  title="Flag for review"
+                  onClick={onReview}
+                >
+                  <Flag aria-hidden="true" />
+                </Button>
+              )}
               <Button
                 variant="destructive-icon"
                 size="icon-touch"

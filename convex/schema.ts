@@ -144,6 +144,8 @@ export default defineSchema({
     details: v.string(),
     /** Whether this itinerary entry is an optional plan. Absent on legacy entries. */
     isOptional: v.optional(v.boolean()),
+    /** Reviewer note. Absent until an entry is flagged for review. */
+    reviewComment: v.optional(v.string()),
     cost: v.optional(
       v.object({
         amount: v.number(),
