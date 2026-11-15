@@ -615,6 +615,45 @@ export function StageExpense({
     </div>
   );
 
+  const adjustmentFields = (
+    <section
+      aria-label="Global adjustments"
+      className={mode === "simple" ? "border-t border-rule pt-5" : "mb-4 border-b border-rule pb-4"}
+    >
+      <GroupTitle as="h2" className="mb-3">
+        Discount, Tax &amp; Tip
+      </GroupTitle>
+      <div className="rate-inputs-container">
+        <div className="rate-inputs rate-inputs-global">
+          <RateInput
+            label="Discount"
+            icon={TicketPercent}
+            rate={globalAdjustments.discount}
+            onChange={(discount) => onSetGlobalAdjustments({ ...globalAdjustments, discount })}
+            fullWidth
+          />
+          <div className="rate-inputs-tax-tip">
+            <RateInput
+              label="Tax"
+              icon={Percent}
+              rate={globalAdjustments.tax}
+              onChange={(tax) => onSetGlobalAdjustments({ ...globalAdjustments, tax })}
+              fullWidth
+            />
+            <TipRateInput
+              rate={globalAdjustments.tip}
+              onChange={(tip) => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
+              afterTax={globalAdjustments.tipAfterTax ?? false}
+              onAfterTaxChange={(tipAfterTax) =>
+                onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })
+              }
+              fullWidth
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
   return (
     <div className="w-full">
       <header className="mb-6">
@@ -668,47 +707,13 @@ export function StageExpense({
             people={people}
             item={items[0]}
             split={totals}
+            adjustmentFields={adjustmentFields}
             onSave={(item) => (items[0] ? onUpdateItem(item) : onAddItem(item))}
             onRemove={onRemoveItem}
           />
         ) : (
           <>
-            <section aria-label="Global adjustments" className="mb-4 border-b border-rule pb-4">
-              <GroupTitle as="h2" className="mb-3">
-                Discount, Tax &amp; Tip
-              </GroupTitle>
-              <div className="rate-inputs-container">
-                <div className="rate-inputs rate-inputs-global">
-                  <RateInput
-                    label="Discount"
-                    icon={TicketPercent}
-                    rate={globalAdjustments.discount}
-                    onChange={(discount) =>
-                      onSetGlobalAdjustments({ ...globalAdjustments, discount })
-                    }
-                    fullWidth
-                  />
-                  <div className="rate-inputs-tax-tip">
-                    <RateInput
-                      label="Tax"
-                      icon={Percent}
-                      rate={globalAdjustments.tax}
-                      onChange={(tax) => onSetGlobalAdjustments({ ...globalAdjustments, tax })}
-                      fullWidth
-                    />
-                    <TipRateInput
-                      rate={globalAdjustments.tip}
-                      onChange={(tip) => onSetGlobalAdjustments({ ...globalAdjustments, tip })}
-                      afterTax={globalAdjustments.tipAfterTax ?? false}
-                      onAfterTaxChange={(tipAfterTax) =>
-                        onSetGlobalAdjustments({ ...globalAdjustments, tipAfterTax })
-                      }
-                      fullWidth
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
+            {adjustmentFields}
             <div className="flex items-center justify-between gap-3">
               <GroupTitle as="h2">
                 Items <span className="text-ink-soft">({items.length})</span>
@@ -950,6 +955,7 @@ function SimpleTotalForm({
   people,
   item,
   split,
+  adjustmentFields,
   onSave,
   onRemove,
 }: {
@@ -966,11 +972,11 @@ function SimpleTotalForm({
   people: Person[];
   item?: ExpenseItem;
   split: ReturnType<typeof computeSplit>;
+  adjustmentFields: ReactNode;
   onSave: (item: ExpenseItem) => void;
   onRemove: (id: string) => void;
 }) {
-  // A one-total item has no name of its own - it's always named after the
-  // expense - so this form only needs to capture the amount.
+  const { currency } = useLocaleFormatters();
   const [cost, setCost] = useState(item ? String(item.cost) : "");
   const [splitWith, setSplitWith] = useState<string[]>(
     item?.splitType && item.splitType !== "equal"
@@ -981,6 +987,10 @@ function SimpleTotalForm({
     item?.splitType ?? "equal",
   );
   const [splitValues, setSplitValues] = useState(item?.splitValues ?? []);
+  const hasAppliedAdjustments = split.items.some(
+    (line) => line.discountAmount > 0 || line.taxAmount > 0 || line.tipAmount > 0,
+  );
+  const adjustedTotal = hasAppliedAdjustments ? split.grandTotal : undefined;
 
   function commit(
     nextCost: string,
@@ -1033,7 +1043,7 @@ function SimpleTotalForm({
     <div className="grid gap-5">
       <div className="min-w-0">
         <Label htmlFor="expense-total" icon={DollarSign}>
-          Total amount <span className="text-ink-soft">({currencyCode})</span>
+          Amount before adjustments <span className="text-ink-soft">({currencyCode})</span>
         </Label>
         <Input
           id="expense-total"
@@ -1044,10 +1054,20 @@ function SimpleTotalForm({
           value={cost}
           onChange={(e) => handleCostChange(e.target.value)}
           placeholder="0.00"
-          aria-label="Expense total"
           className="font-numeric min-h-16 py-3 text-3xl sm:text-3xl"
         />
       </div>
+      {adjustmentFields}
+      {adjustedTotal !== undefined && (
+        <div className="border-t border-rule pt-5">
+          <GroupTitle as="h2">
+            Total, including adjustments <span className="text-ink-soft">({currencyCode})</span>
+          </GroupTitle>
+          <p className="font-numeric mt-2 break-words text-3xl text-ink">
+            {currency(adjustedTotal, currencyCode)}
+          </p>
+        </div>
+      )}
       <div className="min-w-0 border-t border-rule pt-5">
         <GroupTitle as="h2" className="mb-3">
           Split with
@@ -1059,6 +1079,7 @@ function SimpleTotalForm({
           splitType={splitType}
           splitValues={splitValues}
           total={Number(cost) || 0}
+          adjustedTotal={adjustedTotal}
           currencyCode={currencyCode}
           shares={new Map(split.people.map((row) => [row.personId, row.total]))}
           onSelectionChange={(next) => {
@@ -1099,6 +1120,7 @@ function SplitEditor({
   splitType,
   splitValues,
   total,
+  adjustedTotal,
   currencyCode,
   shares,
   onSelectionChange,
@@ -1111,6 +1133,7 @@ function SplitEditor({
   splitType: SplitType;
   splitValues: SplitValue[];
   total: number;
+  adjustedTotal?: number;
   currencyCode: string;
   shares: Map<string, number>;
   onSelectionChange: (ids: string[]) => void;
@@ -1209,7 +1232,9 @@ function SplitEditor({
             ? "Selected people pay equal shares."
             : splitType === "percentage"
               ? "Set each person's percentage."
-              : "Set each person's amount."}
+              : adjustedTotal === undefined
+                ? "Set each person's amount."
+                : "Enter amounts before adjustments."}
         </span>
         <span>
           {splitType === "equal"
@@ -1245,9 +1270,16 @@ function SplitEditor({
                 <MemberAvatar id={person.id} name={person.name} />
                 <span className="min-w-0 break-words text-sm text-ink">{person.name}</span>
               </span>
-              {splitType === "percentage" && (
+              {(splitType === "percentage" || (adjustedTotal !== undefined && isSelected)) && (
                 <span className="w-20 shrink-0 text-right font-numeric text-sm text-ink-soft">
-                  {currency((total * valueFor(person.id)) / 100, currencyCode)}
+                  {adjustedTotal !== undefined && <span className="sr-only">Adjusted share </span>}
+                  {currency(
+                    splitType === "percentage" &&
+                      (adjustedTotal === undefined || Math.round(sum * 100) !== 10_000)
+                      ? ((adjustedTotal ?? total) * valueFor(person.id)) / 100
+                      : share,
+                    currencyCode,
+                  )}
                 </span>
               )}
               <Input

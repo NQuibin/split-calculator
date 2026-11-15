@@ -37,7 +37,7 @@ export interface ExpenseItem {
 
 export type Stage = "receipt" | "results";
 
-/** "simple" restricts an expense to one lump-sum item with no discount/tax/tip; "itemized" is the full line-item breakdown. */
+/** "simple" uses one lump-sum item; "itemized" supports a line-item breakdown. */
 export type ExpenseMode = "simple" | "itemized";
 
 /** A receipt photo (or PDF) attached to an expense, held in Convex file storage. */

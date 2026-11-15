@@ -30,10 +30,7 @@ export type Action =
 
 const zeroRate: RateSetting = { mode: "percent", value: 0 };
 
-// Simple mode allows only one lump-sum item with no discount/tax/tip and no
-// name of its own - it's always named after the expense - so switching into
-// it from an itemized breakdown folds everything (cost, discount, tax, tip,
-// across every item) into that single item's cost.
+// Preserve the final total when collapsing items with potentially different adjustments.
 function collapseToSingleItem(
   name: string,
   people: Person[],
