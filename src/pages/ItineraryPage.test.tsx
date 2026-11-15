@@ -38,6 +38,10 @@ vi.mock("@tanstack/react-query", () => ({
       entries: costaRica.entries.map((entry, index) => ({
         ...entry,
         id: String(index),
+        foodHours:
+          entry.title === "Dinner at Restaurante La Parada"
+            ? { opensAt: "17:00", closesAt: "22:00" }
+            : undefined,
         cost:
           entry.title === "La Fortuna Waterfall"
             ? { amount: 20, currency: "USD", basis: "per_person" }
@@ -55,7 +59,9 @@ vi.mock("@tanstack/react-query", () => ({
             ? "travel"
             : entry.title === "La Fortuna Waterfall"
               ? "attraction"
-              : entry.kind,
+              : entry.title === "Dinner at Restaurante La Parada"
+                ? "food"
+                : entry.kind,
         subtype:
           entry.kind === "flight"
             ? "flight"
@@ -166,6 +172,8 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(lodgingRow?.querySelector("dl")?.textContent).toContain(
       "Local check-outNov 22, 202610:00",
     );
+    expect(timeline?.textContent).toContain("Opens at 17:00");
+    expect(timeline?.textContent).toContain("Closes at 22:00");
     expect(container.textContent).not.toContain("La Fortuna Waterfall");
 
     expect(days[1].getAttribute("href")).toBe("/itineraries/trip?day=2026-11-18");

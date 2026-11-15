@@ -588,6 +588,26 @@ function TimelineEntry({
                 )}
               </div>
             )}
+            {entry.kind === "food" && entry.foodHours && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink">
+                {entry.foodHours.opensAt && (
+                  <span>
+                    Opens at{" "}
+                    <time className="font-numeric" dateTime={entry.foodHours.opensAt}>
+                      {entry.foodHours.opensAt}
+                    </time>
+                  </span>
+                )}
+                {entry.foodHours.closesAt && (
+                  <span>
+                    Closes at{" "}
+                    <time className="font-numeric" dateTime={entry.foodHours.closesAt}>
+                      {entry.foodHours.closesAt}
+                    </time>
+                  </span>
+                )}
+              </div>
+            )}
             {entry.cost && (
               <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink">
                 <span className="font-medium">Cost</span>

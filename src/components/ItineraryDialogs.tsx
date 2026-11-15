@@ -218,8 +218,14 @@ export function EntryDialog({
         const checkOutDate = String(form.get("checkOutDate") ?? "");
         const checkIn = String(form.get("checkIn") ?? "");
         const checkOut = String(form.get("checkOut") ?? "");
+        const opensAt = String(form.get("opensAt") ?? "");
+        const closesAt = String(form.get("closesAt") ?? "");
         const amount = String(form.get("costAmount") ?? "");
         await onSave({
+          foodHours:
+            kind === "food" && (opensAt || closesAt)
+              ? { opensAt: opensAt || undefined, closesAt: closesAt || undefined }
+              : undefined,
           cost:
             amount === ""
               ? undefined
@@ -411,6 +417,27 @@ export function EntryDialog({
             </Field>
           </div>
         </fieldset>
+      </fieldset>
+      <fieldset hidden={kind !== "food"} disabled={kind !== "food"} className="min-w-0 space-y-3">
+        <legend className="text-sm font-semibold text-ink">Opening hours (optional)</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field htmlFor="entry-opens" label="Opens at">
+            <Input
+              id="entry-opens"
+              name="opensAt"
+              type="time"
+              defaultValue={entry?.foodHours?.opensAt}
+            />
+          </Field>
+          <Field htmlFor="entry-closes" label="Closes at">
+            <Input
+              id="entry-closes"
+              name="closesAt"
+              type="time"
+              defaultValue={entry?.foodHours?.closesAt}
+            />
+          </Field>
+        </div>
       </fieldset>
       <fieldset className="min-w-0 space-y-3">
         <legend className="text-sm font-semibold text-ink">Cost (optional)</legend>

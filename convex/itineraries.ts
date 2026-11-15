@@ -34,6 +34,9 @@ const entryValidator = v.object({
     }),
   ),
   location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
+  foodHours: v.optional(
+    v.object({ opensAt: v.optional(v.string()), closesAt: v.optional(v.string()) }),
+  ),
   lodging: v.optional(
     v.object({
       checkIn: v.optional(v.string()),
@@ -337,6 +340,7 @@ export const get = query({
           details,
           cost,
           location,
+          foodHours,
           flight,
           lodging,
         }) => ({
@@ -366,6 +370,7 @@ export const get = query({
           details,
           cost,
           location,
+          foodHours,
           flight,
           lodging,
         }),
@@ -414,6 +419,15 @@ export const saveEntry = mutation({
   handler: async (ctx, { id, entryId, parentEntryId, entry }) => {
     const itinerary = await editableItinerary(ctx, id);
     validateEntry(entry, itinerary.startDate, itinerary.endDate);
+    if (entry.foodHours !== undefined) {
+      if (entry.kind !== "food")
+        throw new ConvexError("Food hours are only valid for food entries");
+      for (const time of [entry.foodHours.opensAt, entry.foodHours.closesAt]) {
+        if (time !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+          throw new ConvexError("Food hours must be valid 24-hour HH:mm values");
+        }
+      }
+    }
     if (entry.cost && (!Number.isFinite(entry.cost.amount) || entry.cost.amount < 0)) {
       throw new ConvexError("Cost amount must be a finite nonnegative number");
     }
@@ -436,7 +450,15 @@ export const saveEntry = mutation({
     const location = normalizeLocation({ ...normalizedEntry, subtype });
     const flight = normalizeFlight({ ...normalizedEntry, subtype });
     const lodging = normalizeLodging(normalizedEntry);
-    const savedEntry = { ...normalizedEntry, cost: entry.cost, subtype, location, flight, lodging };
+    const savedEntry = {
+      ...normalizedEntry,
+      cost: entry.cost,
+      subtype,
+      location,
+      foodHours: entry.foodHours,
+      flight,
+      lodging,
+    };
     const existing = entryId
       ? await ctx.db
           .query("itineraryEntries")

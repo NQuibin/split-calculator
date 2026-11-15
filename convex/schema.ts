@@ -150,6 +150,9 @@ export default defineSchema({
       }),
     ),
     location: v.optional(v.object({ name: v.string(), url: v.optional(v.string()) })),
+    foodHours: v.optional(
+      v.object({ opensAt: v.optional(v.string()), closesAt: v.optional(v.string()) }),
+    ),
     lodging: v.optional(
       v.object({
         checkIn: v.optional(v.string()),

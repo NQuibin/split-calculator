@@ -819,6 +819,50 @@ test("new itinerary kinds persist and subtype values are kind-specific and clear
   expect((await alex.query(api.itineraries.get, { id }))?.entries[0].subtype).toBeUndefined();
 });
 
+test("food hours persist, validate independently, and clear when omitted", async () => {
+  const { alex } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const base = {
+    date: "2026-12-01",
+    time: "",
+    title: "Dinner",
+    kind: "food",
+    details: "",
+  } as const;
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entry: { ...base, foodHours: { opensAt: "18:30", closesAt: "01:00" } },
+  });
+  const food = (await alex.query(api.itineraries.get, { id }))?.entries[0];
+  expect(food?.foodHours).toEqual({ opensAt: "18:30", closesAt: "01:00" });
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: food?.id,
+    entry: { ...base, foodHours: { closesAt: "22:00" } },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].foodHours).toEqual({
+    closesAt: "22:00",
+  });
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, foodHours: { opensAt: "24:00" } },
+    }),
+  ).rejects.toThrow("Food hours");
+  await expect(
+    alex.mutation(api.itineraries.saveEntry, {
+      id,
+      entry: { ...base, kind: "event", foodHours: { closesAt: "12:00" } },
+    }),
+  ).rejects.toThrow("only valid for food");
+  await alex.mutation(api.itineraries.saveEntry, { id, entryId: food?.id, entry: base });
+  expect((await alex.query(api.itineraries.get, { id }))?.entries[0].foodHours).toBeUndefined();
+});
+
 test("legacy shop entries read and save as shopping activities", async () => {
   const { t, alex } = await setup();
   const id = await alex.mutation(api.itineraries.create, {
