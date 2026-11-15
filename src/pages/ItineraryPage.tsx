@@ -500,6 +500,7 @@ function TimelineEntry({
               <span>Any time</span>
             )}
             {entry.parentEntryId && <span className="font-medium text-forest">Alternative</span>}
+            {entry.isOptional && <span className="font-medium">Optional</span>}
             {!showCategory && (
               <>
                 <span aria-hidden="true">·</span>

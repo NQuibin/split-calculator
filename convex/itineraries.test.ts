@@ -62,6 +62,7 @@ test("itineraries are publicly readable and entries are editable by stable entry
       kind: "travel",
       subtype: "flight",
       details: "Arrive",
+      isOptional: false,
     },
   ]);
   await alex.mutation(api.itineraries.saveEntry, {
@@ -116,6 +117,59 @@ test("entry reference cost round trips, clears when omitted, and validates amoun
       entry: { ...base, cost: { amount: 10, currency: "ZZZ", basis: "total" } },
     }),
   ).rejects.toThrow("supported currency");
+});
+
+test("optional entries round trip, explicit false clears, and edits from older clients preserve the value", async () => {
+  const { alex, t } = await setup();
+  const id = await alex.mutation(api.itineraries.create, {
+    title: "Trip",
+    startDate: "2026-12-01",
+    endDate: "2026-12-03",
+  });
+  const entry = {
+    date: "2026-12-01",
+    time: "",
+    title: "Museum",
+    kind: "event" as const,
+    details: "",
+  };
+  await alex.mutation(api.itineraries.saveEntry, { id, entry: { ...entry, isOptional: true } });
+  let saved = (await alex.query(api.itineraries.get, { id }))!.entries[0];
+  expect(saved.isOptional).toBe(true);
+
+  // Older clients omit this new argument when editing, so keep the stored value.
+  await alex.mutation(api.itineraries.saveEntry, { id, entryId: saved.id, entry });
+  saved = (await alex.query(api.itineraries.get, { id }))!.entries[0];
+  expect(saved.isOptional).toBe(true);
+
+  await alex.mutation(api.itineraries.saveEntry, {
+    id,
+    entryId: saved.id,
+    entry: { ...entry, isOptional: false },
+  });
+  expect((await alex.query(api.itineraries.get, { id }))!.entries[0].isOptional).toBe(false);
+
+  const legacyId = await t.run(async (ctx) => {
+    const legacyItinerary = await ctx.db.insert("itineraries", {
+      userId: (await ctx.db.query("users").first())!._id,
+      title: "Legacy",
+      startDate: "2026-12-01",
+      endDate: "2026-12-03",
+    });
+    await ctx.db.insert("itineraryEntries", {
+      itineraryId: legacyItinerary,
+      entryId: "legacy-entry",
+      date: "2026-12-01",
+      time: "",
+      title: "Legacy entry",
+      kind: "event",
+      details: "",
+    });
+    return legacyItinerary;
+  });
+  expect((await alex.query(api.itineraries.get, { id: legacyId }))!.entries[0].isOptional).toBe(
+    false,
+  );
 });
 
 test("alternatives stay attached to a primary entry, follow its date, and cascade on removal", async () => {

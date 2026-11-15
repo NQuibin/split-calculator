@@ -26,6 +26,7 @@ const entryValidator = v.object({
   ),
   subtype: v.optional(v.string()),
   details: v.string(),
+  isOptional: v.optional(v.boolean()),
   cost: v.optional(
     v.object({
       amount: v.number(),
@@ -338,6 +339,7 @@ export const get = query({
           kind,
           subtype,
           details,
+          isOptional,
           cost,
           location,
           foodHours,
@@ -368,6 +370,7 @@ export const get = query({
                     ? "bed_and_breakfast"
                     : subtype,
           details,
+          isOptional: isOptional ?? false,
           cost,
           location,
           foodHours,
@@ -483,7 +486,10 @@ export const saveEntry = mutation({
         if (!parent || entry.date !== parent.date)
           throw new ConvexError("Alternative entries must use the same date as their parent");
       }
-      await ctx.db.patch(existing._id, savedEntry);
+      await ctx.db.patch(existing._id, {
+        ...savedEntry,
+        isOptional: entry.isOptional ?? existing.isOptional,
+      });
       if (!existing.parentEntryId) {
         const alternatives = await ctx.db
           .query("itineraryEntries")

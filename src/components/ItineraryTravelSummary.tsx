@@ -168,10 +168,12 @@ export function ItineraryTravelSummary({ id, entries }: { id: string; entries: T
                         {formatExpenseDateShort(entry.date)}
                       </time>
                     </div>
-                    {(entry.subtype ||
+                    {(entry.isOptional ||
+                      entry.subtype ||
                       (entry.kind === "travel" && !entry.flight && entry.time)) && (
                       <p className="flex flex-wrap gap-x-2 text-xs text-ink-soft">
                         {entry.subtype && <span>{subtypeLabel(entry.subtype)}</span>}
+                        {entry.isOptional && <span className="font-medium">Optional</span>}
                         {entry.kind === "travel" && !entry.flight && entry.time && (
                           <time dateTime={entry.time} className="font-numeric">
                             {entry.time}

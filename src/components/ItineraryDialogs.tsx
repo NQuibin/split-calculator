@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/Dialog";
 import { Field, FieldError, Input, Textarea } from "@/components/ui/Input";
+import { Switch } from "@/components/ui/Switch";
 
 import { type EntryKind, entryKinds, entrySubtypes, subtypeLabel } from "@/lib/itineraryCategories";
 import { type EntryFields, itineraryError } from "@/lib/itinerary";
@@ -185,6 +186,7 @@ export function EntryDialog({
   const [kind, setKind] = useState<EntryKind>(entry?.kind ?? parent?.kind ?? "event");
   const subtypes = entrySubtypes[kind];
   const [subtype, setSubtype] = useState(entry?.subtype ?? parent?.subtype ?? "");
+  const [isOptional, setIsOptional] = useState(entry?.isOptional ?? false);
   const [costCurrency, setCostCurrency] = useState(entry?.cost?.currency ?? DEFAULT_CURRENCY);
   const [costBasis, setCostBasis] = useState<"per_person" | "total">(entry?.cost?.basis ?? "total");
   const isFlight = kind === "travel" && subtype === "flight";
@@ -231,6 +233,7 @@ export function EntryDialog({
               ? undefined
               : { amount: Number(amount), currency: costCurrency, basis: costBasis },
           title: String(form.get("title")).trim(),
+          isOptional,
           date: isAlternative ? (entry?.date ?? parent?.date ?? date) : String(form.get("date")),
           time: String(form.get("time")),
           kind,
@@ -291,6 +294,16 @@ export function EntryDialog({
       <Field htmlFor="entry-title" label="Title">
         <Input id="entry-title" name="title" required defaultValue={entry?.title} />
       </Field>
+      <div className="flex items-center justify-between gap-3">
+        <span id="entry-optional-label" className="text-sm font-medium text-ink">
+          Optional
+        </span>
+        <Switch
+          checked={isOptional}
+          onCheckedChange={setIsOptional}
+          aria-labelledby="entry-optional-label"
+        />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {!isAlternative && (
           <ItineraryDateField

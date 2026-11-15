@@ -4,6 +4,7 @@ import type { EntryKind } from "./itineraryCategories";
 
 export type EntryFields = {
   title: string;
+  isOptional?: boolean;
   date: string;
   time: string;
   kind: EntryKind;

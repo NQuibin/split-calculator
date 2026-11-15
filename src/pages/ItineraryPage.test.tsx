@@ -28,7 +28,10 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 vi.mock("@convex-dev/react-query", () => ({ convexQuery: vi.fn() }));
-const { session } = vi.hoisted(() => ({ session: { access: "owner" } }));
+const { session, mutate } = vi.hoisted(() => ({
+  session: { access: "owner" },
+  mutate: vi.fn(),
+}));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({
     data: {
@@ -38,6 +41,7 @@ vi.mock("@tanstack/react-query", () => ({
       entries: costaRica.entries.map((entry, index) => ({
         ...entry,
         id: String(index),
+        isOptional: entry.title === "La Fortuna Waterfall" || undefined,
         foodHours:
           entry.title === "Dinner at Restaurante La Parada"
             ? { opensAt: "17:00", closesAt: "22:00" }
@@ -105,7 +109,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 vi.mock("convex/react", () => ({
   useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
-  useMutation: () => vi.fn(),
+  useMutation: () => mutate,
 }));
 
 test("switches the Costa Rica timeline between trip dates", async () => {
@@ -234,6 +238,8 @@ test("public links display the timeline without editing controls", async () => {
   try {
     await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
     expect(container.textContent).toContain("La Fortuna Waterfall");
+    const waterfall = container.querySelector('a[href="https://example.com/waterfall"]');
+    expect(waterfall?.closest("li")?.textContent).toContain("Optional");
     expect(container.textContent).not.toContain("Add entry");
     expect(container.textContent).not.toContain("Edit itinerary");
     expect(
@@ -246,6 +252,23 @@ test("public links display the timeline without editing controls", async () => {
     expect(
       container.querySelector('button[aria-label="Actions for La Fortuna Waterfall"]'),
     ).not.toBeNull();
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Edit La Fortuna Waterfall"]')
+        ?.click();
+    });
+    const optional = document.querySelector<HTMLButtonElement>(
+      'button[role="switch"][aria-labelledby="entry-optional-label"]',
+    );
+    expect(optional?.getAttribute("aria-checked")).toBe("true");
+    await act(async () => optional?.click());
+    expect(optional?.getAttribute("aria-checked")).toBe("false");
+    await act(async () => optional?.form?.requestSubmit());
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry: expect.objectContaining({ title: "La Fortuna Waterfall", isOptional: false }),
+      }),
+    );
   } finally {
     await act(async () => root.unmount());
     container.remove();

@@ -142,6 +142,8 @@ export default defineSchema({
     ),
     subtype: v.optional(v.string()),
     details: v.string(),
+    /** Whether this itinerary entry is an optional plan. Absent on legacy entries. */
+    isOptional: v.optional(v.boolean()),
     cost: v.optional(
       v.object({
         amount: v.number(),
