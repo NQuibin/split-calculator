@@ -17,17 +17,19 @@ function Detail({
   time,
   value,
   compact,
+  className,
 }: {
   label: string;
   date?: string;
   time?: string;
   value?: string;
   compact?: boolean;
+  className?: string;
 }) {
   const { formatExpenseDate, formatExpenseDateShort } = useLocaleFormatters();
   if (!date && !time && !value) return null;
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", className)}>
       <dt className={cn("text-ink-soft", compact && "text-xs")}>{label}</dt>
       <dd className={cn("flex flex-wrap gap-x-2 break-words text-ink", compact && "font-semibold")}>
         {date && (
@@ -51,15 +53,17 @@ function AirportDetail({
   city,
   code,
   compact,
+  className,
 }: {
   label: string;
   city?: string;
   code?: string;
   compact: boolean;
+  className: string;
 }) {
   if (!city && !code) return null;
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0", className)}>
       <dt className={cn("text-ink-soft", compact && "text-xs")}>{label}</dt>
       <dd className={cn("break-words text-ink", compact && "font-semibold")}>
         {city}
@@ -83,7 +87,8 @@ export function TravelEntryDetails({
     <dl
       className={cn(
         "gap-y-2 text-sm",
-        compact ? "grid grid-cols-2 gap-x-3" : "flex flex-wrap gap-x-6",
+        (compact || flight) && "grid grid-cols-2 gap-x-3",
+        !compact && (flight ? "md:flex md:flex-wrap md:gap-x-6" : "flex flex-wrap gap-x-6"),
       )}
     >
       {flight && (
@@ -93,16 +98,33 @@ export function TravelEntryDetails({
             city={flight.departureCity}
             code={flight.departureAirportCode}
             compact={compact}
+            className="col-start-1 row-start-1"
           />
           <AirportDetail
             label="Destination"
             city={flight.destinationCity}
             code={flight.destinationAirportCode}
             compact={compact}
+            className="col-start-2 row-start-1"
           />
-          <Detail label="Local departure time" time={flight.departureTime} compact={compact} />
-          <Detail label="Local arrival time" time={flight.arrivalTime} compact={compact} />
-          <Detail label="Flight number" value={flight.number} compact={compact} />
+          <Detail
+            label="Local departure time"
+            time={flight.departureTime}
+            compact={compact}
+            className="col-start-1 row-start-2"
+          />
+          <Detail
+            label="Local arrival time"
+            time={flight.arrivalTime}
+            compact={compact}
+            className="col-start-2 row-start-2"
+          />
+          <Detail
+            label="Flight number"
+            value={flight.number}
+            compact={compact}
+            className="col-span-2 row-start-3"
+          />
         </>
       )}
       {lodging && (

@@ -6,6 +6,8 @@ import {
   BedDouble,
   CableCar,
   Coffee,
+  Clock,
+  Coins,
   Helicopter,
   Martini,
   Soup,
@@ -466,6 +468,15 @@ export function ItineraryPage({ id, day }: { id: string; day?: string }) {
   );
 }
 
+function EntryInfoRow({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-start gap-2 text-sm text-ink">
+      <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-forest" />
+      {children}
+    </div>
+  );
+}
+
 function TimelineEntry({
   entry,
   onEdit,
@@ -486,6 +497,7 @@ function TimelineEntry({
       ? subtypeIcons[entry.subtype as EntrySubtype]
       : undefined) ?? entryIcons[entry.kind];
   const showCategory = entry.kind !== "lodging";
+  const foodHours = entry.kind === "food" ? entry.foodHours : undefined;
   const { currency } = useLocaleFormatters();
   return (
     <li
@@ -602,17 +614,8 @@ function TimelineEntry({
             </div>
           </>
         )}
-        {entry.kind === "travel" && entry.subtype === "flight" && entry.flight && (
-          <div className="col-span-full mt-3 border-t border-rule pt-3">
-            <GroupTitle as="h4">Flight details</GroupTitle>
-            <div className="mt-2">
-              <TravelEntryDetails entry={entry} />
-            </div>
-          </div>
-        )}
         {(showCategory || entry.subtype || entry.location || entry.lodging || entry.cost) && (
           <div className="col-span-full mt-3 flex flex-col gap-2 border-t border-rule pt-3">
-            {entry.kind === "lodging" && <GroupTitle as="h4">Lodging details</GroupTitle>}
             {(showCategory || entry.subtype) && (
               <p className="text-sm text-ink">
                 <span className="font-medium">{entryKinds[entry.kind]}</span>
@@ -622,8 +625,7 @@ function TimelineEntry({
               </p>
             )}
             {entry.location && (
-              <div className="flex items-start gap-2 text-sm text-ink">
-                <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-forest" />
+              <EntryInfoRow icon={MapPin}>
                 {entry.location.url ? (
                   <a
                     href={entry.location.url}
@@ -634,49 +636,51 @@ function TimelineEntry({
                 ) : (
                   <span className="min-w-0 break-words">{entry.location.name}</span>
                 )}
-              </div>
+              </EntryInfoRow>
             )}
-            {entry.kind === "food" && entry.foodHours && (
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink">
-                {entry.foodHours.opensAt && (
-                  <span>
-                    Opens at{" "}
-                    <time className="font-numeric" dateTime={entry.foodHours.opensAt}>
-                      {entry.foodHours.opensAt}
-                    </time>
-                  </span>
-                )}
-                {entry.foodHours.closesAt && (
-                  <span>
-                    Closes at{" "}
-                    <time className="font-numeric" dateTime={entry.foodHours.closesAt}>
-                      {entry.foodHours.closesAt}
-                    </time>
-                  </span>
-                )}
-              </div>
+            {(foodHours?.opensAt || foodHours?.closesAt) && (
+              <EntryInfoRow icon={Clock}>
+                <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1">
+                  {foodHours.opensAt && (
+                    <span>
+                      Opens at{" "}
+                      <time className="font-numeric" dateTime={foodHours.opensAt}>
+                        {foodHours.opensAt}
+                      </time>
+                    </span>
+                  )}
+                  {foodHours.closesAt && (
+                    <span>
+                      Closes at{" "}
+                      <time className="font-numeric" dateTime={foodHours.closesAt}>
+                        {foodHours.closesAt}
+                      </time>
+                    </span>
+                  )}
+                </div>
+              </EntryInfoRow>
             )}
             {entry.cost && (
-              <p className="flex flex-wrap items-baseline gap-x-2 text-sm text-ink">
-                <span className="font-medium">Cost</span>
-                <span className="font-numeric font-semibold">
-                  {currency(entry.cost.amount, entry.cost.currency)} {entry.cost.currency}
-                </span>
-                <span className="text-ink-soft">
-                  {entry.cost.basis === "per_person" ? "per person" : "total"}
-                </span>
-              </p>
+              <EntryInfoRow icon={Coins}>
+                <p className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium">Cost</span>
+                  <span className="min-w-0 break-words font-numeric font-semibold">
+                    {currency(entry.cost.amount, entry.cost.currency)} {entry.cost.currency}
+                  </span>
+                  <span className="text-ink-soft">
+                    {entry.cost.basis === "per_person" ? "per person" : "total"}
+                  </span>
+                </p>
+              </EntryInfoRow>
             )}
-            {entry.lodging && <TravelEntryDetails entry={entry} />}
-            {entry.kind !== "lodging" && entry.details && (
-              <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.details}</p>
-            )}
+            <TravelEntryDetails entry={entry} />
           </div>
         )}
-        {entry.details && entry.kind === "lodging" && (
-          <p className="col-span-full mt-3 whitespace-pre-wrap break-words border-t border-rule pt-3 text-sm text-ink">
-            {entry.details}
-          </p>
+        {entry.details && (
+          <section className="col-span-full mt-3 grid min-w-0 gap-2 border-t border-rule pt-3">
+            <GroupTitle as="h4">Details</GroupTitle>
+            <p className="whitespace-pre-wrap break-words text-sm text-ink">{entry.details}</p>
+          </section>
         )}
       </div>
       {children}

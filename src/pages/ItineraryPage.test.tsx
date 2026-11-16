@@ -161,6 +161,7 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(lodging.open).toBe(false);
     const timeline = container.querySelector('section[aria-labelledby="timeline-heading"]');
     const flightDetails = timeline?.querySelector("dl");
+    expect(timeline?.textContent).not.toContain("Flight details");
     expect(flightDetails?.textContent).toContain("Toronto (YYZ)");
     expect(flightDetails?.textContent).toContain("Liberia (LIR)");
     expect(flightDetails?.textContent).toContain("Flight numberAC 123");
@@ -171,7 +172,14 @@ test("switches the Costa Rica timeline between trip dates", async () => {
       row.textContent?.includes("Airbnb check-in"),
     );
     expect(lodgingRow?.textContent).toContain("Freshen up.");
-    expect(lodgingRow?.textContent).toContain("Lodging details");
+    expect(lodgingRow?.textContent).not.toContain("Lodging details");
+    expect(
+      Array.from(lodgingRow?.querySelectorAll("h4") ?? []).map((heading) => heading.textContent),
+    ).toContain("Details");
+    const lodgingDetailsHeading = Array.from(lodgingRow?.querySelectorAll("h4") ?? []).find(
+      (heading) => heading.textContent === "Details",
+    );
+    expect(lodgingDetailsHeading?.closest("section")?.textContent).toContain("Freshen up.");
     expect(lodgingRow?.querySelector('a[href="https://example.com/lodging"]')?.textContent).toBe(
       "La Fortuna lodging",
     );
@@ -181,24 +189,32 @@ test("switches the Costa Rica timeline between trip dates", async () => {
     expect(lodgingRow?.querySelector("dl")?.textContent).toContain(
       "Local check-outNov 22, 202610:00",
     );
-    expect(timeline?.textContent).toContain("Opens at 17:00");
-    expect(timeline?.textContent).toContain("Closes at 22:00");
+    const dinnerRow = Array.from(timeline?.querySelectorAll("li") ?? []).find((row) =>
+      row.textContent?.includes("Dinner at Restaurante La Parada"),
+    );
+    expect(dinnerRow?.textContent).toContain("Opens at 17:00");
+    expect(dinnerRow?.textContent).toContain("Closes at 22:00");
+    expect(dinnerRow?.querySelector("svg.lucide-clock")).not.toBeNull();
     expect(container.textContent).not.toContain("La Fortuna Waterfall");
 
     expect(days[1].getAttribute("href")).toBe("/itineraries/trip?day=2026-11-18");
     await act(async () => root.render(<ItineraryPage id="trip" day="2026-11-18" />));
     expect(timeline?.textContent).not.toContain("Arrive at Liberia Airport");
     expect(travel?.textContent).toContain("Arrive at Liberia Airport");
-    expect(container.textContent).not.toContain("Flight details");
     expect(container.textContent).toContain("La Fortuna Waterfall");
     const location = container.querySelector('a[href="https://example.com/waterfall"]');
     expect(location?.textContent).toBe("La Fortuna Waterfall entrance");
     expect(location?.closest("li")?.textContent).toMatch(/Cost.*20\.00 USD.*per person/);
-    expect(location?.parentElement?.parentElement?.textContent).toContain("Attraction · Viewpoint");
+    expect(location?.closest("li")?.querySelector("svg.lucide-coins")).not.toBeNull();
+    expect(location?.closest("li")?.querySelector("svg.lucide-map-pin")).not.toBeNull();
+    expect(location?.closest("li")?.textContent).toContain("Attraction · Viewpoint");
+    const waterfallDetails = Array.from(
+      location?.closest("li")?.querySelectorAll("section") ?? [],
+    ).find((section) => section.querySelector("h4")?.textContent === "Details");
+    expect(waterfallDetails?.textContent).toContain("$20 USD plus tax.");
     expect(location?.closest("li")?.querySelector("svg.lucide-mountain")).not.toBeNull();
     expect(travel?.textContent).not.toContain("La Fortuna Waterfall");
     expect(lodging?.textContent).not.toContain("La Fortuna Waterfall");
-    expect(location?.parentElement?.parentElement?.textContent).toContain("$20 USD plus tax.");
     const actions = container.querySelector(
       'button[aria-label="Actions for La Fortuna Waterfall"]',
     );
