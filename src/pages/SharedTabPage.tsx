@@ -42,7 +42,7 @@ function SummaryAmount({
         {label}
       </p>
       <p
-        className={`font-numeric ${prominent ? "col-start-2 row-span-2 row-start-1 min-w-0 break-all self-center text-right text-lg @min-[40rem]:block @min-[40rem]:text-left" : "text-sm"} font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
+        className={`font-numeric ${prominent ? "col-start-2 row-span-2 row-start-1 min-w-0 break-all self-center text-right @min-[40rem]:block @min-[40rem]:text-left" : ""} text-sm font-semibold ${tone === "owed" ? "text-ledger-green" : tone === "owes" ? "text-margin-red-ink" : "text-ink"}`}
       >
         {amount === undefined ? "—" : currency(amount, code)}
       </p>

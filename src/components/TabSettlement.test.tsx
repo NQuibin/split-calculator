@@ -192,8 +192,12 @@ test("shows per-currency direct owed and owing totals with viewer-centric rows",
   expect(markup).toContain("chevron-x");
   expect(markup).toContain("grid-cols-[2rem_minmax(0,1fr)_max-content_1.5rem]");
   expect(markup).toContain('class="font-medium">Payment only</span>');
-  expect(markup.match(/text-lg font-semibold text-ledger-green/g)).toHaveLength(2);
-  expect(markup.match(/text-lg font-semibold text-margin-red-ink/g)).toHaveLength(2);
+  expect(
+    markup.match(/break-all font-numeric text-sm font-semibold text-ledger-green/g),
+  ).toHaveLength(2);
+  expect(
+    markup.match(/break-all font-numeric text-sm font-semibold text-margin-red-ink/g),
+  ).toHaveLength(2);
   expect(markup).toContain('aria-label="CAD balances"');
   expect(markup).toContain('aria-label="USD balances"');
   expect(markup).toContain("Owe you");
@@ -309,10 +313,11 @@ test("groups direct balances by direction and sorts each group by amount", () =>
   expect(
     [...container.querySelectorAll("li")].map((row) => row.querySelector("h3")?.textContent),
   ).toEqual(["Owe you", undefined, "You owe"]);
-  expect([...container.querySelectorAll(".text-lg")].map((total) => total.textContent)).toEqual([
-    "CA$10.00",
-    "CA$5.00",
-  ]);
+  expect(
+    [...container.querySelectorAll(".break-all.font-numeric.text-sm")].map(
+      (total) => total.textContent,
+    ),
+  ).toEqual(["CA$10.00", "CA$5.00"]);
 });
 
 test("shows zero total for the opposite direction", () => {

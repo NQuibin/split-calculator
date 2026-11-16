@@ -236,7 +236,7 @@ export function SettlementSummary({
                       <div className="flex min-w-0 flex-col gap-3 border-b-2 border-rule px-4 py-3 @min-[40rem]:col-start-1 @min-[40rem]:gap-6 @min-[40rem]:border-b-0 @min-[40rem]:p-6">
                         <p className="grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-3 @min-[40rem]:block">
                           <span className="block font-semibold">You’re owed</span>
-                          <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-lg font-semibold text-ledger-green">
+                          <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-sm font-semibold text-ledger-green">
                             {currency(owedCents / 100, group.currency)}
                           </span>
                           <span className="col-start-1 row-start-2 block text-xs text-ink-soft @min-[40rem]:mt-1">
@@ -245,7 +245,7 @@ export function SettlementSummary({
                         </p>
                         <p className="grid grid-cols-[minmax(0,1fr)_max-content] items-center gap-x-3 @min-[40rem]:block">
                           <span className="block font-semibold">You owe</span>
-                          <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-lg font-semibold text-margin-red-ink">
+                          <span className="col-start-2 row-span-2 row-start-1 block break-all font-numeric text-sm font-semibold text-margin-red-ink">
                             {currency(oweCents / 100, group.currency)}
                           </span>
                           <span className="col-start-1 row-start-2 block text-xs text-ink-soft @min-[40rem]:mt-1">
